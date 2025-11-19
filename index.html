@@ -1,6 +1,113 @@
 <!DOCTYPE html>
-<html>
-  <body style="margin:0;padding:0;height:100vh;">
-    <embed src="slides.pdf" type="application/pdf" width="100%" height="100%">
-  </body>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Simspect</title>
+  <style>
+    body { font-family: sans-serif; margin: 2em; }
+    h1 { font-size: 2em; }
+    a.fullscreen { display: inline-block; margin: 1em 0; padding: 0.5em 1em; background: #007bff; color: #fff; text-decoration: none; border-radius: 4px; }
+    a.fullscreen:hover { background: #0056b3; }
+    pre { background: #f4f4f4; padding: 1em; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>Simspect</h1>
+
+  <p><!-- Insert README content below this line --></p>
+  <pre>
+    # simspect
+    SimSpect is a framework for validating the correctness of Spectre defenses implemented in architectural simulators using automatically generated litmus tests.
+    A key challenge in validating these defenses is that they often target different classes of speculative leakage, making it impossible to define a one-size-fits-all litmus test suite. To address this challenge, SimSpect introduces a formal specification language for specifying a Spectre defense’s leakage contract, which defines what program data must be protected from leaking and when (i.e., under what runtime conditions). From a leakage contract, SimSpect first generates a complete set of minimal disallowed program templates, using finite model finding. Next, it instantiates each program template with applicable instructions from the simulated instruction to produce assembly language litmus test programs. These litmus tests can then be executed on a gem5 hardware defense implementation to catch bugs, or increase confidence in correctness.
+    
+    First, we will explain the elements of the formal language. Then we will get into the verification pipeline, which consists of **1. Alloy** model which generates a set of litmus tests which is complete and minimal w.r.t. the formal language definition of a defense, **2. Enumeration** where further bug-differentiating features of each litmus test are enumerated across, and **3. Gem5** where we will discuss how we prime and probe state and run the litmus tests in Gem5. Then we will discuss real bugs and where in the pipeline litmus tests branch that would differentiate them.
+    
+    Throughout the article we will use STT as an example defense. 
+    ## 1 Formal language
+    ### 1.1 Grammar
+    A defense is captured in SimSpect's formal language by specifying three definitions that make up its secure speculation scheme:
+    **1. Execution contract — the definition of a speculative instruction, based on program order and status flags (e.g. non-resolved ctrl instructions or all non-resolved instructions) - execution contract
+    **2. Leakage contract** — the set of pairs of instructions and operands that are considered transmitters (what and when leaks, e.g. implicit vs explicit transmitters) - leakage contract
+    **3. Protection set** — the set of state that should not leak speculatively (e.g. all memory vs specific addresses) - protection set
+    **4. Protection mechanism???**
+    
+    These three properties combine into a speculative protection policy that shall not be violated — no private data (**HPP**) should be transmitted by a speculative (**speculation model**) transmitter (**leakage function**).
+    ### 1.2 Syntax
+    **Instruction types**: load, store, ctrl, div, other
+    **Data types**: protected, unprotected
+    **Instruction flags**: retired, executed, handled_prediction, faulted, mispredicted, resolved, writeback
+    **Temporal relationships:** any relationship between instructions considering instructions are strictly ordered (using **po**, or program order).
+    **Instruction data**: reg_in, reg_out, mem_in, mem_out, addr_in
+    **Speculation primitives:** to add earlier on?
+    
+    **Acceptable instruction operands** - x for possible transmitter, o for possible non-transmitting operand
+    
+    |             |         | instruction |       |      |     |       |
+    | ----------- | ------- | ----------- | ----- | ---- | --- | ----- |
+    |             |         | load        | store | ctrl | div | other |
+    | **operand** | reg_in  |             | o     | x    | x   | o     |
+    |             | reg_out | o           |       |      | o   | o     |
+    |             | mem_in  | o           |       |      |     | o     |
+    |             | mem_out |             | o     |      |     | o     |
+    |             | addr_in | x           | x     | x    | x   | o     |
+    #todo check this chart
+    
+    ### 1.3 Example
+    STT has the following contract:
+    **Speculation model**: all control and data speculation 
+    **Leakage function**: All loads transmit their address. Ctrl instructions transmit their conditions. *note, STT does not recognize stores as transmitters*
+    **HPP:** all memory
+    ## 2 Pipeline
+    The SimSpect framework has the following steps: 
+    - Customize a formal model of abstract instruction execution to model the protection provided by defense (Alloy)
+    - Use this model to generate a set of litmus tests that concisely captures the space of programs disallowed by the defense (relaxations)
+    - Compile/sample these abstract tests into varied assembly executions
+    - Run traces on the simulator under test and probe leakage.
+    ![[images/Pasted image 20250828161948.png]]
+    ### 2.1 Generation
+    The goal of test generation is, given the formal representation of a defense's secure speculation scheme, to **capture executions within some size bound that span the space of leakage behavior we consider interesting for this defense.** We do this with a **base alloy model** which defines execution behavior and provides syntax for our formal defense protection policy, and then a **auxiliary model** which is **defense specific** and fills out these three definitions of our protection policy. Together, these models generate templates of executions, or strings of template instructions with flags and inputs and outputs.
+    #### 2.1.1 Alloy model
+    We use Alloy because it is easy to define constraints and generate all matching instances, and it can handle perturbation logic to minimize trace complexity. However, it is clunky with temporal logic and we have to quantify in order to track dependency chains, but traces are short so it's ok.
+    ![[Screenshot 2025-08-28 at 4.41.12 PM.png]]
+    
+    The basic model, seen above, represents executions as a chain of template instructions. The instructions are strictly ordered, and have optional input and output state elements, depending on the nature of the template. 
+    
+    **Perturbations**
+    We then perturb the elements of the model and enumerate possible executions s.t. the execution leaks information, but the removal of any element makes it so that it does not leak information. This technique comes from **MCM paper cite** and tests the boundary of allowed and disallowed executions, along the elements handled in Alloy. 
+    
+    **STT Example generated trace**![[Screenshot 2025-08-28 at 4.59.29 PM.png]]
+    ### 2.2 Enumeration
+    Generate real .asm snippets, annotated with branch predictor or address predictor state, from an abstract test trace. Fill in how speculation arises, and which X86 instructions fit in the abstract cases.
+    ![[images/Pasted image 20250828170211.png]]
+    ### 2.3 Execution
+    - Given some functional .asm snippets, annotated with branch predictor or address predictor state, prime accordingly and run in Gem5
+    - Created new branch and address predictors to explicitly set what predictions are made
+    -  Execute the tests repeatedly, and use explicit measurement of leakage
+    ![[images/Pasted image 20250828170404.png]]
+    ### 2.4 Feature division
+    Why do we divide in the Alloy model vs in the enumeration? Because we don't want too much computation in the Alloy so we limit it to fundamental blocks of the leakage process that could combine in ways that cause leakage. Intuitively, Alloy handles things that **should** change the leakage behavior of the trace and things that **shouldn't** are left to the enumeration phase. This allows the enumeration/concretization phase to be modified to handle different types of execution factors without messing with the underlying speculative leakage model.
+    
+    **Chart of which features are enumerated in which parts of the process**
+    
+    | Model                                                                                                    | Enumeration                                                                                                                                                                              | Gem5                                                                           |
+    | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+    | - template instructions<br>- implies speculation<br>- incomplete operands  <br>- template state elements | - templates to real instructions<br>- interleave additional instructions<br>- name shared state operands<br>- introduce single use irrelevant state operands<br>- speculation primitives - set state for speculation primitives<br>- manage measurement of speculation e  |
+    
+    ## 3 Real bug examples
+    ![[Screenshot 2025-08-28 at 5.33.23 PM.png]]
+    ![[Screenshot 2025-08-28 at 5.33.39 PM.png]]
+    ## 4 Discussion and related work
+    ### 4.1 Limitations
+    - Manual determination of relevant state for the model - could also be a good thing if you know your defense has nothing to do with a certain type of feature, you could omit it from the testing
+    - Unidirectional measure, does not find overprotection
+    - Currently does not capture unaligned load/store bugs
+    ### 4.2 AMuLeT
+    - relies on simulating the defense completely in a leakage model and fuzz with random traces. Also they are solving for SNI
+    ### 4.3 Relation to similar Spectre defense taxonomies
+    **Proposal** - relate to leakage contract, execution contract, protection set, and protection mechanism
+  </pre>
+
+  <a class="fullscreen" href="slides.pdf" target="_blank">View Slides Full-Screen</a>
+
+</body>
 </html>
