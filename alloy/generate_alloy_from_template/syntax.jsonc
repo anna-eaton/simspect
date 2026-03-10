@@ -1,0 +1,28 @@
+{
+  // allowed instructions
+  "instructions": ["Load", "Store", "Ctrl", "Div", "Other"],
+  "operands": ["inreg", "inaddr", "inmem", "outreg", "outmem"], // dont change this one, just here for reference 
+  // say which instructions can have which operands
+  "operand_constraints": {
+    "Load": ["inaddr", "outreg", "inmem"], // load takes an address and memory and modifies a register
+    "Store": ["inaddr", "inreg", "outmem"], // store takes data, addr and modifies mem, not reg
+    "Ctrl": ["inreg", "inaddr"], // ctrl takes maybe data and maybe addr op and modifies nothing
+    "Div": ["inreg", "inaddr", "outreg"], // div takes data and maybe addr? TODO idk why i have it as taking addr. and modifies reg not mem 
+    "Other": ["inreg", "inaddr", "inmem", "outreg", "outmem"] // other can do whatever it wants
+  }
+
+  // custom alloy lines to insert: (in case we want instruction specific limits)
+
+}
+
+/* 
+
+
+model is parametrized across instruction types so that we can modify that after the fact
+
+ALLOWED:
+  "operands": ["inreg", "inaddr", "inmem", "outreg", "outmem"],
+  "boolean_tags": ["executed", "handled_pred", "retired"],
+  "constraint_tags": ["po_acyclic", "po_prior", "po_total", "retired_last", "first_unretired"],
+  
+  */
