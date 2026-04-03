@@ -25,6 +25,22 @@ from pathlib import Path
 # Make sure parsexml is importable from the same directory as this script.
 sys.path.insert(0, str(Path(__file__).parent))
 
+import importlib as _importlib
+
+def _load_parser(kind: bool):
+    mod = _importlib.import_module("parsexml_kind" if kind else "parsexml")
+    return (
+        mod.parse_alloy_xml,
+        mod.pass1_specify_state_a,
+        mod.pass2_specify_instructions,
+        mod.pass2_5_specify_branches,
+        mod.pass3_assign_operands,
+        mod.pass4_ssa,
+        mod.pass5_emit_llvm,
+        mod.emit_branch_annotations,
+    )
+
+# defaults (overridden by --kind at runtime)
 from parsexml import (
     parse_alloy_xml,
     pass1_specify_state_a,
@@ -48,8 +64,12 @@ RUN_MODES: list[str] = [
 ]
 
 
-def run_pipeline(xml_text: str, stem: str, out_dir: Path, mode: str) -> None:
+def run_pipeline(xml_text: str, stem: str, out_dir: Path, mode: str,
+                 _fns=None) -> None:
     """Run the full pipeline for one XML file and one branch mode."""
+    (parse_alloy_xml, pass1_specify_state_a, pass2_specify_instructions,
+     pass2_5_specify_branches, pass3_assign_operands, pass4_ssa,
+     pass5_emit_llvm, emit_branch_annotations) = _fns
     inst = parse_alloy_xml(xml_text)
     r1   = pass1_specify_state_a(inst,   write_out=False)
     r2   = pass2_specify_instructions(r1, write_out=False)
@@ -64,19 +84,43 @@ def run_pipeline(xml_text: str, stem: str, out_dir: Path, mode: str) -> None:
     emit_branch_annotations(r4,         out_path=str(ann_path), write_out=True)
 
 
+def has_unresolved_branch(xml_text: str, parse_fn, pass1_fn) -> bool:
+    """Return True if the instance contains at least one unresolved branch."""
+    inst = parse_fn(xml_text)
+    r1   = pass1_fn(inst, write_out=False)
+    return any(
+        i["kind"] in ("br_n", "br_x") and not i.get("resolved", False)
+        for i in r1["instructions"]
+    )
+
+
 def process_folder(
     input_dir: Path,
     output_dir: Path,
     pattern: str,
     modes: list[str],
+    kind: bool = False,
+    filter_unresolved_branch: bool = False,
+    limit: int = 0,
 ) -> None:
+    _fns = _load_parser(kind)
+    parse_fn, pass1_fn = _fns[0], _fns[1]
     xml_files = sorted(input_dir.glob(pattern))
 
     if not xml_files:
         print(f"No files matching '{pattern}' found in {input_dir}")
         return
 
-    print(f"Found {len(xml_files)} file(s) in {input_dir}")
+    if filter_unresolved_branch:
+        xml_files = [f for f in xml_files
+                     if has_unresolved_branch(f.read_text(encoding="utf-8"), parse_fn, pass1_fn)]
+        print(f"After filter: {len(xml_files)} file(s) with an unresolved branch.")
+    else:
+        print(f"Found {len(xml_files)} file(s) in {input_dir}")
+
+    if limit > 0:
+        xml_files = xml_files[:limit]
+        print(f"Limiting to first {limit} file(s).")
 
     ok = err = 0
 
@@ -93,7 +137,7 @@ def process_folder(
             mode_dir.mkdir(parents=True, exist_ok=True)
 
             try:
-                run_pipeline(xml_text, stem, mode_dir, mode)
+                run_pipeline(xml_text, stem, mode_dir, mode, _fns=_fns)  # type: ignore[call-arg]
                 print(f"  [ok]  {xml_path.name}  ({mode})")
                 ok += 1
             except NotImplementedError as exc:
@@ -128,6 +172,18 @@ def main() -> None:
         default="inst-*.xml",
         help="Glob pattern for input files (default: inst-*.xml).",
     )
+    parser.add_argument(
+        "--kind", action="store_true",
+        help="Use parsexml_kind.py (for kind-field Alloy model output).",
+    )
+    parser.add_argument(
+        "--unresolved-branch", action="store_true",
+        help="Only process instances that contain at least one unresolved branch.",
+    )
+    parser.add_argument(
+        "--limit", type=int, default=0,
+        help="Stop after processing this many files (0 = no limit).",
+    )
     args = parser.parse_args()
 
     input_dir  = Path(args.input_dir).resolve()
@@ -139,7 +195,10 @@ def main() -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    process_folder(input_dir, output_dir, args.pattern, RUN_MODES)
+    process_folder(input_dir, output_dir, args.pattern, RUN_MODES,
+                   kind=args.kind,
+                   filter_unresolved_branch=args.unresolved_branch,
+                   limit=args.limit)
 
 
 if __name__ == "__main__":

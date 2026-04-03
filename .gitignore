@@ -1,2 +1,7 @@
 alloy/alloy-out/
 alloy/out_llvm/
+images/
+.claude/
+alloy/alloy-out/
+
+alloy/crap/

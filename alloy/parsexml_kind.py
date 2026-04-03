@@ -67,7 +67,6 @@ def topo_sort(nodes: List[str], edges: List[Tuple[str, str]]) -> List[str]:
     if len(out) != len(set(nodes)):
         raise ValueError("spo graph is not a DAG or nodes list is incomplete.")
 
-    out.reverse()
     return out
 
 # -----------------------------
@@ -201,6 +200,7 @@ def pass1_specify_state_a(
 
     resolved_instrs = {ins for (ins, _) in inst.fields.get("isresolved", [])}
     committed_instrs = {ins for (ins, _) in inst.fields.get("iscommitted", [])}
+    xm_instrs        = {ins for (ins, _) in inst.fields.get("isxm",        [])}
 
     reg_states = inst.sig_atoms.get("this/Reg_s", set())
     mem_states = inst.sig_atoms.get("this/Mem_s", set())
@@ -224,9 +224,10 @@ def pass1_specify_state_a(
 
     for pc, ins in enumerate(order):
         kind = _kind_token(ins, kind_of)
-        resolved_bool = ins in resolved_instrs
+        resolved_bool  = ins in resolved_instrs
         committed_bool = ins in committed_instrs
-        resolved = "true" if resolved_bool else "false"
+        xm_bool        = ins in xm_instrs
+        resolved  = "true" if resolved_bool  else "false"
         committed = "true" if committed_bool else "false"
 
         inregs = inregs_of.get(ins, [])
@@ -264,8 +265,9 @@ def pass1_specify_state_a(
                 "pc": pc,
                 "instruction": ins,
                 "kind": kind,
-                "resolved": resolved_bool,
+                "resolved":  resolved_bool,
                 "committed": committed_bool,
+                "xm":        xm_bool,
                 "slots": slots,
             }
         )
@@ -1158,6 +1160,19 @@ def pass5_emit_llvm(
     lines.append(f"define i64 @{func_name}() {{")
     lbl("entry")
 
+    # ---- Detect inaddr uses: need a probe array as base ----
+    # When inaddr is specified, the secret value is used as an OFFSET into probe_mem
+    # (not the raw base address). This is the canonical Spectre pattern:
+    #   movq (%probe_base, %secret, 1), %dst
+    # Different secret values hit different cache lines → observable side channel.
+    # probe_mem is always valid; secret=0 just reads probe_mem[0].
+    _has_inaddr_load_or_store = any(
+        (get_slot(_r, "inaddr") or {}).get("specified") and
+        (get_slot(_r, "inaddr") or {}).get("ssa_name")
+        for _r in instructions
+        if _r.get("concrete_instruction") in ("load", "store")
+    )
+
     # ---- Alloca + memory zero-initialisation ----
     if alloca_n > 0:
         il(f"%mem_base = alloca [{alloca_n} x i64], align 8")
@@ -1166,13 +1181,48 @@ def pass5_emit_llvm(
             il(f"{gp} = getelementptr [{alloca_n} x i64], ptr %mem_base, i64 0, i64 {i}")
             il(f"store volatile i64 0, ptr {gp}, align 8")
 
+    # ---- Probe array for inaddr-based loads/stores ----
+    # 256 slots × 64 bytes (cache-line stride) = one cache line per possible byte value.
+    if _has_inaddr_load_or_store:
+        il(f"%probe_mem = alloca [256 x i64], align 64")
+        for _pi in range(256):
+            _pgp = tmp("pg")
+            il(f"{_pgp} = getelementptr [256 x i64], ptr %probe_mem, i64 0, i64 {_pi}")
+            il(f"store volatile i64 0, ptr {_pgp}, align 8")
+
     # ---- SSA init: zero-initialise registers read before first write ----
-    # All assigned registers are physical x86 names, so always use asm_force.
     for reg, ssa_name in sorted(ssa_init.items()):
         asm_force(ssa_name, reg, "0")
 
+    # ---- Condition slots for mispredicted branches ----
+    # For each mispredict_not_taken branch, allocate a cache-line-aligned slot
+    # and initialise it to 1 (so the branch condition resolves to "taken").
+    # The slot is flushed from cache at the branch site to maximise the
+    # speculation window (the load will miss L1/L2/L3, ~200-300 cycles).
+    cond_slots: Dict[int, str] = {}
+    for rec in instructions:
+        ba = rec.get("branch_annotations")
+        if ba and ba.get("mode") == "mispredict_not_taken":
+            slot = f"%cond_slot_pc{rec['pc']}"
+            # align 64 = cache-line aligned so clflush hits exactly this line
+            il(f"{slot} = alloca i64, align 64")
+            il(f"store volatile i64 1, ptr {slot}, align 64")
+            cond_slots[rec["pc"]] = slot
+
+    # ---- Commit boundary PCs ----
+    last_committed_pc: Optional[int] = None
+    first_noncommitted_pc: Optional[int] = None
+    for rec in instructions:
+        if rec.get("committed", False):
+            last_committed_pc = rec["pc"]
+    for rec in instructions:
+        if not rec.get("committed", False):
+            first_noncommitted_pc = rec["pc"]
+            break
+
     # ---- Emit instructions ----
     last_was_terminator = False
+    safe_name = func_name.replace("-", "_").replace(".", "_")
 
     for rec in instructions:
         pc = rec["pc"]
@@ -1183,77 +1233,189 @@ def pass5_emit_llvm(
             lbl(f"bb_{pc}")
 
         cm(f"pc={pc}  {atom}  ({concrete})")
+        marker = f"__litmus_{safe_name}_pc{pc}"
+        # pc marker prefix shared by all asm blocks below; each instruction
+        # type integrates it into its own single asm sideeffect call so that
+        # nothing (GEP, icmp, etc.) can appear between the label and the
+        # actual instruction in the compiled output.
+        mkr = f".globl {marker}\\0A{marker}:\\0A"
+        if pc == last_committed_pc:
+            cb = f"__litmus_{safe_name}_last_committed"
+            mkr += f".globl {cb}\\0A{cb}:\\0A"
+        if pc == first_noncommitted_pc:
+            cb = f"__litmus_{safe_name}_first_noncommitted"
+            mkr += f".globl {cb}\\0A{cb}:\\0A"
+
         last_was_terminator = False
 
         if concrete == "load":
-            idx = mem_slot_idx(rec, "inmem")
-            if idx is None or alloca_n == 0:
-                cm(f"WARNING: load {atom} missing inmem offset — skipped")
-                continue
-            gp = tmp("gep")
-            il(f"{gp} = getelementptr [{alloca_n} x i64], ptr %mem_base, i64 0, i64 {idx}")
+            inaddr_sr = get_slot(rec, "inaddr")
+            # Only use the rf-specified inaddr — virtual-pool assignments are noise
+            _ia_specified = inaddr_sr and inaddr_sr.get("specified")
+            inaddr_ssa  = inaddr_sr.get("ssa_name") if _ia_specified else None
+            inaddr_phys = inaddr_sr.get("assigned") if _ia_specified else None
             outreg_sr = get_slot(rec, "outreg")
-            if outreg_sr and outreg_sr.get("ssa_name"):
-                out_name = outreg_sr["ssa_name"]
-                phys = outreg_sr.get("assigned")
-                lt = tmp("ld")
-                il(f"{lt} = load volatile i64, ptr {gp}, align 8")
-                asm_force(out_name, phys, lt)
+            if inaddr_ssa and inaddr_phys:
+                # Secret value used as byte offset into probe_mem — canonical Spectre pattern:
+                #   movq (%probe_mem, %secret, 1), %dst
+                # probe_mem is always valid; different secret values hit different cache lines.
+                if outreg_sr and outreg_sr.get("ssa_name"):
+                    out_name = outreg_sr["ssa_name"]
+                    phys = outreg_sr.get("assigned")
+                    il(f'%{out_name} = call i64 asm sideeffect '
+                       f'"{mkr}movq ($1, $2, 1), $0", '
+                       f'"=&{{{phys}}},r,{{{inaddr_phys}}},~{{memory}}"'
+                       f'(ptr %probe_mem, i64 %{inaddr_ssa})')
+                else:
+                    il(f'call void asm sideeffect '
+                       f'"{mkr}movq ($0, $1, 1), %%rax", '
+                       f'"r,{{{inaddr_phys}}},~{{memory}},~{{rax}}"'
+                       f'(ptr %probe_mem, i64 %{inaddr_ssa})')
             else:
-                sk = tmp("sk")
-                il(f"{sk} = load volatile i64, ptr {gp}, align 8")
+                idx = mem_slot_idx(rec, "inmem")
+                if idx is None or alloca_n == 0:
+                    il(f'call void asm sideeffect ".globl {marker}\\0A{marker}:", ""()')
+                    cm(f"WARNING: load {atom} missing inmem offset — skipped")
+                    continue
+                offset = idx * 8
+                if outreg_sr and outreg_sr.get("ssa_name"):
+                    out_name = outreg_sr["ssa_name"]
+                    phys = outreg_sr.get("assigned")
+                    il(f'%{out_name} = call i64 asm sideeffect '
+                       f'"{mkr}movq {offset}($1), $0", '
+                       f'"=&{{{phys}}},r,~{{memory}}"(ptr %mem_base)')
+                else:
+                    il(f'call void asm sideeffect '
+                       f'"{mkr}movq {offset}($0), %rax", '
+                       f'"r,~{{memory}},~{{rax}}"(ptr %mem_base)')
 
         elif concrete == "store":
-            idx = mem_slot_idx(rec, "outmem")
-            if idx is None or alloca_n == 0:
-                cm(f"WARNING: store {atom} missing outmem offset — skipped")
-                continue
-            gp = tmp("gep")
-            il(f"{gp} = getelementptr [{alloca_n} x i64], ptr %mem_base, i64 0, i64 {idx}")
-            src = ssa_ref(rec, "inreg0") or "0"
-            il(f"store volatile i64 {src}, ptr {gp}, align 8")
+            inaddr_sr = get_slot(rec, "inaddr")
+            _ia_specified = inaddr_sr and inaddr_sr.get("specified")
+            inaddr_ssa  = inaddr_sr.get("ssa_name") if _ia_specified else None
+            inaddr_phys = inaddr_sr.get("assigned") if _ia_specified else None
+            inreg0_sr = get_slot(rec, "inreg0")
+            if inaddr_ssa and inaddr_phys:
+                # Address comes from register via rf edge — use it directly
+                # Secret value as byte offset into probe_mem (store to tagged cache line)
+                if inreg0_sr and inreg0_sr.get("ssa_name"):
+                    src_ssa = f'%{inreg0_sr["ssa_name"]}'
+                    phys_src = inreg0_sr.get("assigned")
+                    in_con = f'{{{phys_src}}}' if phys_src else 'r'
+                    il(f'call void asm sideeffect '
+                       f'"{mkr}movq $0, ($1, $2, 1)", '
+                       f'"{in_con},r,{{{inaddr_phys}}},~{{memory}}"'
+                       f'(i64 {src_ssa}, ptr %probe_mem, i64 %{inaddr_ssa})')
+                else:
+                    il(f'call void asm sideeffect '
+                       f'"{mkr}movq $$0, ($0, $1, 1)", '
+                       f'"r,{{{inaddr_phys}}},~{{memory}}"'
+                       f'(ptr %probe_mem, i64 %{inaddr_ssa})')
+            else:
+                idx = mem_slot_idx(rec, "outmem")
+                if idx is None or alloca_n == 0:
+                    il(f'call void asm sideeffect ".globl {marker}\\0A{marker}:", ""()')
+                    cm(f"WARNING: store {atom} missing outmem offset — skipped")
+                    continue
+                offset = idx * 8
+                if inreg0_sr and inreg0_sr.get("ssa_name"):
+                    src_ssa = f'%{inreg0_sr["ssa_name"]}'
+                    phys_src = inreg0_sr.get("assigned")
+                    in_con = f'{{{phys_src}}}' if phys_src else 'r'
+                    il(f'call void asm sideeffect '
+                       f'"{mkr}movq $0, {offset}($1)", '
+                       f'"{in_con},r,~{{memory}}"(i64 {src_ssa}, ptr %mem_base)')
+                else:
+                    il(f'call void asm sideeffect '
+                       f'"{mkr}movq $$0, {offset}($0)", '
+                       f'"r,~{{memory}}"(ptr %mem_base)')
 
         elif concrete == "bitnot":
             inreg0 = ssa_ref(rec, "inreg0") or "0"
+            inreg0_sr = get_slot(rec, "inreg0")
+            phys_in = inreg0_sr.get("assigned") if inreg0_sr else None
             outreg_sr = get_slot(rec, "outreg")
             if outreg_sr and outreg_sr.get("ssa_name"):
                 out_name = outreg_sr["ssa_name"]
-                phys = outreg_sr.get("assigned")
-                xt = tmp("xor")
-                il(f"{xt} = xor i64 {inreg0}, -1")
-                asm_force(out_name, phys, xt)
+                phys_out = outreg_sr.get("assigned")
+                if phys_in and phys_in == phys_out:
+                    # same register: NOT in place
+                    il(f'%{out_name} = call i64 asm sideeffect '
+                       f'"{mkr}notq $0", '
+                       f'"=&{{{phys_out}}},0,~{{flags}}"(i64 {inreg0})')
+                else:
+                    in_con = f'{{{phys_in}}}' if phys_in else 'r'
+                    il(f'%{out_name} = call i64 asm sideeffect '
+                       f'"{mkr}movq $1, $0\\0Anotq $0", '
+                       f'"=&{{{phys_out}}},{in_con},~{{flags}}"(i64 {inreg0})')
             else:
-                sk = tmp("sk")
-                il(f"{sk} = xor i64 {inreg0}, -1")
+                in_con = f'{{{phys_in}}}' if phys_in else 'r'
+                il(f'call void asm sideeffect '
+                   f'"{mkr}notq $0", '
+                   f'"{in_con},~{{flags}}"(i64 {inreg0})')
 
         elif concrete == "add":
             inreg0 = ssa_ref(rec, "inreg0") or "0"
             inreg1 = ssa_ref(rec, "inreg1") or "0"
+            inreg0_sr = get_slot(rec, "inreg0")
+            inreg1_sr = get_slot(rec, "inreg1")
+            phys_in0 = inreg0_sr.get("assigned") if inreg0_sr else None
+            phys_in1 = inreg1_sr.get("assigned") if inreg1_sr else None
             outreg_sr = get_slot(rec, "outreg")
             if outreg_sr and outreg_sr.get("ssa_name"):
                 out_name = outreg_sr["ssa_name"]
-                phys = outreg_sr.get("assigned")
-                at = tmp("add")
-                il(f"{at} = add i64 {inreg0}, {inreg1}")
-                asm_force(out_name, phys, at)
+                phys_out = outreg_sr.get("assigned")
+                in0_con = f'{{{phys_in0}}}' if phys_in0 else 'r'
+                in1_con = f'{{{phys_in1}}}' if phys_in1 else 'r'
+                il(f'%{out_name} = call i64 asm sideeffect '
+                   f'"{mkr}leaq ($1, $2), $0", '
+                   f'"=&{{{phys_out}}},{in0_con},{in1_con}"(i64 {inreg0}, i64 {inreg1})')
             else:
-                sk = tmp("sk")
-                il(f"{sk} = add i64 {inreg0}, {inreg1}")
+                in0_con = f'{{{phys_in0}}}' if phys_in0 else 'r'
+                in1_con = f'{{{phys_in1}}}' if phys_in1 else 'r'
+                il(f'call void asm sideeffect '
+                   f'"{mkr}leaq ($0, $1), %rax", '
+                   f'"{in0_con},{in1_con},~{{rax}}"(i64 {inreg0}, i64 {inreg1})')
 
         elif concrete in ("br_cond", "br_uncond"):
             ba = rec.get("branch_annotations")
             if ba:
-                cond = rec.get("condition_ssa_forced", "i1 true")
                 taken = ba["taken_target"]
-                ft = ba["fallthrough_target"]
+                ft    = ba["fallthrough_target"]
                 cm(f"BTB predicts={ba['btb_prediction']}  btb_predicted_pc={ba['btb_predicted_pc']}")
-                il(f"br {cond}, label %{taken}, label %{ft}")
+                if ba.get("mode") == "mispredict_not_taken" and pc in cond_slots:
+                    # Use virtual pool registers for ALL branch machinery so the
+                    # compiler never touches locked test registers (no spill).
+                    # scratch  = cond_slot pointer (for clflush)
+                    # cond_reg = loaded condition value (for compare)
+                    slot = cond_slots[pc]
+                    vpool = pass4_result.get("virtual_reg_pool", [])
+                    scratch  = vpool[0] if len(vpool) > 0 else "r10"
+                    cond_reg = vpool[1] if len(vpool) > 1 else "r11"
+                    # clflush block — explicit scratch register
+                    il(f'call void asm sideeffect '
+                       f'"{mkr}mfence\\0Aclflush ($0)\\0Amfence", '
+                       f'"{{{scratch}}},~{{memory}}"(ptr {slot})')
+                    # Condition load — forced into cond_reg, not a free compiler choice
+                    cond_raw = tmp("cond_raw")
+                    cond_i1  = tmp("cond_i1")
+                    il(f'{cond_raw} = call i64 asm sideeffect '
+                       f'"movq ($1), $0", '
+                       f'"=&{{{cond_reg}}},{{{scratch}}},~{{memory}}"(ptr {slot})')
+                    il(f"{cond_i1} = icmp ne i64 {cond_raw}, 0")
+                    il(f"br i1 {cond_i1}, label %{taken}, label %{ft}")
+                else:
+                    il(f'call void asm sideeffect "{mkr}", ""()')
+                    cond = rec.get("condition_ssa_forced", "i1 true")
+                    il(f"br {cond}, label %{taken}, label %{ft}")
                 last_was_terminator = True
             else:
-                # Resolved branch: linear flow continues, emit as comment only
+                # Resolved branch: emit marker only, no branch instruction
+                il(f'call void asm sideeffect "{mkr}", ""()')
                 cm(f"resolved branch {atom} — skipped")
 
         else:
+            il(f'call void asm sideeffect "{mkr}", ""()')
             cm(f"unknown concrete_instruction={concrete!r} — skipped")
 
     # ---- Epilogue ----
@@ -1326,13 +1488,45 @@ def emit_branch_annotations(
             "mode":                 ba["mode"],
         })
 
+    # Collect xmit instruction (flagged by isxm in the Alloy model).
+    # There is at most one per instance (fact one_xm).
+    xmit = None
+    for rec in result["instructions"]:
+        if rec.get("xm", False):
+            xmit = {
+                "pc":   rec["pc"],
+                "kind": rec["kind"],
+                "atom": rec["instruction"],
+            }
+            break
+
+    # Collect commit boundary (last committed / first noncommitted instruction).
+    last_committed: Optional[Dict[str, Any]] = None
+    first_noncommitted: Optional[Dict[str, Any]] = None
+    for rec in result["instructions"]:
+        if rec.get("committed", False):
+            last_committed = {"pc": rec["pc"], "atom": rec["instruction"]}
+    for rec in result["instructions"]:
+        if not rec.get("committed", False):
+            first_noncommitted = {"pc": rec["pc"], "atom": rec["instruction"]}
+            break
+
     if write_out:
         if out_path is None:
             raise ValueError("out_path must not be None when write_out=True")
-        payload = {
+        payload: Dict[str, Any] = {
             "branch_mode": result.get("branch_mode", "unknown"),
             "annotations": annotations,
         }
+        if xmit is not None:
+            payload["xmit"] = xmit
+        cb_payload: Dict[str, Any] = {}
+        if last_committed is not None:
+            cb_payload["last_committed"] = last_committed
+        if first_noncommitted is not None:
+            cb_payload["first_noncommitted"] = first_noncommitted
+        if cb_payload:
+            payload["commit_boundary"] = cb_payload
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
             f.write("\n")

@@ -67,7 +67,6 @@ def topo_sort(nodes: List[str], edges: List[Tuple[str, str]]) -> List[str]:
     if len(out) != len(set(nodes)):
         raise ValueError("spo graph is not a DAG or nodes list is incomplete.")
 
-    out.reverse()
     return out
 
 # -----------------------------
