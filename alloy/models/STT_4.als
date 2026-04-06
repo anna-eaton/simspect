@@ -306,5 +306,6 @@ fun speculation_contract_p[p: PTag->univ] : Instruction {uncommitted_p[p] & has_
 fun hardware_protection_policy: State {Mem_s}
 fun leakage_function : Operand {Loads.inaddr+(Branchxs+Otherxs).inreg}
 fun prot_set_propagation_p[p:PTag->univ,i:Instruction,s:State] : State {
-	s - (Loads & committed_p[p] & i).inaddr.opstate
+	//s - (Loads & committed_p[p] & i).inaddr.opstate//
+	s - (Loads & no_unresolved_brs_p[p] & i).inaddr.opstate // later could put bf or is, but loads and brs shouldnt overlap obv
 }

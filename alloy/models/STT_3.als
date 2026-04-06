@@ -233,16 +233,18 @@ fun no_unresolved_brs_p[p: PTag->univ] : Instruction {
 	i_p[p] - has_unresolved_brs_p[p]
 }
 
+fun no_unresolved_brs_bf_or_is_p[p: PTag->univ] : Instruction {
+	no_unresolved_brs_p[p] - (unresolved_p[p] & (Branchxs+Branchns)) // there are no unresolvd brs bf and it isnt itself an unresolved br
+}
+
 fun no_unresolved_mem_p[p: PTag->univ] : Instruction {
 	i_p[p] - (uncommitted & (Loads+Stores)).(^(spo))
 }
-
 
 pred secure_speculation_scheme_p[p: PTag->univ] {
 	(no (last_committed_protset_p[p].(~opstate) & speculative_xmit_p[p])) and
 	(no last_committed_protset_p[p].(~opstate).(^(op_edges_p[p])) & speculative_xmit_p[p])
 }
-
 
 // make sure there is some overlap in the end btw xm and speculative xmit
 //fact tag_xm {some xm & speculative_xmit_p[xm]}
@@ -251,7 +253,6 @@ fact tag_xm {
 	(some (last_committed_protset_p[no_p].(~opstate) & speculative_xmit_p[no_p] & xm.operands)) or
 	(some last_committed_protset_p[no_p].(~opstate).(^(op_edges_p[no_p])) & speculative_xmit_p[no_p] & xm.operands)
 }
-
 
 /*********************************************************************************
  * Symmetry breaking — works because Instruction is now a concrete sig
@@ -298,5 +299,7 @@ fun speculation_contract_p[p: PTag->univ] : Instruction {uncommitted_p[p] & has_
 fun hardware_protection_policy: State {Mem_s}
 fun leakage_function : Operand {Loads.inaddr+(Branchxs+Otherxs).inreg}
 fun prot_set_propagation_p[p:PTag->univ,i:Instruction,s:State] : State {
-	s - (Loads & committed_p[p] & i).inaddr.opstate
+	// s - (Loads & committed_p[p] & i).inaddr.opstate // committed loads remove their inaddr from the protset
+	s - (Loads & no_unresolved_brs_bf_or_is_p[p] & i).inaddr.opstate // loads that have no unresolvd brs before them remove their inaddr from protset (acc load is not branch so probs chill)
 }
+
