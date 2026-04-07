@@ -40,7 +40,7 @@ def compile_to_x86(ll_path: Path, out_dir: Path) -> tuple[Path, Path]:
     o_path = out_dir / (ll_path.stem + ".o")
     for flag, out in [("-S", s_path), ("-c", o_path)]:
         r = subprocess.run(
-            ["clang", "--target=x86_64-unknown-linux-gnu", "-O0",
+            ["clang-15", "--target=x86_64-unknown-linux-gnu", "-O0",
              flag, str(ll_path), "-o", str(out)],
             capture_output=True, text=True,
         )
@@ -112,7 +112,7 @@ def pc_offsets_from_nm(o_path: Path, stem: str) -> dict[int, int]:
 def disassemble_instrs(o_path: Path) -> list[tuple[int, str, str]]:
     """Return list of (byte_offset, mnemonic, operand) from objdump."""
     r = subprocess.run(
-        ["llvm-objdump", "--disassemble",
+        ["llvm-objdump-15", "--disassemble",
          "--triple=x86_64-unknown-linux-gnu", str(o_path)],
         capture_output=True, text=True,
     )
