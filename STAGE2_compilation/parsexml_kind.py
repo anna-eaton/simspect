@@ -312,9 +312,9 @@ _KIND_TO_CATEGORY: Dict[str, str] = {
     "str":     "str",
     "br_n":    "br",
     "br_x":    "br",
-    "other_n": "other",
-    "other_x": "other",
-    "unknown": "other",
+    "other_n": "other_n",
+    "other_x": "other_x",
+    "unknown": "other_n",
 }
 
 # Instruction table.
@@ -357,7 +357,7 @@ INSTRUCTION_TABLE: Dict[str, List[Dict[str, Any]]] = {
             "uses": {"inreg0"},
         },
     ],
-    "other": [
+    "other_n": [
         # Unary bitwise NOT (emitted as: %dst = xor i64 %src, -1)
         # Uses one input register and one output register.
         {
@@ -369,6 +369,24 @@ INSTRUCTION_TABLE: Dict[str, List[Dict[str, Any]]] = {
         {
             "name": "add",
             "llvm_op": "add i64",
+            "uses": {"inreg0", "inreg1", "outreg"},
+        },
+    ],
+    "other_x": [
+        # Zero-skip multiply — some x86 µarchs (e.g. Sandy Bridge) early-terminate
+        # the multiplier when one operand is zero, leaking zero-ness via timing.
+        # Emitted as: %dst = mul i64 %a, %b
+        {
+            "name": "zsm",
+            "llvm_op": "mul i64",
+            "uses": {"inreg0", "inreg1", "outreg"},
+        },
+        # Signed integer division — variable latency on x86 based on operand
+        # magnitude, making the dividend/divisor values observable via timing.
+        # Emitted as: %dst = sdiv i64 %a, %b
+        {
+            "name": "div",
+            "llvm_op": "sdiv i64",
             "uses": {"inreg0", "inreg1", "outreg"},
         },
     ],

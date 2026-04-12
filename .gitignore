@@ -1,7 +1,4 @@
-alloy/alloy-out/
-alloy/out_llvm/
-images/
 .claude/
-alloy/alloy-out/
-
-alloy/crap/
+generated_tests/
+old/alloy-out/
+old/images/

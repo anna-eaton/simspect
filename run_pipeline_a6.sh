@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # run_pipeline_a6.sh — Full pipeline using Alloy 6, everything after XML batched
 #
-# Usage: bash run_pipeline_a6.sh [BATCH_SIZE] [JOBS]
+# Usage: bash run_pipeline_a6.sh <model_stem> [BATCH_SIZE] [JOBS]
+#   model_stem : e.g. STT_4 or STT_3 (looks up models/<stem>.als, outputs to alloy-out/<stem>)
 #   BATCH_SIZE : files per batch for LLVM/compile/gem5 (default: 1000)
 #   JOBS       : parallel gem5 jobs per batch (default: 8)
 
@@ -9,11 +10,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-BATCH="${1:-1000}"
-JOBS="${2:-8}"
+MODEL_STEM="${1:-STT_4}"
+BATCH="${2:-1000}"
+JOBS="${3:-8}"
 CAP=100000
-MODEL="models/STT_4.als"
-BASE="alloy-out/STT_4_a6"
+MODEL="models/${MODEL_STEM}.als"
+BASE="alloy-out/${MODEL_STEM}"
 XML_DIR="$BASE/xml"
 LLVM_DIR="$BASE/llvm"
 ASM_DIR="$BASE/asm"
@@ -44,18 +46,19 @@ echo "   Total XML instances: $TOTAL"
 # ── Steps 2-4: LLVM → asm → gem5, all in batches of BATCH ───────────────────
 echo ""
 echo "── Steps 2-4: Batched LLVM → asm → gem5 (batch=$BATCH, jobs=$JOBS) ──"
-python3 - "$BATCH" "$JOBS" <<'PYEOF'
+python3 - "$BATCH" "$JOBS" "$BASE" <<'PYEOF'
 import subprocess, sys, json, os, shutil, tempfile
 from pathlib import Path
 
 BATCH = int(sys.argv[1])
 JOBS  = int(sys.argv[2])
+BASE  = sys.argv[3]
 
-xml_dir  = Path("alloy-out/STT_4_a6/xml")
-llvm_dir = Path("alloy-out/STT_4_a6/llvm")
-asm_dir  = Path("alloy-out/STT_4_a6/asm")
-hits_f   = Path("alloy-out/STT_4_a6/window-hits.txt")
-res_f    = Path("alloy-out/STT_4_a6/window-results.json")
+xml_dir  = Path(BASE) / "xml"
+llvm_dir = Path(BASE) / "llvm"
+asm_dir  = Path(BASE) / "asm"
+hits_f   = Path(BASE) / "window-hits.txt"
+res_f    = Path(BASE) / "window-results.json"
 
 xml_files     = sorted(xml_dir.glob("inst-*.xml"))
 total_batches = (len(xml_files) + BATCH - 1) // BATCH
@@ -123,7 +126,7 @@ for bn, start in enumerate(range(0, len(xml_files), BATCH), 1):
         shutil.copy(asm_dir / (s + ".s"),        tmp_asm / (s + ".s"))
         shutil.copy(asm_dir / (s + ".ann.json"), tmp_asm / (s + ".ann.json"))
 
-    batch_res_f = Path(f"alloy-out/STT_4_a6/batch_{bn:04d}_results.json")
+    batch_res_f = Path(BASE) / f"batch_{bn:04d}_results.json"
     subprocess.run(
         ["python3", "/tests/run_helpers/pipeline_window.py", str(tmp_asm),
          "--jobs", str(JOBS), "--out", str(batch_res_f)],
@@ -155,8 +158,8 @@ for bn, start in enumerate(range(0, len(xml_files), BATCH), 1):
 
 print(f"\n========================================")
 print(f"  DONE  total={cum_total}  hits={cum_hits}")
-print(f"  Hits    : alloy-out/STT_4_a6/window-hits.txt")
-print(f"  Results : alloy-out/STT_4_a6/window-results.json")
+print(f"  Hits    : {BASE}/window-hits.txt")
+print(f"  Results : {BASE}/window-results.json")
 PYEOF
 
 echo ""

@@ -26,12 +26,61 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
+import textwrap
 from pathlib import Path
 
 COND_JUMPS = {"je", "jne", "jl", "jle", "jg", "jge",
               "jb", "jbe", "ja", "jae", "jo", "jno", "js", "jns", "jp", "jnp"}
+
+
+def _entry_asm(func_name: str) -> str:
+    return textwrap.dedent(f"""\
+        .global _start
+        .section .text
+        _start:
+            call "{func_name}"
+            mov $60, %rax
+            xor %rdi, %rdi
+            syscall
+    """)
+
+
+def build_binary(s_path: Path, workdir: Path) -> tuple[Path, int]:
+    """
+    Assemble s_path and link with a minimal _start into a static binary.
+    Returns (binary_path, func_base_address).
+    The binary lets us run nm on the final linked output so label addresses
+    reflect the linker's jump-relaxation (6-byte near → 2-byte short jcc).
+    """
+    func_name = s_path.stem
+    binary    = workdir / func_name
+    patched_s = workdir / (func_name + "_patched.s")
+    text = s_path.read_text()
+    text = re.sub(r'^\s*\.addrsig\s*$', '', text, flags=re.MULTILINE)
+    patched_s.write_text(text)
+    entry_s = workdir / "_entry.s"
+    entry_s.write_text(_entry_asm(func_name))
+    func_o  = workdir / "func.o"
+    entry_o = workdir / "entry.o"
+    subprocess.run(["as", "-o", str(func_o),  str(patched_s)], check=True, capture_output=True)
+    subprocess.run(["as", "-o", str(entry_o), str(entry_s)],   check=True, capture_output=True)
+    subprocess.run(["ld", "-static", "-o", str(binary), str(entry_o), str(func_o)],
+                   check=True, capture_output=True)
+    # resolve function base from nm on binary
+    r = subprocess.run(["nm", "--defined-only", str(binary)],
+                       capture_output=True, text=True, check=True)
+    func_base = 0
+    safe = func_name.replace("-", "_").replace(".", "_")
+    for line in r.stdout.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[-1] == func_name:
+            func_base = int(parts[0], 16)
+            break
+    return binary, func_base
 
 
 def compile_to_x86(ll_path: Path, out_dir: Path) -> tuple[Path, Path]:
@@ -50,20 +99,19 @@ def compile_to_x86(ll_path: Path, out_dir: Path) -> tuple[Path, Path]:
     return s_path, o_path
 
 
-def commit_offsets_from_nm(o_path: Path, stem: str) -> dict[str, int]:
+def commit_offsets_from_nm(binary: Path, stem: str, func_base: int) -> dict[str, int]:
     """
-    Run nm on the object file and extract __litmus_{stem}_last_committed and
+    Run nm on the linked binary and extract __litmus_{stem}_last_committed and
     __litmus_{stem}_first_noncommitted symbols.
-    Returns {"last_committed": offset, "first_noncommitted": offset} for whichever exist.
-    These labels are baked into the instruction's inline asm, so they survive
-    insertion of new instructions around them.
+    Returns {"last_committed": offset, "first_noncommitted": offset} relative to
+    the function base, corrected for any linker jump-relaxation.
     """
     safe = stem.replace("-", "_").replace(".", "_")
     targets = {
         f"__litmus_{safe}_last_committed":    "last_committed",
         f"__litmus_{safe}_first_noncommitted": "first_noncommitted",
     }
-    r = subprocess.run(["nm", "--defined-only", str(o_path)],
+    r = subprocess.run(["nm", "--defined-only", str(binary)],
                        capture_output=True, text=True)
     if r.returncode != 0:
         print(r.stderr, file=sys.stderr)
@@ -74,46 +122,49 @@ def commit_offsets_from_nm(o_path: Path, stem: str) -> dict[str, int]:
         name = parts[-1]
         if name in targets:
             try:
-                result[targets[name]] = int(parts[0], 16)
+                result[targets[name]] = int(parts[0], 16) - func_base
             except ValueError:
                 pass
     return result
 
 
-def pc_offsets_from_nm(o_path: Path, stem: str) -> dict[int, int]:
+def pc_offsets_from_nm(binary: Path, stem: str, func_base: int) -> dict[int, int]:
     """
-    Run nm on the object file and extract __litmus_{safe_stem}_pcN symbols.
-    Returns {alloy_pc: byte_offset}.
+    Run nm on the linked binary and extract __litmus_{safe_stem}_pcN symbols.
+    Returns {alloy_pc: byte_offset_relative_to_function_start}.
+    Using the binary (not the .o) corrects for linker jump-relaxation.
     """
     safe = stem.replace("-", "_").replace(".", "_")
     prefix = f"__litmus_{safe}_pc"
 
-    r = subprocess.run(["nm", "--defined-only", str(o_path)],
+    r = subprocess.run(["nm", "--defined-only", str(binary)],
                        capture_output=True, text=True)
     if r.returncode != 0:
         print(r.stderr, file=sys.stderr)
         sys.exit(1)
 
     pc_map: dict[int, int] = {}
-    # nm output: "<value> <type> <name>" or "<value> <size> <type> <name>"
     for line in r.stdout.splitlines():
         parts = line.split()
         name = parts[-1]
         if name.startswith(prefix):
             try:
                 pc  = int(name[len(prefix):])
-                val = int(parts[0], 16)
+                val = int(parts[0], 16) - func_base
                 pc_map[pc] = val
             except ValueError:
                 pass
     return pc_map
 
 
-def disassemble_instrs(o_path: Path) -> list[tuple[int, str, str]]:
-    """Return list of (byte_offset, mnemonic, operand) from objdump."""
+def disassemble_instrs(binary: Path, func_base: int) -> list[tuple[int, str, str]]:
+    """
+    Return list of (byte_offset_relative_to_func_base, mnemonic, operand)
+    from objdump of the linked binary, starting at func_base.
+    """
     r = subprocess.run(
         ["llvm-objdump-15", "--disassemble",
-         "--triple=x86_64-unknown-linux-gnu", str(o_path)],
+         "--triple=x86_64-unknown-linux-gnu", str(binary)],
         capture_output=True, text=True,
     )
     if r.returncode != 0:
@@ -122,10 +173,20 @@ def disassemble_instrs(o_path: Path) -> list[tuple[int, str, str]]:
 
     line_re = re.compile(r"^\s+([0-9a-f]+):\s+(?:[0-9a-f]{2}\s+)+\s*(\w+)\s*(.*)")
     instrs: list[tuple[int, str, str]] = []
+    in_func = False
     for line in r.stdout.splitlines():
-        m = line_re.match(line)
-        if m:
-            instrs.append((int(m.group(1), 16), m.group(2).lower(), m.group(3).strip()))
+        # start collecting at the function symbol
+        if f"<{binary.name}>:" in line:
+            in_func = True
+            continue
+        # stop at the next symbol
+        if in_func and re.match(r'^[0-9a-f]+ <', line):
+            break
+        if in_func:
+            m = line_re.match(line)
+            if m:
+                abs_off = int(m.group(1), 16)
+                instrs.append((abs_off - func_base, m.group(2).lower(), m.group(3).strip()))
     return instrs
 
 
@@ -217,14 +278,22 @@ def main() -> None:
     s_path, o_path = compile_to_x86(ll_path, out_dir)
     print(f"  wrote {s_path.name}, {o_path.name}")
 
-    pc_map = pc_offsets_from_nm(o_path, ll_path.stem)
-    print(f"  pc markers found: {sorted(pc_map.items())}")
+    tmpdir = Path(tempfile.mkdtemp(prefix=f"cann_{ll_path.stem}_"))
+    try:
+        binary, func_base = build_binary(s_path, tmpdir)
+        print(f"  binary func_base: {hex(func_base)}")
 
-    commit_offsets = commit_offsets_from_nm(o_path, ll_path.stem)
-    if commit_offsets:
-        print(f"  commit boundary labels found: {commit_offsets}")
+        pc_map = pc_offsets_from_nm(binary, ll_path.stem, func_base)
+        print(f"  pc markers found: {sorted(pc_map.items())}")
 
-    instrs = disassemble_instrs(o_path)
+        commit_offsets = commit_offsets_from_nm(binary, ll_path.stem, func_base)
+        if commit_offsets:
+            print(f"  commit boundary labels found: {commit_offsets}")
+
+        instrs = disassemble_instrs(binary, func_base)
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
     ann = update_annotations(ann_path, pc_map, instrs, commit_offsets)
 
     out_ann = out_dir / ann_path.name
