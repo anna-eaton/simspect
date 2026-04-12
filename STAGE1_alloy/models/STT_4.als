@@ -214,7 +214,7 @@ fun f[p: PTag->univ] : Instruction {(i_p[p]) - (i_p[p]).(spo_p[p])}
 
 fun leakage_function_p[p: PTag->univ] : Operand {leakage_function & o_p[p]}
 
-fun speculative_xmit_p[p: PTag->univ] : Operand {leakage_function_p[p] <: speculation_contract_p[p].operands}
+fun speculative_xmit_p[p: PTag->univ] : Operand {leakage_function_p[p] <: (speculation_contract_p[p].operands)}
 
 fun a[p:PTag->univ,i:Instruction,s:State] : State { prot_set_propagation_p[p,i,s]}
 fun last_committed_protset_p[p: PTag->univ] : State {
