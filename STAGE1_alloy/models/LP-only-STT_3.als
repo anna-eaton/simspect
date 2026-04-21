@@ -35,15 +35,14 @@ one sig TOthern  extends InstrType {} // ALU/reg->reg, doesnt xmit
 one sig TOtherx  extends InstrType {} // ALU/reg->reg, xmits
 
 // fixed position atoms for symmetry-breaking index (one sig = no atom permutation)
-one sig IX0 {} -- spo position 0 (first)
-one sig IX1 {} -- spo position 1
-one sig IX2 {} -- spo position 2
-one sig IX3 {} -- spo position 3 (last)
+//one sig IX0 {} -- spo position 0 (first)å
+//one sig IX1 {} -- spo position 1
+//one sig IX2 {} -- spo position 2
 
 // single concrete instruction sig
 sig Instruction {
 	kind: one InstrType,
-	idx: one (IX0 + IX1 + IX2 + IX3),  -- bijection to fixed position atoms
+//	idx: one (IX0 + IX1 + IX2),  -- bijection to fixed position atoms
 
 	spo: lone Instruction,
 
@@ -98,8 +97,8 @@ fact no_extra_ops {no (Operand - Instruction.operands)}
 
 fact no_extra_State {no State - Operand.opstate}
 
-// all instructions have operands (so we dont have to relax instructions)
-fact no_extra_Instructions {no Instruction - operands.Operand}
+// all instructions have operands (so we dont have to relax instructions) this doesnt work bc branch wiht no operands
+//fact no_extra_Instructions {no Instruction - operands.Operand}
 
 // each operand only belongs to one instruction
 fact limited_instr_per_op {all o: Operand | #(o.(~operands)) = 1}
@@ -132,7 +131,7 @@ fact spo_total { total[spo, Instruction] }
 fact committed_resolved {committed in resolved}
 fun uncommitted : Instruction {Instruction - committed}
 fun unresolved : Instruction {Instruction - resolved}
-fact committed_last {no ^(spo :>uncommitted).^(spo :> committed) and (no uncommitted <: (^spo) :> committed)}
+fact committed_last {no ^(spo :>uncommitted).^(spo :> committed) and (no uncommitted <: ^spo :> committed)}
 fun last_committed : Instruction {(committed <: spo :> uncommitted).uncommitted}
 fun first_uncommitted : Instruction {committed.(committed <: spo :> uncommitted)}
 
@@ -214,17 +213,15 @@ fun f[p: PTag->univ] : Instruction {(i_p[p]) - (i_p[p]).(spo_p[p])}
 
 fun leakage_function_p[p: PTag->univ] : Operand {leakage_function & o_p[p]}
 
-fun speculative_xmit_p[p: PTag->univ] : Operand {leakage_function_p[p] <: (speculation_contract_p[p].operands)}
+fun speculative_xmit_p[p: PTag->univ] : Operand {leakage_function_p[p] <: speculation_contract_p[p].operands}
 
 fun a[p:PTag->univ,i:Instruction,s:State] : State { prot_set_propagation_p[p,i,s]}
 fun last_committed_protset_p[p: PTag->univ] : State {
-a[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]),
 		a[p,f[p].(spo_p[p]).(spo_p[p]),
 			a[p,f[p].(spo_p[p]),
 				a[p,f[p],hardware_protection_policy]
 			]
 	]
-]
 }
 
 fun has_unresolved_brs_p[p: PTag->univ] : Instruction {
@@ -236,16 +233,18 @@ fun no_unresolved_brs_p[p: PTag->univ] : Instruction {
 	i_p[p] - has_unresolved_brs_p[p]
 }
 
+fun no_unresolved_brs_bf_or_is_p[p: PTag->univ] : Instruction {
+	no_unresolved_brs_p[p] - (unresolved_p[p] & (Branchxs+Branchns)) // there are no unresolvd brs bf and it isnt itself an unresolved br
+}
+
 fun no_unresolved_mem_p[p: PTag->univ] : Instruction {
 	i_p[p] - (uncommitted & (Loads+Stores)).(^(spo))
 }
-
 
 pred secure_speculation_scheme_p[p: PTag->univ] {
 	(no (last_committed_protset_p[p].(~opstate) & speculative_xmit_p[p])) and
 	(no last_committed_protset_p[p].(~opstate).(^(op_edges_p[p])) & speculative_xmit_p[p])
 }
-
 
 // make sure there is some overlap in the end btw xm and speculative xmit
 //fact tag_xm {some xm & speculative_xmit_p[xm]}
@@ -255,27 +254,21 @@ fact tag_xm {
 	(some last_committed_protset_p[no_p].(~opstate).(^(op_edges_p[no_p])) & speculative_xmit_p[no_p] & xm.operands)
 }
 
-
-
 /*********************************************************************************
  * Symmetry breaking — works because Instruction is now a concrete sig
  */
 
 -- idx bijection: each instruction gets a unique fixed position atom
-fact idx_bijective { all disj a, b: Instruction | a.idx != b.idx }
-fact idx_surjective { (IX0 + IX1 + IX2 + IX3) = Instruction.idx }
+//fact idx_bijective { all disj a, b: Instruction | a.idx != b.idx }
+//fact idx_surjective { (IX0 + IX1 + IX2) = Instruction.idx }
 
--- IX0 < IX1 < IX2 < IX3 is a fixed static ordering (no atom permutations possible)
-pred lt_ix[a, b: univ] {
-	(a=IX0 and b in IX1+IX2+IX3) or
-	(a=IX1 and b in IX2+IX3) or
-	(a=IX2 and b=IX3)
-}
+-- IX0 < IX1 < IX2 is a fixed static ordering (no atom permutations possible)
+//pred lt_ix[a, b: univ] { (a=IX0 and b in IX1+IX2) or (a=IX1 and b=IX2) }
 
--- idx rank mirrors spo rank: position 0 = first in spo, 1 = second, etc.
-fact idx_matches_spo {
-	all disj a, b: Instruction | lt_ix[a.idx, b.idx] <=> b in a.^spo
-}
+-- idx rank mirrors spo rank: position 0 = first in spo, 1 = second, 2 = third
+//fact idx_matches_spo {
+//	all disj a, b: Instruction | lt_ix[a.idx, b.idx] <=> b in a.^spo
+//}
 
 
 /*********************************************************************************
@@ -288,17 +281,17 @@ let gen_useful_litmus {
   all i: unresolved | secure_speculation_scheme_p[RR->i] //changing to just do resolved not commit!!
 
   all s: State | secure_speculation_scheme_p[RS->s]
+  all i: Instruction | secure_speculation_scheme_p[RI->i]
+  all o: Operand | secure_speculation_scheme_p[RO->o]
+  
 }
 
-fact no_extra_inst {no (Instruction - operands.Operand)}
-
-let gen_useful_litmus {
-  not secure_speculation_scheme_p[no_p]
-}
+//fact no_extra_inst {no (Instruction - operands.Operand)}
+//todo this is removed because branches can have no leakage path operands
 
 run gen_lit {
   gen_useful_litmus
-} for 6 but exactly 4 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool
+} for 5 but exactly 3 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool
 
 
 /*********************************************************************************
@@ -310,15 +303,7 @@ fun speculation_contract_p[p: PTag->univ] : Instruction {uncommitted_p[p] & has_
 fun hardware_protection_policy: State {Mem_s}
 fun leakage_function : Operand {Loads.inaddr+(Branchxs+Otherxs).inreg}
 fun prot_set_propagation_p[p:PTag->univ,i:Instruction,s:State] : State {
-	//s - (Loads & committed_p[p] & i).inaddr.opstate//
-	//s - (Loads & no_unresolved_brs_p[p] & i).inaddr.opstate // later could put bf or is, but loads and brs shouldnt overlap obv
-	s - (Loads & no_unresolved_brs_p[p] & i).inmem.opstate
+	// s - (Loads & committed_p[p] & i).inaddr.opstate // committed loads remove their inaddr from the protset
+	s - (Loads & no_unresolved_brs_bf_or_is_p[p] & i).(inmem:>o_p[p]).opstate // loads that have no unresolvd brs before them remove their inaddr from protset (acc load is not branch so probs chill)
 }
 
-
-fun execution_contract_p[p: PTag->univ] : Instruction {uncommitted_p[p] & has_unresolved_brs_p[p]}
-fun protection_set: State {Mem_s}
-fun leakage_contract : Operand {Loads.inaddr+(Branchxs+Otherxs).inreg}
-fun prot_set_propagation_p[p:PTag->univ,i:Instruction,s:State] : State {
-		s - (Loads & no_unresolved_brs_p[p] & i).inmem.opstate
-}

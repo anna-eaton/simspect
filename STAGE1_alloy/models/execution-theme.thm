@@ -1,0 +1,127 @@
+<?xml version="1.0"?>
+<alloy>
+
+<view>
+
+<defaultnode/>
+
+<defaultedge/>
+
+<node>
+   <type name="Inaddr"/>
+   <type name="Inmem"/>
+   <type name="Inreg"/>
+   <type name="Int"/>
+   <type name="Mem_s"/>
+   <type name="Outmem"/>
+   <type name="Outreg"/>
+   <type name="Reg_s"/>
+   <type name="RO"/>
+   <type name="RR"/>
+   <type name="RS"/>
+   <type name="String"/>
+   <type name="TBranchn"/>
+   <type name="TBranchx"/>
+   <type name="TLoad"/>
+   <type name="TOthern"/>
+   <type name="TOtherx"/>
+   <type name="TStore"/>
+   <type name="univ"/>
+   <type name="seq/Int"/>
+   <set name="$committed" type="Instruction"/>
+   <set name="$hardware_protection_policy" type="State"/>
+   <set name="$last_committed" type="Instruction"/>
+   <set name="$leakage_function" type="Operand"/>
+   <set name="$resolved" type="Instruction"/>
+   <set name="$uncommitted" type="Instruction"/>
+   <set name="$unresolved" type="Instruction"/>
+</node>
+
+<node color="Red">
+   <set name="$xm" type="Instruction"/>
+</node>
+
+<node shape="Trapezoid" color="Blue">
+   <type name="State"/>
+</node>
+
+<node showlabel="no">
+   <set name="$first_instr" type="Instruction"/>
+   <set name="$no_unresolved_brs" type="Instruction"/>
+   <set name="$no_unresolved_mem" type="Instruction"/>
+</node>
+
+<node visible="no">
+   <type name="cBool"/>
+   <type name="InstrType"/>
+   <type name="PTag"/>
+   <type name="rBool"/>
+   <type name="RC"/>
+   <type name="RI"/>
+   <type name="tBool"/>
+</node>
+
+<node visible="no" showlabel="no">
+   <set name="$Branchns" type="Instruction"/>
+   <set name="$Branchxs" type="Instruction"/>
+   <set name="$Loads" type="Instruction"/>
+   <set name="$Otherns" type="Instruction"/>
+   <set name="$Otherxs" type="Instruction"/>
+   <set name="$Stores" type="Instruction"/>
+</node>
+
+<node visible="yes" color="Gray">
+   <type name="Operand"/>
+</node>
+
+<node visible="yes" shape="Egg" color="Yellow" label="I">
+   <type name="Instruction"/>
+</node>
+
+<node visible="yes" showlabel="yes">
+   <set name="$first_uncommitted" type="Instruction"/>
+</node>
+
+<edge color="Black" layout="no">
+   <relation name="spo"> <type name="Instruction"/> <type name="Instruction"/> </relation>
+</edge>
+
+<edge color="Blue" attribute="no" constraint="no">
+   <relation name="ddi"> <type name="Operand"/> <type name="Operand"/> </relation>
+</edge>
+
+<edge color="Blue" constraint="no">
+   <relation name="rf"> <type name="Operand"/> <type name="Operand"/> </relation>
+</edge>
+
+<edge color="Red">
+   <relation name="inaddr"> <type name="Instruction"/> <type name="Inaddr"/> </relation>
+   <relation name="inreg"> <type name="Instruction"/> <type name="Inreg"/> </relation>
+   <relation name="outmem"> <type name="Instruction"/> <type name="Outmem"/> </relation>
+   <relation name="outreg"> <type name="Instruction"/> <type name="Outreg"/> </relation>
+</edge>
+
+<edge color="Red" constraint="no">
+   <relation name="inmem"> <type name="Instruction"/> <type name="Inmem"/> </relation>
+</edge>
+
+<edge constraint="no">
+   <relation name="opstate"> <type name="Operand"/> <type name="State"/> </relation>
+</edge>
+
+<edge visible="no">
+   <relation name="$operands"> <type name="Instruction"/> <type name="Operand"/> </relation>
+   <relation name="$outs"> <type name="Instruction"/> <type name="Operand"/> </relation>
+</edge>
+
+<edge visible="no" attribute="yes">
+   <relation name="kind"> <type name="Instruction"/> <type name="InstrType"/> </relation>
+</edge>
+
+<edge visible="no" weight="4">
+   <relation name="$ins"> <type name="Instruction"/> <type name="Operand"/> </relation>
+</edge>
+
+</view>
+
+</alloy>
