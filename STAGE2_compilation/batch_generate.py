@@ -27,8 +27,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import importlib as _importlib
 
-def _load_parser(kind: bool):
-    mod = _importlib.import_module("parsexml_kind" if kind else "parsexml")
+def _load_parser(kind: bool, instruction_tables: str | None = None):
+    # parsexml_kind was merged into parsexml; the --kind flag is now a no-op
+    # but is kept for backward compatibility with existing call sites.
+    mod = _importlib.import_module("parsexml")
+    if instruction_tables is not None and hasattr(mod, "reload_tables"):
+        mod.reload_tables(instruction_tables)
     return (
         mod.parse_alloy_xml,
         mod.pass1_specify_state_a,
@@ -102,8 +106,9 @@ def process_folder(
     kind: bool = False,
     filter_unresolved_branch: bool = False,
     limit: int = 0,
+    instruction_tables: str | None = None,
 ) -> None:
-    _fns = _load_parser(kind)
+    _fns = _load_parser(kind, instruction_tables=instruction_tables)
     parse_fn, pass1_fn = _fns[0], _fns[1]
     xml_files = sorted(input_dir.glob(pattern))
 
@@ -184,6 +189,10 @@ def main() -> None:
         "--limit", type=int, default=0,
         help="Stop after processing this many files (0 = no limit).",
     )
+    parser.add_argument(
+        "--instruction-tables", default=None, dest="instruction_tables",
+        help="Path to instructions.json (overrides the default inside parsexml.py).",
+    )
     args = parser.parse_args()
 
     input_dir  = Path(args.input_dir).resolve()
@@ -198,7 +207,8 @@ def main() -> None:
     process_folder(input_dir, output_dir, args.pattern, RUN_MODES,
                    kind=args.kind,
                    filter_unresolved_branch=args.unresolved_branch,
-                   limit=args.limit)
+                   limit=args.limit,
+                   instruction_tables=args.instruction_tables)
 
 
 if __name__ == "__main__":

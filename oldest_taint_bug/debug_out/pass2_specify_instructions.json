@@ -1,0 +1,381 @@
+{
+  "instructions": [
+    {
+      "pc": 0,
+      "instruction": "Instruction$5",
+      "kind": "br_x",
+      "resolved": true,
+      "committed": true,
+      "xm": false,
+      "slots": {
+        "inreg": [
+          {
+            "slot": "inreg0",
+            "specified": true,
+            "operand_atom": "Inreg$3",
+            "physical": "Reg_s$0"
+          },
+          {
+            "slot": "inreg1",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "inaddr": [
+          {
+            "slot": "inaddr",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "inmem": [
+          {
+            "slot": "inmem",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "outreg": [
+          {
+            "slot": "outreg",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "outmem": [
+          {
+            "slot": "outmem",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ]
+      },
+      "concrete_instruction": "br_cond",
+      "llvm_op": "br i1",
+      "candidates": [
+        "br_cond"
+      ]
+    },
+    {
+      "pc": 1,
+      "instruction": "Instruction$4",
+      "kind": "ld",
+      "resolved": true,
+      "committed": true,
+      "xm": false,
+      "slots": {
+        "inreg": [
+          {
+            "slot": "inreg0",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          },
+          {
+            "slot": "inreg1",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "inaddr": [
+          {
+            "slot": "inaddr",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "inmem": [
+          {
+            "slot": "inmem",
+            "specified": true,
+            "operand_atom": "Inmem$0",
+            "physical": "Mem_s$0"
+          }
+        ],
+        "outreg": [
+          {
+            "slot": "outreg",
+            "specified": true,
+            "operand_atom": "Outreg$0",
+            "physical": "Reg_s$0"
+          }
+        ],
+        "outmem": [
+          {
+            "slot": "outmem",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ]
+      },
+      "concrete_instruction": "load",
+      "llvm_op": "load volatile i64",
+      "candidates": [
+        "load"
+      ]
+    },
+    {
+      "pc": 2,
+      "instruction": "Instruction$3",
+      "kind": "br_x",
+      "resolved": false,
+      "committed": false,
+      "xm": false,
+      "slots": {
+        "inreg": [
+          {
+            "slot": "inreg0",
+            "specified": true,
+            "operand_atom": "Inreg$0",
+            "physical": "Reg_s$0"
+          },
+          {
+            "slot": "inreg1",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "inaddr": [
+          {
+            "slot": "inaddr",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "inmem": [
+          {
+            "slot": "inmem",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "outreg": [
+          {
+            "slot": "outreg",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "outmem": [
+          {
+            "slot": "outmem",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ]
+      },
+      "concrete_instruction": "br_cond",
+      "llvm_op": "br i1",
+      "candidates": [
+        "br_cond"
+      ]
+    },
+    {
+      "pc": 3,
+      "instruction": "Instruction$2",
+      "kind": "ld",
+      "resolved": false,
+      "committed": false,
+      "xm": false,
+      "slots": {
+        "inreg": [
+          {
+            "slot": "inreg0",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          },
+          {
+            "slot": "inreg1",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "inaddr": [
+          {
+            "slot": "inaddr",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "inmem": [
+          {
+            "slot": "inmem",
+            "specified": true,
+            "operand_atom": "Inmem$1",
+            "physical": "Mem_s$0"
+          }
+        ],
+        "outreg": [
+          {
+            "slot": "outreg",
+            "specified": true,
+            "operand_atom": "Outreg$1",
+            "physical": "Reg_s$1"
+          }
+        ],
+        "outmem": [
+          {
+            "slot": "outmem",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ]
+      },
+      "concrete_instruction": "load",
+      "llvm_op": "load volatile i64",
+      "candidates": [
+        "load"
+      ]
+    },
+    {
+      "pc": 4,
+      "instruction": "Instruction$1",
+      "kind": "other_n",
+      "resolved": false,
+      "committed": false,
+      "xm": false,
+      "slots": {
+        "inreg": [
+          {
+            "slot": "inreg0",
+            "specified": true,
+            "operand_atom": "Inreg$1",
+            "physical": "Reg_s$0"
+          },
+          {
+            "slot": "inreg1",
+            "specified": true,
+            "operand_atom": "Inreg$2",
+            "physical": "Reg_s$1"
+          }
+        ],
+        "inaddr": [
+          {
+            "slot": "inaddr",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "inmem": [
+          {
+            "slot": "inmem",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "outreg": [
+          {
+            "slot": "outreg",
+            "specified": true,
+            "operand_atom": "Outreg$2",
+            "physical": "Reg_s$0"
+          }
+        ],
+        "outmem": [
+          {
+            "slot": "outmem",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ]
+      },
+      "concrete_instruction": "add",
+      "llvm_op": "add i64",
+      "candidates": [
+        "add"
+      ]
+    },
+    {
+      "pc": 5,
+      "instruction": "Instruction$0",
+      "kind": "ld",
+      "resolved": false,
+      "committed": false,
+      "xm": true,
+      "slots": {
+        "inreg": [
+          {
+            "slot": "inreg0",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          },
+          {
+            "slot": "inreg1",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ],
+        "inaddr": [
+          {
+            "slot": "inaddr",
+            "specified": true,
+            "operand_atom": "Inaddr$2",
+            "physical": "Reg_s$0"
+          }
+        ],
+        "inmem": [
+          {
+            "slot": "inmem",
+            "specified": true,
+            "operand_atom": "Inmem$2",
+            "physical": "Mem_s$0"
+          }
+        ],
+        "outreg": [
+          {
+            "slot": "outreg",
+            "specified": true,
+            "operand_atom": "Outreg$3",
+            "physical": "Reg_s$0"
+          }
+        ],
+        "outmem": [
+          {
+            "slot": "outmem",
+            "specified": false,
+            "operand_atom": null,
+            "physical": null
+          }
+        ]
+      },
+      "concrete_instruction": "load",
+      "llvm_op": "load volatile i64",
+      "candidates": [
+        "load"
+      ]
+    }
+  ],
+  "resource_usage": {
+    "register_count": 2,
+    "memory_count": 1,
+    "registers": [
+      "Reg_s$0",
+      "Reg_s$1"
+    ],
+    "memory": [
+      "Mem_s$0"
+    ]
+  }
+}

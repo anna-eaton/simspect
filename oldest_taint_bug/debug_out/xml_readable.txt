@@ -1,0 +1,165 @@
+========================================================================
+inst-oldest-taint-bug  —  Alloy XML  (human-readable summary)
+========================================================================
+
+command : Run gen_lit for 8 but exactly 6 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool
+filename: 
+
+── ATOMS (non-empty sigs) ────────────────────────────────────────────
+  this/IX0
+    IX0$0
+  this/IX1
+    IX1$0
+  this/IX2
+    IX2$0
+  this/IX3
+    IX3$0
+  this/IX4
+    IX4$0
+  this/IX5
+    IX5$0
+  this/Inaddr
+    Inaddr$0
+    Inaddr$1
+    Inaddr$2
+  this/Inmem
+    Inmem$0
+    Inmem$1
+    Inmem$2
+  this/Inreg
+    Inreg$0
+    Inreg$1
+    Inreg$2
+    Inreg$3
+  this/Instruction
+    Instruction$0
+    Instruction$1
+    Instruction$2
+    Instruction$3
+    Instruction$4
+    Instruction$5
+  this/Mem_s
+    Mem_s$0
+  this/Outreg
+    Outreg$0
+    Outreg$1
+    Outreg$2
+    Outreg$3
+  this/RC
+    RC$0
+  this/RI
+    RI$0
+  this/RO
+    RO$0
+  this/RR
+    RR$0
+  this/RS
+    RS$0
+  this/Reg_s
+    Reg_s$0
+    Reg_s$1
+  this/TBranchn
+    TBranchn$0
+  this/TBranchx
+    TBranchx$0
+  this/TLoad
+    TLoad$0
+  this/TOthern
+    TOthern$0
+  this/TOtherx
+    TOtherx$0
+  this/TStore
+    TStore$0
+  this/cBool
+    cBool$0
+  this/rBool
+    rBool$0
+  this/tBool
+    tBool$0
+
+── RELATIONS (fields) ────────────────────────────────────────────────
+
+  kind
+    Instruction$5 → TBranchx$0
+    Instruction$4 → TLoad$0
+    Instruction$3 → TBranchx$0
+    Instruction$2 → TLoad$0
+    Instruction$1 → TOthern$0
+    Instruction$0 → TLoad$0
+
+  idx
+    Instruction$5 → IX0$0
+    Instruction$4 → IX1$0
+    Instruction$3 → IX2$0
+    Instruction$2 → IX3$0
+    Instruction$1 → IX4$0
+    Instruction$0 → IX5$0
+
+  spo
+    Instruction$5 → Instruction$4
+    Instruction$4 → Instruction$3
+    Instruction$3 → Instruction$2
+    Instruction$2 → Instruction$1
+    Instruction$1 → Instruction$0
+
+  inreg
+    Instruction$5 → Inreg$3
+    Instruction$3 → Inreg$0
+    Instruction$1 → Inreg$1
+    Instruction$1 → Inreg$2
+
+  inaddr
+    Instruction$0 → Inaddr$2
+
+  outreg
+    Instruction$4 → Outreg$0
+    Instruction$2 → Outreg$1
+    Instruction$1 → Outreg$2
+    Instruction$0 → Outreg$3
+
+  inmem
+    Instruction$4 → Inmem$0
+    Instruction$2 → Inmem$1
+    Instruction$0 → Inmem$2
+
+  isresolved
+    Instruction$5 → rBool$0
+    Instruction$4 → rBool$0
+
+  iscommitted
+    Instruction$5 → cBool$0
+    Instruction$4 → cBool$0
+
+  isxm
+    Instruction$0 → tBool$0
+
+  opstate
+    Outreg$0 → Reg_s$0
+    Outreg$2 → Reg_s$0
+    Outreg$3 → Reg_s$0
+    Inreg$0 → Reg_s$0
+    Inreg$1 → Reg_s$0
+    Inreg$3 → Reg_s$0
+    Inaddr$0 → Reg_s$0
+    Inaddr$1 → Reg_s$0
+    Inaddr$2 → Reg_s$0
+    Outreg$1 → Reg_s$1
+    Inreg$2 → Reg_s$1
+    Inmem$0 → Mem_s$0
+    Inmem$1 → Mem_s$0
+    Inmem$2 → Mem_s$0
+
+  rf
+    Outreg$0 → Inreg$0
+    Outreg$0 → Inreg$1
+    Outreg$1 → Inreg$2
+    Outreg$2 → Inaddr$2
+
+  ddi
+    Inmem$0 → Outreg$0
+    Inmem$1 → Outreg$1
+    Inreg$1 → Outreg$2
+    Inreg$2 → Outreg$2
+    Inmem$2 → Outreg$3
+
+========================================================================

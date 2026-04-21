@@ -1,0 +1,336 @@
+<alloy builddate="2015-02-22 18:21 EST">
+
+<instance bitwidth="0" maxseq="0" command="Run gen_lit for 8 but exactly 6 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool" filename="">
+
+<!-- ─── built-in sigs ─────────────────────────────────────────────────── -->
+<sig label="seq/Int" ID="0" parentID="1" builtin="yes">
+</sig>
+
+<sig label="Int" ID="1" parentID="2" builtin="yes">
+</sig>
+
+<sig label="String" ID="3" parentID="2" builtin="yes">
+</sig>
+
+<!-- ─── boolean marker sigs ───────────────────────────────────────────── -->
+<sig label="this/rBool" ID="4" parentID="2">
+   <atom label="rBool$0"/>
+</sig>
+
+<sig label="this/cBool" ID="5" parentID="2">
+   <atom label="cBool$0"/>
+</sig>
+
+<sig label="this/tBool" ID="6" parentID="2">
+   <atom label="tBool$0"/>
+</sig>
+
+<!-- ─── state sigs ────────────────────────────────────────────────────── -->
+<sig label="this/Mem_s" ID="7" parentID="8">
+   <atom label="Mem_s$0"/>
+</sig>
+
+<sig label="this/Reg_s" ID="9" parentID="8">
+   <atom label="Reg_s$0"/>
+   <atom label="Reg_s$1"/>
+</sig>
+
+<sig label="this/State" ID="8" parentID="2" abstract="yes">
+</sig>
+
+<!-- ─── instruction-type sigs ────────────────────────────────────────── -->
+<sig label="this/TLoad" ID="10" parentID="11" one="yes">
+   <atom label="TLoad$0"/>
+</sig>
+
+<sig label="this/TStore" ID="12" parentID="11" one="yes">
+   <atom label="TStore$0"/>
+</sig>
+
+<sig label="this/TBranchn" ID="13" parentID="11" one="yes">
+   <atom label="TBranchn$0"/>
+</sig>
+
+<sig label="this/TBranchx" ID="14" parentID="11" one="yes">
+   <atom label="TBranchx$0"/>
+</sig>
+
+<sig label="this/TOthern" ID="15" parentID="11" one="yes">
+   <atom label="TOthern$0"/>
+</sig>
+
+<sig label="this/TOtherx" ID="16" parentID="11" one="yes">
+   <atom label="TOtherx$0"/>
+</sig>
+
+<sig label="this/InstrType" ID="11" parentID="2" abstract="yes">
+</sig>
+
+<!-- ─── position index sigs (6 instructions need IX0-IX5) ────────────── -->
+<sig label="this/IX0" ID="17" parentID="2" one="yes">
+   <atom label="IX0$0"/>
+</sig>
+
+<sig label="this/IX1" ID="18" parentID="2" one="yes">
+   <atom label="IX1$0"/>
+</sig>
+
+<sig label="this/IX2" ID="19" parentID="2" one="yes">
+   <atom label="IX2$0"/>
+</sig>
+
+<sig label="this/IX3" ID="20" parentID="2" one="yes">
+   <atom label="IX3$0"/>
+</sig>
+
+<sig label="this/IX4" ID="48" parentID="2" one="yes">
+   <atom label="IX4$0"/>
+</sig>
+
+<sig label="this/IX5" ID="49" parentID="2" one="yes">
+   <atom label="IX5$0"/>
+</sig>
+
+<!-- ─── instruction atoms ─────────────────────────────────────────────
+     Program order (first → last):
+       I$5  branch_outer   committed, resolved
+       I$4  load_A→Ra      committed, resolved  (last_committed)
+       I$3  branch_inner   unresolved            (first_noncommitted)
+       I$2  load_B→Rb      unresolved
+       I$1  add Ra,Rb→Rc   unresolved
+       I$0  load[Rc]→Rd    unresolved, xm
+──────────────────────────────────────────────────────────────────────── -->
+<sig label="this/Instruction" ID="21" parentID="2">
+   <atom label="Instruction$0"/>
+   <atom label="Instruction$1"/>
+   <atom label="Instruction$2"/>
+   <atom label="Instruction$3"/>
+   <atom label="Instruction$4"/>
+   <atom label="Instruction$5"/>
+</sig>
+
+<!-- kind: each instruction → its InstrType -->
+<field label="kind" ID="22" parentID="21">
+   <tuple> <atom label="Instruction$5"/> <atom label="TBranchx$0"/> </tuple>
+   <tuple> <atom label="Instruction$4"/> <atom label="TLoad$0"/>    </tuple>
+   <tuple> <atom label="Instruction$3"/> <atom label="TBranchx$0"/> </tuple>
+   <tuple> <atom label="Instruction$2"/> <atom label="TLoad$0"/>    </tuple>
+   <tuple> <atom label="Instruction$1"/> <atom label="TOthern$0"/>  </tuple>
+   <tuple> <atom label="Instruction$0"/> <atom label="TLoad$0"/>    </tuple>
+   <types> <type ID="21"/> <type ID="11"/> </types>
+</field>
+
+<!-- idx: position in program order (IX0 = first, IX5 = last) -->
+<field label="idx" ID="23" parentID="21">
+   <tuple> <atom label="Instruction$5"/> <atom label="IX0$0"/> </tuple>
+   <tuple> <atom label="Instruction$4"/> <atom label="IX1$0"/> </tuple>
+   <tuple> <atom label="Instruction$3"/> <atom label="IX2$0"/> </tuple>
+   <tuple> <atom label="Instruction$2"/> <atom label="IX3$0"/> </tuple>
+   <tuple> <atom label="Instruction$1"/> <atom label="IX4$0"/> </tuple>
+   <tuple> <atom label="Instruction$0"/> <atom label="IX5$0"/> </tuple>
+   <types> <type ID="21"/> <type ID="17"/> </types>
+   <types> <type ID="21"/> <type ID="18"/> </types>
+   <types> <type ID="21"/> <type ID="19"/> </types>
+   <types> <type ID="21"/> <type ID="20"/> </types>
+   <types> <type ID="21"/> <type ID="48"/> </types>
+   <types> <type ID="21"/> <type ID="49"/> </types>
+</field>
+
+<!-- spo: immediate successor in program order (I$5→I$4→I$3→I$2→I$1→I$0) -->
+<field label="spo" ID="24" parentID="21">
+   <tuple> <atom label="Instruction$5"/> <atom label="Instruction$4"/> </tuple>
+   <tuple> <atom label="Instruction$4"/> <atom label="Instruction$3"/> </tuple>
+   <tuple> <atom label="Instruction$3"/> <atom label="Instruction$2"/> </tuple>
+   <tuple> <atom label="Instruction$2"/> <atom label="Instruction$1"/> </tuple>
+   <tuple> <atom label="Instruction$1"/> <atom label="Instruction$0"/> </tuple>
+   <types> <type ID="21"/> <type ID="21"/> </types>
+</field>
+
+<!-- inreg operands
+     Inreg$3 → I$5 (branch_outer condition, live-in)
+     Inreg$0 → I$3 (branch_inner condition, fed by Ra)
+     Inreg$1 → I$1 (add input 0 = Ra)
+     Inreg$2 → I$1 (add input 1 = Rb)                  -->
+<field label="inreg" ID="25" parentID="21">
+   <tuple> <atom label="Instruction$5"/> <atom label="Inreg$3"/> </tuple>
+   <tuple> <atom label="Instruction$3"/> <atom label="Inreg$0"/> </tuple>
+   <tuple> <atom label="Instruction$1"/> <atom label="Inreg$1"/> </tuple>
+   <tuple> <atom label="Instruction$1"/> <atom label="Inreg$2"/> </tuple>
+   <types> <type ID="21"/> <type ID="26"/> </types>
+</field>
+
+<!-- inaddr operands
+     Only load[Rc] (I$0) has a register-based address (Rc = add output).
+     load_A (I$4) and load_B (I$2) use fixed memory slots — no inaddr.
+     This avoids spill/reload of the address register which would create
+     unintended taint chains that stall load_A from issuing speculatively. -->
+<field label="inaddr" ID="27" parentID="21">
+   <tuple> <atom label="Instruction$0"/> <atom label="Inaddr$2"/> </tuple>
+   <types> <type ID="21"/> <type ID="28"/> </types>
+</field>
+
+<!-- outreg operands
+     Outreg$0 → I$4 (Ra = load_A output)
+     Outreg$1 → I$2 (Rb = load_B output)
+     Outreg$2 → I$1 (Rc = add output)
+     Outreg$3 → I$0 (Rd = load[Rc] output, xm destination) -->
+<field label="outreg" ID="29" parentID="21">
+   <tuple> <atom label="Instruction$4"/> <atom label="Outreg$0"/> </tuple>
+   <tuple> <atom label="Instruction$2"/> <atom label="Outreg$1"/> </tuple>
+   <tuple> <atom label="Instruction$1"/> <atom label="Outreg$2"/> </tuple>
+   <tuple> <atom label="Instruction$0"/> <atom label="Outreg$3"/> </tuple>
+   <types> <type ID="21"/> <type ID="30"/> </types>
+</field>
+
+<!-- inmem operands (one per load) -->
+<field label="inmem" ID="31" parentID="21">
+   <tuple> <atom label="Instruction$4"/> <atom label="Inmem$0"/> </tuple>
+   <tuple> <atom label="Instruction$2"/> <atom label="Inmem$1"/> </tuple>
+   <tuple> <atom label="Instruction$0"/> <atom label="Inmem$2"/> </tuple>
+   <types> <type ID="21"/> <type ID="32"/> </types>
+</field>
+
+<!-- outmem: no stores in this test -->
+<field label="outmem" ID="33" parentID="21">
+   <types> <type ID="21"/> <type ID="34"/> </types>
+</field>
+
+<!-- isresolved: only the two committed instructions are resolved -->
+<field label="isresolved" ID="35" parentID="21">
+   <tuple> <atom label="Instruction$5"/> <atom label="rBool$0"/> </tuple>
+   <tuple> <atom label="Instruction$4"/> <atom label="rBool$0"/> </tuple>
+   <types> <type ID="21"/> <type ID="4"/> </types>
+</field>
+
+<!-- iscommitted: branch_outer (I$5) and load_A (I$4) -->
+<field label="iscommitted" ID="36" parentID="21">
+   <tuple> <atom label="Instruction$5"/> <atom label="cBool$0"/> </tuple>
+   <tuple> <atom label="Instruction$4"/> <atom label="cBool$0"/> </tuple>
+   <types> <type ID="21"/> <type ID="5"/> </types>
+</field>
+
+<!-- isxm: load[Rc] (I$0) is the transmitter -->
+<field label="isxm" ID="37" parentID="21">
+   <tuple> <atom label="Instruction$0"/> <atom label="tBool$0"/> </tuple>
+   <types> <type ID="21"/> <type ID="6"/> </types>
+</field>
+
+<!-- ─── operand sig atoms ─────────────────────────────────────────────── -->
+<sig label="this/Inreg" ID="26" parentID="38">
+   <atom label="Inreg$0"/>
+   <atom label="Inreg$1"/>
+   <atom label="Inreg$2"/>
+   <atom label="Inreg$3"/>
+</sig>
+
+<sig label="this/Inaddr" ID="28" parentID="38">
+   <atom label="Inaddr$0"/>
+   <atom label="Inaddr$1"/>
+   <atom label="Inaddr$2"/>
+</sig>
+
+<sig label="this/Inmem" ID="32" parentID="38">
+   <atom label="Inmem$0"/>
+   <atom label="Inmem$1"/>
+   <atom label="Inmem$2"/>
+</sig>
+
+<sig label="this/Outreg" ID="30" parentID="38">
+   <atom label="Outreg$0"/>
+   <atom label="Outreg$1"/>
+   <atom label="Outreg$2"/>
+   <atom label="Outreg$3"/>
+</sig>
+
+<sig label="this/Outmem" ID="34" parentID="38">
+</sig>
+
+<sig label="this/Operand" ID="38" parentID="2" abstract="yes">
+</sig>
+
+<!-- opstate: every operand maps to its state flavour.
+     Reg_s$0 → rax  (Ra, Rc, Rd; branch conditions; free addresses)
+     Reg_s$1 → rcx  (Rb only: load_B output and add's Rb input)
+     This gives the bug: load_A taints rax, load_B taints rcx; the add's
+     getOldestTaint picks load_A (older seqNum); when load_A commits,
+     rax taint is freed and load[Rc] fires even though rcx (Rb) is still
+     speculative. -->
+<field label="opstate" ID="39" parentID="38">
+   <!-- Reg_s$0 (rax): Ra, Rc, Rd, branch conditions, free addresses -->
+   <tuple> <atom label="Outreg$0"/>  <atom label="Reg_s$0"/> </tuple>  <!-- Ra -->
+   <tuple> <atom label="Outreg$2"/>  <atom label="Reg_s$0"/> </tuple>  <!-- Rc = add out -->
+   <tuple> <atom label="Outreg$3"/>  <atom label="Reg_s$0"/> </tuple>  <!-- Rd = xm out -->
+   <tuple> <atom label="Inreg$0"/>   <atom label="Reg_s$0"/> </tuple>  <!-- branch_inner cond = Ra -->
+   <tuple> <atom label="Inreg$1"/>   <atom label="Reg_s$0"/> </tuple>  <!-- add in0 = Ra -->
+   <tuple> <atom label="Inreg$3"/>   <atom label="Reg_s$0"/> </tuple>  <!-- branch_outer cond -->
+   <tuple> <atom label="Inaddr$0"/>  <atom label="Reg_s$0"/> </tuple>  <!-- load_A addr (free) -->
+   <tuple> <atom label="Inaddr$1"/>  <atom label="Reg_s$0"/> </tuple>  <!-- load_B addr (free) -->
+   <tuple> <atom label="Inaddr$2"/>  <atom label="Reg_s$0"/> </tuple>  <!-- load[Rc] addr = Rc -->
+   <!-- Reg_s$1 (rcx): Rb only -->
+   <tuple> <atom label="Outreg$1"/>  <atom label="Reg_s$1"/> </tuple>  <!-- Rb = load_B out -->
+   <tuple> <atom label="Inreg$2"/>   <atom label="Reg_s$1"/> </tuple>  <!-- add in1 = Rb -->
+   <!-- Mem_s$0 -->
+   <tuple> <atom label="Inmem$0"/>   <atom label="Mem_s$0"/> </tuple>
+   <tuple> <atom label="Inmem$1"/>   <atom label="Mem_s$0"/> </tuple>
+   <tuple> <atom label="Inmem$2"/>   <atom label="Mem_s$0"/> </tuple>
+   <types> <type ID="38"/> <type ID="8"/> </types>
+</field>
+
+<!-- rf: reads-from edges (output operand → input operand, same state type)
+     Outreg$0 (Ra) → Inreg$0   branch_inner tests Ra
+     Outreg$0 (Ra) → Inreg$1   add reads Ra as first input
+     Outreg$1 (Rb) → Inreg$2   add reads Rb as second input
+     Outreg$2 (Rc) → Inaddr$2  load[Rc] uses Rc as its address   -->
+<field label="rf" ID="40" parentID="38">
+   <tuple> <atom label="Outreg$0"/> <atom label="Inreg$0"/>  </tuple>
+   <tuple> <atom label="Outreg$0"/> <atom label="Inreg$1"/>  </tuple>
+   <tuple> <atom label="Outreg$1"/> <atom label="Inreg$2"/>  </tuple>
+   <tuple> <atom label="Outreg$2"/> <atom label="Inaddr$2"/> </tuple>
+   <types> <type ID="38"/> <type ID="38"/> </types>
+</field>
+
+<!-- ddi: intra-instruction data-dependency edges (input → output)
+     load_A:   Inmem$0  → Outreg$0  (memory → Ra)
+     load_B:   Inmem$1  → Outreg$1  (memory → Rb)
+     add:      Inreg$1  → Outreg$2  (Ra_in  → Rc)
+               Inreg$2  → Outreg$2  (Rb_in  → Rc)
+     load[Rc]: Inmem$2  → Outreg$3  (memory → Rd)   -->
+<field label="ddi" ID="41" parentID="38">
+   <tuple> <atom label="Inmem$0"/>  <atom label="Outreg$0"/> </tuple>
+   <tuple> <atom label="Inmem$1"/>  <atom label="Outreg$1"/> </tuple>
+   <tuple> <atom label="Inreg$1"/>  <atom label="Outreg$2"/> </tuple>
+   <tuple> <atom label="Inreg$2"/>  <atom label="Outreg$2"/> </tuple>
+   <tuple> <atom label="Inmem$2"/>  <atom label="Outreg$3"/> </tuple>
+   <types> <type ID="38"/> <type ID="38"/> </types>
+</field>
+
+<!-- ─── perturbation tag sigs ────────────────────────────────────────── -->
+<sig label="this/RO" ID="42" parentID="43" one="yes">
+   <atom label="RO$0"/>
+</sig>
+
+<sig label="this/RC" ID="44" parentID="43" one="yes">
+   <atom label="RC$0"/>
+</sig>
+
+<sig label="this/RR" ID="45" parentID="43" one="yes">
+   <atom label="RR$0"/>
+</sig>
+
+<sig label="this/RI" ID="46" parentID="43" one="yes">
+   <atom label="RI$0"/>
+</sig>
+
+<sig label="this/RS" ID="47" parentID="43" one="yes">
+   <atom label="RS$0"/>
+</sig>
+
+<sig label="this/PTag" ID="43" parentID="2" abstract="yes">
+</sig>
+
+<sig label="univ" ID="2" builtin="yes">
+</sig>
+
+</instance>
+
+</alloy>

@@ -1,0 +1,84 @@
+// SimSpect master run configuration.
+// Supports // line comments and /* block comments */ (stripped before JSON parse).
+// All relative paths are resolved from the directory containing this file.
+{
+  // ── Stage directories ──────────────────────────────────────────────────────
+  "paths": {
+    // Directory containing alloy6.jar and the compiled a6CountModels.class
+    "alloy_stage":        "STAGE1_alloy",
+    // Directory containing the .als model files
+    "models_dir":         "STAGE1_alloy/models",
+    // Python source for Stage 2 (batch_generate, compile_annotate, parsexml)
+    "stage2_dir":         "STAGE2_compilation",
+    // Instruction-tables JSON consumed by parsexml.py.
+    // Point this at a different file to swap in an alternate instruction set
+    // without touching source code.
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    // Python source for Stage 3 (gem5 runners)
+    "stage3_dir":         "STAGE3_gem5",
+    // Root directory for all generated output (one subdirectory per model stem)
+    "output_dir":         "generated"
+  },
+
+  // ── Alloy model enumeration ────────────────────────────────────────────────
+  "alloy": {
+    // Hard cap on the number of instances to enumerate per model
+    "max_instances": 100000,
+    // Number of instances per LLVM / asm / gem5 processing batch
+    "batch_size":    1000
+  },
+
+  // ── Speculation flavours ───────────────────────────────────────────────────
+  "speculation": {
+    // Control-flow speculation: branch-misprediction scenarios.
+    // When true, instances with unresolved br_n / br_x instructions are
+    // processed through pass2_5 and the BTB-forcing code in pass5.
+    "control_flow": true,
+
+    // Data-flow speculation: store-to-load forwarding misprediction scenarios.
+    // Not yet implemented; reserved for a future Alloy model variant.
+    "data_flow":    false,
+
+    // Branch modes to generate.
+    // Currently only "mispredict_not_taken" is implemented; add
+    // "mispredict_taken" once pass2_5 supports it.
+    "branch_modes": ["mispredict_not_taken"]
+  },
+
+  // ── gem5 simulator settings ────────────────────────────────────────────────
+  "gem5": {
+    "binary":        "/work/gem5-recon/build/X86/gem5.opt",
+    "config_script": "/work/gem5-recon/configs/example/se.py",
+    "cpu_type":      "X86O3CPU",
+    // Security scheme passed as --scheme to gem5:
+    //   0 = Unsafe (no defence)
+    //   1 = Delay
+    //   2 = STT (Speculative Taint Tracking)
+    //   3 = DoM
+    "scheme":        2,
+    "caches":        true,
+    // Parallel gem5 workers per batch
+    "jobs":          8,
+    "debug_flags":   ["O3PipeView"],
+    "debug_file":    "pipeview.txt"
+  },
+
+  // ── Pipeline analysis settings ─────────────────────────────────────────────
+  "pipeline": {
+    // Which gem5 analysis to run:
+    //   "per_type"         — dispatch to per-transmitter-type checker scripts:
+    //                        ld      → check_ld.py   (xmit_complete in lc_retire..fnc_retire)
+    //                        br_x    → check_br.py   (xmit_complete in lc_retire..fnc_complete)
+    //                        other_x → check_other.py (same as ld)
+    //                        [recommended — uses the correct window bound per type]
+    //   "window_complete"  — xmit.complete inside (lc_retire, fnc_retire) for ALL types
+    //                        Uses STAGE3_gem5/pipeline_window_complete.py
+    //   "window_issue"     — xmit.issue inside (lc_retire, fnc_retire)
+    //                        Uses STAGE3_gem5/pipeline_window.py
+    //   "completion_only"  — xmit.complete > 0, no window bounds check
+    //                        Uses STAGE3_gem5/pipeline.py
+    "check":    "per_type",
+    // Retain per-test temp directories after gem5 runs (useful for debugging)
+    "keep_tmp": false
+  }
+}

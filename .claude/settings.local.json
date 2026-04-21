@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(python3:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Read",
+      "Grep",
+      "Read(//work/gem5-recon/**)",
+      "Bash(build/X86/gem5.opt --debug-flags=LSQUnit,DelayUnit,DelayDebug,IQ --debug-start=2803000 --debug-end=2808000 --debug-file=/tmp/debug2.txt configs/example/se.py --cmd=/tests/simspect/alloy/alloy-out/all/ll/inst-oldest-taint-bug --cpu-type=X86O3CPU --caches --scheme=2 --allow_leaked)",
+      "Read(//tests/**)"
     ]
   }
 }

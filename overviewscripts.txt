@@ -1,0 +1,391 @@
+SimSpect Pipeline — All Scripts
+
+  Directory Structure
+
+  /tests/simspect/
+    run_full_pipeline.sh           ← Full runner (Alloy 4, older)
+    run_pipeline_a6.sh             ← Full runner (Alloy 6, current)
+    STAGE1_alloy/
+      a6CountModels.java           ← Enumerate instances → XML files
+      a6CountOnly.java             ← Count instances only (no output)
+      alloy6.jar                   ← Alloy 6 solver JAR
+      models/*.als                 ← Alloy model files
+    STAGE2_compilation/
+      batch_generate.py            ← XML → LLVM IR + ann.json (batch)
+      compile_annotate.py          ← .ll → .s/.o + updated ann.json (per-file)
+      parsexml_kind.py             ← Core XML parser + pipeline passes 1–5
+      find_duplicates.py           ← Utility: detect structurally identical XMLs
+      simspectmaster.md            ← Design documentation
+    STAGE3_gem5/
+      pipeline.py                  ← gem5 runner v1: checks xmit completion only
+      pipeline_window.py           ← gem5 runner v2: xmit.issue window check (stale)
+      pipeline_window_complete.py  ← gem5 runner v3: xmit.complete window check (current)
+      check_speculative.py         ← Utility: inspect PCs in a pipeview trace
+      gen_hits_overview.py         ← Post-processing: human-readable hit summary
+      run.py                       ← Utility: run gem5 from a JSON config file
+      jsons/run.json               ← Example config for run.py
+
+  ---
+  Top-Level: Full Pipeline Runners
+
+  run_pipeline_a6.sh — current full pipeline runner
+
+  Usage: bash run_pipeline_a6.sh <model_stem> [BATCH_SIZE] [JOBS]
+  Example: bash run_pipeline_a6.sh STT_4 1000 8
+
+  Role: Orchestrates all four pipeline stages end-to-end for a given Alloy 6 model. Designed for
+  large runs — batches work to avoid running out of memory/disk at once, and skips
+  already-completed stages (idempotent).
+
+  Inputs: STAGE1_alloy/models/<stem>.als, STAGE1_alloy/alloy6.jar
+
+  Outputs (under STAGE1_alloy/alloy-out/<stem>/):
+  - xml/inst-*.xml + xml/inst-*.txt — Alloy instances (Stage 1)
+  - llvm/inst-*.ll + llvm/inst-*.ann.json — LLVM IR + bare annotations (Stage 2)
+  - asm/inst-*.s, *.o, *.ann.json — x86 assembly + resolved annotations (Stage 3)
+  - window-results.json — full per-test gem5 results (Stage 4)
+  - window-hits.txt — names of instances that passed the window check
+  - batch_NNNN_results.json — per-batch intermediate results (can be deleted after merge)
+  - countmodels.log — Alloy solver log
+
+  Calls:
+  - java -cp alloy6.jar:. a6CountModels (Stage 1)
+  - python3 STAGE2_compilation/batch_generate.py (Stage 2)
+  - python3 STAGE2_compilation/compile_annotate.py (Stage 3)
+  - python3 STAGE3_gem5/pipeline_window_complete.py (Stage 4)
+
+  Notes: Contains an inline Python heredoc for the batching/accumulation logic across stages 2–4.
+  The inline Python is distinct from the standalone scripts — it handles cross-stage batching,
+  deduplication against already-done results, and merging batch JSON files into the master
+  window-results.json. Stages are individually idempotent (checks for existing .ll, .s, and names
+  already in window-results.json).
+
+  ---
+  run_full_pipeline.sh — older full pipeline runner (Alloy 4)
+
+  Usage: bash run_full_pipeline.sh [JOBS]
+
+  Role: Same conceptual pipeline as run_pipeline_a6.sh but uses Alloy 4 (alloy4.2.jar +
+  CountModels) and hard-codes models/STT_4.als with output to alloy-out/all/. Non-batched: runs all
+   LLVM IR generation in a single inline Python script, then runs pipeline_window.py on the whole
+  asm/ directory in one call.
+
+  Difference from run_pipeline_a6.sh:
+  - Uses Alloy 4 JAR and the (unshown) CountModels.class, not a6CountModels
+  - No batching — single pass over all files
+  - Calls STAGE3_gem5/pipeline_window.py for Stage 4 (the xmit.issue version), not
+  pipeline_window_complete.py
+  - Has a Step 5 that extracts hits from the results JSON inline
+
+  Status: superseded by run_pipeline_a6.sh. The Alloy 4 JAR and CountModels.class live in
+  /tests/simspect/old/, so this script likely no longer runs as-is from the current directory. Kept
+   for reference.
+
+  ---
+  STAGE1_alloy/
+
+  a6CountModels.java — Alloy 6 instance enumerator
+
+  Compile: javac -cp alloy6.jar:. a6CountModels.java
+  Run: java -cp alloy6.jar:. a6CountModels <model.als> <out_dir> [limit]
+
+  Role: Uses the Alloy 6 API (TranslateAlloyToKodkod) to solve the first run command in the model
+  and enumerate all satisfying instances up to limit (default 1000, hard cap 100000 in
+  run_pipeline_a6.sh). For each instance writes two files:
+  - inst-NNNNNN.xml — machine-readable Alloy XML (used by pipeline stages 2+)
+  - inst-NNNNNN.txt — human-readable solution string
+
+  Sets opt.symmetry = 80 (high, effectively disabling symmetry breaking) so that all structurally
+  distinct instances are found.
+
+  Inputs: .als model file, output directory path, optional limit
+  Outputs: inst-*.xml, inst-*.txt in the output directory
+  Called by: run_pipeline_a6.sh (Stage 1)
+
+  ---
+  a6CountOnly.java — Alloy 6 instance counter (no output)
+
+  Compile/Run: same pattern as above but takes only <model.als> [limit]
+
+  Role: Counts satisfying instances without writing any files. Prints the total count to stdout.
+  Useful for quickly checking how many instances a model produces before committing to a full
+  enumeration run.
+
+  Inputs: .als model file, optional limit
+  Outputs: single integer to stdout
+  Called by: nobody in the pipeline — used manually
+
+  Redundancy note: Purely a counting utility. Not needed for the pipeline to run.
+
+  ---
+  STAGE2_compilation/
+
+  parsexml_kind.py — Core XML parser and pipeline passes 1–5
+
+  Role: The main workhorse of Stage 2. Defines the full transformation from Alloy XML instance →
+  LLVM IR. Exports:
+  - parse_alloy_xml(xml_text) — parses raw Alloy XML into an AlloyInstance dataclass (sig atoms +
+  field tuples)
+  - pass1_specify_state_a — assigns state atoms to instruction slots (inreg, outreg, inaddr, inmem,
+   outmem), builds instruction list in program order
+  - pass2_specify_instructions — refines instruction kinds based on operands (ld, str, br_n, br_x,
+  other)
+  - pass2_5_specify_branches — determines branch mode (currently only mispredict_not_taken)
+  - pass3_assign_operands — assigns concrete register/memory names
+  - pass4_ssa — applies SSA transformation so each register is written at most once
+  - pass5_emit_llvm — emits the .ll LLVM IR file with inline asm sideeffect blocks containing
+  __litmus_{stem}_pcN labels at each Alloy instruction
+  - emit_branch_annotations — writes the .ann.json file with Alloy-level metadata (pc, kind, atom,
+  branch_mode, xmit, commit_boundary) but no x86 offsets yet
+
+  Inputs: Alloy XML text (in memory)
+  Outputs: .ll LLVM IR text, .ann.json JSON text (via callers)
+  Called by: batch_generate.py (dynamically imported via _load_parser(kind=True))
+  Notes: The --kind flag in batch_generate.py selects this file vs. parsexml.py. parsexml.py is the
+   older version without kind-field support.
+
+  ---
+  batch_generate.py — Stage 2: XML → LLVM IR (batch)
+
+  Usage: python3 batch_generate.py <xml_dir> --out <llvm_dir> --kind [--pattern ...]
+  [--unresolved-branch] [--limit N]
+
+  Role: Iterates inst-*.xml files in a directory, runs the full pass1→pass5 pipeline (via
+  parsexml_kind.py), and writes .ll + .ann.json pairs to the output directory. Supports:
+  - --kind — use parsexml_kind.py (required for current STT_4 model)
+  - --unresolved-branch — filter to only instances with at least one unresolved branch
+  - --limit N — stop after N instances
+  - RUN_MODES list — currently only mispredict_not_taken; when mispredict_taken is enabled, each
+  mode would get its own subdirectory
+
+  Inputs: directory of inst-*.xml files
+  Outputs: inst-*.ll + inst-*.ann.json in --out directory
+  Called by: run_pipeline_a6.sh (Stage 2), run_full_pipeline.sh (Stage 2)
+
+  ---
+  compile_annotate.py — Stage 3: LLVM IR → x86 assembly + resolved annotations
+
+  Usage: python3 compile_annotate.py <stem.ll> [--out-dir <dir>]
+
+  Role: Compiles one .ll litmus test to x86-64 and updates its .ann.json with correct x86 byte
+  offsets. The critical detail: uses nm on the linked binary (not the .o) to get
+  post-jump-relaxation offsets. This is the jump-relaxation fix — the linker may relax a 6-byte jne
+   to a 2-byte jne, shifting all subsequent labels by −4 bytes; running nm on the .o would give
+  wrong offsets.
+
+  Functions:
+  - compile_to_x86(ll_path, out_dir) — clang-15 -O0 → .s and .o
+  - build_binary(s_path, workdir) — assembles .s + minimal _start stub, links statically with ld,
+  runs nm on the binary to get func_base
+  - pc_offsets_from_nm(binary, stem, func_base) — extracts __litmus_{stem}_pcN offsets from binary
+  - commit_offsets_from_nm(binary, stem, func_base) — extracts last_committed + first_noncommitted
+  offsets
+  - disassemble_instrs(binary, func_base) — llvm-objdump-15 → instruction list relative to
+  func_base
+  - find_branch_at_pc(pc_offset, instrs) — finds the conditional j* at/after a PC marker
+  - update_annotations(ann_path, pc_map, instrs, commit_offsets) — writes all resolved x86_offset
+  fields into the .ann.json
+
+  Inputs: <stem>.ll + <stem>.ann.json (produced by batch_generate.py)
+  Outputs: <stem>.s, <stem>.o, updated <stem>.ann.json (with x86_offset + x86_offset_hex for all
+  annotated points)
+  System tools: clang-15, as, ld, nm, llvm-objdump-15
+  Called by: run_pipeline_a6.sh (Stage 3), run_full_pipeline.sh (Stage 3)
+
+  ---
+  find_duplicates.py — Utility: detect structurally identical XML instances
+
+  Usage: python3 find_duplicates.py <xml_dir> [--pattern inst-*.xml] [--kind]
+
+  Role: Runs pass1 on every XML file, computes a canonical fingerprint (normalizing Alloy atom
+  names like Reg_s$0 → r0 in order of first appearance, plus DDI and RF edge structure), groups
+  files by fingerprint, and reports duplicate groups. Prints the count of unique vs. duplicate
+  instances.
+
+  Why it exists: Alloy's symmetry breaking is loosened (opt.symmetry = 80) to enumerate more
+  instances. Some of those instances may be structurally equivalent under atom renaming. This
+  script identifies the duplicates so they can be filtered out before running gem5 (which is
+  expensive).
+
+  Inputs: directory of inst-*.xml files
+  Outputs: printed report to stdout (no files written)
+  Called by: nobody in the pipeline — used manually
+
+  ---
+  STAGE3_gem5/
+
+  pipeline_window_complete.py — current gem5 runner: xmit.complete window check
+
+  Usage: python3 pipeline_window_complete.py <input_dir> [--jobs N] [--out results.json] [--scheme
+  N] [--limit N]
+
+  Role: For each .s/.ann.json pair: builds a static binary, runs gem5 with O3PipeView tracing, and
+  checks whether the XMIT instruction's complete cycle falls inside the speculative window
+  lc_retire < xmit_complete < fnc_retire.
+
+  Window check:
+  after_lc          = (lc_retire == 0) or (xmit_complete > lc_retire)
+  before_fnc        = (fnc_retire == 0) or (xmit_complete < fnc_retire)
+  issued_in_window  = (xmit_complete > 0) and after_lc and before_fnc
+
+  Using complete (not issue) is correct for STT: STT can cause a load to issue (leave the issue
+  queue) but then stall in the LSQ before the memory access actually executes. Using complete
+  ensures only loads that actually completed their memory access are counted as hits.
+
+  Outputs (per test in --out JSON): name, status, xmit_pc, last_committed_pc,
+  first_noncommitted_pc, xmit_kind, issued_in_window, xmit_issue, xmit_complete, lc_retire,
+  fnc_retire, error
+
+  gem5 config: X86O3CPU, --caches, --scheme=<N>, --debug-flags=O3PipeView
+  System tools: as, ld, objdump, gem5 at /work/gem5-recon/build/X86/gem5.opt
+  Called by: run_pipeline_a6.sh (Stage 4)
+
+  ---
+  pipeline_window.py — older gem5 runner: xmit.issue window check
+
+  Usage: same as pipeline_window_complete.py
+
+  Role: Structurally identical to pipeline_window_complete.py with one intended difference: the
+  docstring and comments say it checks xmit.issue, but the actual code uses xmit_complete (lines
+  162–164). So in practice it behaves the same as pipeline_window_complete.py. The docstring is
+  stale.
+
+  Called by: run_full_pipeline.sh (Stage 4)
+
+  Redundancy note: Nearly a duplicate of pipeline_window_complete.py. The only differences are the
+  docstring/comments, the --limit flag (present in _complete, absent here), and the verbose print
+  format. Could be consolidated.
+
+  ---
+  pipeline.py — oldest gem5 runner: xmit completion check only
+
+  Usage: python3 pipeline.py <input_dir> [--jobs N] [--out results.json] [--scheme N]
+  [--save-traces <dir>]
+
+  Role: Earliest version of the gem5 runner. Instead of checking whether xmit completes within a
+  window, it just checks whether xmit_complete > 0 at all — i.e., did the XMIT instruction ever
+  execute? No window check, no lc_retire/fnc_retire lookup.
+
+  Output fields: name, status, completed (bool), xmit_pc_x86, xmit_kind, error
+
+  Extra feature vs. later versions: --save-traces option to copy each pipeview.txt to a named
+  directory.
+
+  Called by: nobody currently — superseded by pipeline_window_complete.py
+
+  Redundancy note: Superseded. Useful only if you want to ask "did STT allow xmit to execute at
+  all?" rather than "did it execute in the speculative window?". Keep if that distinction matters;
+  otherwise dead code.
+
+  ---
+  check_speculative.py — Utility: inspect PCs in a pipeview trace
+
+  Usage: python3 check_speculative.py <pipeview.txt> [--pcs 0x40104c 0x401051 ...]
+
+  Role: Parses an O3PipeView trace file and reports, for a given set of PCs, whether each
+  occurrence was committed, squashed, or still in-flight. Classifies results as: branch
+  predicted-taken (bb_1 never fetched), branch mispredicted (bb_1 fetched and squashed), or branch
+  went not-taken (bb_1 committed). Defaults to the bb_1 block PCs of inst-000003 if --pcs is
+  omitted.
+
+  Inputs: a pipeview.txt trace file + optional list of hex PCs
+  Outputs: printed report to stdout
+  Called by: nobody — used manually for debugging
+
+  ---
+  gen_hits_overview.py — Post-processing: human-readable hit summary
+
+  Usage: python3 gen_hits_overview.py [base_dir]
+  Default base: alloy-out/STT_4
+
+  Role: After the pipeline runs, generates a detailed human-readable summary of every window hit.
+  For each hit name: parses the Alloy XML to extract instruction-level details (kind, idx,
+  committed/resolved/xmit flags, operands, rf edges, ddi edges) and reads the .ann.json for x86
+  window coordinates.
+
+  Inputs: <base>/window-hits.txt, <base>/xml/inst-*.xml, <base>/asm/inst-*.ann.json
+  Outputs: <base>/hits_overview.txt
+  Called by: nobody — used manually after pipeline completion
+
+  ---
+  run.py — Utility: run gem5 from a JSON config file
+
+  Usage: python3 run.py <path/to/run.json>
+
+  Role: Reads a JSON config file (with // and /* */ comment support) describing a gem5 invocation:
+  gem5_bin, debug.flags, debug.file, config.script, config.script_args, and optional cwd.
+  Constructs and prints the exact gem5 command, then runs it.
+
+  Inputs: JSON config file (e.g. jsons/run.json)
+  Outputs: whatever gem5 produces (stdout/stderr + output directory)
+  Called by: nobody in the pipeline — used manually to run a single gem5 test
+
+  jsons/run.json: Example config targeting /tests/t with X86O3CPU, --caches, --scheme=2, O3PipeView
+   debug flag. Used for quick manual gem5 runs during development.
+
+  ---
+  Redundancy Summary
+
+  ┌─────────────────────────────┬─────────────┬────────────────────────────────────────────────┐
+  │           Script            │   Status    │                     Notes                      │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ run_pipeline_a6.sh          │ Core —      │ Use this                                       │
+  │                             │ current     │                                                │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ a6CountModels.java          │ Core        │ Required for Stage 1                           │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ parsexml_kind.py            │ Core        │ Required for Stage 2 (called by                │
+  │                             │             │ batch_generate)                                │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ batch_generate.py           │ Core        │ Required for Stage 2                           │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ compile_annotate.py         │ Core        │ Required for Stage 3; has jump-relaxation fix  │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ pipeline_window_complete.py │ Core —      │ Required for Stage 4                           │
+  │                             │ current     │                                                │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ gen_hits_overview.py        │ Optional    │ Useful post-processing; not in main pipeline   │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ a6CountOnly.java            │ Utility     │ Handy for pre-checking model size; not         │
+  │                             │             │ pipeline-critical                              │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ find_duplicates.py          │ Utility     │ Useful for deduplication; not                  │
+  │                             │             │ pipeline-critical                              │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ check_speculative.py        │ Utility     │ Debug/inspection tool; not pipeline-critical   │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ run.py + jsons/run.json     │ Utility     │ Manual gem5 invocation; not pipeline-critical  │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │                             │             │ Nearly identical to                            │
+  │ pipeline_window.py          │ Redundant   │ pipeline_window_complete.py; docstring is      │
+  │                             │             │ wrong; only run_full_pipeline.sh calls it      │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ pipeline.py                 │ Superseded  │ Completion-only check, no window; not called   │
+  │                             │             │ by anything current                            │
+  ├─────────────────────────────┼─────────────┼────────────────────────────────────────────────┤
+  │ run_full_pipeline.sh        │ Superseded  │ Uses Alloy 4 (missing from current dir), no    │
+  │                             │             │ batching; replaced by run_pipeline_a6.sh       │
+  └─────────────────────────────┴─────────────┴────────────────────────────────────────────────┘
+
+  Pipeline Data Flow
+
+  STAGE1_alloy/models/STT_4.als
+          │
+          ▼  java a6CountModels
+  STAGE1_alloy/alloy-out/<stem>/xml/inst-*.xml
+          │
+          ▼  batch_generate.py  (uses parsexml_kind.py passes 1–5)
+  STAGE1_alloy/alloy-out/<stem>/llvm/inst-*.ll
+  STAGE1_alloy/alloy-out/<stem>/llvm/inst-*.ann.json  ← no x86 offsets yet
+          │
+          ▼  compile_annotate.py  (clang-15 → nm on binary → objdump)
+  STAGE1_alloy/alloy-out/<stem>/asm/inst-*.s
+  STAGE1_alloy/alloy-out/<stem>/asm/inst-*.o
+  STAGE1_alloy/alloy-out/<stem>/asm/inst-*.ann.json   ← with correct x86 offsets
+          │
+          ▼  pipeline_window_complete.py  (gem5 O3PipeView → check_window)
+  STAGE1_alloy/alloy-out/<stem>/window-results.json
+  STAGE1_alloy/alloy-out/<stem>/window-hits.txt
+          │
+          ▼  gen_hits_overview.py  (manual post-processing)
+  STAGE1_alloy/alloy-out/<stem>/hits_overview.txt

@@ -1,0 +1,54 @@
+{
+  "branch_mode": "custom_oldest_taint_bug",
+  "annotations": [
+    {
+      "branch_pc": 0,
+      "branch_atom": "Instruction$5",
+      "btb_forced_target_pc": 1,
+      "mode": "correctly_not_taken",
+      "x86_pc_offset": 3166,
+      "x86_pc_offset_hex": "0xc5e",
+      "x86_branch_offset": 3172,
+      "x86_branch_offset_hex": "0xc64",
+      "x86_mnemonic": "jne",
+      "x86_fallthrough_offset": 3174,
+      "x86_taken_offset": 4201650
+    },
+    {
+      "branch_pc": 2,
+      "branch_atom": "Instruction$3",
+      "btb_forced_target_pc": 3,
+      "mode": "mispredict_not_taken",
+      "x86_pc_offset": 3191,
+      "x86_pc_offset_hex": "0xc77",
+      "x86_branch_offset": 3197,
+      "x86_branch_offset_hex": "0xc7d",
+      "x86_mnemonic": "jne",
+      "x86_btb_predicted_offset": 3199,
+      "x86_btb_predicted_offset_hex": "0xc7f",
+      "x86_actual_target_offset": 4201650,
+      "x86_actual_target_offset_hex": "0x401cb2"
+    }
+  ],
+  "xmit": {
+    "pc": 5,
+    "kind": "ld",
+    "atom": "Instruction$0",
+    "x86_offset": 3214,
+    "x86_offset_hex": "0xc8e"
+  },
+  "commit_boundary": {
+    "last_committed": {
+      "pc": 1,
+      "atom": "Instruction$4",
+      "x86_offset": 3182,
+      "x86_offset_hex": "0xc6e"
+    },
+    "first_noncommitted": {
+      "pc": 2,
+      "atom": "Instruction$3",
+      "x86_offset": 3191,
+      "x86_offset_hex": "0xc77"
+    }
+  }
+}

@@ -1,9 +1,11 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Set, Tuple, Optional
+import json
 import xml.etree.ElementTree as ET
 import re
 import random
+from pathlib import Path
 
 # HELPERS
 # -----------------------------
@@ -305,92 +307,53 @@ def pass1_specify_state_a(
 # Pass 2: assign concrete LLVM instructions
 # =============================================================================
 
-# Maps alloy kind tokens to instruction-table categories.
-# br_n / br_x both map to "br"; other_n / other_x both map to "other".
-_KIND_TO_CATEGORY: Dict[str, str] = {
-    "ld":      "ld",
-    "str":     "str",
-    "br_n":    "br",
-    "br_x":    "br",
-    "other_n": "other_n",
-    "other_x": "other_x",
-    "unknown": "other_n",
-}
+# ---------------------------------------------------------------------------
+# Load instruction tables from instruction_tables/instructions.json.
+# The JSON stores "uses" as arrays; we convert them to sets on load.
+# ---------------------------------------------------------------------------
+def _load_instruction_tables(
+    path: Optional[Path] = None,
+) -> tuple[Dict[str, str], Dict[str, List[Dict[str, Any]]]]:
+    if path is None:
+        # Try local instruction_tables first, then fall back to original STAGE2 location
+        _local = Path(__file__).parent / "instruction_tables" / "instructions.jsonc"
+        _stage2 = Path(__file__).parent.parent / "STAGE2_compilation" / "instruction_tables" / "instructions.jsonc"
+        path = _local if _local.exists() else _stage2
+    text = Path(path).read_text(encoding="utf-8")
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
+    text = re.sub(r'//[^\n]*', '', text)
+    data = json.loads(text)
+    kind_categories: Dict[str, str] = data["kind_categories"]
+    instructions: Dict[str, List[Dict[str, Any]]] = {
+        category: [
+            {**entry, "uses": set(entry["uses"])}
+            for entry in entries
+        ]
+        for category, entries in data["instructions"].items()
+    }
+    return kind_categories, instructions
 
-# Instruction table.
-# "uses": the set of operand-slot names this instruction consumes or produces.
-# Slot names match what _build_slot_records emits: inreg0, inreg1, inaddr,
-# inmem, outreg, outmem.
-#
-# Filtering rule: every specified slot on an abstract instruction must appear
-# in the chosen candidate's "uses" set.  Among valid candidates, the one with
-# the fewest entries in "uses" is preferred (simplest fit wins).
-INSTRUCTION_TABLE: Dict[str, List[Dict[str, Any]]] = {
-    "ld": [
-        {
-            "name": "load",
-            "llvm_op": "load volatile i64",
-            # reads address from inaddr (or inmem as the memory operand),
-            # writes loaded value to outreg
-            "uses": {"inaddr", "inmem", "outreg"},
-        },
-    ],
-    "str": [
-        {
-            "name": "store",
-            "llvm_op": "store volatile i64",
-            # reads value from inreg0, address from inaddr, writes to outmem
-            "uses": {"inreg0", "inaddr", "outmem"},
-        },
-    ],
-    "br": [
-        # Unconditional branch — no register operands
-        {
-            "name": "br_uncond",
-            "llvm_op": "br label",
-            "uses": set(),
-        },
-        # Conditional branch — consumes a condition value in inreg0
-        {
-            "name": "br_cond",
-            "llvm_op": "br i1",
-            "uses": {"inreg0"},
-        },
-    ],
-    "other_n": [
-        # Unary bitwise NOT (emitted as: %dst = xor i64 %src, -1)
-        # Uses one input register and one output register.
-        {
-            "name": "bitnot",
-            "llvm_op": "xor i64",
-            "uses": {"inreg0", "outreg"},
-        },
-        # Binary integer add — uses two input registers and one output register.
-        {
-            "name": "add",
-            "llvm_op": "add i64",
-            "uses": {"inreg0", "inreg1", "outreg"},
-        },
-    ],
-    "other_x": [
-        # Zero-skip multiply — some x86 µarchs (e.g. Sandy Bridge) early-terminate
-        # the multiplier when one operand is zero, leaking zero-ness via timing.
-        # Emitted as: %dst = mul i64 %a, %b
-        {
-            "name": "zsm",
-            "llvm_op": "mul i64",
-            "uses": {"inreg0", "inreg1", "outreg"},
-        },
-        # Signed integer division — variable latency on x86 based on operand
-        # magnitude, making the dividend/divisor values observable via timing.
-        # Emitted as: %dst = sdiv i64 %a, %b
-        {
-            "name": "div",
-            "llvm_op": "sdiv i64",
-            "uses": {"inreg0", "inreg1", "outreg"},
-        },
-    ],
-}
+
+def reload_tables(path: Optional[str] = None) -> None:
+    """
+    Reload _KIND_TO_CATEGORY and INSTRUCTION_TABLE from an alternate JSON path.
+    Called by the top-level pipeline.py (via batch_generate --instruction-tables)
+    to point at a non-default instruction table without touching source code.
+    """
+    global _KIND_TO_CATEGORY, INSTRUCTION_TABLE
+    _KIND_TO_CATEGORY, INSTRUCTION_TABLE = _load_instruction_tables(
+        Path(path) if path else None
+    )
+
+
+# _KIND_TO_CATEGORY: maps kind tokens (ld, str, br_n, br_x, other_n, other_x)
+#   to instruction-table category keys.  br_n / br_x both map to "br".
+# INSTRUCTION_TABLE: maps category -> list of concrete instruction dicts.
+#   Each dict has "name", "llvm_op", and "uses" (set of required slot names).
+#   Filtering rule: every specified slot on an abstract instruction must appear
+#   in the chosen candidate's "uses" set; among valid candidates the one with
+#   the fewest "uses" entries is preferred (simplest fit wins).
+_KIND_TO_CATEGORY, INSTRUCTION_TABLE = _load_instruction_tables()
 
 
 def pass2_specify_instructions(
@@ -554,7 +517,12 @@ def pass2_5_specify_branches(
     instructions: List[Dict[str, Any]] = [dict(rec) for rec in pass2_result["instructions"]]
     needs_end_block = False
 
-    for rec in instructions:
+    # Track which xm branches need a fall-through NOP injected after them.
+    # We collect (index, pc) pairs and insert after the loop to avoid
+    # mutating the list while iterating.
+    xm_nop_inserts: List[Tuple[int, int]] = []
+
+    for idx, rec in enumerate(instructions):
         if rec.get("kind") not in _BRANCH_KINDS:
             continue
         if rec.get("resolved", False):
@@ -562,6 +530,7 @@ def pass2_5_specify_branches(
 
         pc = rec["pc"]
         next_pc = pc + 1
+        is_xm = rec.get("xm", False)
 
         # Misprediction requires a conditional branch; upgrade if pass 2 chose
         # the unconditional form because no operands were specified.
@@ -572,9 +541,24 @@ def pass2_5_specify_branches(
             if "br_cond" not in cands:
                 rec["candidates"] = cands + ["br_cond"]
 
+        # If the branch is the xmit transmitter, use BEZ (testq+jz) instead of
+        # the generic br_cond.  All registers are zero-initialised, so
+        # testq %reg,%reg sets ZF=1 and jz is taken — but the BTB predicts
+        # not-taken (fall-through), creating the misprediction.
+        if is_xm:
+            rec["concrete_instruction"] = "br_bez"
+            rec["llvm_op"] = "testq+jz"
+
         if branch_mode == "mispredict_not_taken":
             needs_end_block = True
-            # If branch is the last instruction, fall-through also lands at end_block
+
+            # If this is an xm branch and there is no real instruction after it
+            # on the fall-through path, we must inject a NOP so the fall-through
+            # has something for the processor to fetch (and then squash).
+            if is_xm and (idx == len(instructions) - 1
+                          or instructions[idx + 1].get("kind") in _BRANCH_KINDS):
+                xm_nop_inserts.append((idx, pc))
+
             fallthrough = "end_block" if next_pc >= n else f"bb_{next_pc}"
             rec["branch_annotations"] = {
                 "mode":               "mispredict_not_taken",
@@ -584,6 +568,33 @@ def pass2_5_specify_branches(
                 "btb_prediction":     "fall_through", # BTB predicts not taken
                 "btb_predicted_pc":   next_pc,        # simulator override point
             }
+
+    # Insert synthetic NOP instructions after xm branches that need them.
+    # Process in reverse order so earlier indices stay valid.
+    for insert_idx, br_pc in reversed(xm_nop_inserts):
+        nop_pc = br_pc + 1
+        nop_rec: Dict[str, Any] = {
+            "pc":                     nop_pc,
+            "instruction":            "_xm_fallthrough_nop",
+            "kind":                   "other_n",
+            "concrete_instruction":   "nop",
+            "llvm_op":               "nop",
+            "candidates":            ["nop"],
+            "resolved":              False,
+            "committed":             False,
+            "xm":                    False,
+            "slots":                 {},
+            "synthetic":             True,
+        }
+        instructions.insert(insert_idx + 1, nop_rec)
+        # Update the branch's fallthrough target to point at the NOP's block
+        ba = instructions[insert_idx].get("branch_annotations")
+        if ba and ba["fallthrough_target"] == "end_block":
+            ba["fallthrough_target"] = f"bb_{nop_pc}"
+
+    # Renumber PCs if we inserted NOPs (shift all instructions after each insert)
+    # Not needed: we use explicit pc values everywhere, and the NOP already
+    # has br_pc + 1 which is what btb_predicted_pc expects.
 
     result: Dict[str, Any] = {
         "instructions": instructions,
@@ -1214,18 +1225,65 @@ def pass5_emit_llvm(
 
     # ---- Condition slots for mispredicted branches ----
     # For each mispredict_not_taken branch, allocate a cache-line-aligned slot
-    # and initialise it to 1 (so the branch condition resolves to "taken").
-    # The slot is flushed from cache at the branch site to maximise the
-    # speculation window (the load will miss L1/L2/L3, ~200-300 cycles).
+    # and initialise it so the branch condition resolves to "taken":
+    #   br_cond: slot = 1  (icmp ne 0 → true → taken)
+    #   br_bez:  slot = 0  (icmp eq 0 → true → taken)
+    # The slot is flushed from cache before the main instruction sequence to
+    # maximise the speculation window (the load will miss L1/L2/L3, ~200-300
+    # cycles).  For correctly_not_taken, init_val=0 so the condition evaluates
+    # to false (not taken); for mispredict_not_taken, init_val=1 so the
+    # condition evaluates to true (taken → misprediction).
     cond_slots: Dict[int, str] = {}
+    # For mispredict_not_taken branches, we use a pointer-chain double-dereference
+    # to create a ~2× DRAM-miss latency for the inner branch's condition resolution.
+    # This widens the window between load_A committing (1 miss) and branch_inner
+    # resolving (2 serial misses) to ~220 cycles — enough for the xmit to complete.
+    cond_ptr_slots: Dict[int, str] = {}   # pc → ptr-slot var name (double-deref only)
     for rec in instructions:
         ba = rec.get("branch_annotations")
-        if ba and ba.get("mode") == "mispredict_not_taken":
+        if ba and ba.get("mode") in ("mispredict_not_taken", "correctly_not_taken"):
             slot = f"%cond_slot_pc{rec['pc']}"
+            concrete = rec.get("concrete_instruction")
+            mode = ba.get("mode")
+            if mode == "correctly_not_taken":
+                init_val = 0   # load 0 → icmp ne 0 → false → NOT taken (correct)
+            elif concrete == "br_bez":
+                init_val = 0   # load 0 → icmp eq 0 → true → taken
+            else:
+                init_val = 1   # load 1 → icmp ne 0 → true → taken (mispredict)
             # align 64 = cache-line aligned so clflush hits exactly this line
             il(f"{slot} = alloca i64, align 64")
-            il(f"store volatile i64 1, ptr {slot}, align 64")
+            il(f"store volatile i64 {init_val}, ptr {slot}, align 64")
             cond_slots[rec["pc"]] = slot
+
+            if mode == "mispredict_not_taken":
+                # Pointer slot lives in its OWN cache line (different from cond_slot).
+                # It stores the integer address of cond_slot so a cold load from the
+                # ptr slot must be followed by a cold load from cond_slot:
+                # two serial DRAM misses → branch resolves ~440 cycles late.
+                ptr_slot = f"%cond_ptr_slot_pc{rec['pc']}"
+                il(f"{ptr_slot} = alloca i64, align 64")
+                addr_tmp = f"%cond_slot_addr_pc{rec['pc']}"
+                il(f"{addr_tmp} = ptrtoint ptr {slot} to i64")
+                il(f"store volatile i64 {addr_tmp}, ptr {ptr_slot}, align 64")
+                cond_ptr_slots[rec["pc"]] = ptr_slot
+
+    # ---- Pre-evict ALL condition slots before the first target instruction ----
+    # Also evict ptr_slots so both loads in the double-dereference chain are cold.
+    if cond_slots:
+        all_flush_slots = list(cond_slots.values()) + list(cond_ptr_slots.values())
+        if len(all_flush_slots) == 1:
+            constraints = "r,~{memory}"
+            il(f'call void asm sideeffect '
+               f'"mfence\\0Aclflush ($0)\\0Amfence", '
+               f'"{constraints}"({all_flush_slots[0]})')
+        else:
+            clflush_body = "\\0A".join(f"clflush (${i})" for i in range(len(all_flush_slots)))
+            ptr_args_str = ", ".join(f"ptr {p}" for p in all_flush_slots)
+            constraints_str = ",".join(["r"] * len(all_flush_slots)) + ",~{memory}"
+            il(f'call void asm sideeffect '
+               f'"mfence\\0A{clflush_body}\\0Amfence", '
+               f'"{constraints_str}"({ptr_args_str})')
 
     # ---- Commit boundary PCs ----
     last_committed_pc: Optional[int] = None
@@ -1395,31 +1453,103 @@ def pass5_emit_llvm(
                    f'"{mkr}leaq ($0, $1), %rax", '
                    f'"{in0_con},{in1_con},~{{rax}}"(i64 {inreg0}, i64 {inreg1})')
 
+        elif concrete == "br_bez":
+            # BEZ: branch-if-equal-to-zero (xmit transmitter branch).
+            #
+            # The condition slot is initialised to 0 (not 1 like br_cond) and
+            # flushed from cache.  The slow load returns 0, so "== 0" is true
+            # → branch taken.  BTB predicts not-taken → misprediction →
+            # processor speculatively fetches the fall-through NOP, then
+            # squashes it when the BEZ resolves.
+            #
+            # Emitted x86:
+            #   mfence; clflush (slot); mfence     ← flush to maximise window
+            #   movq (slot), %cond_reg             ← slow load (cache miss)
+            #   testq %cond_reg, %cond_reg         ← sets ZF=1 (value is 0)
+            #   LLVM br i1 (== 0) → taken / ft    ← compiles to je/jz
+            ba = rec.get("branch_annotations")
+            if ba:
+                taken = ba["taken_target"]
+                ft    = ba["fallthrough_target"]
+                cm(f"BEZ xmit branch: BTB predicts={ba['btb_prediction']}")
+                slot = cond_slots.get(pc)
+                vpool = pass4_result.get("virtual_reg_pool", [])
+                scratch  = vpool[0] if len(vpool) > 0 else "r10"
+                cond_reg = vpool[1] if len(vpool) > 1 else "r11"
+                if slot:
+                    # Flush the condition slot to maximise speculation window
+                    il(f'call void asm sideeffect '
+                       f'"{mkr}mfence\\0Aclflush ($0)\\0Amfence", '
+                       f'"{{{scratch}}},~{{memory}}"(ptr {slot})')
+                    # Slow load — value is 0, so testq will set ZF=1
+                    cond_raw = tmp("bez_raw")
+                    il(f'{cond_raw} = call i64 asm sideeffect '
+                       f'"movq ($1), $0", '
+                       f'"=&{{{cond_reg}}},{{{scratch}}},~{{memory}}"(ptr {slot})')
+                    # testq %cond_reg, %cond_reg → ZF=1 (loaded 0)
+                    # icmp eq 0 → true → branch taken
+                    bez_i1 = tmp("bez_i1")
+                    il(f"{bez_i1} = icmp eq i64 {cond_raw}, 0")
+                    il(f"br i1 {bez_i1}, label %{taken}, label %{ft}")
+                else:
+                    # No condition slot — emit unconditional taken (no window)
+                    il(f'call void asm sideeffect "{mkr}", ""()')
+                    il(f"br label %{taken}")
+                last_was_terminator = True
+            else:
+                il(f'call void asm sideeffect "{mkr}", ""()')
+                cm(f"resolved branch {atom} — skipped")
+
+        elif concrete == "nop":
+            # Synthetic NOP injected after an xm branch so the fall-through
+            # path has an instruction the processor will fetch (and squash).
+            il(f'call void asm sideeffect "{mkr}nop", ""()')
+
         elif concrete in ("br_cond", "br_uncond"):
             ba = rec.get("branch_annotations")
             if ba:
                 taken = ba["taken_target"]
                 ft    = ba["fallthrough_target"]
                 cm(f"BTB predicts={ba['btb_prediction']}  btb_predicted_pc={ba['btb_predicted_pc']}")
-                if ba.get("mode") == "mispredict_not_taken" and pc in cond_slots:
+                if ba.get("mode") in ("mispredict_not_taken", "correctly_not_taken") and pc in cond_slots:
                     # Use virtual pool registers for ALL branch machinery so the
                     # compiler never touches locked test registers (no spill).
-                    # scratch  = cond_slot pointer (for clflush)
                     # cond_reg = loaded condition value (for compare)
+                    # Slots were already clflush-ed in bulk in the entry block;
+                    # here we only do the slow load + compare + branch.
                     slot = cond_slots[pc]
                     vpool = pass4_result.get("virtual_reg_pool", [])
                     scratch  = vpool[0] if len(vpool) > 0 else "r10"
                     cond_reg = vpool[1] if len(vpool) > 1 else "r11"
-                    # clflush block — explicit scratch register
-                    il(f'call void asm sideeffect '
-                       f'"{mkr}mfence\\0Aclflush ($0)\\0Amfence", '
-                       f'"{{{scratch}}},~{{memory}}"(ptr {slot})')
-                    # Condition load — forced into cond_reg, not a free compiler choice
                     cond_raw = tmp("cond_raw")
                     cond_i1  = tmp("cond_i1")
-                    il(f'{cond_raw} = call i64 asm sideeffect '
-                       f'"movq ($1), $0", '
-                       f'"=&{{{cond_reg}}},{{{scratch}}},~{{memory}}"(ptr {slot})')
+                    ptr_slot = cond_ptr_slots.get(pc)
+                    if ba.get("mode") == "mispredict_not_taken" and ptr_slot is not None:
+                        # Double-dereference: load ptr from cold ptr_slot (DRAM miss 1),
+                        # then load condition from the address it points to (DRAM miss 2).
+                        # The two serial misses make branch_inner resolve ~440 cycles after
+                        # issue, while load_A commits after only ~220 cycles.  Window =
+                        # ~220 cycles for xmit to complete — enough even for an L3 hit.
+                        # pc3/pc4 can issue OOO (no data dep on %rsi), so the add runs
+                        # while load_A is still speculative → getOldestTaint bug triggers.
+                        ptr_raw = tmp("ptr_raw")
+                        cond_ptr = tmp("cond_ptr")
+                        # ptr load: unlabelled — load address from cold ptr_slot (DRAM miss 1)
+                        il(f'{ptr_raw} = call i64 asm sideeffect '
+                           f'"movq ($1), $0", '
+                           f'"=&{{{scratch}}},{{{cond_reg}}},~{{memory}}"(ptr {ptr_slot})')
+                        il(f'{cond_ptr} = inttoptr i64 {ptr_raw} to ptr')
+                        # cond load: carries mkr (pc + first_noncommitted labels) so that
+                        # fnc_retire reflects when the ACTUAL condition value is known
+                        # (DRAM miss 2), not when the ptr was loaded.
+                        il(f'{cond_raw} = call i64 asm sideeffect '
+                           f'"{mkr}movq ($1), $0", '
+                           f'"=&{{{cond_reg}}},{{{scratch}}},~{{memory}}"(ptr {cond_ptr})')
+                    else:
+                        # Condition load — forced into cond_reg, not a free compiler choice
+                        il(f'{cond_raw} = call i64 asm sideeffect '
+                           f'"{mkr}movq ($1), $0", '
+                           f'"=&{{{cond_reg}}},{{{scratch}}},~{{memory}}"(ptr {slot})')
                     il(f"{cond_i1} = icmp ne i64 {cond_raw}, 0")
                     il(f"br i1 {cond_i1}, label %{taken}, label %{ft}")
                 else:
