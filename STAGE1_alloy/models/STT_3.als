@@ -98,7 +98,7 @@ fact no_extra_ops {no (Operand - Instruction.operands)}
 fact no_extra_State {no State - Operand.opstate}
 
 // all instructions have operands (so we dont have to relax instructions)
-fact no_extra_Instructions {no Instruction - operands.Operand}
+// fact no_extra_Instructions {no Instruction - operands.Operand}
 
 // each operand only belongs to one instruction
 fact limited_instr_per_op {all o: Operand | #(o.(~operands)) = 1}
@@ -283,7 +283,7 @@ let gen_useful_litmus {
   all s: State | secure_speculation_scheme_p[RS->s]
 }
 
-fact no_extra_inst {no (Instruction - operands.Operand)}
+fact no_extra_inst {no ((Instruction-Branchns) - operands.Operand)} //no extra instrs except branches, while interleave fake
 
 run gen_lit {
   gen_useful_litmus

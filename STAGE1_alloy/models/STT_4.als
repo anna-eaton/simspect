@@ -99,7 +99,7 @@ fact no_extra_ops {no (Operand - Instruction.operands)}
 fact no_extra_State {no State - Operand.opstate}
 
 // all instructions have operands (so we dont have to relax instructions)
-fact no_extra_Instructions {no Instruction - operands.Operand}
+//fact no_extra_Instructions {no Instruction - operands.Operand}
 
 // each operand only belongs to one instruction
 fact limited_instr_per_op {all o: Operand | #(o.(~operands)) = 1}
@@ -290,11 +290,7 @@ let gen_useful_litmus {
   all s: State | secure_speculation_scheme_p[RS->s]
 }
 
-fact no_extra_inst {no (Instruction - operands.Operand)}
-
-let gen_useful_litmus {
-  not secure_speculation_scheme_p[no_p]
-}
+fact no_extra_inst {no ((Instruction-Branchns) - operands.Operand)} // branchn case
 
 run gen_lit {
   gen_useful_litmus
@@ -314,11 +310,11 @@ fun prot_set_propagation_p[p:PTag->univ,i:Instruction,s:State] : State {
 	//s - (Loads & no_unresolved_brs_p[p] & i).inaddr.opstate // later could put bf or is, but loads and brs shouldnt overlap obv
 	s - (Loads & no_unresolved_brs_p[p] & i).inmem.opstate
 }
-
-
-fun execution_contract_p[p: PTag->univ] : Instruction {uncommitted_p[p] & has_unresolved_brs_p[p]}
-fun protection_set: State {Mem_s}
-fun leakage_contract : Operand {Loads.inaddr+(Branchxs+Otherxs).inreg}
-fun prot_set_propagation_p[p:PTag->univ,i:Instruction,s:State] : State {
-		s - (Loads & no_unresolved_brs_p[p] & i).inmem.opstate
-}
+//
+//
+//fun execution_contract_p[p: PTag->univ] : Instruction {uncommitted_p[p] & has_unresolved_brs_p[p]}
+//fun protection_set: State {Mem_s}
+//fun leakage_contract : Operand {Loads.inaddr+(Branchxs+Otherxs).inreg}
+//fun prot_set_propagation_p[p:PTag->univ,i:Instruction,s:State] : State {
+//		s - (Loads & no_unresolved_brs_p[p] & i).inmem.opstate
+//}
