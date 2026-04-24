@@ -356,6 +356,7 @@ _KIND_TO_CATEGORY, INSTRUCTION_TABLE = _load_instruction_tables()
 def pass2_specify_instructions(
     pass1_result: Dict[str, Any],
     instruction_table: Optional[Dict[str, List[Dict[str, Any]]]] = None,
+    additional_interleave: int = 0,
     out_path: Optional[str] = None,
     write_out: bool = False,
 ) -> Dict[str, Any]:
@@ -407,6 +408,26 @@ def pass2_specify_instructions(
         out_rec["llvm_op"] = chosen["llvm_op"] if chosen else None
         out_rec["candidates"] = [c["name"] for c in valid]
         output_instructions.append(out_rec)
+
+    # ---- Additional interleave (STUB) ----
+    # When enabled (additional_interleave > 0), insert that many random other_n
+    # instructions at random positions in output_instructions. The interleaved
+    # records must pull their register/memory atoms from the "second group" of
+    # state — i.e. Reg_s / Mem_s atoms NOT in pass1_result["resource_usage"]
+    # ["registers"] / ["memory"] — so the noise cannot alias the abstract
+    # program's tracked state.
+    #
+    # Fixed at 0 for now; enabling it later will require:
+    #   - pass 1 to also expose the full Reg_s / Mem_s atom sets so the
+    #     "second group" (unused atoms) can be derived here
+    #   - PC renumbering + slot records wired to the second-group atoms
+    #   - downstream passes to treat the synthetic records like any other
+    #     other_n (they should already, since the shape matches)
+    if additional_interleave > 0:
+        raise NotImplementedError(
+            "additional_interleave>0 not yet implemented (stub reserved for "
+            "interleaving other_n instructions from the second state group)"
+        )
 
     result: Dict[str, Any] = {
         "instructions": output_instructions,
@@ -480,10 +501,16 @@ def pass2_5_specify_branches(
         btb_predicted_pc = pc + 1   ← override this in the simulator to change
                                        what the BTB actually predicts
 
-    "mispredict_taken"  (future, raises NotImplementedError)
-        Branch is NOT architecturally taken (condition_value=False) but the
-        BTB predicts taken. At least one noop will be inserted before the
-        fall-through target. Stubbed pending a mode flag enabling it.
+    "mispredict_taken"
+        Branch is architecturally NOT taken (condition_value=False) and
+        architecturally jumps past every later instruction — fallthrough_target
+        = "end_block". The BTB predicts taken, so the CPU speculatively
+        fetches taken_target="bb_<pc+1>" (everything after the branch, the
+        "critical" section). Squashes on resolution.
+
+        btb_prediction   = "taken"
+        btb_predicted_pc = pc + 1   ← override this in the simulator to change
+                                       what the BTB actually predicts
 
     Output dict additions
     ---------------------
@@ -505,10 +532,6 @@ def pass2_5_specify_branches(
     """
     if branch_mode not in ("mispredict_not_taken", "mispredict_taken"):
         raise ValueError(f"Unknown branch_mode: {branch_mode!r}")
-    if branch_mode == "mispredict_taken":
-        raise NotImplementedError(
-            "mispredict_taken is reserved for future implementation"
-        )
 
     n = len(pass2_result["instructions"])
     instructions: List[Dict[str, Any]] = [dict(rec) for rec in pass2_result["instructions"]]
@@ -566,6 +589,26 @@ def pass2_5_specify_branches(
                 "btb_predicted_pc":   next_pc,        # simulator override point
             }
 
+        elif branch_mode == "mispredict_taken":
+            needs_end_block = True
+
+            # xm branch with no real instruction on the speculative (taken)
+            # path → inject a NOP so the processor has something to fetch
+            # and then squash.
+            if is_xm and (idx == len(instructions) - 1
+                          or instructions[idx + 1].get("kind") in _BRANCH_KINDS):
+                xm_nop_inserts.append((idx, pc))
+
+            taken = f"bb_{next_pc}" if next_pc < n else "end_block"
+            rec["branch_annotations"] = {
+                "mode":               "mispredict_taken",
+                "condition_value":    False,          # branch NOT taken
+                "taken_target":       taken,          # speculative path (critical)
+                "fallthrough_target": "end_block",    # architectural: skip critical
+                "btb_prediction":     "taken",        # BTB predicts taken
+                "btb_predicted_pc":   next_pc,        # simulator override point
+            }
+
     # Insert synthetic NOP instructions after xm branches that need them.
     # Process in reverse order so earlier indices stay valid.
     for insert_idx, br_pc in reversed(xm_nop_inserts):
@@ -584,10 +627,15 @@ def pass2_5_specify_branches(
             "synthetic":             True,
         }
         instructions.insert(insert_idx + 1, nop_rec)
-        # Update the branch's fallthrough target to point at the NOP's block
+        # Update the speculative-path target to point at the NOP's block.
+        # In not-taken mode that's fallthrough_target; in taken mode it's
+        # taken_target.
         ba = instructions[insert_idx].get("branch_annotations")
-        if ba and ba["fallthrough_target"] == "end_block":
-            ba["fallthrough_target"] = f"bb_{nop_pc}"
+        if ba:
+            if ba.get("mode") == "mispredict_not_taken" and ba["fallthrough_target"] == "end_block":
+                ba["fallthrough_target"] = f"bb_{nop_pc}"
+            elif ba.get("mode") == "mispredict_taken" and ba["taken_target"] == "end_block":
+                ba["taken_target"] = f"bb_{nop_pc}"
 
     # Renumber PCs if we inserted NOPs (shift all instructions after each insert)
     # Not needed: we use explicit pc values everywhere, and the NOP already
@@ -1139,15 +1187,19 @@ def pass5_emit_llvm(
     alloca_n: int = pass4_result["alloca_total_slots"]
     needs_end_block: bool = pass4_result.get("needs_end_block", False)
 
-    # PCs that start new basic blocks (fallthrough targets of mispredicted branches)
+    # PCs that start new basic blocks. For mispredict_not_taken the speculative
+    # path is the fallthrough_target (bb_<pc+1>); for mispredict_taken it's the
+    # taken_target. We register both so either label gets emitted.
     new_block_pcs: Set[int] = set()
     for rec in instructions:
         ba = rec.get("branch_annotations")
-        if ba:
-            ft = ba.get("fallthrough_target", "")
-            if ft.startswith("bb_"):
+        if not ba:
+            continue
+        for target_key in ("fallthrough_target", "taken_target"):
+            t = ba.get(target_key, "")
+            if t.startswith("bb_"):
                 try:
-                    new_block_pcs.add(int(ft[3:]))
+                    new_block_pcs.add(int(t[3:]))
                 except ValueError:
                     pass
 
@@ -1249,23 +1301,27 @@ def pass5_emit_llvm(
         asm_force(ssa_name, reg, "0")
 
     # ---- Condition slots for mispredicted branches ----
-    # For each mispredict_not_taken branch, allocate a cache-line-aligned slot
-    # and initialise it so the branch condition resolves to "taken":
-    #   br_cond: slot = 1  (icmp ne 0 → true → taken)
-    #   br_bez:  slot = 0  (icmp eq 0 → true → taken)
+    # For each mispredicted branch, allocate a cache-line-aligned slot and
+    # initialise it so the branch condition resolves to condition_value:
+    #   br_cond: icmp ne 0 → slot=1 taken, slot=0 not-taken
+    #   br_bez : icmp eq 0 → slot=0 taken, slot=1 not-taken
     # The slot is flushed from cache at the branch site to maximise the
     # speculation window (the load will miss L1/L2/L3, ~200-300 cycles).
     cond_slots: Dict[int, str] = {}
     for rec in instructions:
         ba = rec.get("branch_annotations")
-        if ba and ba.get("mode") == "mispredict_not_taken":
-            slot = f"%cond_slot_pc{rec['pc']}"
-            concrete = rec.get("concrete_instruction")
+        if not (ba and ba.get("mode") in ("mispredict_not_taken", "mispredict_taken")):
+            continue
+        slot = f"%cond_slot_pc{rec['pc']}"
+        concrete = rec.get("concrete_instruction")
+        if ba["mode"] == "mispredict_not_taken":
             init_val = 0 if concrete == "br_bez" else 1
-            # align 64 = cache-line aligned so clflush hits exactly this line
-            il(f"{slot} = alloca i64, align 64")
-            il(f"store volatile i64 {init_val}, ptr {slot}, align 64")
-            cond_slots[rec["pc"]] = slot
+        else:  # mispredict_taken: architectural condition is False
+            init_val = 1 if concrete == "br_bez" else 0
+        # align 64 = cache-line aligned so clflush hits exactly this line
+        il(f"{slot} = alloca i64, align 64")
+        il(f"store volatile i64 {init_val}, ptr {slot}, align 64")
+        cond_slots[rec["pc"]] = slot
 
     # ---- Commit boundary PCs ----
     last_committed_pc: Optional[int] = None
@@ -1438,11 +1494,13 @@ def pass5_emit_llvm(
         elif concrete == "br_bez":
             # BEZ: branch-if-equal-to-zero (xmit transmitter branch).
             #
-            # The condition slot is initialised to 0 (not 1 like br_cond) and
-            # flushed from cache.  The slow load returns 0, so "== 0" is true
-            # → branch taken.  BTB predicts not-taken → misprediction →
-            # processor speculatively fetches the fall-through NOP, then
-            # squashes it when the BEZ resolves.
+            # The condition slot is initialised (see cond_slots setup above) so
+            # the architectural resolution matches ba["condition_value"]:
+            #   not-taken mode (cond=True): slot=0 → "== 0" is true → taken
+            #   taken mode     (cond=False): slot=1 → "== 0" is false → ft
+            # Either way the BTB prediction is inverted from reality, and the
+            # slot is flushed from cache at the branch site to stretch the
+            # speculation window.
             #
             # Emitted x86:
             #   mfence; clflush (slot); mfence     ← flush to maximise window
@@ -1493,7 +1551,7 @@ def pass5_emit_llvm(
                 taken = ba["taken_target"]
                 ft    = ba["fallthrough_target"]
                 cm(f"BTB predicts={ba['btb_prediction']}  btb_predicted_pc={ba['btb_predicted_pc']}")
-                if ba.get("mode") == "mispredict_not_taken" and pc in cond_slots:
+                if ba.get("mode") in ("mispredict_not_taken", "mispredict_taken") and pc in cond_slots:
                     # Use virtual pool registers for ALL branch machinery so the
                     # compiler never touches locked test registers (no spill).
                     # scratch  = cond_slot pointer (for clflush)
