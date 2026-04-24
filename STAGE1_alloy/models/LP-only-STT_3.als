@@ -209,19 +209,24 @@ fun ddi_p[p : PTag->univ] : Operand -> Operand {o_p[p]<:ddi:>o_p[p]}
 
 fun op_edges_p[p: PTag->univ] : Operand -> Operand {rf_p[p] + ddi_p[p]}
 
-fun f[p: PTag->univ] : Instruction {(i_p[p]) - (i_p[p]).(spo_p[p])}
+fun f[p: PTag->univ] : Instruction {(i_p[p]) - (i_p[p]).(spo_p[p])} // first instruction
 
 fun leakage_function_p[p: PTag->univ] : Operand {leakage_function & o_p[p]}
 
 fun speculative_xmit_p[p: PTag->univ] : Operand {leakage_function_p[p] <: speculation_contract_p[p].operands}
 
 fun a[p:PTag->univ,i:Instruction,s:State] : State { prot_set_propagation_p[p,i,s]}
-fun last_committed_protset_p[p: PTag->univ] : State {
-		a[p,f[p].(spo_p[p]).(spo_p[p]),
+fun last_committed_protset_p[p: PTag->univ] : State { //only last committed if the protset rule updates only on commit
+a[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]),
+a[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]),
+a[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]),
+a[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]),
+a[p,f[p].(spo_p[p]).(spo_p[p]),
 			a[p,f[p].(spo_p[p]),
 				a[p,f[p],hardware_protection_policy]
 			]
 	]
+]]]]
 }
 
 fun has_unresolved_brs_p[p: PTag->univ] : Instruction {
@@ -291,7 +296,8 @@ let gen_useful_litmus {
 
 run gen_lit {
   gen_useful_litmus
-} for 5 but exactly 3 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool
+//} for 8 but exactly 4 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool
+} for 6 State, 5 Operand, exactly 3 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool
 
 
 /*********************************************************************************
@@ -304,6 +310,7 @@ fun hardware_protection_policy: State {Mem_s}
 fun leakage_function : Operand {Loads.inaddr+(Branchxs+Otherxs).inreg}
 fun prot_set_propagation_p[p:PTag->univ,i:Instruction,s:State] : State {
 	// s - (Loads & committed_p[p] & i).inaddr.opstate // committed loads remove their inaddr from the protset
-	s - (Loads & no_unresolved_brs_bf_or_is_p[p] & i).(inmem:>o_p[p]).opstate // loads that have no unresolvd brs before them remove their inaddr from protset (acc load is not branch so probs chill)
+	s - ((Loads & no_unresolved_brs_bf_or_is_p[p] & i).(inmem:>o_p[p]).opstate) // loads that have no unresolvd brs before them remove their inaddr from protset (acc load is not branch so probs chill)
+	// if you don't have any instruction in there nothing happens to the state
 }
 
