@@ -237,6 +237,16 @@ def update_annotations(ann_path: Path, pc_map: dict[int, int],
                 entry["x86_fallthrough_offset"] = br["fallthrough_offset"]
                 entry["x86_taken_offset"]       = br["taken_offset"]
 
+        # Resolve the forced BTB target (alloy pc index -> x86 offset) so that
+        # gem5's --branch-ann-file can drive the BTB override directly. The
+        # target is the address of the Alloy pcN symbol that the instance says
+        # the BTB should be forced to speculate toward.
+        forced_alloy_pc = entry.get("btb_forced_target_pc")
+        if forced_alloy_pc is not None and forced_alloy_pc in pc_map:
+            forced_off = pc_map[forced_alloy_pc]
+            entry["btb_forced_target_x86_offset"]     = forced_off
+            entry["btb_forced_target_x86_offset_hex"] = hex(forced_off)
+
     # --- xmit annotation ---
     xmit = ann.get("xmit")
     if xmit is not None:

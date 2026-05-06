@@ -104,6 +104,23 @@ def assemble_s_to_elf(s_path: Path, workdir: Path) -> Path:
     return elf
 
 
+def _lookup_func_base(elf: Path, func: str) -> Optional[int]:
+    """Return the load address of `func` in `elf` via nm, or None if absent."""
+    try:
+        out = subprocess.check_output(
+            ["nm", "--defined-only", str(elf)], text=True)
+    except subprocess.CalledProcessError:
+        return None
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 3 and parts[-1] == func:
+            try:
+                return int(parts[0], 16)
+            except ValueError:
+                return None
+    return None
+
+
 def maybe_compile_cmd(cfg: Dict[str, Any]) -> None:
     """If config.script_args.cmd is a .s file, compile it and swap the path."""
     config = cfg.get("config", {})
@@ -122,6 +139,20 @@ def maybe_compile_cmd(cfg: Dict[str, Any]) -> None:
 
     print(f"Built ELF: {elf}")
     args["cmd"] = str(elf)
+
+    # If the user supplied --branch-ann-file but no explicit --branch-ann-base,
+    # resolve the litmus function's absolute load address in the freshly-linked
+    # ELF and inject it, so compile_annotate's function-relative x86 offsets
+    # land at the right PCs.
+    if args.get("branch-ann-file") and "branch-ann-base" not in args:
+        func = s_path.stem
+        base = _lookup_func_base(elf, func)
+        if base is not None:
+            args["branch-ann-base"] = hex(base)
+            print(f"Resolved --branch-ann-base={hex(base)} from {func} in {elf}")
+        else:
+            print(f"warning: could not resolve symbol {func!r} in {elf}; "
+                  "--branch-ann-base not set")
 
 
 def build_command(cfg: Dict[str, Any]) -> List[str]:

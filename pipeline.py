@@ -29,12 +29,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).parent.resolve()
 
@@ -236,9 +238,46 @@ def _read_xmit_kind(ann_dir: Path, stem: str) -> str:
         return "ld"
 
 
+def _build_gem5_env(gem5_cfg: dict, spec_cfg: dict) -> dict:
+    """Derive env vars that gem5_common.py honors from run_config.jsonc."""
+    env = os.environ.copy()
+
+    binary = gem5_cfg.get("binary")
+    cfg_script = gem5_cfg.get("config_script")
+    cpu = gem5_cfg.get("cpu_type")
+    dbg_flags = gem5_cfg.get("debug_flags")
+    dbg_file = gem5_cfg.get("debug_file")
+
+    if binary:
+        env["SIMSPECT_GEM5_BIN"] = str(binary)
+        # Derive the gem5 tree root (cwd for gem5) from build/<ISA>/gem5.opt
+        bpath = Path(binary)
+        if "build" in bpath.parts:
+            idx = bpath.parts.index("build")
+            env["SIMSPECT_GEM5_DIR"] = str(Path(*bpath.parts[:idx]))
+    if cfg_script:
+        env["SIMSPECT_SE_CONFIG"] = str(cfg_script)
+    if cpu:
+        env["SIMSPECT_GEM5_CPU"] = str(cpu)
+    if isinstance(dbg_flags, list) and dbg_flags:
+        env["SIMSPECT_GEM5_DBG_FLAG"] = ",".join(str(f) for f in dbg_flags)
+    if dbg_file:
+        env["SIMSPECT_GEM5_DBG_FILE"] = str(dbg_file)
+
+    # Explicit opt-in: only inject --branch-ann-file when the configured gem5
+    # binary actually supports it (i.e. the gem5-recon-modded build). The
+    # speculation.control_flow switch alone is not enough, since a user may
+    # keep control_flow=true while pointing at a vanilla gem5 build.
+    if gem5_cfg.get("branch_ann_enable"):
+        env["SIMSPECT_BRANCH_ANN_ENABLE"] = "1"
+
+    return env
+
+
 def _run_checker_batch(checker: Path, s_files: list, ann_dir: Path,
                        batch_out: Path, scheme: int, jobs: int,
-                       keep_tmp: bool) -> subprocess.CompletedProcess:
+                       keep_tmp: bool,
+                       env: Optional[dict] = None) -> subprocess.CompletedProcess:
     """Copy .s + .ann.json into a temp dir and invoke a checker script."""
     with tempfile.TemporaryDirectory(prefix="simspect_gem5_") as tmp:
         tmp_path = Path(tmp)
@@ -258,7 +297,8 @@ def _run_checker_batch(checker: Path, s_files: list, ann_dir: Path,
         if keep_tmp:
             cmd.append("--keep-tmp")
 
-        return subprocess.run(cmd, check=False, capture_output=True, text=True)
+        return subprocess.run(cmd, check=False, capture_output=True, text=True,
+                              env=env)
 
 
 def _collect_batch_results(batch_out: Path, existing: list,
@@ -329,10 +369,13 @@ def phase_gem5(cfg: dict, model: str, out_base: Path, force: bool) -> None:
 
     stage3   = resolve(cfg["paths"]["stage3_dir"])
     gem5_cfg = cfg.get("gem5", {})
+    spec_cfg = cfg.get("speculation", {})
     scheme   = gem5_cfg.get("scheme", 2)
     jobs     = gem5_cfg.get("jobs", 8)
     keep_tmp = cfg.get("pipeline", {}).get("keep_tmp", False)
     batch_sz = cfg.get("alloy", {}).get("batch_size", 1000)
+
+    checker_env = _build_gem5_env(gem5_cfg, spec_cfg)
 
     check_mode = cfg.get("pipeline", {}).get("check", "per_type")
 
@@ -364,7 +407,8 @@ def phase_gem5(cfg: dict, model: str, out_base: Path, force: bool) -> None:
             batch_out = results_dir / f"batch_{bn:04d}_results.json"
 
             result = _run_checker_batch(checker, batch, ann_dir, batch_out,
-                                        scheme, jobs, keep_tmp)
+                                        scheme, jobs, keep_tmp,
+                                        env=checker_env)
             for line in result.stdout.splitlines():
                 if "ERROR" in line or "[err]" in line.lower():
                     print(f"    {line.strip()}")
@@ -411,7 +455,8 @@ def phase_gem5(cfg: dict, model: str, out_base: Path, force: bool) -> None:
                 print(f"  {batch_label}: {batch[0].stem} … {batch[-1].stem}")
 
                 result = _run_checker_batch(checker, batch, ann_dir, batch_out,
-                                            scheme, jobs, keep_tmp)
+                                            scheme, jobs, keep_tmp,
+                                            env=checker_env)
                 for line in result.stdout.splitlines():
                     if "ERROR" in line or "[err]" in line.lower():
                         print(f"    {line.strip()}")

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -28,14 +29,25 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
-# ── Defaults (overridden at runtime by run_batch / CLI) ──────────────────────
+# ── Defaults (overridden at runtime by run_batch / CLI / env) ────────────────
+#
+# The SIMSPECT_GEM5_* environment variables let pipeline.py point the checkers
+# at an alternate gem5 build (e.g. /work/gem5-recon-modded) without editing
+# source. run_config.jsonc's "gem5.binary" / "gem5.config_script" fields are
+# plumbed through as these env vars.
 
-GEM5_DIR  = Path("/work/gem5-recon")
-GEM5_BIN  = GEM5_DIR / "build/X86/gem5.opt"
-SE_CONFIG = GEM5_DIR / "configs/example/se.py"
-GEM5_CPU  = "X86O3CPU"
-GEM5_DBG_FLAG = "O3PipeView"
-GEM5_DBG_FILE = "pipeview.txt"
+GEM5_DIR  = Path(os.environ.get("SIMSPECT_GEM5_DIR",  "/work/gem5-recon"))
+GEM5_BIN  = Path(os.environ.get("SIMSPECT_GEM5_BIN",  str(GEM5_DIR / "build/X86/gem5.opt")))
+SE_CONFIG = Path(os.environ.get("SIMSPECT_SE_CONFIG", str(GEM5_DIR / "configs/example/se.py")))
+GEM5_CPU  = os.environ.get("SIMSPECT_GEM5_CPU",  "X86O3CPU")
+GEM5_DBG_FLAG = os.environ.get("SIMSPECT_GEM5_DBG_FLAG", "O3PipeView")
+GEM5_DBG_FILE = os.environ.get("SIMSPECT_GEM5_DBG_FILE", "pipeview.txt")
+
+# When truthy, run_gem5() injects --branch-ann-file=<test>.ann.json plus an
+# auto-resolved --branch-ann-base. Requires a gem5 build that supports those
+# options (i.e. /work/gem5-recon-modded).
+BRANCH_ANN_ENABLE = os.environ.get("SIMSPECT_BRANCH_ANN_ENABLE", "").lower() in (
+    "1", "true", "yes", "on")
 
 _scheme: int = 2   # mutable; set by run_batch() from CLI
 
@@ -95,7 +107,8 @@ def resolve_pc(binary: Path, func_name: str, ann_entry: dict) -> Optional[int]:
 
 # ── gem5 simulation ──────────────────────────────────────────────────────────
 
-def run_gem5(binary: Path, workdir: Path) -> Path:
+def run_gem5(binary: Path, workdir: Path,
+             ann_path: Optional[Path] = None) -> Path:
     outdir = workdir / "m5out"
     outdir.mkdir(exist_ok=True)
     cmd = [
@@ -109,6 +122,13 @@ def run_gem5(binary: Path, workdir: Path) -> Path:
         "--caches",
         f"--scheme={_scheme}",
     ]
+
+    if BRANCH_ANN_ENABLE and ann_path is not None and ann_path.exists():
+        base = _func_base_addr(binary, binary.stem)
+        cmd.append(f"--branch-ann-file={ann_path}")
+        if base is not None:
+            cmd.append(f"--branch-ann-base={hex(base)}")
+
     subprocess.run(cmd, check=True, capture_output=True, cwd=str(GEM5_DIR))
     return outdir / GEM5_DBG_FILE
 
@@ -201,7 +221,7 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
             result["status"] = "warn"
             result["error"]  = "no xmit x86 PC"
         else:
-            trace = run_gem5(binary, workdir)
+            trace = run_gem5(binary, workdir, ann_path=ann_path)
             by_pc = parse_pipeview(trace)
             check_result = check_fn(by_pc, xmit_pc, lc_pc, fnc_pc)
             result.update(check_result)

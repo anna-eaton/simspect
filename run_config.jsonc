@@ -40,15 +40,22 @@
     "data_flow":    false,
 
     // Branch modes to generate.
-    // Currently only "mispredict_not_taken" is implemented; add
-    // "mispredict_taken" once pass2_5 supports it.
+
+    // "mispredict_taken"
     "branch_modes": ["mispredict_not_taken"]
   },
 
   // ── gem5 simulator settings ────────────────────────────────────────────────
   "gem5": {
+    // Flip these two to /work/gem5-recon-modded (and branch_ann_enable: true)
+    // to exercise the --branch-ann-file BTB override path.
+    // "binary":        "/work/gem5-recon-modded/build/X86/gem5.opt",
+    // "config_script": "/work/gem5-recon-modded/configs/example/se.py",
     "binary":        "/work/gem5-recon/build/X86/gem5.opt",
     "config_script": "/work/gem5-recon/configs/example/se.py",
+    // Must be true only when `binary` points at the modded build. Vanilla
+    // gem5 rejects --branch-ann-file and the run will fail.
+    "branch_ann_enable": false,
     "cpu_type":      "X86O3CPU",
     // Security scheme passed as --scheme to gem5:
     //   0 = Unsafe (no defence)
