@@ -238,6 +238,195 @@ def _read_xmit_kind(ann_dir: Path, stem: str) -> str:
         return "ld"
 
 
+# ── Resolution-stall sweep helpers ────────────────────────────────────────────
+#
+# Sweep runs each test under several `resolve_stall_cycles` assignments
+# (joint Cartesian product across resolved branches) and aggregates per-test
+# as OR over grid points. The existing checker infrastructure is reused: each
+# grid point synthesises a variant `<stem>__sw_<idx>.s/.ann.json` pair, the
+# variants are run as ordinary tests, and per-stem aggregation happens
+# post-hoc in this module.
+
+import itertools
+
+
+def _classify_branches(ann: dict) -> tuple[list, list]:
+    """Return (resolved_pcs, unresolved_pcs) from an annotation dict.
+
+    resolved   = mode == "correctly_not_taken"   (BTB predicts fall-through,
+                 architecturally falls through; stall sweeps timing only)
+    unresolved = mode in {"mispredict_not_taken", "mispredict_taken"}
+                 (BTB-forced wrong direction; held by a single large stall)
+    """
+    resolved, unresolved = [], []
+    for entry in ann.get("annotations", []):
+        pc = entry.get("branch_pc")
+        if pc is None:
+            continue
+        mode = entry.get("mode", "")
+        if mode == "correctly_not_taken":
+            resolved.append(pc)
+        elif mode in ("mispredict_not_taken", "mispredict_taken"):
+            unresolved.append(pc)
+    return resolved, unresolved
+
+
+def _grid_points(resolved_pcs: list, points: list) -> list:
+    """Joint Cartesian product: list of {branch_pc → stall_cycles} dicts.
+
+    Empty `resolved_pcs` yields a single empty assignment so unresolved-only
+    tests still go through the sweep path (one grid point, only unresolved
+    stall applied).
+    """
+    if not resolved_pcs:
+        return [{}]
+    return [
+        dict(zip(resolved_pcs, combo))
+        for combo in itertools.product(points, repeat=len(resolved_pcs))
+    ]
+
+
+def _inject_stalls(ann: dict, stalls: dict, unresolved_stall: int) -> dict:
+    """Return a new ann dict with `resolve_stall_cycles` set per branch.
+
+    Resolved branches: stall = stalls[branch_pc] (from grid point).
+    Unresolved branches: stall = unresolved_stall (constant).
+    """
+    out = json.loads(json.dumps(ann))  # deep copy
+    for entry in out.get("annotations", []):
+        pc = entry.get("branch_pc")
+        if pc is None:
+            continue
+        mode = entry.get("mode", "")
+        if mode == "correctly_not_taken":
+            entry["resolve_stall_cycles"] = int(stalls.get(pc, 0))
+        elif mode in ("mispredict_not_taken", "mispredict_taken"):
+            entry["resolve_stall_cycles"] = int(unresolved_stall)
+    return out
+
+
+def _enumerate_grid_for_corpus(s_files: list, ann_dir: Path,
+                               sweep_cfg: dict) -> tuple[list, dict, int]:
+    """Inspect each test's resolved-branch set and decide its grid.
+
+    Returns (grids, manifest, max_grid_size):
+        grids        : list of (s_path, ann_path, grid_index, stalls_dict)
+                       — flattened across tests, then ordered for batching.
+        manifest     : { base_stem -> [stalls_dict_for_grid_idx_0, ...] }
+        max_grid_size: the largest per-test grid (sets the number of batches
+                       to run). Tests with smaller grids contribute to
+                       earlier batches only.
+    """
+    points = sweep_cfg.get("points", [0])
+
+    manifest: dict = {}
+    per_grid_idx: dict = {}   # grid_idx -> list of (s_path, ann_path, stalls)
+
+    for sf in s_files:
+        ann_path = ann_dir / (sf.stem + ".ann.json")
+        if not ann_path.exists():
+            continue
+        ann = json.loads(ann_path.read_text())
+        resolved, _ = _classify_branches(ann)
+        grid = _grid_points(resolved, points)
+        manifest[sf.stem] = grid
+
+        for idx, stalls in enumerate(grid):
+            per_grid_idx.setdefault(idx, []).append((sf, ann_path, stalls))
+
+    if not per_grid_idx:
+        return [], manifest, 0
+
+    max_grid_size = max(per_grid_idx.keys()) + 1
+    return per_grid_idx, manifest, max_grid_size
+
+
+def _materialise_grid_run(grid_entries: list, variant_dir: Path,
+                          unresolved_stall: int) -> list:
+    """For one grid index, materialise per-test .s/.ann.json under variant_dir.
+
+    Each test keeps its original stem (so the per-test entry stub in the
+    checker links correctly). Variant differentiation comes from running
+    each grid index as a separate batch.
+
+    Returns list of variant .s Paths under variant_dir.
+    """
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    s_paths: list = []
+
+    for sf, ann_path, stalls in grid_entries:
+        v_s = variant_dir / sf.name
+        if v_s.exists() or v_s.is_symlink():
+            v_s.unlink()
+        v_s.symlink_to(sf.resolve())
+
+        v_ann = variant_dir / (sf.stem + ".ann.json")
+        ann = json.loads(ann_path.read_text())
+        v_ann.write_text(json.dumps(
+            _inject_stalls(ann, stalls, unresolved_stall), indent=2))
+
+        s_paths.append(v_s)
+
+    return s_paths
+
+
+def _aggregate_sweep_results(per_grid_results: dict, manifest: dict,
+                              sweep_dir: Path) -> list:
+    """Reduce per-grid-index results to per-stem results.
+
+    per_grid_results: { grid_idx -> [list of result dicts from that batch] }
+    manifest:         { base_stem -> [stalls_dict per grid_idx, ...] }
+
+    Returns aggregated list (one row per base stem) for window-results.json
+    and writes per-stem sweep sidecars.
+    """
+    aggregated: list = []
+
+    for base_stem, grid in manifest.items():
+        per_grid_summary = []
+        any_hit = False
+        any_err = False
+        triggered = []
+
+        for idx, stalls in enumerate(grid):
+            batch_results = per_grid_results.get(idx, [])
+            row = next((r for r in batch_results
+                        if r.get("name") == base_stem), None)
+            if row is None:
+                per_grid_summary.append({"stalls": stalls, "result": None})
+                any_err = True
+                continue
+            hit = bool(row.get("issued_in_window"))
+            status = row.get("status", "unknown")
+            per_grid_summary.append({
+                "stalls":           stalls,
+                "issued_in_window": hit,
+                "status":           status,
+            })
+            if hit:
+                any_hit = True
+                triggered.append(stalls)
+            if status not in ("ok", None):
+                any_err = True
+
+        sidecar = sweep_dir / (base_stem + "_sweep.json")
+        sidecar.write_text(json.dumps({
+            "stem":             base_stem,
+            "grid_points":      per_grid_summary,
+            "triggered_points": triggered,
+        }, indent=2))
+
+        aggregated.append({
+            "name":             base_stem,
+            "issued_in_window": any_hit,
+            "status":           "ok" if not any_err else "error",
+            "sweep_grid_size":  len(grid),
+            "sweep_triggered":  len(triggered),
+        })
+
+    return aggregated
+
+
 def _build_gem5_env(gem5_cfg: dict, spec_cfg: dict) -> dict:
     """Derive env vars that gem5_common.py honors from run_config.jsonc."""
     env = os.environ.copy()
@@ -334,6 +523,119 @@ def _collect_batch_results(batch_out: Path, existing: list,
     return len(batch_hits)
 
 
+def _phase_gem5_sweep(cfg: dict, model: str, out_base: Path, force: bool,
+                      s_files: list, ann_dir: Path,
+                      results_dir: Path) -> None:
+    """Sweep variant of phase_gem5: each test is run under several
+    `resolve_stall_cycles` assignments (joint Cartesian product across its
+    resolved branches). Per-test verdict is OR over grid points.
+
+    Reuses the existing per-type checker infrastructure by synthesising
+    variant .s/.ann.json pairs in a sweep/ subdirectory and feeding them as
+    ordinary tests.
+    """
+    sweep_cfg = cfg.get("sweep", {})
+
+    sweep_dir   = out_base / "sweep"
+    variant_dir = sweep_dir / "variants"
+    raw_dir     = sweep_dir / "raw_results"
+    sweep_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    results_f = results_dir / "window-results.json"
+    hits_f    = results_dir / "window-hits.txt"
+
+    if not force and results_f.exists():
+        print(f"[gem5:sweep] {results_f.name} already exists — pass --force to "
+              "re-run sweep")
+        return
+
+    stage3   = resolve(cfg["paths"]["stage3_dir"])
+    gem5_cfg = cfg.get("gem5", {})
+    spec_cfg = cfg.get("speculation", {})
+    scheme   = gem5_cfg.get("scheme", 2)
+    jobs     = gem5_cfg.get("jobs", 8)
+    keep_tmp = cfg.get("pipeline", {}).get("keep_tmp", False)
+    batch_sz = cfg.get("alloy", {}).get("batch_size", 1000)
+    checker_env = _build_gem5_env(gem5_cfg, spec_cfg)
+
+    # Enumerate the per-test grid (resolved-branch joint product).
+    per_grid_idx, manifest, max_grid = _enumerate_grid_for_corpus(
+        s_files, ann_dir, sweep_cfg)
+    (sweep_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+
+    n_runs = sum(len(entries) for entries in per_grid_idx.values()) \
+             if isinstance(per_grid_idx, dict) else 0
+    print(f"[gem5:sweep] {len(manifest)} tests × variable grid (max {max_grid} "
+          f"points) → {n_runs} variant runs  "
+          f"(points={sweep_cfg.get('points')}, "
+          f"unresolved_stall={sweep_cfg.get('unresolved_stall_cycles')})")
+
+    unresolved_stall = int(sweep_cfg.get("unresolved_stall_cycles", 0))
+
+    # One batch (or batch group) per grid index. Within a grid index, dispatch
+    # tests by xmit_kind so the per_type checker mapping continues to work.
+    per_grid_results: dict = {}
+    batch_n = 0
+    for grid_idx in sorted(per_grid_idx.keys()):
+        entries = per_grid_idx[grid_idx]
+        # Materialise this grid index in its own subdir (preserves base stems
+        # so the per-test entry-stub linker call works).
+        grid_subdir = variant_dir / f"point_{grid_idx:04d}"
+        run_files = _materialise_grid_run(entries, grid_subdir,
+                                          unresolved_stall)
+
+        # Group by xmit_kind for per_type dispatch.
+        groups: dict = {}
+        for vf in run_files:
+            kind = _read_xmit_kind(ann_dir, vf.stem)
+            script = _KIND_TO_CHECKER.get(kind, _DEFAULT_CHECKER)
+            groups.setdefault(script, []).append(vf)
+
+        grid_raw: list = []
+        for script, files in sorted(groups.items()):
+            checker = stage3 / script
+            for start in range(0, len(files), batch_sz):
+                batch_n += 1
+                batch = files[start : start + batch_sz]
+                batch_out = raw_dir / f"grid{grid_idx:04d}_batch{batch_n:04d}_{script}.json"
+
+                print(f"  grid {grid_idx} ({script}): "
+                      f"{batch[0].stem} … {batch[-1].stem}  ({len(batch)} tests)")
+
+                result = _run_checker_batch(checker, batch, grid_subdir,
+                                            batch_out, scheme, jobs, keep_tmp,
+                                            env=checker_env)
+                for line in result.stdout.splitlines():
+                    if "ERROR" in line or "[err]" in line.lower():
+                        print(f"    {line.strip()}")
+                if result.stderr.strip():
+                    for line in result.stderr.strip().splitlines():
+                        print(f"    [stderr] {line}")
+
+                if batch_out.exists():
+                    grid_raw.extend(json.loads(batch_out.read_text()))
+
+        per_grid_results[grid_idx] = grid_raw
+
+    # Aggregate per-stem and write window-results.json.
+    aggregated = _aggregate_sweep_results(per_grid_results, manifest, sweep_dir)
+    results_f.write_text(json.dumps(aggregated, indent=2))
+
+    hits = [r["name"] for r in aggregated if r.get("issued_in_window")]
+    if hits:
+        hits_f.write_text("\n".join(hits) + "\n")
+    else:
+        hits_f.write_text("")
+
+    errs = sum(1 for r in aggregated if r.get("status") != "ok")
+    print(f"\n[gem5:sweep] Done — {len(hits)} hits / {len(aggregated)} tests "
+          f"({errs} errors)  across {n_runs} variant runs")
+    print(f"             Results       → {results_f}")
+    print(f"             Per-test sweep → {sweep_dir}/<stem>_sweep.json")
+
+
 def phase_gem5(cfg: dict, model: str, out_base: Path, force: bool) -> None:
     asm_dir     = out_base / "asm"
     ann_dir     = out_base / "ann"
@@ -344,6 +646,13 @@ def phase_gem5(cfg: dict, model: str, out_base: Path, force: bool) -> None:
         sys.exit("error: generated/<model>/asm/ is empty — run the 'asm' phase first")
     if not ann_dir.exists() or not any(ann_dir.glob("*.ann.json")):
         sys.exit("error: generated/<model>/ann/ is empty — run the 'asm' phase first")
+
+    if cfg.get("sweep", {}).get("enabled"):
+        if not cfg.get("gem5", {}).get("branch_ann_enable"):
+            sys.exit("error: sweep.enabled requires gem5.branch_ann_enable: true "
+                     "(modded gem5 build)")
+        return _phase_gem5_sweep(cfg, model, out_base, force,
+                                 s_files, ann_dir, results_dir)
 
     results_dir.mkdir(parents=True, exist_ok=True)
     results_f = results_dir / "window-results.json"

@@ -545,12 +545,35 @@ def pass2_5_specify_branches(
     for idx, rec in enumerate(instructions):
         if rec.get("kind") not in _BRANCH_KINDS:
             continue
-        if rec.get("resolved", False):
-            continue  # correctly-predicted branch, pass through unchanged
 
         pc = rec["pc"]
         next_pc = pc + 1
         is_xm = rec.get("xm", False)
+
+        if rec.get("resolved", False):
+            # Resolved branch: emit a real conditional branch whose architectural
+            # outcome is "fall through" and whose BTB-forced prediction is also
+            # "fall through" — i.e. correctly predicted. The branch's
+            # post-execute resolution broadcast (squash, BPred update, commit
+            # eligibility, scheme taps) is held back by `resolve_stall_cycles`
+            # in --branch-ann-file (see gem5-recon-modded). The static target is
+            # end_block; it is never reached architecturally.
+            if rec.get("concrete_instruction") == "br_uncond":
+                rec["concrete_instruction"] = "br_cond"
+                rec["llvm_op"] = "br i1"
+                cands = rec.get("candidates", [])
+                if "br_cond" not in cands:
+                    rec["candidates"] = cands + ["br_cond"]
+            needs_end_block = True
+            rec["branch_annotations"] = {
+                "mode":               "correctly_not_taken",
+                "condition_value":    False,
+                "taken_target":       "end_block",
+                "fallthrough_target": f"bb_{next_pc}" if next_pc < n else "end_block",
+                "btb_prediction":     "fall_through",
+                "btb_predicted_pc":   next_pc,
+            }
+            continue
 
         # Misprediction requires a conditional branch; upgrade if pass 2 chose
         # the unconditional form because no operands were specified.
@@ -708,7 +731,7 @@ X86_64_CALLER_SAVED: List[str] = [
 # locked (Alloy-tracked, potentially tainted) registers from being aliased by
 # compiler-generated pointer materializations, which would create spurious
 # taint via gem5's Lea-merge (Data = merge(Data, ea, dataSize)) micro-op.
-_VPOOL_IDX_SCRATCH    = 0   # branch: clflush base pointer register
+_VPOOL_IDX_SCRATCH    = 0   # reserved scratch (formerly clflush base pointer); kept reserved to preserve register-layout stability across the cond_reg/probe_base slots
 _VPOOL_IDX_COND_REG   = 1   # branch: condition-load destination register
 _VPOOL_IDX_PROBE_BASE = 2   # load/store: base pointer for probe_mem or mem_base
 _VPOOL_FREE_START     = 3   # first index freely assignable to instruction slots
@@ -1300,28 +1323,12 @@ def pass5_emit_llvm(
     for reg, ssa_name in sorted(ssa_init.items()):
         asm_force(ssa_name, reg, "0")
 
-    # ---- Condition slots for mispredicted branches ----
-    # For each mispredicted branch, allocate a cache-line-aligned slot and
-    # initialise it so the branch condition resolves to condition_value:
-    #   br_cond: icmp ne 0 → slot=1 taken, slot=0 not-taken
-    #   br_bez : icmp eq 0 → slot=0 taken, slot=1 not-taken
-    # The slot is flushed from cache at the branch site to maximise the
-    # speculation window (the load will miss L1/L2/L3, ~200-300 cycles).
-    cond_slots: Dict[int, str] = {}
-    for rec in instructions:
-        ba = rec.get("branch_annotations")
-        if not (ba and ba.get("mode") in ("mispredict_not_taken", "mispredict_taken")):
-            continue
-        slot = f"%cond_slot_pc{rec['pc']}"
-        concrete = rec.get("concrete_instruction")
-        if ba["mode"] == "mispredict_not_taken":
-            init_val = 0 if concrete == "br_bez" else 1
-        else:  # mispredict_taken: architectural condition is False
-            init_val = 1 if concrete == "br_bez" else 0
-        # align 64 = cache-line aligned so clflush hits exactly this line
-        il(f"{slot} = alloca i64, align 64")
-        il(f"store volatile i64 {init_val}, ptr {slot}, align 64")
-        cond_slots[rec["pc"]] = slot
+    # ---- Prologue → test region barrier ----
+    # Drain in-flight stores from the prologue (probe_mem zero-init, mem_base
+    # zero-init) so the test region begins with a quiesced pipeline. Formerly
+    # provided implicitly by the clflush+slow-load sequences at branch sites;
+    # those are gone, so we drain explicitly here.
+    il(f'call void asm sideeffect "mfence", "~{{memory}}"()')
 
     # ---- Commit boundary PCs ----
     last_committed_pc: Optional[int] = None
@@ -1494,47 +1501,27 @@ def pass5_emit_llvm(
         elif concrete == "br_bez":
             # BEZ: branch-if-equal-to-zero (xmit transmitter branch).
             #
-            # The condition slot is initialised (see cond_slots setup above) so
-            # the architectural resolution matches ba["condition_value"]:
-            #   not-taken mode (cond=True): slot=0 → "== 0" is true → taken
-            #   taken mode     (cond=False): slot=1 → "== 0" is false → ft
-            # Either way the BTB prediction is inverted from reality, and the
-            # slot is flushed from cache at the branch site to stretch the
-            # speculation window.
-            #
-            # Emitted x86:
-            #   mfence; clflush (slot); mfence     ← flush to maximise window
-            #   movq (slot), %cond_reg             ← slow load (cache miss)
-            #   testq %cond_reg, %cond_reg         ← sets ZF=1 (value is 0)
-            #   LLVM br i1 (== 0) → taken / ft    ← compiles to je/jz
+            # Register-only condition: xor a vpool register with itself, then
+            # testq+jz. ZF=1 → branch architecturally taken. The BTB is forced
+            # (via --branch-ann-file) to fall-through, creating the
+            # misprediction. The branch's resolution broadcast is held by
+            # `resolve_stall_cycles` in the gem5 mod, which is what now widens
+            # the speculation window (formerly done by an icache flush of a
+            # condition slot).
             ba = rec.get("branch_annotations")
             if ba:
                 taken = ba["taken_target"]
                 ft    = ba["fallthrough_target"]
                 cm(f"BEZ xmit branch: BTB predicts={ba['btb_prediction']}")
-                slot = cond_slots.get(pc)
                 vpool = pass4_result.get("virtual_reg_pool", [])
-                scratch  = vpool[0] if len(vpool) > 0 else "r10"
                 cond_reg = vpool[1] if len(vpool) > 1 else "r11"
-                if slot:
-                    # Flush the condition slot to maximise speculation window
-                    il(f'call void asm sideeffect '
-                       f'"{mkr}mfence\\0Aclflush ($0)\\0Amfence", '
-                       f'"{{{scratch}}},~{{memory}}"(ptr {slot})')
-                    # Slow load — value is 0, so testq will set ZF=1
-                    cond_raw = tmp("bez_raw")
-                    il(f'{cond_raw} = call i64 asm sideeffect '
-                       f'"movq ($1), $0", '
-                       f'"=&{{{cond_reg}}},{{{scratch}}},~{{memory}}"(ptr {slot})')
-                    # testq %cond_reg, %cond_reg → ZF=1 (loaded 0)
-                    # icmp eq 0 → true → branch taken
-                    bez_i1 = tmp("bez_i1")
-                    il(f"{bez_i1} = icmp eq i64 {cond_raw}, 0")
-                    il(f"br i1 {bez_i1}, label %{taken}, label %{ft}")
-                else:
-                    # No condition slot — emit unconditional taken (no window)
-                    il(f'call void asm sideeffect "{mkr}", ""()')
-                    il(f"br label %{taken}")
+                cond_raw = tmp("bez_raw")
+                il(f'{cond_raw} = call i64 asm sideeffect '
+                   f'"{mkr}xorq $0, $0", '
+                   f'"=&{{{cond_reg}}}"()')
+                bez_i1 = tmp("bez_i1")
+                il(f"{bez_i1} = icmp eq i64 {cond_raw}, 0")
+                il(f"br i1 {bez_i1}, label %{taken}, label %{ft}")
                 last_was_terminator = True
             else:
                 il(f'call void asm sideeffect "{mkr}", ""()')
@@ -1550,26 +1537,24 @@ def pass5_emit_llvm(
             if ba:
                 taken = ba["taken_target"]
                 ft    = ba["fallthrough_target"]
-                cm(f"BTB predicts={ba['btb_prediction']}  btb_predicted_pc={ba['btb_predicted_pc']}")
-                if ba.get("mode") in ("mispredict_not_taken", "mispredict_taken") and pc in cond_slots:
-                    # Use virtual pool registers for ALL branch machinery so the
-                    # compiler never touches locked test registers (no spill).
-                    # scratch  = cond_slot pointer (for clflush)
-                    # cond_reg = loaded condition value (for compare)
-                    slot = cond_slots[pc]
+                mode  = ba.get("mode")
+                cm(f"BTB predicts={ba['btb_prediction']}  btb_predicted_pc={ba['btb_predicted_pc']}  mode={mode}")
+                if mode in ("mispredict_not_taken", "mispredict_taken", "correctly_not_taken"):
+                    # Register-only condition: init a vpool register to the
+                    # value that produces the architectural condition_value
+                    # (init=1 → testq sets ZF=0 → jne taken; init=0 → ZF=1 →
+                    # jne not taken). The BTB-forced direction lives in
+                    # branch_annotations.btb_prediction and is applied by the
+                    # gem5 mod via --branch-ann-file. The resolution broadcast
+                    # is delayed by `resolve_stall_cycles` in that file.
                     vpool = pass4_result.get("virtual_reg_pool", [])
-                    scratch  = vpool[0] if len(vpool) > 0 else "r10"
                     cond_reg = vpool[1] if len(vpool) > 1 else "r11"
-                    # clflush block — explicit scratch register
-                    il(f'call void asm sideeffect '
-                       f'"{mkr}mfence\\0Aclflush ($0)\\0Amfence", '
-                       f'"{{{scratch}}},~{{memory}}"(ptr {slot})')
-                    # Condition load — forced into cond_reg, not a free compiler choice
+                    init_op = "movq $$1, $0" if ba["condition_value"] else "xorq $0, $0"
                     cond_raw = tmp("cond_raw")
                     cond_i1  = tmp("cond_i1")
                     il(f'{cond_raw} = call i64 asm sideeffect '
-                       f'"movq ($1), $0", '
-                       f'"=&{{{cond_reg}}},{{{scratch}}},~{{memory}}"(ptr {slot})')
+                       f'"{mkr}{init_op}", '
+                       f'"=&{{{cond_reg}}}"()')
                     il(f"{cond_i1} = icmp ne i64 {cond_raw}, 0")
                     il(f"br i1 {cond_i1}, label %{taken}, label %{ft}")
                 else:
@@ -1578,9 +1563,12 @@ def pass5_emit_llvm(
                     il(f"br {cond}, label %{taken}, label %{ft}")
                 last_was_terminator = True
             else:
-                # Resolved branch: emit marker only, no branch instruction
+                # Branches without branch_annotations should not reach pass 5
+                # any more (resolved branches are now annotated in pass 2.5).
+                # Keep a defensive fallback so an unexpected case fails loudly
+                # downstream rather than silently emitting a missing branch.
                 il(f'call void asm sideeffect "{mkr}", ""()')
-                cm(f"resolved branch {atom} — skipped")
+                cm(f"branch {atom} has no branch_annotations — skipped")
 
         else:
             il(f'call void asm sideeffect "{mkr}", ""()')

@@ -1,0 +1,39 @@
+// Smoke-only config: sweep enabled, gem5 modded, small grid.
+{
+  "paths": {
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "output_dir":         "generated"
+  },
+
+  "alloy": { "max_instances": 100, "batch_size": 100 },
+
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_not_taken"]
+  },
+
+  "gem5": {
+    "binary":            "/work/gem5-recon-modded/build/X86/gem5.opt",
+    "config_script":     "/work/gem5-recon-modded/configs/example/se.py",
+    "branch_ann_enable": true,
+    "cpu_type":          "X86O3CPU",
+    "scheme":            2,
+    "caches":            true,
+    "jobs":              2,
+    "debug_flags":       ["O3PipeView"],
+    "debug_file":        "pipeview.txt"
+  },
+
+  "sweep": {
+    "enabled":                 true,
+    "points":                  [0, 100, 500, 1000, 2500],
+    "unresolved_stall_cycles": 5000
+  },
+
+  "pipeline": { "check": "per_type", "keep_tmp": true }
+}

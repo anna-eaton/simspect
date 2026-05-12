@@ -70,6 +70,19 @@
     "debug_file":    "pipeview.txt"
   },
 
+  // ── Resolution-stall sweep ────────────────────────────────────────────────
+  // Per-branch resolution-broadcast stalls. Each grid point in `points` is
+  // applied jointly to every resolved (correctly_not_taken) branch in a
+  // test; unresolved (mispredict_*) branches always get
+  // `unresolved_stall_cycles`. Joint Cartesian product across resolved
+  // branches: a test with K resolved branches × N points → N^K runs.
+  // Requires gem5.branch_ann_enable: true (modded gem5 build).
+  "sweep": {
+    "enabled":                 false,
+    "points":                  [0, 10, 25, 50, 100],
+    "unresolved_stall_cycles": 5000
+  },
+
   // ── Pipeline analysis settings ─────────────────────────────────────────────
   "pipeline": {
     // Which gem5 analysis to run:

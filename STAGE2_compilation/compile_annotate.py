@@ -87,9 +87,15 @@ def compile_to_x86(ll_path: Path, out_dir: Path) -> tuple[Path, Path]:
     """Compile .ll → .s and .o for x86-64. Returns (s_path, o_path)."""
     s_path = out_dir / (ll_path.stem + ".s")
     o_path = out_dir / (ll_path.stem + ".o")
+    # -O2: at -O0, the "fast" register allocator spills every live SSA value
+    # across every basic-block boundary regardless of inline-asm pinning,
+    # which causes spurious LSQ ordering violations on speculative paths.
+    # -O2 honors `={rax}` / `{rax}` constraints and keeps pinned values in
+    # their registers across blocks. `asm sideeffect` blocks are still not
+    # reordered or removed, so markers and instruction order are preserved.
     for flag, out in [("-S", s_path), ("-c", o_path)]:
         r = subprocess.run(
-            ["clang-15", "--target=x86_64-unknown-linux-gnu", "-O0",
+            ["clang-15", "--target=x86_64-unknown-linux-gnu", "-O2",
              flag, str(ll_path), "-o", str(out)],
             capture_output=True, text=True,
         )
@@ -172,16 +178,23 @@ def disassemble_instrs(binary: Path, func_base: int) -> list[tuple[int, str, str
         sys.exit(1)
 
     line_re = re.compile(r"^\s+([0-9a-f]+):\s+(?:[0-9a-f]{2}\s+)+\s*(\w+)\s*(.*)")
+    sym_re  = re.compile(r'^[0-9a-f]+ <([^>]+)>:')
     instrs: list[tuple[int, str, str]] = []
     in_func = False
     for line in r.stdout.splitlines():
         # start collecting at the function symbol
-        if f"<{binary.name}>:" in line:
-            in_func = True
+        sm = sym_re.match(line)
+        if sm:
+            sym = sm.group(1)
+            if sym == binary.name:
+                in_func = True
+                continue
+            # In-function pc/commit-boundary markers don't end the function;
+            # only a non-litmus symbol does.
+            if in_func and not (sym.startswith("__litmus_") or sym == binary.name):
+                break
+            # otherwise: still inside the function, skip the label line.
             continue
-        # stop at the next symbol
-        if in_func and re.match(r'^[0-9a-f]+ <', line):
-            break
         if in_func:
             m = line_re.match(line)
             if m:
@@ -256,11 +269,32 @@ def update_annotations(ann_path: Path, pc_map: dict[int, int],
             xmit["x86_offset_hex"] = hex(pc_map[alloy_pc])
 
     # --- commit boundary annotations ---
+    # Map alloy_pc → branch x86_branch_offset for branches, so that boundary
+    # PCs that point at a branch instruction's marker are upgraded to the
+    # actual jne PC. Without this, the marker often resolves to a non-branch
+    # prelude (e.g. a `movq $1, %rsi` that commits architecturally before the
+    # jne resolves), which makes fnc_retire fire too early and breaks the
+    # speculation-window check in check_ld.py / check_br.py.
+    branch_pc_to_jne = {}
+    for entry in ann.get("annotations", []):
+        bpc = entry.get("branch_pc")
+        bxo = entry.get("x86_branch_offset")
+        if bpc is not None and bxo is not None:
+            branch_pc_to_jne[bpc] = bxo
+
     cb = ann.get("commit_boundary")
     if cb is not None and commit_offsets:
         for key in ("last_committed", "first_noncommitted"):
             entry = cb.get(key)
-            if entry is not None and key in commit_offsets:
+            if entry is None:
+                continue
+            alloy_pc = entry.get("pc")
+            if alloy_pc in branch_pc_to_jne:
+                # Boundary inst is a branch — use the jne PC so retire time
+                # reflects the branch's actual resolution, not the prelude.
+                entry["x86_offset"]     = branch_pc_to_jne[alloy_pc]
+                entry["x86_offset_hex"] = hex(branch_pc_to_jne[alloy_pc])
+            elif key in commit_offsets:
                 entry["x86_offset"]     = commit_offsets[key]
                 entry["x86_offset_hex"] = hex(commit_offsets[key])
 

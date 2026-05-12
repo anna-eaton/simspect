@@ -161,13 +161,20 @@ def parse_pipeview(trace_path: Path) -> Dict[int, List[dict]]:
 
 
 def best_record(recs: List[dict]) -> Optional[dict]:
-    """Pick the record with the highest pipeline stage reached."""
+    """Pick the record with the highest pipeline stage reached.
+
+    For micro-coded x86 instructions (e.g. JNZ_I → 3 micro-ops at the same
+    PC), multiple records share a PC. When several reach `retire`, prefer
+    the one with the latest retire-tick — that's the micro-op that actually
+    completes the macro-op (e.g. the `wrip` redirect of a jne, whose retire
+    is delayed by the resolution-stall mechanism).
+    """
     ORDER = ["fetch", "decode", "rename", "dispatch", "issue", "complete", "retire"]
     def score(r):
         for s in reversed(ORDER):
             if r[s] > 0:
-                return ORDER.index(s)
-        return -1
+                return (ORDER.index(s), r["retire"], r["complete"])
+        return (-1, 0, 0)
     return max(recs, key=score) if recs else None
 
 
