@@ -38,11 +38,14 @@ one sig TOtherx  extends InstrType {} // ALU/reg->reg, xmits
 one sig IX0 {} -- spo position 0 (first)å
 one sig IX1 {} -- spo position 1
 one sig IX2 {} -- spo position 2
+one sig IX3 {} -- spo position 2
+one sig IX4 {} -- spo position 2
+one sig IX5 {} -- spo position 2
 
 // single concrete instruction sig
 sig Instruction {
 	kind: one InstrType,
-	idx: one (IX0 + IX1 + IX2),  -- bijection to fixed position atoms
+	idx: one (IX0 + IX1 + IX2 + IX3 + IX4 + IX5),  -- bijection to fixed position atoms
 
 	spo: lone Instruction,
 
@@ -217,11 +220,16 @@ fun speculative_xmit_p[p: PTag->univ] : Operand {leakage_function_p[p] <: specul
 
 fun a[p:PTag->univ,i:Instruction,s:State] : State { prot_set_propagation_p[p,i,s]}
 fun last_committed_protset_p[p: PTag->univ] : State {
-		a[p,f[p].(spo_p[p]).(spo_p[p]),
+		a[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]),
+a[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]),
+a[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]),
+a[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]),
+a[p,f[p].(spo_p[p]).(spo_p[p]),
 			a[p,f[p].(spo_p[p]),
 				a[p,f[p],hardware_protection_policy]
 			]
 	]
+]]]]
 }
 
 fun has_unresolved_brs_p[p: PTag->univ] : Instruction {
@@ -260,10 +268,16 @@ fact tag_xm {
 
 -- idx bijection: each instruction gets a unique fixed position atom
 fact idx_bijective { all disj a, b: Instruction | a.idx != b.idx }
-fact idx_surjective { (IX0 + IX1 + IX2) = Instruction.idx }
+fact idx_surjective { (IX0 + IX1 + IX2 + IX3 + IX4 + IX5) = Instruction.idx }
 
 -- IX0 < IX1 < IX2 is a fixed static ordering (no atom permutations possible)
-pred lt_ix[a, b: univ] { (a=IX0 and b in IX1+IX2) or (a=IX1 and b=IX2) }
+pred lt_ix[a, b: univ] { (a=IX0 and b in IX1+IX2+IX3+IX4+IX5) 
+				or (a=IX1 and b in IX2+IX3+IX4+IX5)
+				or (a=IX2 and b in IX3+IX4+IX5)
+				or (a=IX3 and b in IX4+IX5)
+				or (a=IX4 and b=IX5)
+
+}
 
 -- idx rank mirrors spo rank: position 0 = first in spo, 1 = second, 2 = third
 fact idx_matches_spo {
@@ -287,7 +301,7 @@ fact no_extra_inst {no ((Instruction-Branchns) - operands.Operand)} //no extra i
 
 run gen_lit {
   gen_useful_litmus
-} for 5 but exactly 3 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool
+} for 9 but exactly 6 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool
 
 
 /*********************************************************************************
