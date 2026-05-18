@@ -1,0 +1,9 @@
+── inst-077682  (ann: found) ──
+
+  [0] TOtherx     Reg_s$0        <- ?                     (r, c)
+  [1] TOthern     Reg_s$0        <- ?                     (r, c)
+  [2] TStore      ?              <- Reg_s$0               (r, c)
+  [3] TBranchn    ?              <- ?                     [mispredict_not_taken  jne  0xc25]
+  [4] TLoad       Reg_s$0        <- Reg_s$0, Mem_s$0      (r)
+  [5] TLoad       ?              <- Reg_s$0               (r, xm)  [xmit: ld  0xc38]
+

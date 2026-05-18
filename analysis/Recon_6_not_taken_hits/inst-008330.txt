@@ -1,0 +1,9 @@
+── inst-008330  (ann: found) ──
+
+  [0] TBranchn    ?              <- ?                     [mispredict_not_taken  je  0xc11]
+  [1] TStore      Mem_s$0        <- Reg_s$0               (r)
+  [2] TLoad       Reg_s$0        <- Mem_s$0               (r)
+  [3] TStore      Mem_s$0        <- ?                     (r)
+  [4] TLoad       ?              <- Reg_s$0, Mem_s$0      (r, xm)  [xmit: ld  0xc33]
+  [5] TStore      Mem_s$0        <- Reg_s$0               (r)
+

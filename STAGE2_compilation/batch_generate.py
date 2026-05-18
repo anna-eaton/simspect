@@ -193,7 +193,15 @@ def main() -> None:
         "--instruction-tables", default=None, dest="instruction_tables",
         help="Path to instructions.json (overrides the default inside parsexml.py).",
     )
+    parser.add_argument(
+        "--mode", action="append", dest="modes", default=None,
+        choices=["mispredict_not_taken", "mispredict_taken"],
+        help="Branch mode to generate. Repeat to enable multiple modes "
+             "(each gets its own subdirectory). Default: RUN_MODES at top of file.",
+    )
     args = parser.parse_args()
+
+    modes = args.modes if args.modes else RUN_MODES
 
     input_dir  = Path(args.input_dir).resolve()
     output_dir = Path(args.output_dir).resolve() if args.output_dir else input_dir.parent / (input_dir.name + "-llvm")
@@ -204,7 +212,7 @@ def main() -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    process_folder(input_dir, output_dir, args.pattern, RUN_MODES,
+    process_folder(input_dir, output_dir, args.pattern, modes,
                    kind=args.kind,
                    filter_unresolved_branch=args.unresolved_branch,
                    limit=args.limit,

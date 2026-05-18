@@ -28,15 +28,15 @@
     "cpu_type":          "X86O3CPU",
     "scheme":            2,
     "caches":            true,
-    "jobs":              8,
+    "jobs":              40,
     "debug_flags":       ["O3PipeView"],
     "debug_file":        "pipeview.txt"
   },
 
   "sweep": {
     "enabled":                 true,
-    "points":                  [0, 100, 500, 1000, 2500],
-    "unresolved_stall_cycles": 5000
+    "points":                  [0, 500, 2500],
+    "unresolved_stall_cycles": 50000
   },
 
   "pipeline": {

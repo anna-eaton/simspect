@@ -1,0 +1,9 @@
+── inst-031621  (ann: found) ──
+
+  [0] TBranchn    ?              <- ?                     [mispredict_not_taken  je  0xc23]
+  [1] TLoad       Reg_s$0        <- Mem_s$0               (r)
+  [2] TOthern     Reg_s$0        <- ?                     (r)
+  [3] TStore      ?              <- Reg_s$0               (r)
+  [4] TBranchn    ?              <- ?                     (r)  [correctly_not_taken  jne  0xc40]
+  [5] TLoad       ?              <- Reg_s$0               (r, xm)  [xmit: ld  0xc4d]
+

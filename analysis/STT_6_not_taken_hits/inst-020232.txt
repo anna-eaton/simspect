@@ -1,0 +1,9 @@
+── inst-020232  (ann: found) ──
+
+  [0] TOthern     Reg_s$0        <- ?                     (r, c)
+  [1] TBranchn    ?              <- ?                     (r, c)  [correctly_not_taken  jne  0xc27]
+  [2] TStore      ?              <- Reg_s$0               (r, c)
+  [3] TBranchn    ?              <- ?                     [mispredict_not_taken  jne  0xc38]
+  [4] TLoad       Reg_s$0        <- Mem_s$0               (r)
+  [5] TLoad       ?              <- Reg_s$0               (r, xm)  [xmit: ld  0xc51]
+

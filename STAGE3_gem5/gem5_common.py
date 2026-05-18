@@ -49,6 +49,9 @@ GEM5_DBG_FILE = os.environ.get("SIMSPECT_GEM5_DBG_FILE", "pipeview.txt")
 BRANCH_ANN_ENABLE = os.environ.get("SIMSPECT_BRANCH_ANN_ENABLE", "").lower() in (
     "1", "true", "yes", "on")
 
+ALLOW_LEAKED = os.environ.get("SIMSPECT_ALLOW_LEAKED", "").lower() in (
+    "1", "true", "yes", "on")
+
 _scheme: int = 2   # mutable; set by run_batch() from CLI
 
 
@@ -128,6 +131,9 @@ def run_gem5(binary: Path, workdir: Path,
         cmd.append(f"--branch-ann-file={ann_path}")
         if base is not None:
             cmd.append(f"--branch-ann-base={hex(base)}")
+
+    if ALLOW_LEAKED:
+        cmd.append("--allow_leaked")
 
     subprocess.run(cmd, check=True, capture_output=True, cwd=str(GEM5_DIR))
     return outdir / GEM5_DBG_FILE

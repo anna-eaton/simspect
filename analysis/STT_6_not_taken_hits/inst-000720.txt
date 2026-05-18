@@ -1,0 +1,9 @@
+── inst-000720  (ann: found) ──
+
+  [0] TBranchn    ?              <- ?                     [mispredict_not_taken  je  0xc17]
+  [1] TLoad       Reg_s$0        <- Mem_s$0               (r)
+  [2] TBranchn    ?              <- ?                     (r)  [correctly_not_taken  je  0xc27]
+  [3] TBranchn    ?              <- ?                     (r)  [correctly_not_taken  jne  0xc2f]
+  [4] TBranchx    ?              <- Reg_s$0               (r, xm)  [xmit: br_x  0xc37 | correctly_not_taken  jne  0xc37]
+  [5] TStore      ?              <- Reg_s$0               (r)
+

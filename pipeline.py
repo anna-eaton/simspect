@@ -133,6 +133,18 @@ def phase_llvm(cfg: dict, model: str, out_base: Path, force: bool) -> None:
             "--kind",
             "--instruction-tables", str(tables_path),
         ]
+        # speculation.branch_modes (if set) overrides batch_generate's hardcoded
+        # RUN_MODES. A single mode writes flat into llvm_dir; multiple modes
+        # would write into per-mode subdirs and the downstream phases assume
+        # flat layout, so reject that here.
+        modes = cfg.get("speculation", {}).get("branch_modes")
+        if modes:
+            if len(modes) > 1:
+                sys.exit(f"error: speculation.branch_modes={modes} — "
+                         "phase_llvm only supports one mode per run (the "
+                         "asm/ann/results layout is flat). Run separate "
+                         "experiments per mode.")
+            cmd += ["--mode", modes[0]]
         result = subprocess.run(cmd, cwd=str(stage2),
                                 capture_output=True, text=True)
         # Print only error/skip lines from batch_generate
@@ -177,28 +189,49 @@ def phase_asm(cfg: dict, model: str, out_base: Path, force: bool) -> None:
         print(f"[asm] All {done} .s files already compiled — skipping")
         return
 
-    print(f"[asm] Compiling {len(todo)}/{len(ll_files)} .ll files …")
+    jobs = max(1, int(cfg.get("gem5", {}).get("jobs", 8)))
+    print(f"[asm] Compiling {len(todo)}/{len(ll_files)} .ll files  (jobs={jobs}) …")
     ok = err = 0
 
-    for ll in todo:
+    # ThreadPoolExecutor (not ProcessPoolExecutor): the heavy work is in
+    # subprocess.run (the clang+nm+objdump children), so threads give us
+    # real parallelism. ProcessPoolExecutor would need a top-level function
+    # to dispatch (closures aren't picklable).
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def _one(ll_path_str: str) -> tuple[str, int, str]:
         r = subprocess.run(
             [
                 sys.executable,
                 str(stage2 / "compile_annotate.py"),
-                str(ll),
+                ll_path_str,
                 "--out-dir", str(asm_dir),
                 "--ann-dir", str(ann_dir),
             ],
             capture_output=True, text=True,
         )
-        if r.returncode == 0:
-            ok += 1
-        else:
-            err += 1
-            print(f"  [err] {ll.name}: {r.stderr.strip()[:200]}")
-        done_count = ok + err
-        if done_count % 500 == 0:
-            print(f"  progress: {done_count}/{len(todo)}  ok={ok}  errors={err}")
+        return (ll_path_str, r.returncode, r.stderr.strip()[:200])
+
+    with ThreadPoolExecutor(max_workers=jobs) as ex:
+        futures = [ex.submit(_one, str(ll)) for ll in todo]
+        for i, fut in enumerate(as_completed(futures), 1):
+            try:
+                ll_path_str, rc, stderr_snippet = fut.result()
+            except Exception as e:
+                err += 1
+                print(f"  [exc] worker raised: {e}")
+                continue
+            if rc == 0:
+                ok += 1
+            else:
+                err += 1
+                # Print only first few errors to keep output manageable
+                if err <= 20:
+                    print(f"  [err] {Path(ll_path_str).name}: {stderr_snippet}")
+                elif err == 21:
+                    print(f"  [err] (suppressing further per-file errors)")
+            if i % 500 == 0:
+                print(f"  progress: {i}/{len(todo)}  ok={ok}  errors={err}")
 
     msg = f"[asm] Done — {ok} compiled"
     if err:
@@ -459,6 +492,9 @@ def _build_gem5_env(gem5_cfg: dict, spec_cfg: dict) -> dict:
     # keep control_flow=true while pointing at a vanilla gem5 build.
     if gem5_cfg.get("branch_ann_enable"):
         env["SIMSPECT_BRANCH_ANN_ENABLE"] = "1"
+
+    if gem5_cfg.get("allow_leaked"):
+        env["SIMSPECT_ALLOW_LEAKED"] = "1"
 
     return env
 

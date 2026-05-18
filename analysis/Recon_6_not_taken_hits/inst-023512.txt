@@ -1,0 +1,9 @@
+── inst-023512  (ann: found) ──
+
+  [0] TBranchn    ?              <- ?                     [mispredict_not_taken  je  0x14]
+  [1] TLoad       Reg_s$0        <- Mem_s$0               (r)
+  [2] TOthern     ?              <- Reg_s$0, Reg_s$0      (r)
+  [3] TBranchn    ?              <- ?                     (r)  [correctly_not_taken  je  0x28]
+  [4] TBranchn    ?              <- ?                     (r)  [correctly_not_taken  je  0x33]
+  [5] TBranchx    ?              <- Reg_s$0               (r, xm)  [xmit: br_x  0x3b | correctly_not_taken    0x3b]
+
