@@ -1,0 +1,53 @@
+// Verification re-sweep of the 14 SLF + 1256 OtherLoad ld hits from the
+// taken-branch sttbuild and interleave_sttbuild tracks.  Replays the staged
+// symlink testset at testsets/_verify_ld_taken/ on the same sttbuild gem5
+// binary, with the patched check_ld.py that now emits fnc_complete — so we
+// can validate xmit_complete < fnc_complete (resolution window) vs
+// xmit_complete < fnc_retire (commit window).
+{
+  "paths": {
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "testset_dir":        "testsets",
+    "results_dir":        "results",
+    "results_name":       "_verify_ld_taken"
+  },
+
+  "alloy": {
+    "max_instances": 1,
+    "batch_size":    1
+  },
+
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_taken"]
+  },
+
+  "gem5": {
+    "binary":                  "/work/stt/build/X86/gem5.opt",
+    "config_script":           "/work/stt/configs/example/se.py",
+    "branch_ann_enable":       true,
+    "cpu_type":                "DerivO3CPU",
+    "scheme":                  2,
+    "caches":                  true,
+    "jobs":                    8,
+    "debug_flags":             ["O3PipeView"],
+    "debug_file":              "pipeview.txt",
+    "fnc_commit_stall_cycles": 150
+  },
+
+  "sweep": {
+    "enabled":                 true,
+    "points":                  [0, 500, 2500],
+    "unresolved_stall_cycles": 5000
+  },
+
+  "pipeline": {
+    "check":    "per_type",
+    "keep_tmp": false
+  }
+}

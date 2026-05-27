@@ -17,10 +17,13 @@ logic below.
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import random
 import sys
 import traceback
 from pathlib import Path
+from typing import Optional
 
 # Make sure parsexml is importable from the same directory as this script.
 sys.path.insert(0, str(Path(__file__).parent))
@@ -38,6 +41,7 @@ def _load_parser(kind: bool, instruction_tables: str | None = None):
         mod.pass1_specify_state_a,
         mod.pass2_specify_instructions,
         mod.pass2_5_specify_branches,
+        mod.pass_interleave,
         mod.pass3_assign_operands,
         mod.pass4_ssa,
         mod.pass5_emit_llvm,
@@ -50,6 +54,7 @@ from parsexml import (
     pass1_specify_state_a,
     pass2_specify_instructions,
     pass2_5_specify_branches,
+    pass_interleave,
     pass3_assign_operands,
     pass4_ssa,
     pass5_emit_llvm,
@@ -64,28 +69,55 @@ from parsexml import (
 # ---------------------------------------------------------------------------
 RUN_MODES: list[str] = [
     "mispredict_not_taken",
-    # "mispredict_taken",   # uncomment when pass2_5 supports it
+    "mispredict_taken",
 ]
 
 
 def run_pipeline(xml_text: str, stem: str, out_dir: Path, mode: str,
-                 _fns=None) -> None:
-    """Run the full pipeline for one XML file and one branch mode."""
-    (parse_alloy_xml, pass1_specify_state_a, pass2_specify_instructions,
-     pass2_5_specify_branches, pass3_assign_operands, pass4_ssa,
-     pass5_emit_llvm, emit_branch_annotations) = _fns
+                 _fns=None, interleave_cfg: Optional[dict] = None) -> None:
+    """Run the full pipeline for one XML file and one branch mode.
+
+    When interleave_cfg["enabled"] is True and variants_per_instance > 1,
+    emits <stem>_v0.ll … <stem>_v{N-1}.ll (each with a different random seed).
+    Otherwise emits <stem>.ll as before.
+    """
+    (parse_alloy_xml, pass1, pass2, pass2_5, pass_il,
+     pass3, pass4, pass5, emit_ann) = _fns
+
+    icfg = interleave_cfg or {}
+    enabled    = icfg.get("enabled", False)
+    n_variants = int(icfg.get("variants_per_instance", 1)) if enabled else 1
+
     inst = parse_alloy_xml(xml_text)
-    r1   = pass1_specify_state_a(inst,   write_out=False)
-    r2   = pass2_specify_instructions(r1, write_out=False)
-    r25  = pass2_5_specify_branches(r2,   write_out=False)
-    r3   = pass3_assign_operands(r25,     write_out=False)
-    r4   = pass4_ssa(r3,                  write_out=False)
+    r1   = pass1(inst, write_out=False)
 
-    ll_path  = out_dir / f"{stem}.ll"
-    ann_path = out_dir / f"{stem}.ann.json"
+    variant_zero_no_chain = bool(icfg.get("variant_zero_no_chain", False))
+    num_chains_choices    = icfg.get("num_chains_choices")  # e.g. [1,2] → random per variant
 
-    pass5_emit_llvm(r4, func_name=stem, out_path=str(ll_path),  write_out=True)
-    emit_branch_annotations(r4,         out_path=str(ann_path), write_out=True)
+    for v in range(n_variants):
+        vseed = hash(f"{stem}_v{v}") & 0xFFFF_FFFF
+        random.seed(vseed)
+
+        r2  = pass2(r1,  write_out=False)
+        r25 = pass2_5(r2, branch_mode=mode, write_out=False)
+        rng = random.Random(vseed ^ 0xABCD_1234)
+        if enabled and (variant_zero_no_chain or num_chains_choices):
+            icfg_v = dict(icfg)
+            if variant_zero_no_chain and v == 0:
+                icfg_v["num_chains"] = 0
+            elif num_chains_choices:
+                icfg_v["num_chains"] = rng.choice(list(num_chains_choices))
+            r_il = pass_il(r25, icfg_v, rng)
+        else:
+            r_il = pass_il(r25, icfg if enabled else None, rng)
+        r3  = pass3(r_il, write_out=False)
+        r4  = pass4(r3,   write_out=False)
+
+        vstem    = f"{stem}_v{v}" if n_variants > 1 else stem
+        ll_path  = out_dir / f"{vstem}.ll"
+        ann_path = out_dir / f"{vstem}.ann.json"
+        pass5(r4, func_name=vstem, out_path=str(ll_path),  write_out=True)
+        emit_ann(r4,               out_path=str(ann_path), write_out=True)
 
 
 def has_unresolved_branch(xml_text: str, parse_fn, pass1_fn) -> bool:
@@ -107,6 +139,7 @@ def process_folder(
     filter_unresolved_branch: bool = False,
     limit: int = 0,
     instruction_tables: str | None = None,
+    interleave_cfg: Optional[dict] = None,
 ) -> None:
     _fns = _load_parser(kind, instruction_tables=instruction_tables)
     parse_fn, pass1_fn = _fns[0], _fns[1]
@@ -142,7 +175,8 @@ def process_folder(
             mode_dir.mkdir(parents=True, exist_ok=True)
 
             try:
-                run_pipeline(xml_text, stem, mode_dir, mode, _fns=_fns)  # type: ignore[call-arg]
+                run_pipeline(xml_text, stem, mode_dir, mode, _fns=_fns,
+                             interleave_cfg=interleave_cfg)
                 print(f"  [ok]  {xml_path.name}  ({mode})")
                 ok += 1
             except NotImplementedError as exc:
@@ -199,6 +233,10 @@ def main() -> None:
         help="Branch mode to generate. Repeat to enable multiple modes "
              "(each gets its own subdirectory). Default: RUN_MODES at top of file.",
     )
+    parser.add_argument(
+        "--interleave-config", default=None, dest="interleave_config",
+        help="JSON-encoded interleave configuration (see run_config_STT_6.jsonc).",
+    )
     args = parser.parse_args()
 
     modes = args.modes if args.modes else RUN_MODES
@@ -212,11 +250,19 @@ def main() -> None:
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    interleave_cfg: dict = {}
+    if args.interleave_config:
+        try:
+            interleave_cfg = json.loads(args.interleave_config)
+        except json.JSONDecodeError as e:
+            print(f"Warning: --interleave-config parse error: {e}", file=sys.stderr)
+
     process_folder(input_dir, output_dir, args.pattern, modes,
                    kind=args.kind,
                    filter_unresolved_branch=args.unresolved_branch,
                    limit=args.limit,
-                   instruction_tables=args.instruction_tables)
+                   instruction_tables=args.instruction_tables,
+                   interleave_cfg=interleave_cfg)
 
 
 if __name__ == "__main__":

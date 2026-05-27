@@ -1,0 +1,65 @@
+// STT_6 interleave run — identical to run_config_STT_6.jsonc but with chain
+// interleaving enabled.  XML phase is skipped (symlinked from STT_6/xml/).
+// Output goes to generated/STT_6_interleave/<mode>/.
+{
+  "paths": {
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "testset_dir":        "testsets",
+    "results_dir":        "results",
+    "results_name":       "STT_6_interleave"
+  },
+
+  "alloy": {
+    "max_instances": 100000,
+    "batch_size":    1000
+  },
+
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_not_taken", "mispredict_taken"]
+  },
+
+  "gem5": {
+    "binary":            "/work/gem5-recon-modded/build/X86/gem5.opt",
+    "config_script":     "/work/gem5-recon-modded/configs/example/se.py",
+    "branch_ann_enable": true,
+    "cpu_type":          "X86O3CPU",
+    "scheme":            2,
+    "caches":            true,
+    "jobs":              16,
+    "debug_flags":       ["O3PipeView"],
+    "debug_file":        "pipeview.txt",
+    "fnc_commit_stall_cycles": 150
+  },
+
+  "sweep": {
+    "enabled":                 true,
+    "points":                  [0, 500, 2500],
+    "unresolved_stall_cycles": 5000
+  },
+
+  "pipeline": {
+    "check":    "per_type",
+    "keep_tmp": false
+  },
+
+  "interleave": {
+    "enabled":               true,
+    "variants_per_instance": 4,
+    "free_pool": {
+      "reg": 5,
+      "mem": 3
+    },
+    "chain": {
+      "min_length": 2,
+      "max_length": 4,
+      "step_kinds": ["other_n", "ld", "str"]
+    },
+    "num_chains": 1
+  }
+}

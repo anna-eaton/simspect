@@ -1,0 +1,70 @@
+// STT_6 run config — both mispredict_not_taken and mispredict_taken branch modes.
+// Phases 2-4 run per-mode under generated/STT_6/<mode>/; XML (phase 1) is shared.
+// Uses the modded gem5 build with --branch-ann-file BTB stall annotations.
+{
+  "paths": {
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "testset_dir":        "testsets",
+    "results_dir":        "results",
+    "results_name":       "STT_6"
+  },
+
+  "alloy": {
+    "max_instances": 100000,
+    "batch_size":    1000
+  },
+
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_taken"]
+  },
+
+  "gem5": {
+    "binary":            "/work/gem5-recon-modded/build/X86/gem5.opt",
+    "config_script":     "/work/gem5-recon-modded/configs/example/se.py",
+    "branch_ann_enable": true,
+    "cpu_type":          "X86O3CPU",
+    "scheme":            2,
+    "caches":            true,
+    "jobs":              40,
+    "debug_flags":       ["O3PipeView"],
+    "debug_file":        "pipeview.txt",
+    "fnc_commit_stall_cycles": 150
+  },
+
+  "sweep": {
+    "enabled":                 true,
+    "points":                  [0, 500, 2500],
+    "unresolved_stall_cycles": 5000
+  },
+
+  "pipeline": {
+    "check":    "per_type",
+    "keep_tmp": false
+  },
+
+  // Chain interleaving: inject synthetic instruction chains into the speculative
+  // region of each Alloy instance to probe implementation-specific bugs (e.g. OTB).
+  // free_pool.reg/mem control how many Reg_s$fr* / Mem_s$fr* atoms exist — the
+  // same pool is shared by chain steps and unspecified Alloy slots, so collisions
+  // create natural data dependencies without explicit wiring.
+  // num_chains: 1 or 2 chains per instance.
+  "interleave": {
+    "enabled":              false,
+    "variants_per_instance": 4,
+    "free_pool": {
+      "reg": 5,
+      "mem": 3
+    },
+    "chain": {
+      "max_length": 3,
+      "types": ["reg", "addr", "mem"]
+    },
+    "num_chains": 1
+  }
+}

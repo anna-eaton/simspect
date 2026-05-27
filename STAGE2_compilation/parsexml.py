@@ -164,6 +164,179 @@ def _build_slot_records(
 
 
 # -----------------------------
+# Chain interleave helpers
+# -----------------------------
+# Allowed chain step kinds.  A linear chain is a sequence of these where
+# step N+1 consumes step N's output via a shared atom:
+#   - reg bridge: step N has outreg → step N+1 consumes it as inreg or inaddr
+#   - mem bridge: step N is a store (outmem) → step N+1 is a load (inmem)
+_STEP_KINDS_DEFAULT = ["other_n", "ld", "str"]
+
+
+def _unspecified_slot(slot_name: str) -> Dict[str, Any]:
+    return {"slot": slot_name, "specified": False, "operand_atom": None, "physical": None}
+
+
+def _fr_slot(slot_name: str, atom: str) -> Dict[str, Any]:
+    """Specified slot pinned to a free-pool atom (Reg_s$fr* or Mem_s$fr*)."""
+    return {"slot": slot_name, "specified": True, "operand_atom": None, "physical": atom}
+
+
+def _make_chain_step(
+    chain_id: int,
+    step_idx: int,
+    kind: str,
+    concrete: str,
+    llvm_op: str,
+    slots: Dict[str, List[Dict[str, Any]]],
+) -> Dict[str, Any]:
+    return {
+        "pc": -1,
+        "instruction": f"_chain{chain_id}_step{step_idx}",
+        "kind": kind,
+        "concrete_instruction": concrete,
+        "llvm_op": llvm_op,
+        "candidates": [concrete],
+        "resolved": False,
+        "committed": False,
+        "xm": False,
+        "slots": slots,
+        "synthetic": True,
+    }
+
+
+def _build_chain(
+    chain_id: int,
+    length: int,
+    fr_reg_atoms: List[str],
+    fr_mem_atoms: List[str],
+    step_kinds: List[str],
+    rng: random.Random,
+) -> List[Dict[str, Any]]:
+    """Build a linear chain of `length` steps.
+
+    Every consecutive pair shares a forced data dependency: step N's output
+    feeds at least one input slot of step N+1.
+      - outreg → next.inreg or next.inaddr
+      - outmem → next.inmem  (next MUST be a load)
+
+    Additional input slots on a multi-input step are filled with either a
+    fresh seed atom or any earlier step's outreg (chosen at random).  This is
+    what lets OTB-shape patterns emerge:  ld→ld(via addr)→combine(2-input:
+    prev outreg + earlier outreg)→ld.
+
+    Each step's outreg / outmem is assigned a distinct fr atom (counter-
+    allocated; wraps modulo pool size if the pool is too small — sizing the
+    free_pool is the config's responsibility).
+    """
+    if length <= 0 or not fr_reg_atoms:
+        return []
+
+    have_mem = bool(fr_mem_atoms)
+    allowed = [k for k in step_kinds if k != "str" or have_mem]
+    if not allowed:
+        allowed = ["other_n"]
+
+    steps: List[Dict[str, Any]] = []
+    reg_ctr = 0
+    mem_ctr = 0
+
+    def alloc_outreg() -> str:
+        nonlocal reg_ctr
+        atom = fr_reg_atoms[reg_ctr % len(fr_reg_atoms)]
+        reg_ctr += 1
+        return atom
+
+    def alloc_outmem() -> Optional[str]:
+        nonlocal mem_ctr
+        if not fr_mem_atoms:
+            return None
+        atom = fr_mem_atoms[mem_ctr % len(fr_mem_atoms)]
+        mem_ctr += 1
+        return atom
+
+    last_kind: Optional[str] = None    # "reg" or "mem" — what the previous step left for us to consume
+    last_atom: Optional[str] = None
+
+    for s in range(length):
+        # Choose this step's kind, respecting the bridge from the previous step.
+        if last_kind == "mem":
+            kind = "ld"   # only loads consume inmem
+        else:
+            kind = rng.choice(allowed)
+
+        # Default everything to floating; pass3 will sample reg slots from the
+        # constrained free_pool and mem slots from its free pool, so extras
+        # collide with chain outputs at ~1/N probability — that's the whole
+        # point of the shared pool, and it's what makes OTB-shape patterns
+        # emerge by accident.
+        slots = {
+            "inreg":  [_unspecified_slot("inreg0"), _unspecified_slot("inreg1")],
+            "inaddr": [_unspecified_slot("inaddr")],
+            "inmem":  [_unspecified_slot("inmem")],
+            "outreg": [_unspecified_slot("outreg")],
+            "outmem": [_unspecified_slot("outmem")],
+        }
+
+        # Pin ONLY the bridge from the previous step.  All other input slots
+        # stay unspecified ("floating") and are filled by pass3.
+        if s > 0 and last_atom is not None:
+            if last_kind == "reg":
+                if kind == "ld":
+                    slots["inaddr"][0] = _fr_slot("inaddr", last_atom)
+                elif kind == "str":
+                    # store can consume reg via either value (inreg0) or address (inaddr)
+                    if rng.random() < 0.5:
+                        slots["inaddr"][0] = _fr_slot("inaddr", last_atom)
+                    else:
+                        slots["inreg"][0] = _fr_slot("inreg0", last_atom)
+                else:  # other_n
+                    idx = rng.randint(0, 1)
+                    slots["inreg"][idx] = _fr_slot(f"inreg{idx}", last_atom)
+            else:  # last_kind == "mem"
+                slots["inmem"][0] = _fr_slot("inmem", last_atom)
+
+        if kind == "other_n":
+            two_inputs = rng.random() < 0.7
+            if not two_inputs:
+                # bitnot: only inreg0 participates; inreg1 stays unspecified-and-unused.
+                # If the bridge landed on inreg1, swap it down so inreg0 holds it.
+                if slots["inreg"][1]["specified"]:
+                    slots["inreg"][0], slots["inreg"][1] = slots["inreg"][1], _unspecified_slot("inreg1")
+                    slots["inreg"][0]["slot"] = "inreg0"
+                concrete, llvm_op = "bitnot", "notq"
+            else:
+                concrete, llvm_op = "add", "leaq"
+            out = alloc_outreg()
+            slots["outreg"][0] = _fr_slot("outreg", out)
+            last_kind, last_atom = "reg", out
+
+        elif kind == "ld":
+            out = alloc_outreg()
+            slots["outreg"][0] = _fr_slot("outreg", out)
+            concrete, llvm_op = "load", "movq"
+            last_kind, last_atom = "reg", out
+
+        else:  # str
+            out = alloc_outmem()
+            if out is None:
+                # No mem pool — degenerate; fall back to a 1-input other_n.
+                reg_out = alloc_outreg()
+                slots["outreg"][0] = _fr_slot("outreg", reg_out)
+                slots["inreg"][1]  = _unspecified_slot("inreg1")
+                kind, concrete, llvm_op = "other_n", "bitnot", "notq"
+                last_kind, last_atom = "reg", reg_out
+            else:
+                slots["outmem"][0] = _fr_slot("outmem", out)
+                concrete, llvm_op = "store", "movq"
+                last_kind, last_atom = "mem", out
+
+        steps.append(_make_chain_step(chain_id, s, kind, concrete, llvm_op, slots))
+
+    return steps
+
+
+# -----------------------------
 # PHASE 1: specify mem and reg from alloy
 #   - save them to a reserved list
 #   - make sure that the code is specified
@@ -356,7 +529,6 @@ _KIND_TO_CATEGORY, INSTRUCTION_TABLE = _load_instruction_tables()
 def pass2_specify_instructions(
     pass1_result: Dict[str, Any],
     instruction_table: Optional[Dict[str, List[Dict[str, Any]]]] = None,
-    additional_interleave: int = 0,
     out_path: Optional[str] = None,
     write_out: bool = False,
 ) -> Dict[str, Any]:
@@ -408,26 +580,6 @@ def pass2_specify_instructions(
         out_rec["llvm_op"] = chosen["llvm_op"] if chosen else None
         out_rec["candidates"] = [c["name"] for c in valid]
         output_instructions.append(out_rec)
-
-    # ---- Additional interleave (STUB) ----
-    # When enabled (additional_interleave > 0), insert that many random other_n
-    # instructions at random positions in output_instructions. The interleaved
-    # records must pull their register/memory atoms from the "second group" of
-    # state — i.e. Reg_s / Mem_s atoms NOT in pass1_result["resource_usage"]
-    # ["registers"] / ["memory"] — so the noise cannot alias the abstract
-    # program's tracked state.
-    #
-    # Fixed at 0 for now; enabling it later will require:
-    #   - pass 1 to also expose the full Reg_s / Mem_s atom sets so the
-    #     "second group" (unused atoms) can be derived here
-    #   - PC renumbering + slot records wired to the second-group atoms
-    #   - downstream passes to treat the synthetic records like any other
-    #     other_n (they should already, since the shape matches)
-    if additional_interleave > 0:
-        raise NotImplementedError(
-            "additional_interleave>0 not yet implemented (stub reserved for "
-            "interleaving other_n instructions from the second state group)"
-        )
 
     result: Dict[str, Any] = {
         "instructions": output_instructions,
@@ -502,11 +654,20 @@ def pass2_5_specify_branches(
                                        what the BTB actually predicts
 
     "mispredict_taken"
-        Branch is architecturally NOT taken (condition_value=False) and
-        architecturally jumps past every later instruction — fallthrough_target
-        = "end_block". The BTB predicts taken, so the CPU speculatively
-        fetches taken_target="bb_<pc+1>" (everything after the branch, the
-        "critical" section). Squashes on resolution.
+        Branch is architecturally NOT taken (condition_value=False). The BTB
+        predicts taken, so the CPU speculatively fetches taken_target=
+        "bb_<pc+1>" (everything after the branch, the "critical" section),
+        then squashes on resolution.
+
+        fallthrough_target stays "end_block", but the IR emitter does NOT
+        wire the not-taken edge straight to end_block. It inserts an explicit
+        fall-through trampoline block ("ftbypass_<pc>") between the branch and
+        the critical section whose only body is `br label %end_block`. This
+        guarantees the architecturally-correct not-taken path BYPASSES the
+        Alloy critical section (it can never fall into bb_<pc+1>) regardless
+        of LLVM block layout — the critical section is reachable only via the
+        BTB-forced taken misprediction. (not_taken needs no trampoline: its
+        architectural edge is the taken edge to end_block by construction.)
 
         btb_prediction   = "taken"
         btb_predicted_pc = pc + 1   ← override this in the simulator to change
@@ -549,6 +710,22 @@ def pass2_5_specify_branches(
         pc = rec["pc"]
         next_pc = pc + 1
         is_xm = rec.get("xm", False)
+
+        # Pass2 picks a random concrete_instruction from the candidate pool,
+        # which includes br_bez. For non-xmit branches, br_bez breaks the
+        # mispredict_taken architectural path: br_bez's IR emission uses
+        # `icmp eq` (inverted relative to br_cond's `icmp ne`) AND skips the
+        # ftbypass trampoline, so the architectural fall-through ends up in
+        # the critical block instead of end_block. Force br_cond for any
+        # non-xmit branch so pass5 takes the trampoline-aware path. is_xm
+        # branches (br_x xmit) keep whatever pass2 chose and are re-routed to
+        # br_bez below if applicable.
+        if not is_xm and rec.get("concrete_instruction") in ("br_uncond", "br_bez"):
+            rec["concrete_instruction"] = "br_cond"
+            rec["llvm_op"]              = "br i1"
+            cands = rec.get("candidates", [])
+            if "br_cond" not in cands:
+                rec["candidates"] = cands + ["br_cond"]
 
         if rec.get("resolved", False):
             # Resolved branch: emit a real conditional branch whose architectural
@@ -660,9 +837,18 @@ def pass2_5_specify_branches(
             elif ba.get("mode") == "mispredict_taken" and ba["taken_target"] == "end_block":
                 ba["taken_target"] = f"bb_{nop_pc}"
 
-    # Renumber PCs if we inserted NOPs (shift all instructions after each insert)
-    # Not needed: we use explicit pc values everywhere, and the NOP already
-    # has br_pc + 1 which is what btb_predicted_pc expects.
+    # NOTE: this code does NOT renumber PCs after inserting a NOP. If the
+    # next instruction was already at pc == br_pc + 1 (the deterministic case
+    # for an xm branch followed by another branch in the list, since pass1
+    # assigns pc = enumerate(order)), the inserted NOP duplicates that PC and
+    # pass5 will emit two `bb_<pc>:` labels → LLVM parse error.
+    #
+    # The path that would reach this insertion only runs for *unresolved* xm
+    # branches (resolved branches `continue` above). In STT_6 every xm
+    # Branchx is resolved by construction of the Alloy speculation contract,
+    # so the buggy case is unreachable. See DESIGN.md → "Invariant: xmit
+    # branches are always resolved" for the empirical evidence and the
+    # remediation steps to take if a future model relaxes the invariant.
 
     result: Dict[str, Any] = {
         "instructions": instructions,
@@ -715,6 +901,156 @@ def pass2_5_specify_branches(
 
 
 # =============================================================================
+# Pass interleave: inject synthetic chain instructions into speculative region
+# =============================================================================
+
+def pass_interleave(
+    pass25_result: Dict[str, Any],
+    interleave_cfg: Optional[Dict[str, Any]] = None,
+    rng: Optional[random.Random] = None,
+) -> Dict[str, Any]:
+    """
+    Optional pass between pass2.5 and pass3.
+
+    Injects 1-2 abstract instruction chains into the uncommitted (speculative)
+    region.  Chain operand slots are pinned to free-pool atoms (Reg_s$fr*,
+    Mem_s$fr*).  pass3 maps those atoms to real registers/offsets via a shared
+    fr_reg_map / fr_mem_map — the same pool that unspecified Alloy slots draw
+    from — so collisions create natural data dependencies.
+
+    When disabled (enabled=False or cfg is empty), returns pass25_result
+    unchanged with empty fr_reg_pool / fr_mem_pool.
+
+    interleave_cfg keys (all optional):
+      enabled              bool   default False
+      variants_per_instance int   handled in batch_generate, not here
+      free_pool.reg        int    Reg_s$fr* count  (default 5)
+      free_pool.mem        int    Mem_s$fr* count  (default 3)
+      chain.min_length     int    min steps per chain (default 2)
+      chain.max_length     int    max steps per chain (default 4)
+      chain.step_kinds     list   subset of {"other_n","ld","str"} allowed per step
+      num_chains           int    1 or 2 (default 1)
+    """
+    cfg = interleave_cfg or {}
+    if not cfg.get("enabled", False):
+        result = dict(pass25_result)
+        result["fr_reg_pool"] = []
+        result["fr_mem_pool"] = []
+        return result
+
+    if rng is None:
+        rng = random.Random()
+
+    fp_cfg     = cfg.get("free_pool", {})
+    n_fr_reg   = int(fp_cfg.get("reg", 5))
+    n_fr_mem   = int(fp_cfg.get("mem", 3))
+    chain_cfg  = cfg.get("chain", {})
+    min_length = int(chain_cfg.get("min_length", 2))
+    max_length = int(chain_cfg.get("max_length", 4))
+    step_kinds: List[str] = list(chain_cfg.get("step_kinds", _STEP_KINDS_DEFAULT))
+    num_chains = min(max(int(cfg.get("num_chains", 1)), 0), 2)
+    if num_chains == 0:
+        # No chains for this variant — return baseline pass25 with empty pools.
+        result = dict(pass25_result)
+        result["fr_reg_pool"] = []
+        result["fr_mem_pool"] = []
+        return result
+
+    fr_reg_atoms = [f"Reg_s$fr{k}" for k in range(max(n_fr_reg, 1))]
+    fr_mem_atoms = [f"Mem_s$fr{k}" for k in range(n_fr_mem)] if n_fr_mem > 0 else []
+
+    # Drop "str" if no mem pool available (no atoms to hold outmem).
+    if not fr_mem_atoms and "str" in step_kinds:
+        step_kinds = [k for k in step_kinds if k != "str"]
+    if not step_kinds:
+        step_kinds = ["other_n"]
+
+    instructions = [dict(rec) for rec in pass25_result["instructions"]]
+    N = len(instructions)
+
+    # Find first uncommitted instruction (chain steps go only in speculative region)
+    first_uncommitted_idx = N
+    for i, rec in enumerate(instructions):
+        if not rec.get("committed", False):
+            first_uncommitted_idx = i
+            break
+
+    # Build all chain steps
+    all_steps: List[Dict[str, Any]] = []
+    for cid in range(num_chains):
+        lo = max(min_length, 1)
+        hi = max(max_length, lo)
+        length = rng.randint(lo, hi)
+        all_steps.extend(_build_chain(cid, length, fr_reg_atoms, fr_mem_atoms, step_kinds, rng))
+
+    L = len(all_steps)
+    uncommitted_count = N - first_uncommitted_idx
+
+    # Sample L insertion positions within the [first_uncommitted_idx, N+L) window
+    pool_size = uncommitted_count + L
+    rel_positions: Set[int] = set(
+        rng.sample(range(pool_size), min(L, pool_size))
+    ) if pool_size > 0 else set()
+
+    # Interleave chain steps and original uncommitted instructions
+    new_instructions: List[Dict[str, Any]] = list(instructions[:first_uncommitted_idx])
+    chain_iter  = iter(all_steps)
+    orig_iter   = iter(instructions[first_uncommitted_idx:])
+    for pos in range(pool_size):
+        if pos in rel_positions:
+            step = next(chain_iter, None)
+            if step is not None:
+                new_instructions.append(step)
+        else:
+            orig = next(orig_iter, None)
+            if orig is not None:
+                new_instructions.append(orig)
+    # Drain remainders (shouldn't occur in normal case)
+    new_instructions.extend(s for s in orig_iter)
+    new_instructions.extend(s for s in chain_iter)
+
+    # Renumber PCs (synthetic and original alike — they're all in pc-order now).
+    for new_pc, rec in enumerate(new_instructions):
+        rec["pc"] = new_pc
+
+    # Update branch annotations to reflect shifted PCs.  pass2_5 only ever
+    # emits bb-targets of the form bb_<pc+1>, so the remap is just
+    # bb_<rec.pc+1> — which lands on the chain step (or original next instr)
+    # in the new sequence, so the branch's "br ... label %bb_X" targets a
+    # real labelled block.
+    #
+    # If a chain step was inserted *after* a branch whose speculative target
+    # was end_block (because the branch was originally last), re-route the
+    # speculative target to the next pc so the chain step lives on the spec
+    # path and isn't dead code.
+    for i, rec in enumerate(new_instructions):
+        ba = rec.get("branch_annotations")
+        if not ba:
+            continue
+        ba["btb_predicted_pc"] = rec["pc"] + 1
+        has_next = (i + 1 < len(new_instructions))
+        mode = ba.get("mode", "")
+        spec_key = ("taken_target"
+                    if mode in ("mispredict_taken", "correctly_taken")
+                    else "fallthrough_target")
+        for key in ("fallthrough_target", "taken_target"):
+            t = ba.get(key, "")
+            if t.startswith("bb_"):
+                ba[key] = (f"bb_{rec['pc'] + 1}" if has_next else "end_block")
+            elif t == "end_block" and key == spec_key and has_next:
+                ba[key] = f"bb_{rec['pc'] + 1}"
+
+    return {
+        "instructions":   new_instructions,
+        "resource_usage": pass25_result["resource_usage"],
+        "branch_mode":    pass25_result.get("branch_mode"),
+        "needs_end_block": pass25_result.get("needs_end_block", False),
+        "fr_reg_pool":    fr_reg_atoms,
+        "fr_mem_pool":    fr_mem_atoms,
+    }
+
+
+# =============================================================================
 # Pass 3: assign concrete operands
 # =============================================================================
 
@@ -722,7 +1058,13 @@ def pass2_5_specify_branches(
 # Argument registers : %rdi, %rsi, %rdx, %rcx, %r8, %r9
 # Additional         : %rax (return value), %r10, %r11
 X86_64_CALLER_SAVED: List[str] = [
-    "rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11"
+    "rax", "rcx", "rdx", "rsi", "rdi", "r8", "r9", "r10", "r11",
+    # Callee-saved appended so unspecified slots sample from a bigger pool
+    # (chain-step outregs are far less likely to be clobbered by an
+    # intervening Alloy unspec outreg).  LLVM emits the necessary
+    # save/restore prologue for any of these used by an inline-asm reg
+    # constraint, so they're safe to draw from.
+    "r12", "r13", "r14", "r15",
 ]
 
 # Indices into the virtual register pool (X86_64_CALLER_SAVED[n_locked_regs:]).
@@ -831,7 +1173,34 @@ def pass3_assign_operands(
         atom: i * 8 for i, atom in enumerate(locked_mem_atoms)
     }
 
-    free_mem_slot: int = n_locked_mems   # fresh slot counter, starts after locked
+    # Free-pool atom maps (from pass_interleave; empty when interleaving is off)
+    fr_reg_pool: List[str] = pass25_result.get("fr_reg_pool", [])
+    fr_mem_pool: List[str] = pass25_result.get("fr_mem_pool", [])
+
+    # Reg_s$fr* atoms occupy the first len(fr_reg_pool) entries of free_pool
+    # (one phys reg per atom; wraps only when the config asks for more atoms
+    # than physical regs available).  Alloy-unspec OUTREGs avoid these regs
+    # so chain-step outputs aren't clobbered between the combiner and the
+    # xmit — inputs still sample the full pool so xmit address slots can
+    # land on a chain output by collision, which is what surfaces OTB shape.
+    fr_reg_map: Dict[str, str] = {}
+    if fr_reg_pool and free_pool:
+        for i, atom in enumerate(fr_reg_pool):
+            fr_reg_map[atom] = free_pool[i % len(free_pool)]
+    chain_region: Set[str] = set(fr_reg_map.values())
+    alloy_outreg_pool: List[str] = [r for r in free_pool if r not in chain_region]
+    if not alloy_outreg_pool:
+        # Pool fully claimed by chain atoms — fall back to full pool so
+        # Alloy unspec outregs have somewhere to land.
+        alloy_outreg_pool = list(free_pool)
+
+    # Mem_s$fr* atoms occupy fixed slots immediately after the locked memory slots
+    fr_mem_map: Dict[str, int] = {
+        atom: (n_locked_mems + i) * 8 for i, atom in enumerate(fr_mem_pool)
+    }
+
+    # fresh slot counter: starts after locked + fr mem slots
+    free_mem_slot: int = n_locked_mems + len(fr_mem_pool)
 
     instructions: List[Dict[str, Any]] = []
 
@@ -839,6 +1208,7 @@ def pass3_assign_operands(
         new_rec = dict(rec)
         concrete = rec.get("concrete_instruction")
         uses = _uses_for(concrete)
+        is_synthetic = bool(rec.get("synthetic"))
 
         new_slots: Dict[str, List[Dict[str, Any]]] = {}
         for role, slot_list in rec["slots"].items():
@@ -849,27 +1219,40 @@ def pass3_assign_operands(
 
                 if role in _REG_SLOT_ROLES:
                     if sr["specified"]:
-                        # Locked: map to the assigned physical register
-                        new_sr["assigned"] = locked_reg_map[sr["physical"]]
+                        phys = sr["physical"]
+                        if phys in locked_reg_map:
+                            new_sr["assigned"] = locked_reg_map[phys]
+                        elif phys in fr_reg_map:
+                            new_sr["assigned"] = fr_reg_map[phys]
+                        else:
+                            new_sr["assigned"] = random.choice(free_pool) if free_pool else None
                     elif slot_name in uses:
-                        # Used but free: sample from the free portion of the virtual pool.
-                        # The reserved prefix (indices < _VPOOL_FREE_START) is kept for
-                        # branch/xmit infrastructure so those registers are never tainted.
-                        new_sr["assigned"] = random.choice(free_pool) if free_pool else None
+                        # Alloy (non-synthetic) outregs avoid the chain region
+                        # so they can't clobber a chain output between the
+                        # combiner and the xmit.  Inputs still sample the
+                        # full pool so collisions with chain outputs (the
+                        # mechanism that surfaces OTB) still happen.
+                        if role == "outreg" and not is_synthetic:
+                            pool = alloy_outreg_pool
+                        else:
+                            pool = free_pool
+                        new_sr["assigned"] = random.choice(pool) if pool else None
                     else:
-                        # Not used by this instruction
                         new_sr["assigned"] = None
 
                 elif role in _MEM_SLOT_ROLES:
                     if sr["specified"]:
-                        # Locked: fixed offset from the Mem_s$* map
-                        new_sr["assigned_offset"] = locked_mem_map[sr["physical"]]
+                        phys = sr["physical"]
+                        if phys in locked_mem_map:
+                            new_sr["assigned_offset"] = locked_mem_map[phys]
+                        elif phys in fr_mem_map:
+                            new_sr["assigned_offset"] = fr_mem_map[phys]
+                        else:
+                            new_sr["assigned_offset"] = None
                     elif slot_name in uses:
-                        # Used but free: allocate a fresh slot
                         new_sr["assigned_offset"] = free_mem_slot * 8
                         free_mem_slot += 1
                     else:
-                        # Not used by this instruction
                         new_sr["assigned_offset"] = None
 
                 new_slot_list.append(new_sr)
@@ -897,6 +1280,8 @@ def pass3_assign_operands(
         "memory_offsets": locked_mem_map,
         "alloca_total_bytes": alloca_total_bytes,
         "alloca_total_slots": alloca_total_slots,
+        "fr_reg_pool": fr_reg_pool,
+        "fr_mem_pool": fr_mem_pool,
     }
 
     if write_out:
@@ -1351,7 +1736,13 @@ def pass5_emit_llvm(
         atom = rec["instruction"]
 
         if pc in new_block_pcs:
+            # If we're starting a new labelled block but the previous block
+            # didn't end in a terminator (e.g. chain steps live between two
+            # bb_X labels), emit an explicit fallthrough br so LLVM is happy.
+            if not last_was_terminator:
+                il(f"br label %bb_{pc}")
             lbl(f"bb_{pc}")
+            last_was_terminator = False
 
         cm(f"pc={pc}  {atom}  ({concrete})")
         marker = f"__litmus_{safe_name}_pc{pc}"
@@ -1615,7 +2006,43 @@ def pass5_emit_llvm(
                        f'"{mkr}{init_op}", '
                        f'"=&{{{cond_reg}}}"()')
                     il(f"{cond_i1} = icmp ne i64 {cond_raw}, 0")
-                    il(f"br i1 {cond_i1}, label %{taken}, label %{ft}")
+                    if mode == "mispredict_taken":
+                        # The architecturally-correct (not-taken) path must
+                        # BYPASS the Alloy critical section, never fall into
+                        # it. Emit an explicit fall-through trampoline between
+                        # the branch and the critical section whose only body
+                        # is an unconditional jump to end_block. Then:
+                        #   • correctly-predicted not-taken → trampoline → end
+                        #     (Alloy critical section skipped, never commits)
+                        #   • BTB-forced taken misprediction → taken_target =
+                        #     bb_{pc+1} = next Alloy pc (critical section runs
+                        #     speculatively, squashed on resolve)
+                        # The asm sideeffect with a unique global label keeps
+                        # the trampoline non-trivial — without it LLVM
+                        # SimplifyCFG folds the lone `br label` back into the
+                        # predecessor and the explicit bypass disappears from
+                        # the emitted .s.
+                        ftb = f"ftbypass_{pc}"
+                        ftb_lbl = f"__litmus_{safe_name}_ftbypass{pc}"
+                        il(f"br i1 {cond_i1}, label %{taken}, label %{ftb}")
+                        lbl(ftb)
+                        il(f'call void asm sideeffect '
+                           f'".globl {ftb_lbl}\\0A{ftb_lbl}:", ""()')
+                        il(f"br label %{ft}")
+                    elif taken == ft:
+                        # Both edges collapse to end_block (resolved branch on
+                        # the last Alloy pc). LLVM SimplifyCFG would fold the
+                        # cond-br to `br label %L`, erasing the testq+jne so
+                        # the xmit annotation lands on the xorq prelude.
+                        ftb = f"ftbypass_{pc}"
+                        ftb_lbl = f"__litmus_{safe_name}_ftbypass{pc}"
+                        il(f"br i1 {cond_i1}, label %{taken}, label %{ftb}")
+                        lbl(ftb)
+                        il(f'call void asm sideeffect '
+                           f'".globl {ftb_lbl}\\0A{ftb_lbl}:", ""()')
+                        il(f"br label %{ft}")
+                    else:
+                        il(f"br i1 {cond_i1}, label %{taken}, label %{ft}")
                 else:
                     il(f'call void asm sideeffect "{mkr}", ""()')
                     cond = rec.get("condition_ssa_forced", "i1 true")

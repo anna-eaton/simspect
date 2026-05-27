@@ -17,12 +17,19 @@ Phases:
     all     Run phases 1-4 in sequence
     clean   Delete generated/<model>/ entirely
 
-Output layout (under generated/<model>/):
-    xml/        inst-*.xml, inst-*.txt
-    llvm/       inst-*.ll  (+ bare inst-*.ann.json written by batch_generate)
-    asm/        inst-*.s, inst-*.o
-    ann/        inst-*.ann.json  (with resolved x86 offsets, from compile_annotate)
-    results/    window-results.json, window-hits.txt, batch_NNNN_results.json
+Output layout:
+    testsets/<model>/
+        xml/        inst-*.xml, inst-*.txt
+        <mode>/
+            llvm/   inst-*.ll (+ bare inst-*.ann.json)
+            asm/    inst-*.s, inst-*.o
+            ann/    inst-*.ann.json (resolved x86 offsets)
+
+    results/<results_name>/
+        <mode>/
+            results/  window-results.json, window-hits.txt, batch_NNNN_results.json
+            hits/     hitting .s files copied here after gem5 sweep
+            sweep/    per-stem sweep sidecars
 """
 
 from __future__ import annotations
@@ -34,6 +41,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -57,6 +65,37 @@ def resolve(cfg_value: str) -> Path:
     return p if p.is_absolute() else (ROOT / p).resolve()
 
 
+# ── Provenance snapshot ───────────────────────────────────────────────────────
+
+def save_provenance(cfg: dict, model: str, testset_base: Path,
+                    config_path: Path) -> None:
+    """Archive the exact parsexml.py, Alloy model, and run config into
+    testset_base/provenance.tar.gz so the testset is self-describing.
+    Skipped if the archive already exists.
+    """
+    out = testset_base / "provenance.tar.gz"
+    if out.exists():
+        return
+
+    parsexml = resolve(cfg["paths"]["stage2_dir"]) / "parsexml.py"
+    model_file = resolve(cfg["paths"]["models_dir"]) / f"{model}.als"
+
+    sources = [
+        (parsexml,    "parsexml.py"),
+        (model_file,  model_file.name),
+        (config_path, config_path.name),
+    ]
+
+    testset_base.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(out, "w:gz") as tf:
+        for src, arcname in sources:
+            if src.exists():
+                tf.add(src, arcname=arcname)
+
+    present = [arcname for src, arcname in sources if src.exists()]
+    print(f"[provenance] Saved {out.name}  ({', '.join(present)})")
+
+
 # ── Phase 1: Alloy → XML ──────────────────────────────────────────────────────
 
 def phase_xml(cfg: dict, model: str, out_base: Path, force: bool) -> None:
@@ -67,6 +106,11 @@ def phase_xml(cfg: dict, model: str, out_base: Path, force: bool) -> None:
               f"(pass --force to re-enumerate)")
         return
 
+    if force and xml_dir.exists():
+        for old in xml_dir.glob("inst-*.xml"):
+            old.unlink()
+        for old in xml_dir.glob("inst-*.txt"):
+            old.unlink()
     xml_dir.mkdir(parents=True, exist_ok=True)
 
     alloy_stage = resolve(cfg["paths"]["alloy_stage"])
@@ -93,8 +137,10 @@ def phase_xml(cfg: dict, model: str, out_base: Path, force: bool) -> None:
 
 # ── Phase 2: XML → LLVM IR ────────────────────────────────────────────────────
 
-def phase_llvm(cfg: dict, model: str, out_base: Path, force: bool) -> None:
-    xml_dir  = out_base / "xml"
+def phase_llvm(cfg: dict, model: str, out_base: Path, force: bool,
+               mode: Optional[str] = None,
+               xml_dir_override: Optional[Path] = None) -> None:
+    xml_dir  = xml_dir_override or (out_base / "xml")
     llvm_dir = out_base / "llvm"
 
     xml_files = sorted(xml_dir.glob("inst-*.xml")) if xml_dir.exists() else []
@@ -106,17 +152,24 @@ def phase_llvm(cfg: dict, model: str, out_base: Path, force: bool) -> None:
     stage2       = resolve(cfg["paths"]["stage2_dir"])
     tables_path  = resolve(cfg["paths"]["instruction_tables"])
 
+    # Determine expected output suffix (variant mode changes stem to <stem>_v0)
+    interleave_cfg = cfg.get("interleave", {})
+    il_variants = (int(interleave_cfg.get("variants_per_instance", 1))
+                   if interleave_cfg.get("enabled") else 1)
+    done_suffix = "_v0.ll" if il_variants > 1 else ".ll"
+
     if force:
         todo = xml_files
     else:
-        todo = [f for f in xml_files if not (llvm_dir / (f.stem + ".ll")).exists()]
+        todo = [f for f in xml_files if not (llvm_dir / (f.stem + done_suffix)).exists()]
 
     if not todo:
-        done = sum(1 for f in xml_files if (llvm_dir / (f.stem + ".ll")).exists())
+        done = sum(1 for f in xml_files if (llvm_dir / (f.stem + done_suffix)).exists())
         print(f"[llvm] All {done} .ll files already generated — skipping")
         return
 
-    print(f"[llvm] Generating LLVM IR for {len(todo)}/{len(xml_files)} instances …")
+    mode_label = f" [{mode}]" if mode else ""
+    print(f"[llvm]{mode_label} Generating LLVM IR for {len(todo)}/{len(xml_files)} instances …")
 
     # batch_generate expects all XMLs in one directory; use a temp dir for the
     # subset we actually need so it doesn't regenerate already-done files.
@@ -133,18 +186,16 @@ def phase_llvm(cfg: dict, model: str, out_base: Path, force: bool) -> None:
             "--kind",
             "--instruction-tables", str(tables_path),
         ]
-        # speculation.branch_modes (if set) overrides batch_generate's hardcoded
-        # RUN_MODES. A single mode writes flat into llvm_dir; multiple modes
-        # would write into per-mode subdirs and the downstream phases assume
-        # flat layout, so reject that here.
-        modes = cfg.get("speculation", {}).get("branch_modes")
-        if modes:
-            if len(modes) > 1:
-                sys.exit(f"error: speculation.branch_modes={modes} — "
-                         "phase_llvm only supports one mode per run (the "
-                         "asm/ann/results layout is flat). Run separate "
-                         "experiments per mode.")
-            cmd += ["--mode", modes[0]]
+        # When mode is set explicitly (multi-mode run), pass it directly.
+        # Otherwise fall back to speculation.branch_modes from config.
+        if mode:
+            cmd += ["--mode", mode]
+        else:
+            cfg_modes = cfg.get("speculation", {}).get("branch_modes")
+            if cfg_modes and len(cfg_modes) == 1:
+                cmd += ["--mode", cfg_modes[0]]
+        if interleave_cfg:
+            cmd += ["--interleave-config", json.dumps(interleave_cfg)]
         result = subprocess.run(cmd, cwd=str(stage2),
                                 capture_output=True, text=True)
         # Print only error/skip lines from batch_generate
@@ -155,7 +206,7 @@ def phase_llvm(cfg: dict, model: str, out_base: Path, force: bool) -> None:
             sys.stderr.write(result.stderr)
             sys.exit(f"error: batch_generate.py failed (exit {result.returncode})")
 
-    done = sum(1 for f in xml_files if (llvm_dir / (f.stem + ".ll")).exists())
+    done = sum(1 for f in xml_files if (llvm_dir / (f.stem + done_suffix)).exists())
     failed = len(xml_files) - done
     msg = f"[llvm] Done — {done}/{len(xml_files)} .ll files"
     if failed:
@@ -253,22 +304,16 @@ _KIND_TO_CHECKER = {
 # (most conservative — checks complete in retirement window).
 _DEFAULT_CHECKER = "check_ld.py"
 
-# Legacy single-script mode (pipeline.check != "per_type").
-_LEGACY_SCRIPTS = {
-    "window_complete": "pipeline_window_complete.py",
-    "window_issue":    "pipeline_window.py",
-    "completion_only": "pipeline.py",
-}
-
-
 def _read_xmit_kind(ann_dir: Path, stem: str) -> str:
-    """Read xmit.kind from an annotation file, defaulting to 'ld'."""
+    """Read xmit.kind from an annotation file. Raises if the file is missing,
+    unparseable, or lacks xmit.kind — silent fallback misroutes tests to
+    check_ld and hides upstream pipeline breakage."""
     ann_path = ann_dir / (stem + ".ann.json")
-    try:
-        ann = json.loads(ann_path.read_text())
-        return ann.get("xmit", {}).get("kind", "ld")
-    except Exception:
-        return "ld"
+    ann = json.loads(ann_path.read_text())
+    kind = ann.get("xmit", {}).get("kind")
+    if not kind:
+        raise ValueError(f"{ann_path}: missing xmit.kind")
+    return kind
 
 
 # ── Resolution-stall sweep helpers ────────────────────────────────────────────
@@ -496,6 +541,10 @@ def _build_gem5_env(gem5_cfg: dict, spec_cfg: dict) -> dict:
     if gem5_cfg.get("allow_leaked"):
         env["SIMSPECT_ALLOW_LEAKED"] = "1"
 
+    fnc_stall = gem5_cfg.get("fnc_commit_stall_cycles", 0)
+    if fnc_stall:
+        env["SIMSPECT_FNC_COMMIT_STALL_CYCLES"] = str(int(fnc_stall))
+
     return env
 
 
@@ -559,28 +608,20 @@ def _collect_batch_results(batch_out: Path, existing: list,
     return len(batch_hits)
 
 
-def _phase_gem5_sweep(cfg: dict, model: str, out_base: Path, force: bool,
-                      s_files: list, ann_dir: Path,
-                      results_dir: Path) -> None:
-    """Sweep variant of phase_gem5: each test is run under several
-    `resolve_stall_cycles` assignments (joint Cartesian product across its
-    resolved branches). Per-test verdict is OR over grid points.
-
-    Reuses the existing per-type checker infrastructure by synthesising
-    variant .s/.ann.json pairs in a sweep/ subdirectory and feeding them as
-    ordinary tests.
-    """
+def _phase_gem5_sweep(cfg: dict, model: str, ts_mode: Path, rs_mode: Path,
+                      force: bool, s_files: list, ann_dir: Path) -> None:
+    """Sweep variant of phase_gem5."""
     sweep_cfg = cfg.get("sweep", {})
 
-    sweep_dir   = out_base / "sweep"
+    sweep_dir   = rs_mode / "sweep"
     variant_dir = sweep_dir / "variants"
     raw_dir     = sweep_dir / "raw_results"
     sweep_dir.mkdir(parents=True, exist_ok=True)
     raw_dir.mkdir(parents=True, exist_ok=True)
-    results_dir.mkdir(parents=True, exist_ok=True)
+    rs_mode.mkdir(parents=True, exist_ok=True)
 
-    results_f = results_dir / "window-results.json"
-    hits_f    = results_dir / "window-hits.txt"
+    results_f = rs_mode / "window-results.json"
+    hits_f    = rs_mode / "window-hits.txt"
 
     if not force and results_f.exists():
         print(f"[gem5:sweep] {results_f.name} already exists — pass --force to "
@@ -596,7 +637,6 @@ def _phase_gem5_sweep(cfg: dict, model: str, out_base: Path, force: bool,
     batch_sz = cfg.get("alloy", {}).get("batch_size", 1000)
     checker_env = _build_gem5_env(gem5_cfg, spec_cfg)
 
-    # Enumerate the per-test grid (resolved-branch joint product).
     per_grid_idx, manifest, max_grid = _enumerate_grid_for_corpus(
         s_files, ann_dir, sweep_cfg)
     (sweep_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
@@ -655,7 +695,6 @@ def _phase_gem5_sweep(cfg: dict, model: str, out_base: Path, force: bool,
 
         per_grid_results[grid_idx] = grid_raw
 
-    # Aggregate per-stem and write window-results.json.
     aggregated = _aggregate_sweep_results(per_grid_results, manifest, sweep_dir)
     results_f.write_text(json.dumps(aggregated, indent=2))
 
@@ -665,34 +704,282 @@ def _phase_gem5_sweep(cfg: dict, model: str, out_base: Path, force: bool,
     else:
         hits_f.write_text("")
 
+    # Copy hitting .s files to hits/ subdirectory for easy inspection.
+    hits_dir = rs_mode / "hits"
+    if hits:
+        hits_dir.mkdir(parents=True, exist_ok=True)
+        for stem in hits:
+            src = ts_mode / "asm" / (stem + ".s")
+            if src.exists():
+                shutil.copy(src, hits_dir / src.name)
+        print(f"             Hits copied    → {hits_dir}/  ({len(hits)} files)")
+
     errs = sum(1 for r in aggregated if r.get("status") != "ok")
     print(f"\n[gem5:sweep] Done — {len(hits)} hits / {len(aggregated)} tests "
           f"({errs} errors)  across {n_runs} variant runs")
-    print(f"             Results       → {results_f}")
-    print(f"             Per-test sweep → {sweep_dir}/<stem>_sweep.json")
+    print(f"             Results  → {results_f}")
+    print(f"             Sweep    → {sweep_dir}/<stem>_sweep.json")
 
 
-def phase_gem5(cfg: dict, model: str, out_base: Path, force: bool) -> None:
-    asm_dir     = out_base / "asm"
-    ann_dir     = out_base / "ann"
-    results_dir = out_base / "results"
+# ── Streaming asm+gem5 ───────────────────────────────────────────────────────
+
+def phase_asm_gem5_streaming(cfg: dict, model: str, ts_mode: Path,
+                              rs_mode: Path, force: bool) -> None:
+    """Compile .ll → .s in batches and immediately run gem5 on each batch.
+
+    Replaces the sequential asm-then-gem5 flow when both phases are requested
+    (i.e. `pipeline.py all`). gem5 starts on the first batch while the second
+    batch is still compiling, hiding compile latency behind gem5 runtime.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    llvm_dir = ts_mode / "llvm"
+    asm_dir  = ts_mode / "asm"
+    ann_dir  = ts_mode / "ann"
+
+    ll_files = sorted(llvm_dir.glob("*.ll")) if llvm_dir.exists() else []
+    if not ll_files:
+        sys.exit("error: testsets/<model>/llvm/ is empty — run the 'llvm' phase first")
+
+    asm_dir.mkdir(parents=True, exist_ok=True)
+    ann_dir.mkdir(parents=True, exist_ok=True)
+    rs_mode.mkdir(parents=True, exist_ok=True)
+
+    stage2      = resolve(cfg["paths"]["stage2_dir"])
+    stage3      = resolve(cfg["paths"]["stage3_dir"])
+    gem5_cfg    = cfg.get("gem5", {})
+    sweep_cfg   = cfg.get("sweep", {})
+    scheme      = gem5_cfg.get("scheme", 2)
+    jobs        = max(1, int(gem5_cfg.get("jobs", 8)))
+    keep_tmp    = cfg.get("pipeline", {}).get("keep_tmp", False)
+    batch_sz    = cfg.get("alloy", {}).get("batch_size", 1000)
+    checker_env = _build_gem5_env(gem5_cfg, cfg.get("speculation", {}))
+    sweep_on    = sweep_cfg.get("enabled", False)
+    sample_frac = float(gem5_cfg.get("sample_fraction", 1.0))
+    if sample_frac < 1.0:
+        sys.path.insert(0, str(resolve(cfg["paths"]["stage3_dir"])))
+        from gem5_common import sample_keep as _sample_keep
+    else:
+        _sample_keep = None
+
+    if sweep_on and not gem5_cfg.get("branch_ann_enable"):
+        sys.exit("error: sweep.enabled requires gem5.branch_ann_enable: true")
+
+    # ── results state ────────────────────────────────────────────────────────
+    results_f = rs_mode / "window-results.json"
+    hits_f    = rs_mode / "window-hits.txt"
+    hits_dir  = rs_mode / "hits"
+
+    if force:
+        existing: list = []
+        already_gem5: set = set()
+        results_f.write_text("[]")
+        hits_f.write_text("")
+    elif results_f.exists():
+        try:
+            existing = json.loads(results_f.read_text())
+        except Exception:
+            existing = []
+        already_gem5 = {r["name"] for r in existing}
+    else:
+        existing = []
+        already_gem5 = set()
+        results_f.write_text("[]")
+        hits_f.write_text("")
+
+    # ── sweep state ──────────────────────────────────────────────────────────
+    if sweep_on:
+        points           = sweep_cfg.get("points", [0])
+        unresolved_stall = int(sweep_cfg.get("unresolved_stall_cycles", 0))
+        sweep_dir        = rs_mode / "sweep"
+        variant_dir      = sweep_dir / "variants"
+        raw_dir          = sweep_dir / "raw_results"
+        manifest: dict   = {}
+        sweep_dir.mkdir(parents=True,  exist_ok=True)
+        raw_dir.mkdir(parents=True,    exist_ok=True)
+        variant_dir.mkdir(parents=True, exist_ok=True)
+
+    gem5_run_n = [0]  # unique counter for batch output files
+
+    def _copy_hits(stems):
+        if not stems:
+            return
+        hits_dir.mkdir(parents=True, exist_ok=True)
+        for stem in stems:
+            src = asm_dir / (stem + ".s")
+            if src.exists():
+                shutil.copy(src, hits_dir / src.name)
+
+    def _gem5_on_batch(s_files: list) -> None:
+        """Run gem5 on a list of newly compiled .s files."""
+        to_test = [sf for sf in s_files
+                   if sf.exists()
+                   and sf.stem not in already_gem5
+                   and (ann_dir / (sf.stem + ".ann.json")).exists()
+                   and (_sample_keep is None
+                        or _sample_keep(sf.stem, sample_frac))]
+        if not to_test:
+            return
+
+        if sweep_on:
+            # Build per-test grid, group by grid_idx for batching efficiency.
+            per_grid: dict = {}
+            local_manifest: dict = {}
+            for sf in to_test:
+                ann = json.loads((ann_dir / (sf.stem + ".ann.json")).read_text())
+                resolved, _ = _classify_branches(ann)
+                grid = _grid_points(resolved, points)
+                local_manifest[sf.stem] = grid
+                manifest[sf.stem]       = grid
+                for idx, stalls in enumerate(grid):
+                    per_grid.setdefault(idx, []).append(
+                        (sf, ann_dir / (sf.stem + ".ann.json"), stalls))
+
+            per_grid_results: dict = {}
+            for grid_idx in sorted(per_grid.keys()):
+                entries    = per_grid[grid_idx]
+                grid_subdir = variant_dir / f"g{grid_idx:04d}_r{gem5_run_n[0]:06d}"
+                run_files  = _materialise_grid_run(entries, grid_subdir,
+                                                   unresolved_stall)
+                groups: dict = {}
+                for vf in run_files:
+                    script = _KIND_TO_CHECKER.get(
+                        _read_xmit_kind(ann_dir, vf.stem), _DEFAULT_CHECKER)
+                    groups.setdefault(script, []).append(vf)
+
+                grid_raw: list = []
+                for script, files in sorted(groups.items()):
+                    gem5_run_n[0] += 1
+                    batch_out = raw_dir / f"s{gem5_run_n[0]:06d}_g{grid_idx:04d}_{script}.json"
+                    _run_checker_batch(stage3 / script, files, grid_subdir,
+                                       batch_out, scheme, jobs, keep_tmp,
+                                       env=checker_env)
+                    if batch_out.exists():
+                        grid_raw.extend(json.loads(batch_out.read_text()))
+                per_grid_results[grid_idx] = grid_raw
+
+            batch_agg = _aggregate_sweep_results(
+                per_grid_results, local_manifest, sweep_dir)
+            hits_now = [r["name"] for r in batch_agg if r.get("issued_in_window")]
+
+            existing.extend(batch_agg)
+            already_gem5.update(r["name"] for r in batch_agg)
+            results_f.write_text(json.dumps(existing, indent=2))
+            if hits_now:
+                with hits_f.open("a") as fh:
+                    fh.write("\n".join(hits_now) + "\n")
+                _copy_hits(hits_now)
+                print(f"    hits this batch: {len(hits_now)}")
+
+        else:
+            # Non-sweep: per-type dispatch.
+            groups: dict = {}
+            for sf in to_test:
+                script = _KIND_TO_CHECKER.get(
+                    _read_xmit_kind(ann_dir, sf.stem), _DEFAULT_CHECKER)
+                groups.setdefault(script, []).append(sf)
+            for script, files in sorted(groups.items()):
+                gem5_run_n[0] += 1
+                batch_out = rs_mode / f"batch_{gem5_run_n[0]:06d}_results.json"
+                _run_checker_batch(stage3 / script, files, ann_dir,
+                                   batch_out, scheme, jobs, keep_tmp,
+                                   env=checker_env)
+                n = _collect_batch_results(batch_out, existing, already_gem5,
+                                           hits_f, f"stream {gem5_run_n[0]}")
+
+            results_f.write_text(json.dumps(existing, indent=2))
+            # Copy any new hits from this batch.
+            if results_f.exists():
+                batch_hits = [r["name"] for r in existing
+                              if r.get("issued_in_window")
+                              and not (hits_dir / (r["name"] + ".s")).exists()]
+                _copy_hits(batch_hits)
+
+    # ── compile what isn't done, run gem5 on already-compiled pending ────────
+    if force:
+        todo_ll = ll_files
+    else:
+        todo_ll = [f for f in ll_files
+                   if not (asm_dir / (f.stem + ".s")).exists()]
+
+    # Already compiled but not yet gem5'd — process first.
+    pending_s = [asm_dir / (f.stem + ".s")
+                 for f in ll_files
+                 if (asm_dir / (f.stem + ".s")).exists()
+                 and f.stem not in already_gem5]
+    if pending_s:
+        print(f"[stream] gem5 on {len(pending_s)} already-compiled tests ...")
+        for start in range(0, len(pending_s), batch_sz):
+            _gem5_on_batch(pending_s[start:start + batch_sz])
+
+    # Main loop: compile a batch → gem5 that batch → repeat.
+    def _compile_one(ll_path):
+        r = subprocess.run(
+            [sys.executable, str(stage2 / "compile_annotate.py"), str(ll_path),
+             "--out-dir", str(asm_dir), "--ann-dir", str(ann_dir)],
+            capture_output=True, text=True)
+        return ll_path, r.returncode, r.stderr.strip()[:200]
+
+    n_compiled = len(ll_files) - len(todo_ll)
+    n_err      = 0
+    print(f"[stream] {len(ll_files)} total  "
+          f"({n_compiled} compiled, {len(todo_ll)} remaining) — "
+          f"streaming compile→gem5 in batches of {batch_sz}")
+
+    for b_start in range(0, len(todo_ll), batch_sz):
+        batch_ll  = todo_ll[b_start:b_start + batch_sz]
+        new_s: list = []
+
+        with ThreadPoolExecutor(max_workers=jobs) as ex:
+            futs = [ex.submit(_compile_one, ll) for ll in batch_ll]
+            for fut in as_completed(futs):
+                ll_path, rc, stderr = fut.result()
+                if rc == 0:
+                    new_s.append(asm_dir / (ll_path.stem + ".s"))
+                    n_compiled += 1
+                else:
+                    n_err += 1
+                    if n_err <= 10:
+                        print(f"  [err] {ll_path.name}: {stderr}")
+
+        print(f"  compiled {n_compiled}/{len(ll_files)}  "
+              f"({len(new_s)} new)  →  gem5 ...")
+        _gem5_on_batch(new_s)
+
+    if sweep_on:
+        (sweep_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+
+    total = len(existing)
+    hits  = sum(1 for r in existing if r.get("issued_in_window") is True)
+    errs  = sum(1 for r in existing if r.get("status") != "ok")
+    print(f"\n[stream] Done — {hits} hits / {total} tests  "
+          f"({errs} gem5 errors, {n_err} compile errors)")
+    print(f"         Results → {results_f}")
+    if hits:
+        print(f"         Hits    → {hits_dir}/")
+
+
+def phase_gem5(cfg: dict, model: str, ts_mode: Path, rs_mode: Path,
+               force: bool) -> None:
+    asm_dir = ts_mode / "asm"
+    ann_dir = ts_mode / "ann"
 
     s_files = sorted(asm_dir.glob("*.s")) if asm_dir.exists() else []
     if not s_files:
-        sys.exit("error: generated/<model>/asm/ is empty — run the 'asm' phase first")
+        sys.exit("error: testsets/<model>/asm/ is empty — run the 'asm' phase first")
     if not ann_dir.exists() or not any(ann_dir.glob("*.ann.json")):
-        sys.exit("error: generated/<model>/ann/ is empty — run the 'asm' phase first")
+        sys.exit("error: testsets/<model>/ann/ is empty — run the 'asm' phase first")
 
     if cfg.get("sweep", {}).get("enabled"):
         if not cfg.get("gem5", {}).get("branch_ann_enable"):
             sys.exit("error: sweep.enabled requires gem5.branch_ann_enable: true "
                      "(modded gem5 build)")
-        return _phase_gem5_sweep(cfg, model, out_base, force,
-                                 s_files, ann_dir, results_dir)
+        return _phase_gem5_sweep(cfg, model, ts_mode, rs_mode,
+                                 force, s_files, ann_dir)
 
-    results_dir.mkdir(parents=True, exist_ok=True)
-    results_f = results_dir / "window-results.json"
-    hits_f    = results_dir / "window-hits.txt"
+    rs_mode.mkdir(parents=True, exist_ok=True)
+    results_f = rs_mode / "window-results.json"
+    hits_f    = rs_mode / "window-hits.txt"
 
     # Load any already-completed results so we can skip them.
     if force:
@@ -722,8 +1009,6 @@ def phase_gem5(cfg: dict, model: str, out_base: Path, force: bool) -> None:
 
     checker_env = _build_gem5_env(gem5_cfg, spec_cfg)
 
-    check_mode = cfg.get("pipeline", {}).get("check", "per_type")
-
     # Determine which tests still need to run.
     to_test = [
         sf for sf in s_files
@@ -735,21 +1020,35 @@ def phase_gem5(cfg: dict, model: str, out_base: Path, force: bool) -> None:
         print(f"[gem5] All {len(already_done)} tests already in results — skipping")
         return
 
-    # ── Legacy single-checker mode ───────────────────────────────────────
-    if check_mode != "per_type":
-        script_name = _LEGACY_SCRIPTS.get(check_mode, "pipeline_window_complete.py")
-        checker = stage3 / script_name
+    # Group tests by xmit_kind → checker script.
+    groups: dict = {}  # checker_script → list of .s paths
+    for sf in to_test:
+        kind = _read_xmit_kind(ann_dir, sf.stem)
+        script = _KIND_TO_CHECKER.get(kind, _DEFAULT_CHECKER)
+        groups.setdefault(script, []).append(sf)
 
-        total_batches = (len(to_test) + batch_sz - 1) // batch_sz
-        print(f"[gem5] {len(to_test)} tests → {total_batches} batches "
-              f"(checker={script_name}, scheme={scheme}, jobs={jobs})")
+    # Print summary of groups.
+    print(f"[gem5] {len(to_test)} tests, per-type dispatch "
+          f"(scheme={scheme}, jobs={jobs}):")
+    for script, files in sorted(groups.items()):
+        kinds_in_group = set(_read_xmit_kind(ann_dir, f.stem) for f in files)
+        print(f"  {script}: {len(files)} tests  (kinds: {', '.join(sorted(kinds_in_group))})")
 
-        cum_hits = 0
-        for bn, start in enumerate(range(0, len(to_test), batch_sz), 1):
-            batch = to_test[start : start + batch_sz]
-            print(f"\n  Batch {bn}/{total_batches}  "
-                  f"({batch[0].stem} … {batch[-1].stem})")
-            batch_out = results_dir / f"batch_{bn:04d}_results.json"
+    cum_hits = 0
+    batch_n = 0
+
+    for script, group_files in sorted(groups.items()):
+        checker = stage3 / script
+        group_batches = (len(group_files) + batch_sz - 1) // batch_sz
+        print(f"\n[gem5:{script}] {len(group_files)} tests → {group_batches} batches")
+
+        for start in range(0, len(group_files), batch_sz):
+            batch_n += 1
+            batch = group_files[start : start + batch_sz]
+            batch_label = f"batch {batch_n} ({script})"
+            batch_out = rs_mode / f"batch_{batch_n:04d}_results.json"
+
+            print(f"  {batch_label}: {batch[0].stem} … {batch[-1].stem}")
 
             result = _run_checker_batch(checker, batch, ann_dir, batch_out,
                                         scheme, jobs, keep_tmp,
@@ -762,63 +1061,25 @@ def phase_gem5(cfg: dict, model: str, out_base: Path, force: bool) -> None:
                     print(f"    [stderr] {line}")
 
             cum_hits += _collect_batch_results(
-                batch_out, existing, already_done, hits_f,
-                f"batch {bn}")
+                batch_out, existing, already_done, hits_f, batch_label)
             results_f.write_text(json.dumps(existing, indent=2))
-            print(f"  cumulative hits={cum_hits}")
 
-    # ── Per-transmitter-type mode (default) ──────────────────────────────
-    else:
-        # Group tests by xmit_kind → checker script.
-        groups: dict = {}  # checker_script → list of .s paths
-        for sf in to_test:
-            kind = _read_xmit_kind(ann_dir, sf.stem)
-            script = _KIND_TO_CHECKER.get(kind, _DEFAULT_CHECKER)
-            groups.setdefault(script, []).append(sf)
-
-        # Print summary of groups.
-        print(f"[gem5] {len(to_test)} tests, per-type dispatch "
-              f"(scheme={scheme}, jobs={jobs}):")
-        for script, files in sorted(groups.items()):
-            kinds_in_group = set(_read_xmit_kind(ann_dir, f.stem) for f in files)
-            print(f"  {script}: {len(files)} tests  (kinds: {', '.join(sorted(kinds_in_group))})")
-
-        cum_hits = 0
-        batch_n = 0
-
-        for script, group_files in sorted(groups.items()):
-            checker = stage3 / script
-            group_batches = (len(group_files) + batch_sz - 1) // batch_sz
-            print(f"\n[gem5:{script}] {len(group_files)} tests → {group_batches} batches")
-
-            for start in range(0, len(group_files), batch_sz):
-                batch_n += 1
-                batch = group_files[start : start + batch_sz]
-                batch_label = f"batch {batch_n} ({script})"
-                batch_out = results_dir / f"batch_{batch_n:04d}_results.json"
-
-                print(f"  {batch_label}: {batch[0].stem} … {batch[-1].stem}")
-
-                result = _run_checker_batch(checker, batch, ann_dir, batch_out,
-                                            scheme, jobs, keep_tmp,
-                                            env=checker_env)
-                for line in result.stdout.splitlines():
-                    if "ERROR" in line or "[err]" in line.lower():
-                        print(f"    {line.strip()}")
-                if result.stderr.strip():
-                    for line in result.stderr.strip().splitlines():
-                        print(f"    [stderr] {line}")
-
-                cum_hits += _collect_batch_results(
-                    batch_out, existing, already_done, hits_f, batch_label)
-                results_f.write_text(json.dumps(existing, indent=2))
-
-        print(f"\n  cumulative hits={cum_hits}")
+    print(f"\n  cumulative hits={cum_hits}")
 
     # ── Final summary ────────────────────────────────────────────────────
     total = len(existing)
     hits  = sum(1 for r in existing if r.get("issued_in_window") is True)
     errs  = sum(1 for r in existing if r.get("status") != "ok")
+
+    hit_stems = [r["name"] for r in existing if r.get("issued_in_window") is True]
+    if hit_stems:
+        hits_dir = rs_mode / "hits"
+        hits_dir.mkdir(parents=True, exist_ok=True)
+        for stem in hit_stems:
+            src = ts_mode / "asm" / (stem + ".s")
+            if src.exists():
+                shutil.copy(src, hits_dir / src.name)
+
     print(f"\n[gem5] Done — {hits} hits / {total} total  ({errs} errors)")
     print(f"       Results → {results_f}")
     print(f"       Hits    → {hits_f}")
@@ -861,19 +1122,73 @@ def main() -> None:
 
     cfg = load_config(config_path)
 
-    out_dir  = resolve(cfg["paths"]["output_dir"])
-    out_base = out_dir / args.model
-    out_base.mkdir(parents=True, exist_ok=True)
+    paths_cfg = cfg["paths"]
+    if "testset_dir" in paths_cfg:
+        testset_dir  = resolve(paths_cfg["testset_dir"])
+        results_dir  = resolve(paths_cfg["results_dir"])
+        results_name = paths_cfg.get("results_name", args.model)
+    else:
+        # Legacy: single output_dir is both testset and results root.
+        legacy = resolve(paths_cfg["output_dir"])
+        testset_dir = results_dir = legacy
+        results_name = args.model
+
+    testset_base = testset_dir / args.model
+    results_base = results_dir / results_name
+    testset_base.mkdir(parents=True, exist_ok=True)
+
+    save_provenance(cfg, args.model, testset_base, config_path)
 
     phases = (["xml", "llvm", "asm", "gem5"] if args.phase == "all"
               else [args.phase])
 
+    modes      = cfg.get("speculation", {}).get("branch_modes", [])
+    # Use per-mode layout whenever branch_modes is set (even with a single
+    # mode), so testsets/<model>/<mode>/ and results/<results_name>/<mode>/
+    # are populated consistently — required for the sttbuild watcher and for
+    # taken-only / not_taken-only rerun configs. Flat layout is reserved for
+    # configs that don't declare branch_modes at all.
+    multi_mode = bool(modes)
+    streaming  = "asm" in phases and "gem5" in phases
+
     for phase in phases:
-        if   phase == "xml":   phase_xml(cfg,  args.model, out_base, args.force)
-        elif phase == "llvm":  phase_llvm(cfg, args.model, out_base, args.force)
-        elif phase == "asm":   phase_asm(cfg,  args.model, out_base, args.force)
-        elif phase == "gem5":  phase_gem5(cfg, args.model, out_base, args.force)
-        elif phase == "clean": phase_clean(cfg, args.model, out_base)
+        if phase == "xml":
+            phase_xml(cfg, args.model, testset_base, args.force)
+        elif phase == "clean":
+            phase_clean(cfg, args.model, testset_base)
+        elif phase == "asm" and streaming:
+            pass  # handled together with gem5 below
+        elif phase == "gem5" and streaming:
+            if multi_mode:
+                for m in modes:
+                    ts_mode = testset_base / m
+                    rs_mode = results_base / m
+                    ts_mode.mkdir(parents=True, exist_ok=True)
+                    print(f"\n=== streaming asm+gem5 [{m}] ===")
+                    phase_asm_gem5_streaming(cfg, args.model, ts_mode, rs_mode,
+                                             args.force)
+            else:
+                phase_asm_gem5_streaming(cfg, args.model, testset_base,
+                                         results_base, args.force)
+        elif multi_mode:
+            for m in modes:
+                ts_mode = testset_base / m
+                rs_mode = results_base / m
+                ts_mode.mkdir(parents=True, exist_ok=True)
+                if phase == "llvm":
+                    phase_llvm(cfg, args.model, ts_mode, args.force,
+                               mode=m, xml_dir_override=testset_base / "xml")
+                elif phase == "asm":
+                    phase_asm(cfg, args.model, ts_mode, args.force)
+                elif phase == "gem5":
+                    phase_gem5(cfg, args.model, ts_mode, rs_mode, args.force)
+        else:
+            if phase == "llvm":
+                phase_llvm(cfg, args.model, testset_base, args.force)
+            elif phase == "asm":
+                phase_asm(cfg, args.model, testset_base, args.force)
+            elif phase == "gem5":
+                phase_gem5(cfg, args.model, testset_base, results_base, args.force)
 
 
 if __name__ == "__main__":

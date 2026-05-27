@@ -16,6 +16,7 @@ Provides:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -28,6 +29,21 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
+
+
+def sample_keep(stem: str, fraction: float) -> bool:
+    """Deterministic stem-hash filter for sub-sampling a testset.
+
+    Returns True if `stem` should be kept. The 8-hex-digit md5 prefix gives a
+    stable mapping across Python versions / machines, so the recon, sttbuild
+    and amulet tracks all pick the same subset of a shared testset.
+    """
+    if fraction >= 1.0:
+        return True
+    if fraction <= 0.0:
+        return False
+    h = int(hashlib.md5(stem.encode()).hexdigest()[:8], 16)
+    return (h / 0xFFFFFFFF) < fraction
 
 # ── Defaults (overridden at runtime by run_batch / CLI / env) ────────────────
 #
@@ -51,6 +67,8 @@ BRANCH_ANN_ENABLE = os.environ.get("SIMSPECT_BRANCH_ANN_ENABLE", "").lower() in 
 
 ALLOW_LEAKED = os.environ.get("SIMSPECT_ALLOW_LEAKED", "").lower() in (
     "1", "true", "yes", "on")
+
+FNC_COMMIT_STALL_CYCLES: int = int(os.environ.get("SIMSPECT_FNC_COMMIT_STALL_CYCLES", "0"))
 
 _scheme: int = 2   # mutable; set by run_batch() from CLI
 
@@ -111,7 +129,8 @@ def resolve_pc(binary: Path, func_name: str, ann_entry: dict) -> Optional[int]:
 # ── gem5 simulation ──────────────────────────────────────────────────────────
 
 def run_gem5(binary: Path, workdir: Path,
-             ann_path: Optional[Path] = None) -> Path:
+             ann_path: Optional[Path] = None,
+             fnc_pc: Optional[int] = None) -> Path:
     outdir = workdir / "m5out"
     outdir.mkdir(exist_ok=True)
     cmd = [
@@ -134,6 +153,10 @@ def run_gem5(binary: Path, workdir: Path,
 
     if ALLOW_LEAKED:
         cmd.append("--allow_leaked")
+
+    if fnc_pc is not None and FNC_COMMIT_STALL_CYCLES > 0:
+        cmd.append(f"--fnc-commit-stall-pc={hex(fnc_pc)}")
+        cmd.append(f"--fnc-commit-stall-cycles={FNC_COMMIT_STALL_CYCLES}")
 
     subprocess.run(cmd, check=True, capture_output=True, cwd=str(GEM5_DIR))
     return outdir / GEM5_DBG_FILE
@@ -193,14 +216,83 @@ def load_annotation(ann_path: Path) -> dict:
         xmit=ann.get("xmit", {}),
         lc=ann.get("commit_boundary", {}).get("last_committed", {}),
         fnc=ann.get("commit_boundary", {}).get("first_noncommitted", {}),
+        annotations=ann.get("annotations", []),
     )
+
+
+def parse_ticks_per_cycle(outdir: Path) -> int:
+    """Read system.cpu_clk_domain.clock from m5out/config.json → ticks/cycle.
+
+    Falls back to 500 (2 GHz @ 1 ps tick) if the field is absent.
+    """
+    cfg = json.loads((outdir / "config.json").read_text())
+    try:
+        clk = cfg["system"]["cpu_clk_domain"]["clock"]
+        return int(clk[0]) if isinstance(clk, list) else int(clk)
+    except (KeyError, TypeError):
+        return 500
+
+
+def collect_unresolved_branches(ann_full: dict, binary: Path,
+                                func_name: str) -> List[dict]:
+    """Return list of {pc, stall_cycles} for entries with resolve_stall_cycles > 0.
+
+    PC is resolved via x86_branch_offset + func base (the jne PC, matching the
+    same PC gem5 will hit in iew_impl.hh for the deferred-resolution hook).
+    """
+    base = _func_base_addr(binary, func_name)
+    if base is None:
+        return []
+    out: List[dict] = []
+    for e in ann_full.get("annotations", []):
+        stall = int(e.get("resolve_stall_cycles", 0) or 0)
+        if stall <= 0:
+            continue
+        bxo = e.get("x86_branch_offset")
+        if bxo is None:
+            continue
+        out.append(dict(pc=base + int(bxo), stall_cycles=stall))
+    return out
+
+
+def check_branch_resolutions(by_pc: Dict[int, list],
+                             xmit_complete: int,
+                             unresolved: List[dict],
+                             ticks_per_cycle: int) -> Tuple[bool, List[dict]]:
+    """For each unresolved branch, prop_tick = complete + stall*ticks/cycle.
+
+    Returns (all_unresolved_ok, per_branch_details).  A branch counts as
+    "still unresolved at xmit_complete" if either:
+      (a) it was never fetched / never completed (resolution never propagated)
+      (b) xmit_complete < prop_tick
+    The caller should already have excluded xmit_pc from `unresolved`.
+    """
+    details: List[dict] = []
+    all_ok = True
+    for u in unresolved:
+        rec = best_record(by_pc.get(u["pc"], []))
+        complete = rec.get("complete", 0) if rec else 0
+        if complete == 0:
+            details.append(dict(pc=hex(u["pc"]), stall=u["stall_cycles"],
+                                complete=0, prop_tick=0, ok=True,
+                                reason="not completed"))
+            continue
+        prop_tick = complete + u["stall_cycles"] * ticks_per_cycle
+        ok = xmit_complete < prop_tick
+        details.append(dict(pc=hex(u["pc"]), stall=u["stall_cycles"],
+                            complete=complete, prop_tick=prop_tick, ok=ok))
+        if not ok:
+            all_ok = False
+    return all_ok, details
 
 
 # ── Generic process_one ─────────────────────────────────────────────────────
 
 # Type alias for a check function:
-#   check_fn(by_pc, xmit_pc, lc_pc, fnc_pc) → dict with at least "issued_in_window"
-CheckFn = Callable[[Dict[int, list], Optional[int], Optional[int], Optional[int]], dict]
+#   check_fn(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle)
+#     → dict with at least "issued_in_window"
+CheckFn = Callable[[Dict[int, list], Optional[int], Optional[int], Optional[int],
+                    List[dict], int], dict]
 
 
 def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
@@ -234,14 +326,26 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
             result["status"] = "warn"
             result["error"]  = "no xmit x86 PC"
         else:
-            trace = run_gem5(binary, workdir, ann_path=ann_path)
+            trace = run_gem5(binary, workdir, ann_path=ann_path, fnc_pc=fnc_pc)
             by_pc = parse_pipeview(trace)
-            check_result = check_fn(by_pc, xmit_pc, lc_pc, fnc_pc)
+            ticks_per_cycle = parse_ticks_per_cycle(workdir / "m5out")
+            unresolved = collect_unresolved_branches(
+                dict(annotations=parts["annotations"]), binary, name)
+            # The xmit PC, if itself an annotated unresolved branch, is the
+            # event we're conditioning on — exclude it from the bound check.
+            unresolved = [u for u in unresolved if u["pc"] != xmit_pc]
+            check_result = check_fn(by_pc, xmit_pc, lc_pc, fnc_pc,
+                                    unresolved, ticks_per_cycle)
             result.update(check_result)
 
     except subprocess.CalledProcessError as e:
         result["status"] = "error"
-        result["error"]  = (e.stderr or b"").decode(errors="replace")[-400:]
+        stderr = (e.stderr or b"").decode(errors="replace")
+        # gem5 aborts dump a libc/python backtrace whose tail is useless; the
+        # actual cause is the "panic:"/"fatal:" line near the top. Surface it.
+        cause = next((ln.strip() for ln in stderr.splitlines()
+                      if ln.startswith(("panic:", "fatal:"))), None)
+        result["error"] = (cause + " | " if cause else "") + stderr[-400:]
     except Exception as e:
         result["status"] = "error"
         result["error"]  = str(e)

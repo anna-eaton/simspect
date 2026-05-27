@@ -63,6 +63,7 @@ def parse_xml(xml_path: Path) -> dict:
     idx         = fmap("idx")
     isxm        = fset("isxm")
     isresolved  = fset("isresolved")
+    iscommitted = fset("iscommitted")
     inaddr_map  = fmulti("inaddr")   # instr → [Inaddr$N, ...]
     inmem_map   = fmulti("inmem")    # instr → [Inmem$N, ...]
     outmem_map  = fmulti("outmem")   # instr → [Outmem$N, ...]
@@ -102,7 +103,7 @@ def parse_xml(xml_path: Path) -> dict:
     return dict(
         instructions=instructions,
         kind=kind, idx=idx, pos=pos,
-        isxm=isxm, isresolved=isresolved,
+        isxm=isxm, isresolved=isresolved, iscommitted=iscommitted,
         addr_states=addr_states,
         inmem_states=inmem_states,
         outmem_states=outmem_states,
@@ -116,7 +117,7 @@ def categorize(d: dict) -> str:
     kind         = d["kind"]
     pos          = d["pos"]
     isxm         = d["isxm"]
-    isresolved   = d["isresolved"]
+    iscommitted  = d["iscommitted"]
 
     xmits = [i for i in instructions if i in isxm]
     if not xmits:
@@ -152,8 +153,11 @@ def categorize(d: dict) -> str:
 
         # ── LL check ──────────────────────────────────────────────────────────
         # xmit's address state matches a TOther's outreg state; that TOther's
-        # inreg states include one from an unresolved TLoad and one from a
-        # resolved TLoad.
+        # inreg states include one from a speculative (uncommitted) TLoad and
+        # one from a committed TLoad.
+        # NOTE: uses iscommitted (not isresolved) because in STT_6 all non-branch
+        # instructions are Alloy-resolved, but loads may be uncommitted/speculative
+        # due to preceding unresolved branches.
         if xmit_addr_st:
             # Build lookup: state → instructions that produce it via outreg
             state_to_producer = defaultdict(list)
@@ -167,17 +171,17 @@ def categorize(d: dict) -> str:
                         continue
                     # Found a TOther that computes the xmit's address
                     tother_in_states = d["inreg_states"](producer)
-                    has_unresolved_load = False
-                    has_resolved_load   = False
+                    has_speculative_load = False
+                    has_committed_load   = False
                     for st in tother_in_states:
                         for src in state_to_producer.get(st, []):
                             src_kind = kind.get(src, "").split("$")[0]
                             if src_kind == "TLoad":
-                                if src in isresolved:
-                                    has_resolved_load = True
+                                if src in iscommitted:
+                                    has_committed_load = True
                                 else:
-                                    has_unresolved_load = True
-                    if has_unresolved_load and has_resolved_load:
+                                    has_speculative_load = True
+                    if has_speculative_load and has_committed_load:
                         return "LL"
 
         return "OtherLoad"
