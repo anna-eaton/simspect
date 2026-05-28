@@ -217,11 +217,8 @@ fun f[p: PTag->univ] : Instruction {(i_p[p]) - (i_p[p]).(spo_p[p])}
 fun leakage_function_p[p: PTag->univ] : Operand {leakage_function & o_p[p]}
 
 fun speculative_xmit_p[p: PTag->univ] : Operand {leakage_function_p[p] <: speculation_contract_p[p].operands}
-fun nonspeculative_xmit_p[p: PTag->univ] : Operand {leakage_function_p[p] <: (Instruction.operands - speculation_contract_p[p].operands)}
 
-//fun a[p:PTag->univ,i:Instruction,o:Operand] : Operand {prot_set_propagation_p[p,i,prot_set_propagation_p[p,i,prot_set_propagation_p[p,i,o]]]}
-fun a[p:PTag->univ,i:Instruction,o:Operand] : Operand {prot_set_propagation_p[p,i,o]}
-
+fun a[p:PTag->univ,i:Instruction,o:Operand] : Operand { prot_set_propagation_p[p,i,o]}
 fun last_committed_protset_p[p: PTag->univ] : Operand {
 		a[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]),
 a[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]),
@@ -253,28 +250,17 @@ fun no_unresolved_mem_p[p: PTag->univ] : Instruction {
 }
 
 pred secure_speculation_scheme_p[p: PTag->univ] {
-	no ( 
-	(
-	(last_committed_protset_p[p] & speculative_xmit_p[p]) +
-	(last_committed_protset_p[p].(^(op_edges_p[p])) & speculative_xmit_p[p])
-	) 
-//	- (
-//	(last_committed_protset_p[p] & nonspeculative_xmit_p[p]) +
-//	(last_committed_protset_p[p].(^(op_edges_p[p])) & nonspeculative_xmit_p[p])
-//	) 
-	)
+	(no (last_committed_protset_p[p] & speculative_xmit_p[p])) and
+	(no last_committed_protset_p[p].(^(op_edges_p[p])) & speculative_xmit_p[p])
 }
 
 // make sure there is some overlap in the end btw xm and speculative xmit
 //fact tag_xm {some xm & speculative_xmit_p[xm]}
 fact one_xm {#(xm) = 1}
 fact tag_xm { 
-	some ( ((last_committed_protset_p[no_p] & speculative_xmit_p[no_p] & xm.operands) +
-	(last_committed_protset_p[no_p].(^(op_edges_p[no_p])) & speculative_xmit_p[no_p] & xm.operands))) 
-//- 
-//	((last_committed_protset_p[no_p] & nonspeculative_xmit_p[no_p] & xm.operands) +
-	//(last_committed_protset_p[no_p].(^(op_edges_p[no_p])) & nonspeculative_xmit_p[no_p] & xm.operands)))
-}	
+	(some (last_committed_protset_p[no_p] & speculative_xmit_p[no_p] & xm.operands)) or
+	(some last_committed_protset_p[no_p].(^(op_edges_p[no_p])) & speculative_xmit_p[no_p] & xm.operands)
+}
 
 /*********************************************************************************
  * Symmetry breaking — works because Instruction is now a concrete sig
@@ -325,22 +311,11 @@ run gen_lit {
 //fun speculation_contract_p[p: PTag->univ] : Instruction {uncommitted_p[p] & (no_unresolved_brs_p[p] + no_unresolved_mem_p[p])}
 fun speculation_contract_p[p: PTag->univ] : Instruction {uncommitted_p[p] & has_unresolved_brs_p[p]}
 //fun hardware_protection_policy: State {Mem_s}
-//fun hardware_protection_policy: Operand {Instruction.inmem} // all the input memory
-fun hardware_protection_policy: Operand {Instruction.operands} // all the input memory
+fun hardware_protection_policy: Operand {Instruction.inmem} // all the input memory
 //fun leakage_function : Operand {Loads.inaddr+(Branchxs+Otherxs).inreg}
 fun leakage_function : Operand {Loads.inaddr+(Branchxs).inreg}
 fun prot_set_propagation_p[p:PTag->univ,i:Instruction,o:Operand] : Operand {
 	// s - (Loads & committed_p[p] & i).inaddr.opstate // committed loads remove their inaddr from the protset
-	o // - (Loads & no_unresolved_brs_bf_or_is_p[p] & i).inmem // loads that have no unresolvd brs before them remove their inaddr from protset (acc load is not branch so probs chill)
-	// subtract the operands that leak 
-	- (i.operands & nonspeculative_xmit_p[p]).*(~(op_edges_p[p]))
-	// subtract outreg if inreg taintd
-       - (i & ((Otherns + Otherxs) - inreg.Inreg)).outreg
-	// when every input is outside of prot set untaint output
-	- (i & ((Otherns + Otherxs) - inreg.o)).outreg
-	- (i.inreg & (Operand - o).(rf_p[p]))
-
-//((last_committed_protset_p[no_p] & nonspeculative_xmit_p[no_p] & xm.operands) +
-	//(last_committed_protset_p[no_p].(^(op_edges_p[no_p])) & nonspeculative_xmit_p[no_p] & xm.operands)))
+	o - (Loads & no_unresolved_brs_bf_or_is_p[p] & i).inmem // loads that have no unresolvd brs before them remove their inaddr from protset (acc load is not branch so probs chill)
 }
 
