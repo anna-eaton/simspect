@@ -1,0 +1,9 @@
+── inst-022099  (ann: found) ──
+
+  [0] TLoad       Reg_s$0        <- ?                     (r, c)
+  [1] TBranchn    ?              <- ?                     [mispredict_not_taken  jne  0xc35]
+  [2] TStore      ?              <- Reg_s$0               (r)
+  [3] TLoad       Reg_s$0        <- Mem_s$0               (r)
+  [4] TBranchn    ?              <- ?                     (r)  [correctly_not_taken  jne  0xc52]
+  [5] TLoad       ?              <- Reg_s$0               (r, xm)  [xmit: ld  0xc5f]
+

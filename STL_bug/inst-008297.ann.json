@@ -1,0 +1,43 @@
+{
+  "branch_mode": "mispredict_not_taken",
+  "annotations": [
+    {
+      "branch_pc": 1,
+      "branch_atom": "Instruction$3",
+      "btb_forced_target_pc": 2,
+      "mode": "mispredict_not_taken",
+      "x86_pc_offset": 3104,
+      "x86_pc_offset_hex": "0xc20",
+      "x86_branch_offset": 3114,
+      "x86_branch_offset_hex": "0xc2a",
+      "x86_mnemonic": "jne",
+      "x86_btb_predicted_offset": 3116,
+      "x86_btb_predicted_offset_hex": "0xc2c",
+      "x86_actual_target_offset": 4201569,
+      "x86_actual_target_offset_hex": "0x401c61",
+      "btb_forced_target_x86_offset": 3121,
+      "btb_forced_target_x86_offset_hex": "0xc31"
+    }
+  ],
+  "xmit": {
+    "pc": 4,
+    "kind": "ld",
+    "atom": "Instruction$0",
+    "x86_offset": 3133,
+    "x86_offset_hex": "0xc3d"
+  },
+  "commit_boundary": {
+    "last_committed": {
+      "pc": 0,
+      "atom": "Instruction$4",
+      "x86_offset": 3104,
+      "x86_offset_hex": "0xc20"
+    },
+    "first_noncommitted": {
+      "pc": 1,
+      "atom": "Instruction$3",
+      "x86_offset": 3114,
+      "x86_offset_hex": "0xc2a"
+    }
+  }
+}

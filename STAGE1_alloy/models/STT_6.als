@@ -292,7 +292,7 @@ let gen_useful_litmus {
   not secure_speculation_scheme_p[no_p]
 
   //all i: resolved | secure_speculation_scheme_p[RR->i] or secure_speculation_scheme_p[RC->first_uncommitted]
-  all i: unresolved | secure_speculation_scheme_p[RR->i] //changing to just do resolved not commit!!
+  all i: unresolved | secure_speculation_scheme_p[RR->i]
 
   all s: State | secure_speculation_scheme_p[RS->s]
 }

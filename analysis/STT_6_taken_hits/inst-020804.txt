@@ -1,0 +1,9 @@
+── inst-020804  (ann: found) ──
+
+  [0] TStore      ?              <- Reg_s$0               (r, c)
+  [1] TOthern     Reg_s$0        <- ?                     (r, c)
+  [2] TBranchn    ?              <- ?                     [mispredict_not_taken  jne  0xc35]
+  [3] TLoad       Reg_s$0        <- Mem_s$0               (r)
+  [4] TLoad       ?              <- Reg_s$0               (r, xm)  [xmit: ld  0xc4e]
+  [5] TBranchn    ?              <- ?                     (r)  [correctly_not_taken    0xc52]
+

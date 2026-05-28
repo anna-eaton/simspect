@@ -1,0 +1,9 @@
+── inst-033130  (ann: found) ──
+
+  [0] TBranchn    ?              <- ?                     [mispredict_not_taken  jne  0xc20]
+  [1] TLoad       Reg_s$0        <- Mem_s$0               (r)
+  [2] TStore      ?              <- Reg_s$0               (r)
+  [3] TLoad       ?              <- Reg_s$0               (r, xm)  [xmit: ld  0xc3d]
+  [4] TBranchn    ?              <- ?                     (r)  [correctly_not_taken  jne  0xc41]
+  [5] TBranchn    ?              <- Reg_s$0               (r)  [correctly_not_taken    0xc49]
+

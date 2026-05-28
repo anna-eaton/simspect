@@ -1,0 +1,9 @@
+── inst-001040  (ann: found) ──
+
+  [0] TBranchn    ?              <- ?                     (r, c)  [correctly_not_taken  je  0x17]
+  [1] TBranchn    ?              <- ?                     [mispredict_not_taken  jne  0x22]
+  [2] TBranchn    ?              <- ?                     (r)  [correctly_not_taken  je  0x2e]
+  [3] TLoad       Reg_s$0        <- Mem_s$0               (r)
+  [4] TLoad       ?              <- Mem_s$0               (r)
+  [5] TBranchx    ?              <- Reg_s$0               (r, xm)  [xmit: br_x  0x41 | correctly_not_taken    0x41]
+

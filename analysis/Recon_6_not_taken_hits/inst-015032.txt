@@ -1,0 +1,9 @@
+── inst-015032  (ann: found) ──
+
+  [0] TOtherx     Reg_s$0        <- ?                     (r, c)
+  [1] TBranchn    ?              <- ?                     (r)  [correctly_not_taken  je  0xc1e]
+  [2] TBranchn    ?              <- ?                     [mispredict_not_taken  je  0xc26]
+  [3] TLoad       Reg_s$0        <- Mem_s$0               (r)
+  [4] TBranchx    ?              <- Reg_s$0               (r, xm)  [xmit: br_x  0xc36 | correctly_not_taken  jne  0xc36]
+  [5] TStore      ?              <- Reg_s$0               (r)
+

@@ -66,7 +66,7 @@
     "caches":        true,
     // Parallel gem5 workers per batch
     "jobs":          8,
-    "debug_flags":   ["O3PipeView"],
+    "debug_flags":   ["O3PipeView", "LSQUnit"],
     "debug_file":    "pipeview.txt"
   },
 
@@ -85,18 +85,10 @@
 
   // ── Pipeline analysis settings ─────────────────────────────────────────────
   "pipeline": {
-    // Which gem5 analysis to run:
-    //   "per_type"         — dispatch to per-transmitter-type checker scripts:
-    //                        ld      → check_ld.py   (xmit_complete in lc_retire..fnc_retire)
-    //                        br_x    → check_br.py   (xmit_complete in lc_retire..fnc_complete)
-    //                        other_x → check_other.py (same as ld)
-    //                        [recommended — uses the correct window bound per type]
-    //   "window_complete"  — xmit.complete inside (lc_retire, fnc_retire) for ALL types
-    //                        Uses STAGE3_gem5/pipeline_window_complete.py
-    //   "window_issue"     — xmit.issue inside (lc_retire, fnc_retire)
-    //                        Uses STAGE3_gem5/pipeline_window.py
-    //   "completion_only"  — xmit.complete > 0, no window bounds check
-    //                        Uses STAGE3_gem5/pipeline.py
+    // Dispatch each test to a per-transmitter-type checker:
+    //   ld      → check_ld.py     (xmit_complete in lc_retire..fnc_retire)
+    //   br_x    → check_br.py     (xmit_complete in lc_retire..fnc_complete)
+    //   other_x → check_other.py  (same window as ld)
     "check":    "per_type",
     // Retain per-test temp directories after gem5 runs (useful for debugging)
     "keep_tmp": false

@@ -1,0 +1,9 @@
+── inst-020615  (ann: found) ──
+
+  [0] TOthern     Reg_s$0        <- ?                     (r, c)
+  [1] TBranchn    ?              <- ?                     (r, c)  [correctly_not_taken  je  0x1a]
+  [2] TBranchn    ?              <- ?                     (r)  [correctly_not_taken  je  0x25]
+  [3] TBranchn    ?              <- Reg_s$0               [mispredict_not_taken  jne  0x2d]
+  [4] TLoad       Reg_s$0        <- Mem_s$0               (r)
+  [5] TBranchx    ?              <- Reg_s$0               (r, xm)  [xmit: br_x  0x41 | correctly_not_taken    0x41]
+

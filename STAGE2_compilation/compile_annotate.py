@@ -222,81 +222,82 @@ def find_branch_at_pc(pc_offset: int, instrs: list[tuple[int, str, str]]) -> dic
 
 def update_annotations(ann_path: Path, pc_map: dict[int, int],
                         instrs: list[tuple[int, str, str]],
+                        func_base: int,
                         commit_offsets: dict[str, int] | None = None) -> dict:
+    """Emit the simplified ann.json schema.
+
+    Every emitted address is **absolute** (post-link x86 PC). Consumers should
+    use these directly without any `+ base` arithmetic. The schema retains
+    Alloy-side cross-reference fields (branch_pc, xmit.pc/.atom, etc.) for
+    debugging but drops the descriptive `*_offset` / `*_taken_addr` /
+    `*_mnemonic` / `*_fallthrough_offset` etc. that had no consumers.
+    """
     ann = json.loads(ann_path.read_text())
 
+    # Record the function's absolute base for any debug consumer that wants
+    # offset arithmetic. Optional — all functional fields are already absolute.
+    ann["func_base_addr"]     = func_base
+    ann["func_base_addr_hex"] = hex(func_base)
+
     # --- branch annotations ---
+    # First pass: compute and assign branch_addr for every annotated branch
+    # (needed by the commit-boundary upgrade below).
+    branch_pc_to_jne_abs: dict[int, int] = {}
     for entry in ann.get("annotations", []):
+        # Drop descriptive cross-ref fields that nothing reads.
+        entry.pop("branch_atom", None)
+
         alloy_pc = entry.get("branch_pc")
         if alloy_pc is None or alloy_pc not in pc_map:
             continue
         pc_offset = pc_map[alloy_pc]
-        entry["x86_pc_offset"]     = pc_offset
-        entry["x86_pc_offset_hex"] = hex(pc_offset)
 
         br = find_branch_at_pc(pc_offset, instrs)
         if br:
-            entry["x86_branch_offset"]      = br["offset"]
-            entry["x86_branch_offset_hex"]  = hex(br["offset"])
-            entry["x86_mnemonic"]           = br["mnemonic"]
-            if entry.get("mode") == "mispredict_not_taken":
-                entry["x86_btb_predicted_offset"]     = br["fallthrough_offset"]
-                entry["x86_btb_predicted_offset_hex"] = (
-                    hex(br["fallthrough_offset"]) if br["fallthrough_offset"] is not None else None)
-                entry["x86_actual_target_offset"]     = br["taken_offset"]
-                entry["x86_actual_target_offset_hex"] = (
-                    hex(br["taken_offset"]) if br["taken_offset"] is not None else None)
-            else:
-                entry["x86_fallthrough_offset"] = br["fallthrough_offset"]
-                entry["x86_taken_offset"]       = br["taken_offset"]
+            entry["branch_addr"]     = func_base + br["offset"]
+            entry["branch_addr_hex"] = hex(func_base + br["offset"])
+            branch_pc_to_jne_abs[alloy_pc] = func_base + br["offset"]
 
-        # Resolve the forced BTB target (alloy pc index -> x86 offset) so that
-        # gem5's --branch-ann-file can drive the BTB override directly. The
-        # target is the address of the Alloy pcN symbol that the instance says
-        # the BTB should be forced to speculate toward.
+        # BTB-forced redirect target (absolute). Emitted for every annotation
+        # but only consumed by se.py when mode == "mispredict_taken".
         forced_alloy_pc = entry.get("btb_forced_target_pc")
         if forced_alloy_pc is not None and forced_alloy_pc in pc_map:
             forced_off = pc_map[forced_alloy_pc]
-            entry["btb_forced_target_x86_offset"]     = forced_off
-            entry["btb_forced_target_x86_offset_hex"] = hex(forced_off)
+            entry["btb_forced_target_addr"]     = func_base + forced_off
+            entry["btb_forced_target_addr_hex"] = hex(func_base + forced_off)
 
     # --- xmit annotation ---
     xmit = ann.get("xmit")
     if xmit is not None:
+        xmit.pop("atom", None)
         alloy_pc = xmit.get("pc")
         if alloy_pc is not None and alloy_pc in pc_map:
-            xmit["x86_offset"]     = pc_map[alloy_pc]
-            xmit["x86_offset_hex"] = hex(pc_map[alloy_pc])
+            pc_offset = pc_map[alloy_pc]
+            # For br_x xmits, resolve to the actual jne, not the xorq prelude.
+            if xmit.get("kind") == "br_x":
+                br = find_branch_at_pc(pc_offset, instrs)
+                if br:
+                    pc_offset = br["offset"]
+            xmit["addr"]     = func_base + pc_offset
+            xmit["addr_hex"] = hex(func_base + pc_offset)
 
     # --- commit boundary annotations ---
-    # Map alloy_pc → branch x86_branch_offset for branches, so that boundary
-    # PCs that point at a branch instruction's marker are upgraded to the
-    # actual jne PC. Without this, the marker often resolves to a non-branch
-    # prelude (e.g. a `movq $1, %rsi` that commits architecturally before the
-    # jne resolves), which makes fnc_retire fire too early and breaks the
-    # speculation-window check in check_ld.py / check_br.py.
-    branch_pc_to_jne = {}
-    for entry in ann.get("annotations", []):
-        bpc = entry.get("branch_pc")
-        bxo = entry.get("x86_branch_offset")
-        if bpc is not None and bxo is not None:
-            branch_pc_to_jne[bpc] = bxo
-
+    # Boundaries that land on a branch are upgraded to the actual jne PC so
+    # retire-tick reflects the branch's resolution, not the xorq prelude.
     cb = ann.get("commit_boundary")
     if cb is not None and commit_offsets:
         for key in ("last_committed", "first_noncommitted"):
             entry = cb.get(key)
             if entry is None:
                 continue
+            entry.pop("atom", None)
             alloy_pc = entry.get("pc")
-            if alloy_pc in branch_pc_to_jne:
-                # Boundary inst is a branch — use the jne PC so retire time
-                # reflects the branch's actual resolution, not the prelude.
-                entry["x86_offset"]     = branch_pc_to_jne[alloy_pc]
-                entry["x86_offset_hex"] = hex(branch_pc_to_jne[alloy_pc])
+            if alloy_pc in branch_pc_to_jne_abs:
+                entry["addr"]     = branch_pc_to_jne_abs[alloy_pc]
+                entry["addr_hex"] = hex(branch_pc_to_jne_abs[alloy_pc])
             elif key in commit_offsets:
-                entry["x86_offset"]     = commit_offsets[key]
-                entry["x86_offset_hex"] = hex(commit_offsets[key])
+                entry["addr"]     = func_base + commit_offsets[key]
+                entry["addr_hex"] = hex(func_base + commit_offsets[key])
 
     return ann
 
@@ -343,7 +344,7 @@ def main() -> None:
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
-    ann = update_annotations(ann_path, pc_map, instrs, commit_offsets)
+    ann = update_annotations(ann_path, pc_map, instrs, func_base, commit_offsets)
 
     ann_out_dir.mkdir(parents=True, exist_ok=True)
     out_ann = ann_out_dir / ann_path.name
