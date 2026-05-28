@@ -30,7 +30,7 @@ def _last_alive_tick(rec):
     return 0
 
 
-def check_br(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle):
+def check_br(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle, lsq_by_pc=None):
     xmit_rec = best_record(by_pc.get(xmit_pc, []))
     lc_rec   = best_record(by_pc.get(lc_pc,   [])) if lc_pc  else None
     fnc_rec  = best_record(by_pc.get(fnc_pc,  [])) if fnc_pc else None

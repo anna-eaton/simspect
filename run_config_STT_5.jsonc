@@ -29,7 +29,7 @@
     "scheme":            2,
     "caches":            true,
     "jobs":              40,
-    "debug_flags":       ["O3PipeView"],
+    "debug_flags":       ["O3PipeView", "LSQUnit"],
     "debug_file":        "pipeview.txt"
   },
 

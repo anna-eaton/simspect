@@ -1922,30 +1922,53 @@ def pass5_emit_llvm(
             # signed integer division: idivq divides RDX:RAX by the operand,
             # quotient → RAX, remainder → RDX. Move in0→RAX, sign-extend via
             # CQO, idivq in1, then copy RAX→phys_out.
-            inreg0 = ssa_ref(rec, "inreg0") or "0"
-            inreg1 = ssa_ref(rec, "inreg1") or "0"
-            inreg0_sr = get_slot(rec, "inreg0")
-            inreg1_sr = get_slot(rec, "inreg1")
-            phys_in0 = inreg0_sr.get("assigned") if inreg0_sr else None
-            phys_in1 = inreg1_sr.get("assigned") if inreg1_sr else None
-            outreg_sr = get_slot(rec, "outreg")
-            if outreg_sr and outreg_sr.get("ssa_name"):
+            #
+            # The divisor itself is a transmitter: a div by 0 faults
+            # observably, so the "did the fault happen?" bit leaks the
+            # divisor value. When this instruction is the xm (the test's
+            # transmitter), we leave the divisor as-is and let the fault
+            # fire if it's 0 — gem5_common.process_one reclassifies the
+            # panic as a hit when the faulting PC is the xm. When this
+            # instruction is NOT the xm, we route the divisor through %rcx
+            # with `orq $$1, %rcx` to force a non-zero value, so unrelated
+            # noise instructions don't crash the test before the real
+            # transmitter runs.
+            is_xm      = rec.get("xm", False)
+            inreg0     = ssa_ref(rec, "inreg0") or "0"
+            inreg1     = ssa_ref(rec, "inreg1") or "0"
+            inreg0_sr  = get_slot(rec, "inreg0")
+            inreg1_sr  = get_slot(rec, "inreg1")
+            phys_in0   = inreg0_sr.get("assigned") if inreg0_sr else None
+            phys_in1   = inreg1_sr.get("assigned") if inreg1_sr else None
+            in0_con    = f'{{{phys_in0}}}' if phys_in0 else 'r'
+            in1_con    = f'{{{phys_in1}}}' if phys_in1 else 'r'
+            outreg_sr  = get_slot(rec, "outreg")
+            has_outreg = bool(outreg_sr and outreg_sr.get("ssa_name"))
+            divisor_in = "$2" if has_outreg else "$1"
+
+            if is_xm:
+                divisor_setup = ""
+                divisor_op    = divisor_in
+                extra_clobber = ""
+            else:
+                # Copy divisor → %rcx, force-set bit 0, then divide by %rcx.
+                divisor_setup = f"movq {divisor_in}, %rcx\\0Aorq $$1, %rcx\\0A"
+                divisor_op    = "%rcx"
+                extra_clobber = "~{rcx},"
+
+            if has_outreg:
                 out_name = outreg_sr["ssa_name"]
                 phys_out = outreg_sr.get("assigned")
-                in0_con = f'{{{phys_in0}}}' if phys_in0 else 'r'
-                in1_con = f'{{{phys_in1}}}' if phys_in1 else 'r'
                 il(f'%{out_name} = call i64 asm sideeffect '
-                   f'"{mkr}movq $1, %rax\\0Acqo\\0Aidivq $2\\0A'
+                   f'"{mkr}movq $1, %rax\\0A{divisor_setup}cqo\\0Aidivq {divisor_op}\\0A'
                    f'movq %rax, $0", '
                    f'"=&{{{phys_out}}},{in0_con},{in1_con},'
-                   f'~{{rax}},~{{rdx}},~{{flags}}"'
+                   f'~{{rax}},{extra_clobber}~{{rdx}},~{{flags}}"'
                    f'(i64 {inreg0}, i64 {inreg1})')
             else:
-                in0_con = f'{{{phys_in0}}}' if phys_in0 else 'r'
-                in1_con = f'{{{phys_in1}}}' if phys_in1 else 'r'
                 il(f'call void asm sideeffect '
-                   f'"{mkr}movq $0, %rax\\0Acqo\\0Aidivq $1", '
-                   f'"{in0_con},{in1_con},~{{rax}},~{{rdx}},~{{flags}}"'
+                   f'"{mkr}movq $0, %rax\\0A{divisor_setup}cqo\\0Aidivq {divisor_op}", '
+                   f'"{in0_con},{in1_con},~{{rax}},{extra_clobber}~{{rdx}},~{{flags}}"'
                    f'(i64 {inreg0}, i64 {inreg1})')
 
         elif concrete == "br_bez":

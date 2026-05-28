@@ -56,7 +56,7 @@ GEM5_DIR  = Path(os.environ.get("SIMSPECT_GEM5_DIR",  "/work/gem5-recon"))
 GEM5_BIN  = Path(os.environ.get("SIMSPECT_GEM5_BIN",  str(GEM5_DIR / "build/X86/gem5.opt")))
 SE_CONFIG = Path(os.environ.get("SIMSPECT_SE_CONFIG", str(GEM5_DIR / "configs/example/se.py")))
 GEM5_CPU  = os.environ.get("SIMSPECT_GEM5_CPU",  "X86O3CPU")
-GEM5_DBG_FLAG = os.environ.get("SIMSPECT_GEM5_DBG_FLAG", "O3PipeView")
+GEM5_DBG_FLAG = os.environ.get("SIMSPECT_GEM5_DBG_FLAG", "O3PipeView,LSQUnit")
 GEM5_DBG_FILE = os.environ.get("SIMSPECT_GEM5_DBG_FILE", "pipeview.txt")
 
 # When truthy, run_gem5() injects --branch-ann-file=<test>.ann.json plus an
@@ -119,6 +119,11 @@ def _func_base_addr(binary: Path, func_name: str) -> Optional[int]:
 
 
 def resolve_pc(binary: Path, func_name: str, ann_entry: dict) -> Optional[int]:
+    # New schema: `addr` is the absolute PC, written by compile_annotate.py.
+    addr = ann_entry.get("addr")
+    if addr is not None:
+        return int(addr)
+    # Backward-compat: legacy ann.json files have function-relative `x86_offset`.
     offset = ann_entry.get("x86_offset")
     if offset is None:
         return None
@@ -189,6 +194,54 @@ def parse_pipeview(trace_path: Path) -> Dict[int, List[dict]]:
     return dict(by_pc)
 
 
+def parse_lsq(trace_path: Path) -> Dict[int, List[dict]]:
+    """Parse a LSQUnit debug trace into per-PC load-event records.
+
+    The O3PipeView destructor doesn't run for in-flight speculative loads (the
+    LSQ keeps a reference until simulation end), so those loads never emit
+    pipeview lines. The LSQUnit debug trace logs every load as it enters,
+    executes, and exits the LSQ — capturing the cache-touch signal that
+    pipeview hides.
+
+    Returns dict pc → list of {sn, insert_tick, execute_tick, squash_tick}.
+    A load with execute_tick > 0 issued a memory request (= cache touched);
+    a load with squash_tick > 0 was squashed.
+    """
+    by_pc: Dict[int, List[dict]] = defaultdict(list)
+    by_sn: Dict[int, dict] = {}
+    insert_re  = re.compile(r"^\s*(\d+):\s+system\.cpu\.iew\.lsq\..*:\s+Inserting load PC \(0x([0-9a-f]+)=>")
+    execute_re = re.compile(r"^\s*(\d+):\s+system\.cpu\.iew\.lsq\..*:\s+Executing load PC \(0x([0-9a-f]+)=>")
+    squash_re  = re.compile(r"^\s*(\d+):\s+system\.cpu\.iew\.lsq\..*:\s+Load Instruction PC \(0x([0-9a-f]+)=>.*squashed,\s*\[sn:(\d+)\]")
+    insert_sn_re  = re.compile(r"\[sn:(\d+)\]")
+    with open(trace_path) as f:
+        for line in f:
+            m = insert_re.match(line)
+            if m:
+                tick = int(m.group(1)); pc = int(m.group(2), 16)
+                sn_m = insert_sn_re.search(line)
+                sn = int(sn_m.group(1)) if sn_m else -1
+                rec = dict(pc=pc, sn=sn, insert_tick=tick, execute_tick=0, squash_tick=0)
+                by_sn[sn] = rec
+                by_pc[pc].append(rec)
+                continue
+            m = execute_re.match(line)
+            if m:
+                tick = int(m.group(1)); pc = int(m.group(2), 16)
+                sn_m = insert_sn_re.search(line)
+                sn = int(sn_m.group(1)) if sn_m else -1
+                rec = by_sn.get(sn)
+                if rec is not None:
+                    rec["execute_tick"] = tick
+                continue
+            m = squash_re.match(line)
+            if m:
+                tick = int(m.group(1)); pc = int(m.group(2), 16); sn = int(m.group(3))
+                rec = by_sn.get(sn)
+                if rec is not None:
+                    rec["squash_tick"] = tick
+    return dict(by_pc)
+
+
 def best_record(recs: List[dict]) -> Optional[dict]:
     """Pick the record with the highest pipeline stage reached.
 
@@ -240,18 +293,25 @@ def collect_unresolved_branches(ann_full: dict, binary: Path,
     PC is resolved via x86_branch_offset + func base (the jne PC, matching the
     same PC gem5 will hit in iew_impl.hh for the deferred-resolution hook).
     """
-    base = _func_base_addr(binary, func_name)
-    if base is None:
-        return []
     out: List[dict] = []
+    base = None  # lazily resolved if any legacy entry needs it
     for e in ann_full.get("annotations", []):
         stall = int(e.get("resolve_stall_cycles", 0) or 0)
         if stall <= 0:
             continue
-        bxo = e.get("x86_branch_offset")
-        if bxo is None:
-            continue
-        out.append(dict(pc=base + int(bxo), stall_cycles=stall))
+        # New schema: absolute branch_addr.
+        addr = e.get("branch_addr")
+        if addr is None:
+            # Backward-compat with legacy ann.json files.
+            bxo = e.get("x86_branch_offset")
+            if bxo is None:
+                continue
+            if base is None:
+                base = _func_base_addr(binary, func_name)
+                if base is None:
+                    return out
+            addr = base + int(bxo)
+        out.append(dict(pc=int(addr), stall_cycles=stall))
     return out
 
 
@@ -289,10 +349,13 @@ def check_branch_resolutions(by_pc: Dict[int, list],
 # ── Generic process_one ─────────────────────────────────────────────────────
 
 # Type alias for a check function:
-#   check_fn(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle)
-#     → dict with at least "issued_in_window"
+#   check_fn(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle,
+#            lsq_by_pc) → dict with at least "issued_in_window"
+# `lsq_by_pc` is the LSQUnit-debug-trace mapping (pc → list of load events)
+# so check_ld can use the LSQ "Executing load" tick — the real cache-touch
+# signal — for speculative loads that pipeview omits.
 CheckFn = Callable[[Dict[int, list], Optional[int], Optional[int], Optional[int],
-                    List[dict], int], dict]
+                    List[dict], int, Dict[int, list]], dict]
 
 
 def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
@@ -327,7 +390,8 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
             result["error"]  = "no xmit x86 PC"
         else:
             trace = run_gem5(binary, workdir, ann_path=ann_path, fnc_pc=fnc_pc)
-            by_pc = parse_pipeview(trace)
+            by_pc     = parse_pipeview(trace)
+            lsq_by_pc = parse_lsq(trace)
             ticks_per_cycle = parse_ticks_per_cycle(workdir / "m5out")
             unresolved = collect_unresolved_branches(
                 dict(annotations=parts["annotations"]), binary, name)
@@ -335,7 +399,7 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
             # event we're conditioning on — exclude it from the bound check.
             unresolved = [u for u in unresolved if u["pc"] != xmit_pc]
             check_result = check_fn(by_pc, xmit_pc, lc_pc, fnc_pc,
-                                    unresolved, ticks_per_cycle)
+                                    unresolved, ticks_per_cycle, lsq_by_pc)
             result.update(check_result)
 
     except subprocess.CalledProcessError as e:

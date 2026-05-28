@@ -66,7 +66,7 @@
     "caches":        true,
     // Parallel gem5 workers per batch
     "jobs":          8,
-    "debug_flags":   ["O3PipeView"],
+    "debug_flags":   ["O3PipeView", "LSQUnit"],
     "debug_file":    "pipeview.txt"
   },
 

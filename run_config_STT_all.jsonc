@@ -34,7 +34,7 @@
     "scheme":                  2,
     "caches":                  true,
     "jobs":                    16,
-    "debug_flags":             ["O3PipeView"],
+    "debug_flags":             ["O3PipeView", "LSQUnit"],
     "debug_file":              "pipeview.txt",
     "fnc_commit_stall_cycles": 150,
     "sample_fraction":         0.25
