@@ -336,10 +336,11 @@ def _classify_branches(ann: dict) -> tuple[list, list]:
     unresolved = mode in {"mispredict_not_taken", "mispredict_taken"}
                  (BTB-forced wrong direction; held by a single large stall)
     """
+    xmit_pc = ann.get("xmit", {}).get("pc")
     resolved, unresolved = [], []
     for entry in ann.get("annotations", []):
         pc = entry.get("branch_pc")
-        if pc is None:
+        if pc is None or pc == xmit_pc:
             continue
         mode = entry.get("mode", "")
         if mode == "correctly_not_taken":
@@ -367,13 +368,20 @@ def _grid_points(resolved_pcs: list, points: list) -> list:
 def _inject_stalls(ann: dict, stalls: dict, unresolved_stall: int) -> dict:
     """Return a new ann dict with `resolve_stall_cycles` set per branch.
 
+    xmit branch (pc == ann["xmit"]["pc"]): stall = 0. The xmit's own
+        resolution must not be held back; the speculation window comes from
+        upstream unresolved branches, not from the xmit itself.
     Resolved branches: stall = stalls[branch_pc] (from grid point).
     Unresolved branches: stall = unresolved_stall (constant).
     """
     out = json.loads(json.dumps(ann))  # deep copy
+    xmit_pc = out.get("xmit", {}).get("pc")
     for entry in out.get("annotations", []):
         pc = entry.get("branch_pc")
         if pc is None:
+            continue
+        if pc == xmit_pc:
+            entry["resolve_stall_cycles"] = 0
             continue
         mode = entry.get("mode", "")
         if mode == "correctly_not_taken":
@@ -544,6 +552,10 @@ def _build_gem5_env(gem5_cfg: dict, spec_cfg: dict) -> dict:
     fnc_stall = gem5_cfg.get("fnc_commit_stall_cycles", 0)
     if fnc_stall:
         env["SIMSPECT_FNC_COMMIT_STALL_CYCLES"] = str(int(fnc_stall))
+
+    extra = gem5_cfg.get("extra_args")
+    if isinstance(extra, list) and extra:
+        env["SIMSPECT_GEM5_EXTRA"] = "\x1f".join(str(a) for a in extra)
 
     return env
 

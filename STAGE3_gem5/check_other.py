@@ -18,7 +18,7 @@ Usage:
 from gem5_common import best_record, check_branch_resolutions, run_batch
 
 
-def check_other(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle, lsq_by_pc=None):
+def check_other(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle, lsq_by_pc=None, squash_by_pc=None):
     xmit_rec = best_record(by_pc.get(xmit_pc, []))
     lc_rec   = best_record(by_pc.get(lc_pc,   [])) if lc_pc  else None
     fnc_rec  = best_record(by_pc.get(fnc_pc,  [])) if fnc_pc else None

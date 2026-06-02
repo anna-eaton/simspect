@@ -334,7 +334,7 @@ run gen_lit {
 fun speculation_contract_p[p: PTag->univ] : Instruction {uncommitted_p[p] & has_unresolved_brs_p[p]}
 //fun hardware_protection_policy: State {Mem_s}
 //fun hardware_protection_policy: Operand {Instruction.inmem} // all the input memory
-fun hardware_protection_policy: Operand {Instruction.operands - ((Inreg + Inaddr) - Instruction.outreg.rf)} // all the input memory
+fun hardware_protection_policy: Operand {Instruction.operands - (Inreg - Instruction.outreg.rf)} // all the input memory
 //fun leakage_function : Operand {Loads.inaddr+(Branchxs+Otherxs).inreg}
 fun leakage_function : Operand {Loads.inaddr+(Branchxs).inreg}
 fun prot_set_propagation_p[p:PTag->univ,i:Instruction,o:Operand] : Operand {

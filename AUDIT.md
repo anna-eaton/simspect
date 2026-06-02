@@ -62,8 +62,14 @@ Moved to `old_scripts/`: `analyze_hits.py`, `analyze_ld_timing.py`, `analyze_ld_
 ### 14. `parsexml.py:817-847` NOP-after-xm-branch can create duplicate PCs — DOCUMENTED (dormant)
 Verified bug, but unreachable under STT_6's Alloy constraints. The NOP-insertion path only runs for *unresolved* xm branches; empirical scan of 30,000 STT_6 instances shows every xm `br_x` is resolved (9,995 / 9,995). So the duplicate-PC case never fires. The misleading "Not needed" comment in `pass2_5_specify_branches` has been rewritten to explain the dependency, and `DESIGN.md` documents the invariant ("xmit branches are always resolved") along with the empirical evidence and the remediation path if a future model breaks it.
 
-### 15. `parsexml.py:1819,1827,1838` `idivq` codegen with no nonzero guarantee
-Confirmed known issue, ~4% of ld tests die with `panic: fault (Divide-Error)`. Suggested fix (`orq $1, divisor`) still not applied.
+### 15. `parsexml.py:1819,1827,1838` `idivq` codegen with no nonzero guarantee — RESOLVED (re-scoped)
+The earlier framing as "~4% of ld tests" was wrong: classification across 258,625 Divide-Error records in `results/STT_6_sttbuild/` shows every failing test has `xmit_kind = br_x`, and 97% of div faults are *architectural* (faulting PC strictly before the mispredict branch in spo), not speculative. The div behaviour is itself a side-channel: a faulting div leaks the divisor's zero-ness.
+
+**Codegen** — `parsexml.py:1905` now routes the divisor through `%rcx` with `orq $$1, %rcx` *only when the div is not the xm*. xm divs keep the unguarded idiom so the fault can fire as a leak signal.
+
+**Panic → hit** — `gem5_common.py` gains `classify_divide_panic`; on `Divide-Error` panics it parses the fault address, maps it to an Alloy PC via `.ann.json` markers, and promotes the result to `status="ok", issued_in_window=True, hit_kind="div_fault"` when the faulting PC matches the xm AND the xm sits strictly after a mispredict branch (speculative shadow). Architectural xm-div faults remain real errors.
+
+**Spec note** — under the current `leakage_function = Loads.inaddr + Branchxs.inreg`, `Otherxs.inreg` is excluded, so xm divs are never enumerated by Alloy. The panic→hit path is dormant infrastructure until the leakage function is widened (the commented-out `(Branchxs+Otherxs).inreg` form at `STT_6.als:314`). Until then the value of this change is the codegen guard eliminating ~250k architectural-fault noise records per `STT_6_sttbuild` run.
 
 ### 16. `_phase_gem5_sweep` (non-streaming) bails if `window-results.json` exists
 `pipeline.py:632`. The streaming path is incremental; the standalone `pipeline.py gem5` invocation is one-shot. Inconsistent ergonomics — if a user runs `pipeline.py gem5` to resume a partially-completed sweep, they're told "pass --force" and `--force` wipes everything. The watcher works around this; CLI users get burned.

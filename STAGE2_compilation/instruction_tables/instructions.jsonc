@@ -41,8 +41,8 @@
       {
         "name":    "br_bez",
         "llvm_op": "testq+jz",
-        "comment": "branch-if-equal-to-zero — used when a branch is the xmit transmitter (xm flag). Emits testq %reg,%reg; sete; br. All registers are zero so the branch is taken, but BTB predicts not-taken → misprediction. A synthetic NOP is injected on the fall-through path so check_br can observe the squash.",
-        "uses":    []
+        "comment": "branch-if-equal-to-zero — used when a branch is the xmit transmitter (xm flag). Reads Alloy's inreg0 slot (which traces back to a load via Alloy's tag_xm fact) so STT sees the load→branch taint chain. Architecturally the inreg's value is 0 → testq sets ZF=1 → branch taken; BTB predicts not-taken → misprediction. A synthetic NOP is injected on the fall-through path so check_br can observe the squash.",
+        "uses":    ["inreg0"]
       }
     ],
     "other_n": [

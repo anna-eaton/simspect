@@ -1,0 +1,1 @@
+/tests/simspect/STAGE1_alloy/models/SPT_6.als

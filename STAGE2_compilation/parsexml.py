@@ -711,16 +711,58 @@ def pass2_5_specify_branches(
         next_pc = pc + 1
         is_xm = rec.get("xm", False)
 
+        # ── xm OVERRIDE ──────────────────────────────────────────────────────
+        # The xmit branch is the test's transmitter and follows its own dedicated
+        # shape, independent of Alloy's isresolved flag, the run's branch_mode,
+        # and the resolved / non-xm rewrites below:
+        #   • Always br_bez. Condition is read from the Alloy inreg slot via a
+        #     phys-pinned passthrough (see br_bez codegen) so STT sees the
+        #     load→branch taint chain. Architectural inreg = 0 → ZF = 1 →
+        #     branch architecturally TAKEN (to end_block).
+        #   • BTB is forced to predict fall-through, creating a misprediction
+        #     on every run regardless of what Alloy's isresolved says.
+        #   • If a downstream instruction doesn't already exist on the
+        #     fall-through path, inject a NOP so fetch has something to
+        #     speculate on (and then squash).
+        # The pipeline-side resolve-stall sweep skips this branch entirely
+        # (stall = 0) — the xm shouldn't have its own resolution held back;
+        # the speculation window comes from upstream unresolved branches.
+        if is_xm:
+            rec["concrete_instruction"] = "br_bez"
+            rec["llvm_op"]              = "testq+jz"
+            cands = rec.get("candidates", [])
+            if "br_bez" not in cands:
+                rec["candidates"] = cands + ["br_bez"]
+            needs_end_block = True
+            # Only inject the fall-through NOP when nothing follows the branch
+            # at all. If another instruction already exists at pc+1 (e.g. the
+            # next branch), the fall-through target is bb_{pc+1} — fetch already
+            # has real content to speculate on, and a NOP would be inserted at
+            # nop_pc == pc+1, colliding with that instruction's PC (duplicate
+            # bb_/__litmus label → assembler "already defined"). See the NOTE at
+            # the insertion site below.
+            if idx == len(instructions) - 1:
+                xm_nop_inserts.append((idx, pc))
+            fallthrough = "end_block" if next_pc >= n else f"bb_{next_pc}"
+            rec["branch_annotations"] = {
+                "mode":               "mispredict_not_taken",
+                "condition_value":    True,           # arch taken (BEZ zero → ZF=1)
+                "taken_target":       "end_block",    # architectural destination
+                "fallthrough_target": fallthrough,    # speculative shadow
+                "btb_prediction":     "fall_through", # forced misprediction
+                "btb_predicted_pc":   next_pc,
+            }
+            continue
+        # ─────────────────────────────────────────────────────────────────────
+
         # Pass2 picks a random concrete_instruction from the candidate pool,
         # which includes br_bez. For non-xmit branches, br_bez breaks the
         # mispredict_taken architectural path: br_bez's IR emission uses
         # `icmp eq` (inverted relative to br_cond's `icmp ne`) AND skips the
         # ftbypass trampoline, so the architectural fall-through ends up in
         # the critical block instead of end_block. Force br_cond for any
-        # non-xmit branch so pass5 takes the trampoline-aware path. is_xm
-        # branches (br_x xmit) keep whatever pass2 chose and are re-routed to
-        # br_bez below if applicable.
-        if not is_xm and rec.get("concrete_instruction") in ("br_uncond", "br_bez"):
+        # non-xmit branch so pass5 takes the trampoline-aware path.
+        if rec.get("concrete_instruction") in ("br_uncond", "br_bez"):
             rec["concrete_instruction"] = "br_cond"
             rec["llvm_op"]              = "br i1"
             cands = rec.get("candidates", [])
@@ -837,18 +879,19 @@ def pass2_5_specify_branches(
             elif ba.get("mode") == "mispredict_taken" and ba["taken_target"] == "end_block":
                 ba["taken_target"] = f"bb_{nop_pc}"
 
-    # NOTE: this code does NOT renumber PCs after inserting a NOP. If the
-    # next instruction was already at pc == br_pc + 1 (the deterministic case
-    # for an xm branch followed by another branch in the list, since pass1
-    # assigns pc = enumerate(order)), the inserted NOP duplicates that PC and
-    # pass5 will emit two `bb_<pc>:` labels → LLVM parse error.
-    #
-    # The path that would reach this insertion only runs for *unresolved* xm
-    # branches (resolved branches `continue` above). In STT_6 every xm
-    # Branchx is resolved by construction of the Alloy speculation contract,
-    # so the buggy case is unreachable. See DESIGN.md → "Invariant: xmit
-    # branches are always resolved" for the empirical evidence and the
-    # remediation steps to take if a future model relaxes the invariant.
+    # NOTE: this code does NOT renumber PCs after inserting a NOP, so the
+    # NOP's pc (br_pc + 1) must not already belong to another instruction.
+    # That is now guaranteed at the queue sites: a NOP is queued only when the
+    # branch is the LAST instruction (br_pc + 1 == n, past the end), so no
+    # existing record owns that PC. Do NOT re-add an "or next is a branch"
+    # clause here — when another instruction already follows at pc+1 the
+    # fall-through target is bb_{pc+1} (real fetchable content, no NOP needed),
+    # and inserting a NOP at pc+1 would duplicate that PC, emitting two
+    # `bb_<pc>:` labels and two `.globl __litmus_..._pc<pc>` symbols → the
+    # assembler aborts with "symbol already defined" and the test is dropped.
+    # (Pre-rework this path was thought unreachable because every xm Branchx
+    # was resolved; the branch-xmit override above handles all xm branches, so
+    # the queue condition is the real guard. See DESIGN.md.)
 
     result: Dict[str, Any] = {
         "instructions": instructions,
@@ -1974,24 +2017,41 @@ def pass5_emit_llvm(
         elif concrete == "br_bez":
             # BEZ: branch-if-equal-to-zero (xmit transmitter branch).
             #
-            # Register-only condition: xor a vpool register with itself, then
-            # testq+jz. ZF=1 → branch architecturally taken. The BTB is forced
-            # (via --branch-ann-file) to fall-through, creating the
-            # misprediction. The branch's resolution broadcast is held by
-            # `resolve_stall_cycles` in the gem5 mod, which is what now widens
-            # the speculation window (formerly done by an icache flush of a
-            # condition slot).
+            # Condition is read from the Alloy-specified inreg slot via a
+            # phys-pinned passthrough so STT sees the load→branch taint chain
+            # that Alloy modeled (TBranchx's inreg always traces back to a
+            # load; that's the Alloy-side invariant for "xm"). Architecturally
+            # the inreg's value is 0 (gem5 SE-mode memory init is zero and the
+            # entry prologue pre-zeroes stack slots), so testq sets ZF=1 and
+            # the branch is architecturally taken — the BTB-forced fall-through
+            # prediction creates the misprediction. The branch's resolution
+            # broadcast is held by `resolve_stall_cycles` in the gem5 mod,
+            # which widens the speculation window.
+            #
+            # If Alloy did not specify an inreg slot (non-xm fallback), use a
+            # self-xor on a vpool reg for a guaranteed ZF=1 with no taint.
             ba = rec.get("branch_annotations")
             if ba:
                 taken = ba["taken_target"]
                 ft    = ba["fallthrough_target"]
                 cm(f"BEZ xmit branch: BTB predicts={ba['btb_prediction']}")
-                vpool = pass4_result.get("virtual_reg_pool", [])
-                cond_reg = vpool[1] if len(vpool) > 1 else "r11"
-                cond_raw = tmp("bez_raw")
-                il(f'{cond_raw} = call i64 asm sideeffect '
-                   f'"{mkr}xorq $0, $0", '
-                   f'"=&{{{cond_reg}}}"()')
+                inreg0    = ssa_ref(rec, "inreg0")
+                inreg0_sr = get_slot(rec, "inreg0")
+                phys_in0  = inreg0_sr.get("assigned") if inreg0_sr else None
+                cond_raw  = tmp("bez_raw")
+                if inreg0 is not None and phys_in0 is not None:
+                    # movq %{phys_in0}, %tmp — propagates phys_in0's taint
+                    # bit into tmp at rename. The icmp+br below compiles to
+                    # testq+jcc reading tmp, preserving the dep chain.
+                    il(f'{cond_raw} = call i64 asm sideeffect '
+                       f'"{mkr}movq $1, $0", '
+                       f'"=&r,{{{phys_in0}}}"(i64 {inreg0})')
+                else:
+                    vpool = pass4_result.get("virtual_reg_pool", [])
+                    cond_reg = vpool[1] if len(vpool) > 1 else "r11"
+                    il(f'{cond_raw} = call i64 asm sideeffect '
+                       f'"{mkr}xorq $0, $0", '
+                       f'"=&{{{cond_reg}}}"()')
                 bez_i1 = tmp("bez_i1")
                 il(f"{bez_i1} = icmp eq i64 {cond_raw}, 0")
                 il(f"br i1 {bez_i1}, label %{taken}, label %{ft}")
@@ -2020,14 +2080,37 @@ def pass5_emit_llvm(
                     # branch_annotations.btb_prediction and is applied by the
                     # gem5 mod via --branch-ann-file. The resolution broadcast
                     # is delayed by `resolve_stall_cycles` in that file.
-                    vpool = pass4_result.get("virtual_reg_pool", [])
-                    cond_reg = vpool[1] if len(vpool) > 1 else "r11"
-                    init_op = "movq $$1, $0" if ba["condition_value"] else "xorq $0, $0"
+                    #
+                    # When this branch is an xm (transmitter), pull the
+                    # condition from the Alloy-specified inreg slot so STT
+                    # sees the load→branch taint chain. This only fires for
+                    # resolved-xm cases here (cond=False); unresolved-xm uses
+                    # br_bez and mispredict_taken-xm also routes through
+                    # br_bez via pass2_5.
+                    is_xm = rec.get("xm", False)
+                    inreg0    = ssa_ref(rec, "inreg0") if is_xm else None
+                    inreg0_sr = get_slot(rec, "inreg0") if is_xm else None
+                    phys_in0  = inreg0_sr.get("assigned") if inreg0_sr else None
                     cond_raw = tmp("cond_raw")
                     cond_i1  = tmp("cond_i1")
-                    il(f'{cond_raw} = call i64 asm sideeffect '
-                       f'"{mkr}{init_op}", '
-                       f'"=&{{{cond_reg}}}"()')
+                    if (is_xm and inreg0 is not None and phys_in0 is not None
+                            and not ba["condition_value"]):
+                        # Phys-pinned passthrough: movq %{phys_in0}, %tmp
+                        # propagates phys_in0's taint into tmp at rename.
+                        # Architectural value of phys_in0 is 0 (gem5 SE-mode
+                        # memory init is zero; stack pre-zeroed in prologue),
+                        # so testq sets ZF=1, jne NOT taken — matches the
+                        # cond=False (correctly_not_taken) architectural path.
+                        il(f'{cond_raw} = call i64 asm sideeffect '
+                           f'"{mkr}movq $1, $0", '
+                           f'"=&r,{{{phys_in0}}}"(i64 {inreg0})')
+                    else:
+                        vpool = pass4_result.get("virtual_reg_pool", [])
+                        cond_reg = vpool[1] if len(vpool) > 1 else "r11"
+                        init_op = "movq $$1, $0" if ba["condition_value"] else "xorq $0, $0"
+                        il(f'{cond_raw} = call i64 asm sideeffect '
+                           f'"{mkr}{init_op}", '
+                           f'"=&{{{cond_reg}}}"()')
                     il(f"{cond_i1} = icmp ne i64 {cond_raw}, 0")
                     if mode == "mispredict_taken":
                         # The architecturally-correct (not-taken) path must

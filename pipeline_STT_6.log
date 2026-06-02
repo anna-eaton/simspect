@@ -1,0 +1,570 @@
+[llvm] [mispredict_not_taken] Generating LLVM IR for 100000/100000 instances …
+[llvm] Done — 100000/100000 .ll files
+[llvm] [mispredict_taken] Generating LLVM IR for 100000/100000 instances …
+[llvm] Done — 100000/100000 .ll files
+[asm] Compiling 100000/100000 .ll files  (jobs=40) …
+  [err] inst-017570.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_017570_pc5' is already defined
+__litmus_inst_017570_pc5:
+^
+  [err] inst-017569.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_017569_pc5' is already defined
+__litmus_inst_017569_pc5:
+^
+  [err] inst-017568.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_017568_pc5' is already defined
+__litmus_inst_017568_pc5:
+^
+  [err] inst-017567.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_017567_pc5' is already defined
+__litmus_inst_017567_pc5:
+^
+  [err] inst-014962.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_014962_pc5' is already defined
+__litmus_inst_014962_pc5:
+^
+  [err] inst-014961.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_014961_pc5' is already defined
+__litmus_inst_014961_pc5:
+^
+  [err] inst-014960.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_014960_pc5' is already defined
+__litmus_inst_014960_pc5:
+^
+  [err] inst-014959.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_014959_pc5' is already defined
+__litmus_inst_014959_pc5:
+^
+  [err] inst-014958.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_014958_pc5' is already defined
+__litmus_inst_014958_pc5:
+^
+  [err] inst-014957.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_014957_pc5' is already defined
+__litmus_inst_014957_pc5:
+^
+  [err] inst-014956.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_014956_pc5' is already defined
+__litmus_inst_014956_pc5:
+^
+  [err] inst-014955.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_014955_pc5' is already defined
+__litmus_inst_014955_pc5:
+^
+  [err] inst-014954.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_014954_pc5' is already defined
+__litmus_inst_014954_pc5:
+^
+  [err] inst-014953.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_014953_pc5' is already defined
+__litmus_inst_014953_pc5:
+^
+  [err] inst-033449.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_033449_pc5' is already defined
+__litmus_inst_033449_pc5:
+^
+  [err] inst-019896.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_019896_pc5' is already defined
+__litmus_inst_019896_pc5:
+^
+  [err] inst-020394.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_020394_pc5' is already defined
+__litmus_inst_020394_pc5:
+^
+  progress: 500/100000  ok=483  errors=17
+  [err] inst-020390.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_020390_pc5' is already defined
+__litmus_inst_020390_pc5:
+^
+  [err] inst-020389.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_020389_pc5' is already defined
+__litmus_inst_020389_pc5:
+^
+  [err] inst-020383.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_020383_pc3' is already defined
+__litmus_inst_020383_pc3:
+^
+  [err] (suppressing further per-file errors)
+  progress: 1000/100000  ok=940  errors=60
+  progress: 1500/100000  ok=1385  errors=115
+  progress: 2000/100000  ok=1868  errors=132
+  progress: 2500/100000  ok=2339  errors=161
+  progress: 3000/100000  ok=2810  errors=190
+  progress: 3500/100000  ok=3274  errors=226
+  progress: 4000/100000  ok=3729  errors=271
+  progress: 4500/100000  ok=4206  errors=294
+  progress: 5000/100000  ok=4688  errors=312
+  progress: 5500/100000  ok=5123  errors=377
+  progress: 6000/100000  ok=5553  errors=447
+  progress: 6500/100000  ok=6010  errors=490
+  progress: 7000/100000  ok=6442  errors=558
+  progress: 7500/100000  ok=6899  errors=601
+  progress: 8000/100000  ok=7373  errors=627
+  progress: 8500/100000  ok=7841  errors=659
+  progress: 9000/100000  ok=8300  errors=700
+  progress: 9500/100000  ok=8741  errors=759
+  progress: 10000/100000  ok=9207  errors=793
+  progress: 10500/100000  ok=9659  errors=841
+  progress: 11000/100000  ok=10117  errors=883
+  progress: 11500/100000  ok=10595  errors=905
+  progress: 12000/100000  ok=11072  errors=928
+  progress: 12500/100000  ok=11535  errors=965
+  progress: 13000/100000  ok=12014  errors=986
+  progress: 13500/100000  ok=12482  errors=1018
+  progress: 14000/100000  ok=12969  errors=1031
+  progress: 14500/100000  ok=13428  errors=1072
+  progress: 15000/100000  ok=13916  errors=1084
+  progress: 15500/100000  ok=14407  errors=1093
+  progress: 16000/100000  ok=14882  errors=1118
+  progress: 16500/100000  ok=15376  errors=1124
+  progress: 17000/100000  ok=15861  errors=1139
+  progress: 17500/100000  ok=16339  errors=1161
+  progress: 18000/100000  ok=16795  errors=1205
+  progress: 18500/100000  ok=17260  errors=1240
+  progress: 19000/100000  ok=17689  errors=1311
+  progress: 19500/100000  ok=18151  errors=1349
+  progress: 20000/100000  ok=18592  errors=1408
+  progress: 20500/100000  ok=19053  errors=1447
+  progress: 21000/100000  ok=19529  errors=1471
+  progress: 21500/100000  ok=20018  errors=1482
+  progress: 22000/100000  ok=20498  errors=1502
+  progress: 22500/100000  ok=20968  errors=1532
+  progress: 23000/100000  ok=21405  errors=1595
+  progress: 23500/100000  ok=21881  errors=1619
+  progress: 24000/100000  ok=22358  errors=1642
+  progress: 24500/100000  ok=22842  errors=1658
+  progress: 25000/100000  ok=23335  errors=1665
+  progress: 25500/100000  ok=23813  errors=1687
+  progress: 26000/100000  ok=24294  errors=1706
+  progress: 26500/100000  ok=24792  errors=1708
+  progress: 27000/100000  ok=25238  errors=1762
+  progress: 27500/100000  ok=25695  errors=1805
+  progress: 28000/100000  ok=26176  errors=1824
+  progress: 28500/100000  ok=26645  errors=1855
+  progress: 29000/100000  ok=27101  errors=1899
+  progress: 29500/100000  ok=27591  errors=1909
+  progress: 30000/100000  ok=28047  errors=1953
+  progress: 30500/100000  ok=28519  errors=1981
+  progress: 31000/100000  ok=29004  errors=1996
+  progress: 31500/100000  ok=29487  errors=2013
+  progress: 32000/100000  ok=29980  errors=2020
+  progress: 32500/100000  ok=30472  errors=2028
+  progress: 33000/100000  ok=30953  errors=2047
+  progress: 33500/100000  ok=31435  errors=2065
+  progress: 34000/100000  ok=31912  errors=2088
+  progress: 34500/100000  ok=32378  errors=2122
+  progress: 35000/100000  ok=32839  errors=2161
+  progress: 35500/100000  ok=33297  errors=2203
+  progress: 36000/100000  ok=33768  errors=2232
+  progress: 36500/100000  ok=34245  errors=2255
+  progress: 37000/100000  ok=34724  errors=2276
+  progress: 37500/100000  ok=35220  errors=2280
+  progress: 38000/100000  ok=35711  errors=2289
+  progress: 38500/100000  ok=36188  errors=2312
+  progress: 39000/100000  ok=36683  errors=2317
+  progress: 39500/100000  ok=37151  errors=2349
+  progress: 40000/100000  ok=37634  errors=2366
+  progress: 40500/100000  ok=38093  errors=2407
+  progress: 41000/100000  ok=38521  errors=2479
+  progress: 41500/100000  ok=38977  errors=2523
+  progress: 42000/100000  ok=39412  errors=2588
+  progress: 42500/100000  ok=39871  errors=2629
+  progress: 43000/100000  ok=40315  errors=2685
+  progress: 43500/100000  ok=40775  errors=2725
+  progress: 44000/100000  ok=41235  errors=2765
+  progress: 44500/100000  ok=41726  errors=2774
+  progress: 45000/100000  ok=42180  errors=2820
+  progress: 45500/100000  ok=42663  errors=2837
+  progress: 46000/100000  ok=43093  errors=2907
+  progress: 46500/100000  ok=43570  errors=2930
+  progress: 47000/100000  ok=44057  errors=2943
+  progress: 47500/100000  ok=44520  errors=2980
+  progress: 48000/100000  ok=45004  errors=2996
+  progress: 48500/100000  ok=45468  errors=3032
+  progress: 49000/100000  ok=45956  errors=3044
+  progress: 49500/100000  ok=46428  errors=3072
+  progress: 50000/100000  ok=46913  errors=3087
+  progress: 50500/100000  ok=47393  errors=3107
+  progress: 51000/100000  ok=47849  errors=3151
+  progress: 51500/100000  ok=48294  errors=3206
+  progress: 52000/100000  ok=48743  errors=3257
+  progress: 52500/100000  ok=49204  errors=3296
+  progress: 53000/100000  ok=49670  errors=3330
+  progress: 53500/100000  ok=50149  errors=3351
+  progress: 54000/100000  ok=50635  errors=3365
+  progress: 54500/100000  ok=51097  errors=3403
+  progress: 55000/100000  ok=51560  errors=3440
+  progress: 55500/100000  ok=52029  errors=3471
+  progress: 56000/100000  ok=52501  errors=3499
+  progress: 56500/100000  ok=52961  errors=3539
+  progress: 57000/100000  ok=53442  errors=3558
+  progress: 57500/100000  ok=53909  errors=3591
+  progress: 58000/100000  ok=54383  errors=3617
+  progress: 58500/100000  ok=54853  errors=3647
+  progress: 59000/100000  ok=55339  errors=3661
+  progress: 59500/100000  ok=55822  errors=3678
+  progress: 60000/100000  ok=56293  errors=3707
+  progress: 60500/100000  ok=56772  errors=3728
+  progress: 61000/100000  ok=57256  errors=3744
+  progress: 61500/100000  ok=57731  errors=3769
+  progress: 62000/100000  ok=58207  errors=3793
+  progress: 62500/100000  ok=58671  errors=3829
+  progress: 63000/100000  ok=59131  errors=3869
+  progress: 63500/100000  ok=59603  errors=3897
+  progress: 64000/100000  ok=60088  errors=3912
+  progress: 64500/100000  ok=60559  errors=3941
+  progress: 65000/100000  ok=61026  errors=3974
+  progress: 65500/100000  ok=61510  errors=3990
+  progress: 66000/100000  ok=61988  errors=4012
+  progress: 66500/100000  ok=62469  errors=4031
+  progress: 67000/100000  ok=62963  errors=4037
+  progress: 67500/100000  ok=63442  errors=4058
+  progress: 68000/100000  ok=63925  errors=4075
+  progress: 68500/100000  ok=64412  errors=4088
+  progress: 69000/100000  ok=64905  errors=4095
+  progress: 69500/100000  ok=65373  errors=4127
+  progress: 70000/100000  ok=65854  errors=4146
+  progress: 70500/100000  ok=66346  errors=4154
+  progress: 71000/100000  ok=66792  errors=4208
+  progress: 71500/100000  ok=67258  errors=4242
+  progress: 72000/100000  ok=67733  errors=4267
+  progress: 72500/100000  ok=68202  errors=4298
+  progress: 73000/100000  ok=68692  errors=4308
+  progress: 73500/100000  ok=69140  errors=4360
+  progress: 74000/100000  ok=69608  errors=4392
+  progress: 74500/100000  ok=70066  errors=4434
+  progress: 75000/100000  ok=70525  errors=4475
+  progress: 75500/100000  ok=71002  errors=4498
+  progress: 76000/100000  ok=71438  errors=4562
+  progress: 76500/100000  ok=71889  errors=4611
+  progress: 77000/100000  ok=72386  errors=4614
+  progress: 77500/100000  ok=72835  errors=4665
+  progress: 78000/100000  ok=73300  errors=4700
+  progress: 78500/100000  ok=73792  errors=4708
+  progress: 79000/100000  ok=74252  errors=4748
+  progress: 79500/100000  ok=74739  errors=4761
+  progress: 80000/100000  ok=75220  errors=4780
+  progress: 80500/100000  ok=75692  errors=4808
+  progress: 81000/100000  ok=76178  errors=4822
+  progress: 81500/100000  ok=76647  errors=4853
+  progress: 82000/100000  ok=77113  errors=4887
+  progress: 82500/100000  ok=77600  errors=4900
+  progress: 83000/100000  ok=78061  errors=4939
+  progress: 83500/100000  ok=78520  errors=4980
+  progress: 84000/100000  ok=79012  errors=4988
+  progress: 84500/100000  ok=79490  errors=5010
+  progress: 85000/100000  ok=79939  errors=5061
+  progress: 85500/100000  ok=80415  errors=5085
+  progress: 86000/100000  ok=80880  errors=5120
+  progress: 86500/100000  ok=81321  errors=5179
+  progress: 87000/100000  ok=81810  errors=5190
+  progress: 87500/100000  ok=82253  errors=5247
+  progress: 88000/100000  ok=82729  errors=5271
+  progress: 88500/100000  ok=83202  errors=5298
+  progress: 89000/100000  ok=83680  errors=5320
+  progress: 89500/100000  ok=84158  errors=5342
+  progress: 90000/100000  ok=84633  errors=5367
+  progress: 90500/100000  ok=85120  errors=5380
+  progress: 91000/100000  ok=85587  errors=5413
+  progress: 91500/100000  ok=86084  errors=5416
+  progress: 92000/100000  ok=86554  errors=5446
+  progress: 92500/100000  ok=86964  errors=5536
+  progress: 93000/100000  ok=87464  errors=5536
+  progress: 93500/100000  ok=87885  errors=5615
+  progress: 94000/100000  ok=88304  errors=5696
+  progress: 94500/100000  ok=88804  errors=5696
+  progress: 95000/100000  ok=89304  errors=5696
+  progress: 95500/100000  ok=89742  errors=5758
+  progress: 96000/100000  ok=90182  errors=5818
+  progress: 96500/100000  ok=90682  errors=5818
+  progress: 97000/100000  ok=91102  errors=5898
+  progress: 97500/100000  ok=91522  errors=5978
+  progress: 98000/100000  ok=92022  errors=5978
+  progress: 98500/100000  ok=92522  errors=5978
+  progress: 99000/100000  ok=92962  errors=6038
+  progress: 99500/100000  ok=93401  errors=6099
+  progress: 100000/100000  ok=93901  errors=6099
+[asm] Done — 93901 compiled, 6099 errors
+[asm] Compiling 100000/100000 .ll files  (jobs=40) …
+  [err] inst-040603.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_040603_pc5' is already defined
+__litmus_inst_040603_pc5:
+^
+  [err] inst-019941.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_019941_pc5' is already defined
+__litmus_inst_019941_pc5:
+^
+  [err] inst-019940.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_019940_pc5' is already defined
+__litmus_inst_019940_pc5:
+^
+  [err] inst-019939.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_019939_pc5' is already defined
+__litmus_inst_019939_pc5:
+^
+  [err] inst-019938.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_019938_pc5' is already defined
+__litmus_inst_019938_pc5:
+^
+  [err] inst-019937.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_019937_pc5' is already defined
+__litmus_inst_019937_pc5:
+^
+  [err] inst-019936.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_019936_pc5' is already defined
+__litmus_inst_019936_pc5:
+^
+  [err] inst-017497.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_017497_pc5' is already defined
+__litmus_inst_017497_pc5:
+^
+  [err] inst-004526.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_004526_pc5' is already defined
+__litmus_inst_004526_pc5:
+^
+  progress: 500/100000  ok=491  errors=9
+  [err] inst-098722.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_098722_pc5' is already defined
+__litmus_inst_098722_pc5:
+^
+  [err] inst-098740.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_098740_pc5' is already defined
+__litmus_inst_098740_pc5:
+^
+  [err] inst-098723.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_098723_pc5' is already defined
+__litmus_inst_098723_pc5:
+^
+  [err] inst-098735.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_098735_pc5' is already defined
+__litmus_inst_098735_pc5:
+^
+  [err] inst-098733.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_098733_pc5' is already defined
+__litmus_inst_098733_pc5:
+^
+  [err] inst-069758.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_069758_pc5' is already defined
+__litmus_inst_069758_pc5:
+^
+  [err] inst-069767.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_069767_pc5' is already defined
+__litmus_inst_069767_pc5:
+^
+  [err] inst-067166.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_067166_pc5' is already defined
+__litmus_inst_067166_pc5:
+^
+  [err] inst-067165.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_067165_pc5' is already defined
+__litmus_inst_067165_pc5:
+^
+  [err] inst-019928.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_019928_pc5' is already defined
+__litmus_inst_019928_pc5:
+^
+  [err] inst-019927.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+<inline asm>:2:1: error: symbol '__litmus_inst_019927_pc5' is already defined
+__litmus_inst_019927_pc5:
+^
+  [err] (suppressing further per-file errors)
+  progress: 1000/100000  ok=976  errors=24
+  progress: 1500/100000  ok=1462  errors=38
+  progress: 2000/100000  ok=1942  errors=58
+  progress: 2500/100000  ok=2421  errors=79
+  progress: 3000/100000  ok=2899  errors=101
+  progress: 3500/100000  ok=3353  errors=147
+  progress: 4000/100000  ok=3823  errors=177
+  progress: 4500/100000  ok=4298  errors=202
+  progress: 5000/100000  ok=4765  errors=235
+  progress: 5500/100000  ok=5233  errors=267
+  progress: 6000/100000  ok=5696  errors=304
+  progress: 6500/100000  ok=6152  errors=348
+  progress: 7000/100000  ok=6617  errors=383
+  progress: 7500/100000  ok=7086  errors=414
+  progress: 8000/100000  ok=7557  errors=443
+  progress: 8500/100000  ok=8027  errors=473
+  progress: 9000/100000  ok=8513  errors=487
+  progress: 9500/100000  ok=8989  errors=511
+  progress: 10000/100000  ok=9470  errors=530
+  progress: 10500/100000  ok=9954  errors=546
+  progress: 11000/100000  ok=10435  errors=565
+  progress: 11500/100000  ok=10908  errors=592
+  progress: 12000/100000  ok=11383  errors=617
+  progress: 12500/100000  ok=11857  errors=643
+  progress: 13000/100000  ok=12316  errors=684
+  progress: 13500/100000  ok=12772  errors=728
+  progress: 14000/100000  ok=13247  errors=753
+  progress: 14500/100000  ok=13740  errors=760
+  progress: 15000/100000  ok=14207  errors=793
+  progress: 15500/100000  ok=14660  errors=840
+  progress: 16000/100000  ok=15125  errors=875
+  progress: 16500/100000  ok=15577  errors=923
+  progress: 17000/100000  ok=16020  errors=980
+  progress: 17500/100000  ok=16424  errors=1076
+  progress: 18000/100000  ok=16892  errors=1108
+  progress: 18500/100000  ok=17355  errors=1145
+  progress: 19000/100000  ok=17812  errors=1188
+  progress: 19500/100000  ok=18275  errors=1225
+  progress: 20000/100000  ok=18749  errors=1251
+  progress: 20500/100000  ok=19235  errors=1265
+  progress: 21000/100000  ok=19701  errors=1299
+  progress: 21500/100000  ok=20189  errors=1311
+  progress: 22000/100000  ok=20672  errors=1328
+  progress: 22500/100000  ok=21140  errors=1360
+  progress: 23000/100000  ok=21611  errors=1389
+  progress: 23500/100000  ok=22075  errors=1425
+  progress: 24000/100000  ok=22542  errors=1458
+  progress: 24500/100000  ok=23026  errors=1474
+  progress: 25000/100000  ok=23497  errors=1503
+  progress: 25500/100000  ok=23970  errors=1530
+  progress: 26000/100000  ok=24461  errors=1539
+  progress: 26500/100000  ok=24917  errors=1583
+  progress: 27000/100000  ok=25389  errors=1611
+  progress: 27500/100000  ok=25858  errors=1642
+  progress: 28000/100000  ok=26296  errors=1704
+  progress: 28500/100000  ok=26760  errors=1740
+  progress: 29000/100000  ok=27231  errors=1769
+  progress: 29500/100000  ok=27690  errors=1810
+  progress: 30000/100000  ok=28177  errors=1823
+  progress: 30500/100000  ok=28653  errors=1847
+  progress: 31000/100000  ok=29135  errors=1865
+  progress: 31500/100000  ok=29606  errors=1894
+  progress: 32000/100000  ok=30092  errors=1908
+  progress: 32500/100000  ok=30563  errors=1937
+  progress: 33000/100000  ok=31051  errors=1949
+  progress: 33500/100000  ok=31540  errors=1960
+  progress: 34000/100000  ok=32018  errors=1982
+  progress: 34500/100000  ok=32494  errors=2006
+  progress: 35000/100000  ok=32957  errors=2043
+  progress: 35500/100000  ok=33436  errors=2064
+  progress: 36000/100000  ok=33888  errors=2112
+  progress: 36500/100000  ok=34331  errors=2169
+  progress: 37000/100000  ok=34779  errors=2221
+  progress: 37500/100000  ok=35213  errors=2287
+  progress: 38000/100000  ok=35665  errors=2335
+  progress: 38500/100000  ok=36119  errors=2381
+  progress: 39000/100000  ok=36580  errors=2420
+  progress: 39500/100000  ok=37061  errors=2439
+  progress: 40000/100000  ok=37533  errors=2467
+  progress: 40500/100000  ok=38018  errors=2482
+  progress: 41000/100000  ok=38490  errors=2510
+  progress: 41500/100000  ok=38962  errors=2538
+  progress: 42000/100000  ok=39435  errors=2565
+  progress: 42500/100000  ok=39905  errors=2595
+  progress: 43000/100000  ok=40387  errors=2613
+  progress: 43500/100000  ok=40870  errors=2630
+  progress: 44000/100000  ok=41354  errors=2646
+  progress: 44500/100000  ok=41807  errors=2693
+  progress: 45000/100000  ok=42269  errors=2731
+  progress: 45500/100000  ok=42720  errors=2780
+  progress: 46000/100000  ok=43174  errors=2826
+  progress: 46500/100000  ok=43648  errors=2852
+  progress: 47000/100000  ok=44119  errors=2881
+  progress: 47500/100000  ok=44580  errors=2920
+  progress: 48000/100000  ok=45060  errors=2940
+  progress: 48500/100000  ok=45511  errors=2989
+  progress: 49000/100000  ok=45967  errors=3033
+  progress: 49500/100000  ok=46423  errors=3077
+  progress: 50000/100000  ok=46878  errors=3122
+  progress: 50500/100000  ok=47308  errors=3192
+  progress: 51000/100000  ok=47781  errors=3219
+  progress: 51500/100000  ok=48248  errors=3252
+  progress: 52000/100000  ok=48720  errors=3280
+  progress: 52500/100000  ok=49196  errors=3304
+  progress: 53000/100000  ok=49669  errors=3331
+  progress: 53500/100000  ok=50153  errors=3347
+  progress: 54000/100000  ok=50600  errors=3400
+  progress: 54500/100000  ok=51055  errors=3445
+  progress: 55000/100000  ok=51518  errors=3482
+  progress: 55500/100000  ok=51994  errors=3506
+  progress: 56000/100000  ok=52477  errors=3523
+  progress: 56500/100000  ok=52939  errors=3561
+  progress: 57000/100000  ok=53400  errors=3600
+  progress: 57500/100000  ok=53843  errors=3657
+  progress: 58000/100000  ok=54315  errors=3685
+  progress: 58500/100000  ok=54779  errors=3721
+  progress: 59000/100000  ok=55250  errors=3750
+  progress: 59500/100000  ok=55698  errors=3802
+  progress: 60000/100000  ok=56166  errors=3834
+  progress: 60500/100000  ok=56657  errors=3843
+  progress: 61000/100000  ok=57141  errors=3859
+  progress: 61500/100000  ok=57602  errors=3898
+  progress: 62000/100000  ok=58085  errors=3915
+  progress: 62500/100000  ok=58572  errors=3928
+  progress: 63000/100000  ok=59012  errors=3988
+  progress: 63500/100000  ok=59508  errors=3992
+  progress: 64000/100000  ok=59987  errors=4013
+  progress: 64500/100000  ok=60458  errors=4042
+  progress: 65000/100000  ok=60935  errors=4065
+  progress: 65500/100000  ok=61418  errors=4082
+  progress: 66000/100000  ok=61907  errors=4093
+  progress: 66500/100000  ok=62372  errors=4128
+  progress: 67000/100000  ok=62854  errors=4146
+  progress: 67500/100000  ok=63313  errors=4187
+  progress: 68000/100000  ok=63780  errors=4220
+  progress: 68500/100000  ok=64243  errors=4257
+  progress: 69000/100000  ok=64682  errors=4318
+  progress: 69500/100000  ok=65164  errors=4336
+  progress: 70000/100000  ok=65647  errors=4353
+  progress: 70500/100000  ok=66112  errors=4388
+  progress: 71000/100000  ok=66582  errors=4418
+  progress: 71500/100000  ok=67058  errors=4442
+  progress: 72000/100000  ok=67527  errors=4473
+  progress: 72500/100000  ok=67999  errors=4501
+  progress: 73000/100000  ok=68460  errors=4540
+  progress: 73500/100000  ok=68917  errors=4583
+  progress: 74000/100000  ok=69384  errors=4616
+  progress: 74500/100000  ok=69853  errors=4647
+  progress: 75000/100000  ok=70333  errors=4667
+  progress: 75500/100000  ok=70797  errors=4703
+  progress: 76000/100000  ok=71276  errors=4724
+  progress: 76500/100000  ok=71749  errors=4751
+  progress: 77000/100000  ok=72212  errors=4788
+  progress: 77500/100000  ok=72675  errors=4825
+  progress: 78000/100000  ok=73164  errors=4836
+  progress: 78500/100000  ok=73631  errors=4869
+  progress: 79000/100000  ok=74115  errors=4885
+  progress: 79500/100000  ok=74581  errors=4919
+  progress: 80000/100000  ok=75035  errors=4965
+  progress: 80500/100000  ok=75502  errors=4998
+  progress: 81000/100000  ok=75962  errors=5038
+  progress: 81500/100000  ok=76437  errors=5063
+  progress: 82000/100000  ok=76903  errors=5097
+  progress: 82500/100000  ok=77378  errors=5122
+  progress: 83000/100000  ok=77855  errors=5145
+  progress: 83500/100000  ok=78302  errors=5198
+  progress: 84000/100000  ok=78765  errors=5235
+  progress: 84500/100000  ok=79215  errors=5285
+  progress: 85000/100000  ok=79697  errors=5303
+  progress: 85500/100000  ok=80168  errors=5332
+  progress: 86000/100000  ok=80640  errors=5360
+  progress: 86500/100000  ok=81100  errors=5400
+  progress: 87000/100000  ok=81550  errors=5450
+  progress: 87500/100000  ok=82034  errors=5466
+  progress: 88000/100000  ok=82508  errors=5492
+  progress: 88500/100000  ok=82998  errors=5502
+  progress: 89000/100000  ok=83477  errors=5523
+  progress: 89500/100000  ok=83939  errors=5561
+  progress: 90000/100000  ok=84418  errors=5582
+  progress: 90500/100000  ok=84872  errors=5628
+  progress: 91000/100000  ok=85359  errors=5641
+  progress: 91500/100000  ok=85820  errors=5680
+  progress: 92000/100000  ok=86304  errors=5696
+  progress: 92500/100000  ok=86788  errors=5712
+  progress: 93000/100000  ok=87248  errors=5752
+  progress: 93500/100000  ok=87731  errors=5769
+  progress: 94000/100000  ok=88216  errors=5784
+  progress: 94500/100000  ok=88676  errors=5824
+  progress: 95000/100000  ok=89142  errors=5858
+  progress: 95500/100000  ok=89597  errors=5903
+  progress: 96000/100000  ok=90059  errors=5941
+  progress: 96500/100000  ok=90522  errors=5978
+  progress: 97000/100000  ok=90998  errors=6002
+  progress: 97500/100000  ok=91488  errors=6012
+  progress: 98000/100000  ok=91980  errors=6020
+  progress: 98500/100000  ok=92464  errors=6036
+  progress: 99000/100000  ok=92962  errors=6038
+  progress: 99500/100000  ok=93401  errors=6099
+  progress: 100000/100000  ok=93901  errors=6099
+[asm] Done — 93901 compiled, 6099 errors

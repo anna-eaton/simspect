@@ -1,0 +1,26 @@
+[testrun] campaign /tests/simspect/results/STT_6_interleave__20260602_015852
+[testrun 01:58:55] STT_6_interleave/mispredict_not_taken: 2000 new (of 193467 pending) → gem5
+[testrun 02:20:06] STT_6_interleave/mispredict_not_taken: +2000 → br_x 0/684 | ld 7/1316
+[testrun 02:20:07] STT_6_interleave/mispredict_taken: 2000 new (of 8905 pending) → gem5
+[testrun 02:40:45] STT_6_interleave/mispredict_taken: +2000 → br_x 0/684 | ld 31/1316
+[testrun 02:45:52] STT_6_interleave/mispredict_not_taken: 2000 new (of 225669 pending) → gem5
+[testrun 02:57:06] STT_6_interleave/mispredict_not_taken: +2000 → br_x 0/1368 | ld 20/2632
+[testrun 02:57:06] STT_6_interleave/mispredict_taken: 2000 new (of 33436 pending) → gem5
+[testrun 03:08:40] STT_6_interleave/mispredict_taken: +2000 → br_x 0/1368 | ld 76/2632
+[testrun 03:13:45] STT_6_interleave/mispredict_not_taken: 2000 new (of 243053 pending) → gem5
+[testrun 03:23:40] STT_6_interleave/mispredict_not_taken: +2000 → br_x 0/2004 | ld 26/3996
+[testrun 03:23:41] STT_6_interleave/mispredict_taken: 2000 new (of 51478 pending) → gem5
+[testrun 03:34:35] STT_6_interleave/mispredict_taken: +2000 → br_x 0/2004 | ld 92/3996
+[testrun 03:39:41] STT_6_interleave/mispredict_not_taken: 2000 new (of 261508 pending) → gem5
+[testrun 03:49:19] STT_6_interleave/mispredict_not_taken: +2000 → br_x 0/2704 | ld 35/5296
+[testrun 03:49:20] STT_6_interleave/mispredict_taken: 2000 new (of 70131 pending) → gem5
+[testrun 04:00:02] STT_6_interleave/mispredict_taken: +2000 → br_x 0/2704 | ld 115/5296
+[testrun 04:05:09] STT_6_interleave/mispredict_not_taken: 2000 new (of 280262 pending) → gem5
+[testrun 04:15:37] STT_6_interleave/mispredict_not_taken: +2000 → br_x 0/3380 | ld 43/6620
+[testrun 04:15:38] STT_6_interleave/mispredict_taken: 2000 new (of 89336 pending) → gem5
+[testrun 04:26:30] STT_6_interleave/mispredict_taken: +2000 → br_x 0/3380 | ld 159/6620
+[testrun 04:31:37] STT_6_interleave/mispredict_not_taken: 2000 new (of 299406 pending) → gem5
+[testrun 04:43:36] STT_6_interleave/mispredict_not_taken: +2000 → br_x 0/4016 | ld 49/7984
+[testrun 04:43:38] STT_6_interleave/mispredict_taken: 2000 new (of 108177 pending) → gem5
+[testrun 04:57:08] STT_6_interleave/mispredict_taken: +2000 → br_x 0/4016 | ld 179/7984
+[testrun 05:02:20] STT_6_interleave/mispredict_not_taken: 2000 new (of 315964 pending) → gem5

@@ -1,0 +1,9 @@
+[Thu May 28 10:19:19 UTC 2026] launch starting
+pipeline STT_6 pid=3104273
+pipeline STT_6_interleave pid=3104274
+pipeline STT_all pid=3104276
+watcher STT_6_sttbuild pid=3104278
+watcher STT_6_interleave_sttbuild pid=3104280
+watcher STT_all_sttbuild pid=3104281
+watcher STT_all_amulet pid=3104282
+[Thu May 28 10:19:19 UTC 2026] all background procs launched

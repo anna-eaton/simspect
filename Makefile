@@ -1,27 +1,48 @@
 # SimSpect pipeline Makefile
 #
 # Variables (override on the command line):
-#   MODEL  — Alloy model stem, e.g. STT_4          (required for most targets)
-#   CONFIG — path to the TOML config file           (default: run_config.toml)
-#   FORCE  — set to 1 to re-run even if output exists  (default: unset)
+#   MODEL     — Alloy model stem, e.g. SPT_6_oneLP        (required for most targets)
+#   CONFIG    — generation config (paths/alloy/speculation; no gem5 build needed)
+#   RUNCONFIG — execution config for testrun (the gem5 build/scheme to target)
+#   FORCE     — set to 1 to re-run even if output exists  (default: unset)
 #
-# Targets:
-#   make xml    MODEL=STT_4    Phase 1 — Alloy → XML instances
-#   make llvm   MODEL=STT_4    Phase 2 — XML  → LLVM IR + bare annotations
-#   make asm    MODEL=STT_4    Phase 3 — LLVM → x86 asm + resolved annotations
-#   make gem5   MODEL=STT_4    Phase 4 — gem5 window check
-#   make all    MODEL=STT_4    Run all four phases in sequence
-#   make clean  MODEL=STT_4    Delete generated/<MODEL> entirely
+# ── Recommended flow: pipelined producer + per-build consumers ───────────────
+#   make gen   MODEL=SPT_6_oneLP CONFIG=run_config_SPT_6_oneLP.jsonc
+#       Producer: xml + llvm + asm run CONCURRENTLY (all stages progress at
+#       once); resumable; no gem5. Writes testsets/<MODEL>/.
+#   make run   MODEL=SPT_6_oneLP RUNCONFIG=results/SPT_6_oneLP_fence/run_config.jsonc
+#       Consumer: gem5 sweep, results split BY TRANSMITTER TYPE into a
+#       timestamped results/<name>__<ts>/<mode>/<kind>/. Launch one per build;
+#       run several (different RUNCONFIG) against the same MODEL concurrently.
+#   make pipeline MODEL=... CONFIG=... RUNCONFIG=...
+#       Producer in the background + one consumer in the foreground.
+#
+# ── Low-level engine (single build, sequential; used by the watchers) ────────
+#   make xml/llvm/asm/gem5/all/clean MODEL=... CONFIG=...   (see pipeline.py)
 
-MODEL  ?= STT_4
-CONFIG ?= run_config.jsonc
-PY     := python3
-SCRIPT := pipeline.py
+MODEL     ?= STT_4
+CONFIG    ?= run_config.jsonc
+RUNCONFIG ?= $(CONFIG)
+PY        := python3
+SCRIPT    := pipeline.py
 
 _FORCE := $(if $(filter 1,$(FORCE)),--force,)
 
-.PHONY: all xml llvm asm gem5 clean help
+.PHONY: all xml llvm asm gem5 clean help gen run pipeline
 
+# ── Pipelined producer / consumer ────────────────────────────────────────────
+gen:
+	$(PY) testsetgen.py --model $(MODEL) --config $(CONFIG) $(_FORCE)
+
+run:
+	$(PY) testrun.py --model $(MODEL) --config $(RUNCONFIG)
+
+pipeline:
+	$(PY) testsetgen.py --model $(MODEL) --config $(CONFIG) $(_FORCE) \
+	    > pipeline_gen_$(MODEL).log 2>&1 &
+	$(PY) testrun.py --model $(MODEL) --config $(RUNCONFIG)
+
+# ── Low-level engine ─────────────────────────────────────────────────────────
 all:
 	$(PY) $(SCRIPT) all --model $(MODEL) --config $(CONFIG) $(_FORCE)
 
@@ -42,19 +63,21 @@ clean:
 
 help:
 	@echo ""
-	@echo "Usage:  make <target> MODEL=<stem> [CONFIG=run_config.toml] [FORCE=1]"
+	@echo "Recommended (pipelined):"
+	@echo "  make gen      MODEL=<stem> CONFIG=<gen.jsonc>"
+	@echo "                  Producer: xml+llvm+asm concurrently, resumable, no gem5."
+	@echo "  make run      MODEL=<stem> RUNCONFIG=<build.jsonc>"
+	@echo "                  Consumer: gem5 sweep, results split by transmitter type"
+	@echo "                  into results/<name>__<ts>/<mode>/<kind>/. One per build."
+	@echo "  make pipeline MODEL=<stem> CONFIG=<gen.jsonc> RUNCONFIG=<build.jsonc>"
+	@echo "                  Producer (background) + one consumer (foreground)."
 	@echo ""
-	@echo "Targets:"
-	@echo "  xml     Phase 1: enumerate Alloy instances → generated/<MODEL>/xml/"
-	@echo "  llvm    Phase 2: XML → LLVM IR             → generated/<MODEL>/llvm/"
-	@echo "  asm     Phase 3: LLVM → x86 asm            → generated/<MODEL>/asm/ + ann/"
-	@echo "  gem5    Phase 4: gem5 window check          → generated/<MODEL>/results/"
-	@echo "  all     Run phases 1-4 in sequence"
-	@echo "  clean   Delete generated/<MODEL>/ entirely"
+	@echo "Engine (single build, sequential):"
+	@echo "  make xml | llvm | asm | gem5 | all | clean   MODEL=<stem> CONFIG=<cfg>"
+	@echo ""
+	@echo "Vars: MODEL, CONFIG, RUNCONFIG (default=CONFIG), FORCE=1"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make all   MODEL=STT_4"
-	@echo "  make gem5  MODEL=STT_4 CONFIG=my_config.jsonc"
-	@echo "  make asm   MODEL=STT_4 FORCE=1"
-	@echo "  make clean MODEL=STT_4"
+	@echo "  make gen MODEL=SPT_6_oneLP CONFIG=run_config_SPT_6_oneLP.jsonc"
+	@echo "  make run MODEL=SPT_6_oneLP RUNCONFIG=results/SPT_6_oneLP_fence/run_config.jsonc"
 	@echo ""

@@ -1,0 +1,69 @@
+// SPT_6_oneLP full run on /work/gem5-spt (X86_MESI_Two_Level build with
+// BTB-force + resolve-stall + fnc-commit-stall hooks; --scheme=2 →
+// SpectreSafeFence via se.py). Same shape as run_config_SPT_6_full.jsonc
+// EXCEPT: implicit-flow handling is ON (--configImpFlow=Lazy instead of
+// Ignore) and the alloy model is SPT_6_oneLP. NO interleave.
+// NOTE: Eager is a disabled stub in gem5-spt (commit_impl.hh asserts 0 on
+// the first squash) — Lazy is the real implicit-flow defense.
+//
+// Pipeline does the Fence self-sweep into results/SPT_6_oneLP/. Two
+// parallel watchers (results/SPT_6_oneLP_fence/ and .../_invispec/)
+// give the clean defense-mode comparison on the same testset.
+{
+  "paths": {
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "testset_dir":        "testsets",
+    "results_dir":        "results",
+    "results_name":       "SPT_6_oneLP"
+  },
+
+  "alloy": {
+    "max_instances": 100000,
+    "batch_size":    1000
+  },
+
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_not_taken", "mispredict_taken"]
+  },
+
+  "gem5": {
+    "binary":                  "/work/gem5-spt/build/X86_MESI_Two_Level/gem5.opt",
+    "config_script":           "/work/gem5-spt/configs/example/se.py",
+    "branch_ann_enable":       true,
+    "cpu_type":                "DerivO3CPU",
+    "scheme":                  2,
+    "caches":                  true,
+    "jobs":                    16,
+    "debug_flags":             ["O3PipeView", "LSQUnit"],
+    "debug_file":              "pipeview.txt",
+    "fnc_commit_stall_cycles": 150,
+    "sample_fraction":         1.0,
+    "extra_args": [
+      "--applyDDIFT=1",
+      "--fwdUntaint=1",
+      "--bwdUntaint=1",
+      "--configImpFlow=Lazy"
+    ]
+  },
+
+  "sweep": {
+    "enabled":                 true,
+    "points":                  [0, 500, 2500],
+    "unresolved_stall_cycles": 5000
+  },
+
+  "pipeline": {
+    "check":    "per_type",
+    "keep_tmp": false
+  },
+
+  "interleave": {
+    "enabled": false
+  }
+}

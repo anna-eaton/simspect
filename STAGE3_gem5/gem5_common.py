@@ -138,10 +138,17 @@ def run_gem5(binary: Path, workdir: Path,
              fnc_pc: Optional[int] = None) -> Path:
     outdir = workdir / "m5out"
     outdir.mkdir(exist_ok=True)
+    # Always trace Commit too: check_br keys the branch-leak verdict on the
+    # xmit's actual mispredict-squash broadcast tick (the observable redirect),
+    # which a delay-based defense (STT implicit-channel) pushes out of the
+    # window even though the branch resolves in-window. That tick is only in the
+    # Commit debug log, not O3PipeView. Cheap for litmus-size traces.
+    dbg_flags = (GEM5_DBG_FLAG if "Commit" in GEM5_DBG_FLAG.split(",")
+                 else GEM5_DBG_FLAG + ",Commit")
     cmd = [
         str(GEM5_BIN),
         f"--outdir={outdir}",
-        f"--debug-flags={GEM5_DBG_FLAG}",
+        f"--debug-flags={dbg_flags}",
         f"--debug-file={GEM5_DBG_FILE}",
         str(SE_CONFIG),
         f"--cmd={binary}",
@@ -162,6 +169,10 @@ def run_gem5(binary: Path, workdir: Path,
     if fnc_pc is not None and FNC_COMMIT_STALL_CYCLES > 0:
         cmd.append(f"--fnc-commit-stall-pc={hex(fnc_pc)}")
         cmd.append(f"--fnc-commit-stall-cycles={FNC_COMMIT_STALL_CYCLES}")
+
+    extra = os.environ.get("SIMSPECT_GEM5_EXTRA", "")
+    if extra:
+        cmd.extend(a for a in extra.split("\x1f") if a)
 
     subprocess.run(cmd, check=True, capture_output=True, cwd=str(GEM5_DIR))
     return outdir / GEM5_DBG_FILE
@@ -242,6 +253,29 @@ def parse_lsq(trace_path: Path) -> Dict[int, List[dict]]:
     return dict(by_pc)
 
 
+_COMMIT_SQUASH_RE = re.compile(
+    r"^\s*(\d+):\s+system\.cpu\.commit.*Squashing due to branch mispred PC:(0x[0-9a-f]+)")
+
+
+def parse_commit_squashes(trace_path: Path) -> Dict[int, List[int]]:
+    """Parse Commit-debug 'Squashing due to branch mispred PC:<pc>' events.
+
+    Returns dict pc -> sorted list of ticks at which the branch at <pc>
+    broadcast its misprediction squash — i.e. the observable fetch redirect.
+    A delay-based defense (STT implicit-channel "made pending") lets a tainted
+    branch RESOLVE in-window but never broadcasts its squash in-window, so the
+    branch's pc has no in-window entry here. check_br keys the leak on this tick
+    (not the pipeview 'complete' tick), which is why it needs the Commit trace.
+    """
+    by_pc: Dict[int, List[int]] = defaultdict(list)
+    with open(trace_path) as f:
+        for line in f:
+            m = _COMMIT_SQUASH_RE.match(line)
+            if m:
+                by_pc[int(m.group(2), 16)].append(int(m.group(1)))
+    return {pc: sorted(t) for pc, t in by_pc.items()}
+
+
 def best_record(recs: List[dict]) -> Optional[dict]:
     """Pick the record with the highest pipeline stage reached.
 
@@ -270,6 +304,90 @@ def load_annotation(ann_path: Path) -> dict:
         lc=ann.get("commit_boundary", {}).get("last_committed", {}),
         fnc=ann.get("commit_boundary", {}).get("first_noncommitted", {}),
         annotations=ann.get("annotations", []),
+    )
+
+
+# ── Panic → hit reclassification ────────────────────────────────────────────
+#
+# An idivq with divisor=0 raises Divide-Error. The fact that the fault fired
+# (vs. silently completing) is itself a side-channel: it reveals the
+# divisor's zero-ness. When the divide is the test's xmit *and* lives on the
+# BTB-forced speculative shadow, the fault is the leak signal we're trying
+# to measure — but gem5's O3 model panics on the fault before the squash
+# arrives, so process_one() would normally bucket it as `status="error"`.
+#
+# Codegen guarantees: non-xm divs route through %rcx with `orq $1, %rcx`,
+# so they cannot fault. Architectural xm divs (xm PC ≤ any mispredict
+# branch PC) are real program crashes and stay as errors. Only speculative
+# xm-div panics are promoted to `issued_in_window=True`.
+
+_DIVIDE_FAULT_RE = re.compile(
+    r"panic:\s+fault\s+\(Divide-Error\).*?PC\s*\(0x([0-9a-f]+)",
+    re.IGNORECASE,
+)
+
+
+def _alloy_pc_at_offset(parts: dict, offset: int) -> Optional[int]:
+    """Map an x86 byte offset (relative to the litmus function base) back to
+    the Alloy PC whose marker region contains it.
+
+    Markers come from the .ann.json: each annotation has x86_pc_offset for
+    its branch_pc; commit_boundary entries and xmit have x86_offset.
+    """
+    pc_offs: Dict[int, int] = {}
+    for a in parts.get("annotations", []):
+        pc = a.get("branch_pc")
+        off = a.get("x86_pc_offset")
+        if pc is not None and off is not None:
+            pc_offs[pc] = off
+    for which in (parts.get("lc"), parts.get("fnc"), parts.get("xmit")):
+        if which:
+            pc = which.get("pc")
+            off = which.get("x86_offset")
+            if pc is not None and off is not None:
+                pc_offs[pc] = off
+    if not pc_offs:
+        return None
+    sorted_pcs = sorted(pc_offs.items(), key=lambda kv: kv[1])
+    for i, (pc, off) in enumerate(sorted_pcs):
+        next_off = sorted_pcs[i + 1][1] if i + 1 < len(sorted_pcs) else 1 << 30
+        if off <= offset < next_off:
+            return pc
+    return None
+
+
+def classify_divide_panic(stderr: str, parts: dict, xmit_pc: Optional[int],
+                          xmit_kind: str) -> Optional[dict]:
+    """If `stderr` is a Divide-Error panic on the xm div sitting in the
+    speculative shadow, return a dict of fields to merge into the per-test
+    result (turning the error into a hit). Otherwise return None.
+    """
+    if not xmit_pc or xmit_kind != "other_x":
+        return None
+    m = _DIVIDE_FAULT_RE.search(stderr)
+    if not m:
+        return None
+    fault_addr = int(m.group(1), 16)
+    xmit_x86_off = parts.get("xmit", {}).get("x86_offset")
+    if xmit_x86_off is None:
+        return None
+    base = xmit_pc - xmit_x86_off
+    fault_off = fault_addr - base
+    fault_pc = _alloy_pc_at_offset(parts, fault_off)
+    xmit_alloy_pc = parts.get("xmit", {}).get("pc")
+    if fault_pc is None or fault_pc != xmit_alloy_pc:
+        return None
+    mispredict_pcs = [a.get("branch_pc") for a in parts.get("annotations", [])
+                      if a.get("mode") in ("mispredict_not_taken",
+                                           "mispredict_taken")
+                      and a.get("branch_pc") is not None]
+    if not mispredict_pcs or xmit_alloy_pc <= min(mispredict_pcs):
+        return None
+    return dict(
+        status="ok",
+        issued_in_window=True,
+        hit_kind="div_fault",
+        error=None,
     )
 
 
@@ -350,12 +468,14 @@ def check_branch_resolutions(by_pc: Dict[int, list],
 
 # Type alias for a check function:
 #   check_fn(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle,
-#            lsq_by_pc) → dict with at least "issued_in_window"
+#            lsq_by_pc, squash_by_pc) → dict with at least "issued_in_window"
 # `lsq_by_pc` is the LSQUnit-debug-trace mapping (pc → list of load events)
 # so check_ld can use the LSQ "Executing load" tick — the real cache-touch
 # signal — for speculative loads that pipeview omits.
+# `squash_by_pc` is the Commit-debug mapping (pc → list of mispredict-squash
+# broadcast ticks) so check_br can key the leak on the actual redirect tick.
 CheckFn = Callable[[Dict[int, list], Optional[int], Optional[int], Optional[int],
-                    List[dict], int, Dict[int, list]], dict]
+                    List[dict], int, Dict[int, list], Dict[int, list]], dict]
 
 
 def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
@@ -368,6 +488,8 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
                    xmit_issue=None, xmit_complete=None,
                    lc_retire=None, fnc_retire=None, fnc_complete=None,
                    error=None)
+    parts: dict = {}
+    xmit_pc: Optional[int] = None
     try:
         parts   = load_annotation(ann_path)
         xmit    = parts["xmit"]
@@ -392,6 +514,7 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
             trace = run_gem5(binary, workdir, ann_path=ann_path, fnc_pc=fnc_pc)
             by_pc     = parse_pipeview(trace)
             lsq_by_pc = parse_lsq(trace)
+            squash_by_pc = parse_commit_squashes(trace)
             ticks_per_cycle = parse_ticks_per_cycle(workdir / "m5out")
             unresolved = collect_unresolved_branches(
                 dict(annotations=parts["annotations"]), binary, name)
@@ -399,7 +522,8 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
             # event we're conditioning on — exclude it from the bound check.
             unresolved = [u for u in unresolved if u["pc"] != xmit_pc]
             check_result = check_fn(by_pc, xmit_pc, lc_pc, fnc_pc,
-                                    unresolved, ticks_per_cycle, lsq_by_pc)
+                                    unresolved, ticks_per_cycle, lsq_by_pc,
+                                    squash_by_pc)
             result.update(check_result)
 
     except subprocess.CalledProcessError as e:
@@ -410,6 +534,12 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
         cause = next((ln.strip() for ln in stderr.splitlines()
                       if ln.startswith(("panic:", "fatal:"))), None)
         result["error"] = (cause + " | " if cause else "") + stderr[-400:]
+        # Promote speculative-shadow div-by-zero panics on the xm to hits:
+        # the fault firing is the leak signal. See classify_divide_panic.
+        hit = classify_divide_panic(stderr, parts, xmit_pc,
+                                    result.get("xmit_kind", ""))
+        if hit is not None:
+            result.update(hit)
     except Exception as e:
         result["status"] = "error"
         result["error"]  = str(e)
