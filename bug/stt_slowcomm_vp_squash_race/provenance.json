@@ -1,0 +1,68 @@
+{
+  "bug_id": "stt_slowcomm_vp_squash_race",
+  "title": "STT visibility-point ↔ squash-drain race (wrong-path tainted load touches cache after taint-clear, before squash completes)",
+  "verdict": "REAL STT design-level race (timing-parameter dependent; does NOT manifest at stock O3 timing)",
+  "found_by": "designconsultant (slow_comm_squash1 experiment), 2026-06-02",
+  "added_to_bug_folder_by": "4a:reconHitDiag (2026-06-02) — copied from the experiment's diagnostics/hits; NOT independently re-verified this session",
+  "representative_stem": "inst-047231",
+  "transmitter_kind": "ld",
+  "leak_shape": "load→load: xmit load address produced by an older speculative load on a mispredicted path",
+  "run": {
+    "experiment": "results/experiments/slow_comm_squash1",
+    "campaign_dir": "results/experiments/slow_comm_squash1/STT_6",
+    "mode": "mispredict_not_taken",
+    "run_config": "results/experiments/slow_comm_squash1/STT_6/run_config.jsonc",
+    "driver": "results/experiments/slow_comm_squash1/run_sample.py"
+  },
+  "build": {
+    "gem5_binary": "/work/stt/build/X86/gem5.opt",
+    "config_script": "/work/stt/configs/example/se_slowcomm.py",
+    "cpu_type": "DerivO3CPU",
+    "scheme": 2,
+    "scheme_meaning": "STT (implicitChannel)",
+    "branch_ann_enable": true,
+    "fnc_commit_stall_cycles": 150
+  },
+  "timing_params_required_to_reproduce": {
+    "note": "the leak is timing-dependent; driver is commitToIEWDelay (≳ 2–3). Does NOT leak at stock (commitToIEWDelay=1, squashWidth=8), verified 0/1200.",
+    "se_slowcomm_hardcoded": {
+      "iewToCommitDelay": 30,
+      "commitToIEWDelay": 4,
+      "backComSize": 40,
+      "forwardComSize": 40,
+      "squashWidth": 1
+    },
+    "minimal_poc": {
+      "commitToIEWDelay": 3,
+      "squashWidth": 8,
+      "fnc_hook": "off"
+    }
+  },
+  "testset": {
+    "model": "STT_6",
+    "xml": "testsets/STT_6/xml/inst-047231.xml",
+    "asm": "testsets/STT_6/mispredict_not_taken/asm/inst-047231.s",
+    "ann": "testsets/STT_6/mispredict_not_taken/ann/inst-047231.ann.json"
+  },
+  "repo_commit": "d8b6caaff7264a237af227cde8c803a293668df6 (d8b6caa)",
+  "evidence": {
+    "xmit_load_sn": 571,
+    "xmit_pc": "0x401c68",
+    "executing_load_tick_slowcomm": 2946500,
+    "executing_load_tick_stock": 0,
+    "sent_cache_packet": true,
+    "branch_resolve_tick": 2945500,
+    "cache_packet_tick": 2946500,
+    "load_squash_tick": 2947500,
+    "window_lc_fnc_retire": [2907000, 3037500],
+    "reached_cache": true,
+    "is_check_ld_false_positive": false
+  },
+  "ruled_out": ["check_ld false positive", "model over-approximation (addr_from_load 231/231)", "fnc-commit-stall hook", "squashWidth artifact (leaks at squashWidth=8)", "concretization", "stock O3 timing"],
+  "caveat": "Bounded-squash route (deep window widens it) cannot be shown in this gem5 (LSQ/IQ flush is one-shot/unbounded; only ROB unwind is squashWidth-bounded). Driver in-sim is commitToIEWDelay. Real silicon's resolution→squash window is plausibly already multi-cycle.",
+  "files": {
+    "explainer": "BUG_EXPLAINER.md",
+    "example_writeup": "example_inst-047231.md",
+    "diagnostic": "diag_stt_vp_squash_race.py"
+  }
+}

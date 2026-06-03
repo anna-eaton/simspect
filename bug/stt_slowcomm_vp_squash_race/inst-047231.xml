@@ -1,0 +1,253 @@
+<alloy builddate="2025-01-09T08:17:18.350Z">
+
+<instance bitwidth="4" maxseq="7" mintrace="-1" maxtrace="-1" command="Run gen_lit for 9 but exactly 6 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool" filename="" tracelength="1" looplength="1">
+
+<sig label="seq/Int" ID="0" parentID="1" builtin="yes">
+</sig>
+
+<sig label="Int" ID="1" parentID="2" builtin="yes">
+</sig>
+
+<sig label="String" ID="3" parentID="2" builtin="yes">
+</sig>
+
+<sig label="this/rBool" ID="4" parentID="2">
+   <atom label="rBool$0"/>
+</sig>
+
+<sig label="this/cBool" ID="5" parentID="2">
+   <atom label="cBool$0"/>
+</sig>
+
+<sig label="this/tBool" ID="6" parentID="2">
+   <atom label="tBool$0"/>
+</sig>
+
+<sig label="this/Mem_s" ID="7" parentID="8">
+   <atom label="Mem_s$0"/>
+</sig>
+
+<sig label="this/Reg_s" ID="9" parentID="8">
+   <atom label="Reg_s$0"/>
+   <atom label="Reg_s$1"/>
+</sig>
+
+<sig label="this/State" ID="8" parentID="2" abstract="yes">
+</sig>
+
+<sig label="this/TLoad" ID="10" parentID="11" one="yes">
+   <atom label="TLoad$0"/>
+</sig>
+
+<sig label="this/TStore" ID="12" parentID="11" one="yes">
+   <atom label="TStore$0"/>
+</sig>
+
+<sig label="this/TBranchn" ID="13" parentID="11" one="yes">
+   <atom label="TBranchn$0"/>
+</sig>
+
+<sig label="this/TBranchx" ID="14" parentID="11" one="yes">
+   <atom label="TBranchx$0"/>
+</sig>
+
+<sig label="this/TOthern" ID="15" parentID="11" one="yes">
+   <atom label="TOthern$0"/>
+</sig>
+
+<sig label="this/TOtherx" ID="16" parentID="11" one="yes">
+   <atom label="TOtherx$0"/>
+</sig>
+
+<sig label="this/InstrType" ID="11" parentID="2" abstract="yes">
+</sig>
+
+<sig label="this/IX0" ID="17" parentID="2" one="yes">
+   <atom label="IX0$0"/>
+</sig>
+
+<sig label="this/IX1" ID="18" parentID="2" one="yes">
+   <atom label="IX1$0"/>
+</sig>
+
+<sig label="this/IX2" ID="19" parentID="2" one="yes">
+   <atom label="IX2$0"/>
+</sig>
+
+<sig label="this/IX3" ID="20" parentID="2" one="yes">
+   <atom label="IX3$0"/>
+</sig>
+
+<sig label="this/IX4" ID="21" parentID="2" one="yes">
+   <atom label="IX4$0"/>
+</sig>
+
+<sig label="this/IX5" ID="22" parentID="2" one="yes">
+   <atom label="IX5$0"/>
+</sig>
+
+<sig label="this/Instruction" ID="23" parentID="2">
+   <atom label="Instruction$0"/>
+   <atom label="Instruction$1"/>
+   <atom label="Instruction$2"/>
+   <atom label="Instruction$3"/>
+   <atom label="Instruction$4"/>
+   <atom label="Instruction$5"/>
+</sig>
+
+<field label="kind" ID="24" parentID="23">
+   <tuple> <atom label="Instruction$0"/> <atom label="TLoad$0"/> </tuple>
+   <tuple> <atom label="Instruction$1"/> <atom label="TBranchx$0"/> </tuple>
+   <tuple> <atom label="Instruction$2"/> <atom label="TLoad$0"/> </tuple>
+   <tuple> <atom label="Instruction$3"/> <atom label="TBranchn$0"/> </tuple>
+   <tuple> <atom label="Instruction$4"/> <atom label="TOtherx$0"/> </tuple>
+   <tuple> <atom label="Instruction$5"/> <atom label="TOthern$0"/> </tuple>
+   <types> <type ID="23"/> <type ID="11"/> </types>
+</field>
+
+<field label="idx" ID="25" parentID="23">
+   <tuple> <atom label="Instruction$0"/> <atom label="IX5$0"/> </tuple>
+   <tuple> <atom label="Instruction$1"/> <atom label="IX4$0"/> </tuple>
+   <tuple> <atom label="Instruction$2"/> <atom label="IX3$0"/> </tuple>
+   <tuple> <atom label="Instruction$3"/> <atom label="IX2$0"/> </tuple>
+   <tuple> <atom label="Instruction$4"/> <atom label="IX1$0"/> </tuple>
+   <tuple> <atom label="Instruction$5"/> <atom label="IX0$0"/> </tuple>
+   <types> <type ID="23"/> <type ID="17"/> </types>
+   <types> <type ID="23"/> <type ID="18"/> </types>
+   <types> <type ID="23"/> <type ID="19"/> </types>
+   <types> <type ID="23"/> <type ID="20"/> </types>
+   <types> <type ID="23"/> <type ID="21"/> </types>
+   <types> <type ID="23"/> <type ID="22"/> </types>
+</field>
+
+<field label="spo" ID="26" parentID="23">
+   <tuple> <atom label="Instruction$1"/> <atom label="Instruction$0"/> </tuple>
+   <tuple> <atom label="Instruction$2"/> <atom label="Instruction$1"/> </tuple>
+   <tuple> <atom label="Instruction$3"/> <atom label="Instruction$2"/> </tuple>
+   <tuple> <atom label="Instruction$4"/> <atom label="Instruction$3"/> </tuple>
+   <tuple> <atom label="Instruction$5"/> <atom label="Instruction$4"/> </tuple>
+   <types> <type ID="23"/> <type ID="23"/> </types>
+</field>
+
+<field label="inreg" ID="27" parentID="23">
+   <tuple> <atom label="Instruction$1"/> <atom label="Inreg$0"/> </tuple>
+   <types> <type ID="23"/> <type ID="28"/> </types>
+</field>
+
+<field label="inaddr" ID="29" parentID="23">
+   <tuple> <atom label="Instruction$0"/> <atom label="Inaddr$0"/> </tuple>
+   <types> <type ID="23"/> <type ID="30"/> </types>
+</field>
+
+<field label="outreg" ID="31" parentID="23">
+   <tuple> <atom label="Instruction$2"/> <atom label="Outreg$2"/> </tuple>
+   <tuple> <atom label="Instruction$4"/> <atom label="Outreg$1"/> </tuple>
+   <tuple> <atom label="Instruction$5"/> <atom label="Outreg$0"/> </tuple>
+   <types> <type ID="23"/> <type ID="32"/> </types>
+</field>
+
+<field label="inmem" ID="33" parentID="23">
+   <tuple> <atom label="Instruction$2"/> <atom label="Inmem$0"/> </tuple>
+   <types> <type ID="23"/> <type ID="34"/> </types>
+</field>
+
+<field label="outmem" ID="35" parentID="23">
+   <types> <type ID="23"/> <type ID="36"/> </types>
+</field>
+
+<field label="isresolved" ID="37" parentID="23">
+   <tuple> <atom label="Instruction$1"/> <atom label="rBool$0"/> </tuple>
+   <tuple> <atom label="Instruction$2"/> <atom label="rBool$0"/> </tuple>
+   <tuple> <atom label="Instruction$5"/> <atom label="rBool$0"/> </tuple>
+   <types> <type ID="23"/> <type ID="4"/> </types>
+</field>
+
+<field label="iscommitted" ID="38" parentID="23">
+   <tuple> <atom label="Instruction$5"/> <atom label="cBool$0"/> </tuple>
+   <types> <type ID="23"/> <type ID="5"/> </types>
+</field>
+
+<field label="isxm" ID="39" parentID="23">
+   <tuple> <atom label="Instruction$0"/> <atom label="tBool$0"/> </tuple>
+   <types> <type ID="23"/> <type ID="6"/> </types>
+</field>
+
+<sig label="this/Inreg" ID="28" parentID="40">
+   <atom label="Inreg$0"/>
+</sig>
+
+<sig label="this/Inaddr" ID="30" parentID="40">
+   <atom label="Inaddr$0"/>
+</sig>
+
+<sig label="this/Inmem" ID="34" parentID="40">
+   <atom label="Inmem$0"/>
+</sig>
+
+<sig label="this/Outreg" ID="32" parentID="40">
+   <atom label="Outreg$0"/>
+   <atom label="Outreg$1"/>
+   <atom label="Outreg$2"/>
+</sig>
+
+<sig label="this/Outmem" ID="36" parentID="40">
+</sig>
+
+<sig label="this/Operand" ID="40" parentID="2" abstract="yes">
+</sig>
+
+<field label="opstate" ID="41" parentID="40">
+   <tuple> <atom label="Outreg$0"/> <atom label="Reg_s$1"/> </tuple>
+   <tuple> <atom label="Outreg$1"/> <atom label="Reg_s$0"/> </tuple>
+   <tuple> <atom label="Outreg$2"/> <atom label="Reg_s$0"/> </tuple>
+   <tuple> <atom label="Inreg$0"/> <atom label="Reg_s$1"/> </tuple>
+   <tuple> <atom label="Inmem$0"/> <atom label="Mem_s$0"/> </tuple>
+   <tuple> <atom label="Inaddr$0"/> <atom label="Reg_s$0"/> </tuple>
+   <types> <type ID="40"/> <type ID="8"/> </types>
+</field>
+
+<field label="rf" ID="42" parentID="40">
+   <tuple> <atom label="Outreg$0"/> <atom label="Inreg$0"/> </tuple>
+   <tuple> <atom label="Outreg$2"/> <atom label="Inaddr$0"/> </tuple>
+   <types> <type ID="40"/> <type ID="40"/> </types>
+</field>
+
+<field label="ddi" ID="43" parentID="40">
+   <tuple> <atom label="Inmem$0"/> <atom label="Outreg$2"/> </tuple>
+   <types> <type ID="40"/> <type ID="40"/> </types>
+</field>
+
+<sig label="this/RO" ID="44" parentID="45" one="yes">
+   <atom label="RO$0"/>
+</sig>
+
+<sig label="this/RC" ID="46" parentID="45" one="yes">
+   <atom label="RC$0"/>
+</sig>
+
+<sig label="this/RR" ID="47" parentID="45" one="yes">
+   <atom label="RR$0"/>
+</sig>
+
+<sig label="this/RI" ID="48" parentID="45" one="yes">
+   <atom label="RI$0"/>
+</sig>
+
+<sig label="this/RS" ID="49" parentID="45" one="yes">
+   <atom label="RS$0"/>
+</sig>
+
+<sig label="this/PTag" ID="45" parentID="2" abstract="yes">
+</sig>
+
+<sig label="univ" ID="2" builtin="yes">
+</sig>
+
+<skolem label="$gen_lit_s" ID="50">
+   <tuple> <atom label="Mem_s$0"/> </tuple>
+   <types> <type ID="8"/> </types>
+</skolem>
+
+</instance>
+
+</alloy>

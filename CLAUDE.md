@@ -22,6 +22,26 @@ Multiple Claude sessions may run concurrently. Two files coordinate them — **r
 - See the header of `claudelog.md` itself for the full what-belongs / what-doesn't rules.
 - Don't duplicate things already in `DESIGN.md` / `AUDIT.md` / `results.md`; cross-reference instead.
 
+**ALWAYS log — don't wait to be asked.** Every session writes to *both* files as a matter of
+course: a one-line "what I'm doing now" in `claudenotes.md`, and — for anything **big** (a
+checker/pipeline/hook/model change, a bug found, a methodology decision, a corrected earlier
+conclusion, a reason to restart a sweep) — a dated, self-contained entry in the append-only
+`claudelog.md`. Big things and changes must **stick around** so future sessions inherit them
+without re-deriving; if in doubt whether it's big, append it. This is a standing requirement,
+not a per-task instruction.
+
+**Big bugs / fundamental results → write a standalone review `.md` for the owner (Anna).** The
+`claudelog.md` entry is the terse durable record; it is NOT enough for a result Anna must review in
+depth. Whenever you confirm (or seriously suspect) a **real gem5/defense bug**, a **fundamental
+finding** about a defense, or anything that **changes how results are interpreted**, also produce a
+dedicated, self-contained `.md` written *for Anna to read top-to-bottom*: the claim up front, the
+evidence (exact stems/PCs/trace lines/commands so she can re-run), the mechanism, the
+real-bug-vs-artifact verdict, and what's still open. Put it where the result lives (the run's
+`diagnostics/`, or `bug/` for a cross-build bug), and point to it from the `claudelog.md` entry. Do
+this **even when not explicitly asked** — for big/fundamental things the review `.md` is part of the
+deliverable, not an extra. (Don't make one for routine FP triage or minor cleanups — only things
+genuinely worth Anna's in-depth review.)
+
 ## What this is
 
 SimSpect generates **litmus tests for speculative-execution security defenses** and checks whether each test actually leaks on a real (gem5) microarchitecture. The flow is a 4-stage pipeline driven by one orchestrator (`pipeline.py`) and one JSONC config per run:
@@ -49,12 +69,12 @@ sweep had to restart — to `claudelog.md` (see "Session notes" above for the di
 Everything goes through `pipeline.py <phase> --model <stem> --config <cfg>` (Makefile wraps it):
 
 ```bash
-python3 pipeline.py all  --model STT_6 --config run_config_STT_6.jsonc   # phases xml→llvm→asm→gem5
-python3 pipeline.py xml  --model STT_6 --config run_config_STT_6.jsonc   # Alloy enumeration only
-python3 pipeline.py llvm --model STT_6 --config run_config_STT_6.jsonc   # parsexml: XML → .ll + bare ann
-python3 pipeline.py asm  --model STT_6 --config run_config_STT_6.jsonc   # .ll → .s + resolved ann
-python3 pipeline.py gem5 --model STT_6 --config run_config_STT_6.jsonc   # gem5 window check
-make all MODEL=STT_6 CONFIG=run_config_STT_6.jsonc [FORCE=1]              # equivalent
+python3 pipeline.py all  --model STT_6 --config runconfigs/run_config_STT_6.jsonc   # phases xml→llvm→asm→gem5
+python3 pipeline.py xml  --model STT_6 --config runconfigs/run_config_STT_6.jsonc   # Alloy enumeration only
+python3 pipeline.py llvm --model STT_6 --config runconfigs/run_config_STT_6.jsonc   # parsexml: XML → .ll + bare ann
+python3 pipeline.py asm  --model STT_6 --config runconfigs/run_config_STT_6.jsonc   # .ll → .s + resolved ann
+python3 pipeline.py gem5 --model STT_6 --config runconfigs/run_config_STT_6.jsonc   # gem5 window check
+make all MODEL=STT_6 CONFIG=runconfigs/run_config_STT_6.jsonc [FORCE=1]              # equivalent
 ```
 
 - **Phases are idempotent / resumable**: a phase skips if its output dir is already populated. To *regenerate* (e.g. after editing `parsexml.py` or a `.als` model) you must **delete the stale stage output first, or pass `--force`** — otherwise old artifacts are silently kept. `--force` on `xml` re-runs Alloy; on a later phase it only re-does that phase.
@@ -88,7 +108,7 @@ orchestrators on top of the same engine fix this and decouple generation from ex
   in-flight watcher runs are never disturbed.
 
 ```bash
-make gen   MODEL=SPT_6_oneLP CONFIG=run_config_SPT_6_oneLP.jsonc            # produce testset
+make gen   MODEL=SPT_6_oneLP CONFIG=runconfigs/run_config_SPT_6_oneLP.jsonc            # produce testset
 make run   MODEL=SPT_6_oneLP RUNCONFIG=results/SPT_6_oneLP_fence/run_config.jsonc   # one build
 make pipeline MODEL=... CONFIG=... RUNCONFIG=...                            # producer(bg)+consumer
 ```
@@ -130,6 +150,34 @@ results/<results_name>__<ts>/<mode>/<kind>/{window-results.json, window-hits.txt
 
 **Streaming asm+gem5.** When a single invocation requests both `asm` and `gem5` (i.e. `all`), `phase_asm_gem5_streaming` interleaves compilation and simulation instead of materializing all asm first. The per-type checker is chosen from each test's `ann["xmit"]["kind"]` via `_KIND_TO_CHECKER`: `ld`→`check_ld.py`, `br_x`→`check_br.py`, `other_x`→`check_other.py` (default `check_ld.py`).
 
+**Chain interleaving — the multi-source-merge mechanism (`parsexml.py:pass_interleave`).** This is
+*chain* interleaving (distinct from asm+gem5 streaming above), enabled by `interleave.enabled` in the
+config; it expands each base Alloy instance into N `_v<k>` variants. **Why it exists:** a single Alloy
+leak instance describes ONE data-flow chain to the transmitter, so it cannot express a transmitter
+operand fed by *two independent* speculative chains — e.g. the recon **OTB / `getOldestTaint`** gadget
+(an ALU op merging two tainted loads of differing speculation status, one whose branch resolves first).
+Interleaving is meant to manufacture exactly those cross-chain merges. **How it works:** `pass_interleave`
+injects 1–2 synthetic instruction chains (`other_n`/`ld`/`str` steps) into the *uncommitted/speculative*
+region, with every chain operand slot pinned to **free-pool atoms** (`Reg_s$fr*`, `Mem_s$fr*`). At
+concretization, `pass3` maps those free-pool atoms to real registers/offsets via the **shared
+`fr_reg_map`/`fr_mem_map` — the same pool that any *unspecified ("blank") Alloy operand slot* draws
+from.** So when a base instruction has a blank operand and an injected chain produces a value, the shared
+map can assign them the **same physical register → a natural cross-chain data dependency** (the injected
+chain "hooks onto" the base ALU's blank argument). That collision is what can build a two-load→ALU→xmit
+merge that no base instance contains. **Important caveat — the OTB shape is absent from the testset, but
+the model CAN generate it (it's a `max_instances` cap/ordering artifact, NOT a model limit; full writeup +
+analysis pitfalls in [`mdsToRead/OTB_GENERATION_GAP.md`](mdsToRead/OTB_GENERATION_GAP.md)):** over all 100k
+base instances every `ld` transmitter's address is fed by an `rf` edge **directly from a single load**
+(66,512/66,512), with **0** routing through an `other`/ALU op — but **forcing** a predicate
+(`otb_shape: other.outreg → xm.inaddr`) is immediately SAT, so the `gen_lit` enumeration just fills the
+100k cap with the simpler direct/`branchx` shapes before reaching any `other`-on-path instance. The `other`
+in those instances legitimately has an **unspecified 2nd operand** (`gen_useful_litmus` minimizes only via
+`RR`/`RS`, never `RI`/`RO`) — exactly the slot interleave fills. To get OTB tests: enumerate a dedicated
+OTB testset with the forcing predicate + `interleave.enabled` (model/config change → owner approval).
+**Before re-investigating, read that doc** — and never infer "the model can't" from "absent in the capped
+enumeration"; force the shape with a predicate and run Alloy (base XML is *pre*-interleave, shared opstate ≠
+rf edge, x86 SIB/`lea` parsing traps, all of which produced wrong answers here).
+
 **The sweep watcher (`results/_sweep_watcher.py`).** A *gem5-only* consumer: it polls a testset being compiled by another process, finds `asm ∩ ann` stems not yet in its cumulative results, stages them as symlinks, runs `pipeline.py gem5` on just that batch, and merges into `results/<results_name>/<mode>/window-results.json`. It never compiles. This is how one testset is swept against several builds/schemes concurrently (each watcher gets its own `results/<name>/run_config.jsonc` pointing at a different gem5 binary). Launch pattern:
 ```bash
 nohup python3 -u results/_sweep_watcher.py \
@@ -139,6 +187,12 @@ nohup python3 -u results/_sweep_watcher.py \
 
 **Leak criteria (the checkers).** A transmitter "leaks" if its observable action happens inside the speculative window `lc_retire < signal < fnc_retire` while branches are still unresolved.
 - `check_ld.py`: `signal` = LSQ "Executing load" tick (cache touch; visible even for squashed speculative loads that never emit pipeview lines). Disqualifies if a specified last-committed predecessor never retires.
+  - **Data-obtained gate (the canonical "did it actually leak" test — USE THIS, not a packet-only check).** Being in-window is necessary but not sufficient; an in-window load counts as a leak only if it **OBTAINED its data**, decided by `_xmit_cache_fate(lsq_by_pc, xmit_pc)` + the pipeview `complete` tick:
+    - `reached_cache` (a real read packet went to cache) → **leak**;
+    - `store_forward` (**the "complete caveat"**: `executed_no_packet` *but* the xmit reached pipeview `complete>0` — value forwarded from a store in the LSQ, an SLF leak that **never touches cache**) → **leak**;
+    - `spec_read_only` (invisible spec read), `executed_no_packet & never completed` (delay_unit bounce — defense held), `never_executed` → **not a leak** (check_ld false positives).
+    - **Cache-reach is NOT the bar** (SLF leaks without a packet); **squash timing NEVER gates** (a load that obtained data then got squashed still leaked). When there's no LSQ record the hit is left **ungated** (never hide a possible leak on a build without LSQUnit logging).
+  - **Every diagnostic that re-decides "real leak vs check_ld FP" MUST reuse this exact gate** — `check_ld._xmit_cache_fate` + pipeview `complete` — not `diag_ld_cache_reach.classify_trace`'s `real_access` (which is **trace-only** and flags `reached_cache` *only*, so it misses `store_forward` leaks). The race attributor `diag_stt_vp_squash_race.py` was aligned to this (its access tick = packet tick for `reached_cache`, completion tick for `store_forward`); copy that pattern in new diagnostics.
 - `check_br.py`: branch-redirect detection. Note it does **not** enforce the `lc/fnc` window the way `check_ld` does — a known gap that inflates branch hit rates.
 
 **Bug-diagnosis scripts (per-results, known-vs-new triage).** Each results
@@ -179,6 +233,27 @@ XML / `.ann.json` / pipeview) and returns whether *this* record is explained by
   defense/build-specific. A **global checker fix** (e.g. `check_br.py`) or a
   source bug-fix is **not** a diagnostic — it goes in the pipeline; only the
   *bucketing of a known cause's records* is a diagnostic.
+
+**Systematic hit bucketing (the "big test").** Every results folder's diagnostics
+are aggregated by one orchestrator, `results/<run>/diagnostics/bucket_hits.py`,
+which auto-discovers each `diag_*.py` (any module exposing `is_known(stem,
+xml_dir)` plus metadata `PHASE` ∈ {`disqualifier`,`real_bug`}, `CATEGORY`,
+`NEEDS_GEM5`, `ORDER`) and assigns every hit to the **first** cause that matches.
+Drop a new `diag_*.py` in the folder and it joins the run with no edit to the
+orchestrator. **Mandatory ordering — disqualifiers before real-bug diagnoses, so
+only *pure bugs* survive as `NEW`:**
+  1. **Disqualifiers** (the hit is *not* a real leak), cheap→expensive:
+     - **(a) model/Alloy artifacts** — pure XML, `NEEDS_GEM5=False` (e.g.
+       `diag_constaddr_load`, `diag_rf_clobber`). Run first.
+     - **(b) non-cache / checker false positives** — `NEEDS_GEM5=True`
+       (gem5 cache-reach: the load never sent a cache packet, or STLF). Run on the
+       survivors of (a) only (gem5 is expensive), via `--with-gem5`.
+  2. **Known real bugs** — confirmed-bug signatures (`PHASE='real_bug'`). None yet.
+  3. **Leftover = `NEW_candidate_pure_bug`** — the genuine research signal; this is
+     the set to hand to a root-causing pass. Never label a hit a real bug until it
+     has cleared **all** disqualifiers.
+Each `diag_*.py` still ships with its bug `.md` and the real-bug-vs-artifact
+verdict (rule above). Per-bucket stem lists land in `diagnostics/buckets/<mode>/`.
 
 ## Gotchas
 

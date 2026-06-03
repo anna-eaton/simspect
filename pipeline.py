@@ -326,6 +326,7 @@ def _read_xmit_kind(ann_dir: Path, stem: str) -> str:
 # post-hoc in this module.
 
 import itertools
+import random as _random
 
 
 def _classify_branches(ann: dict) -> tuple[list, list]:
@@ -350,19 +351,45 @@ def _classify_branches(ann: dict) -> tuple[list, list]:
     return resolved, unresolved
 
 
-def _grid_points(resolved_pcs: list, points: list) -> list:
+def _grid_points(resolved_pcs: list, points: list,
+                 unresolved_points: list = None, max_grid: int = None,
+                 seed: int = 0) -> list:
     """Joint Cartesian product: list of {branch_pc → stall_cycles} dicts.
 
     Empty `resolved_pcs` yields a single empty assignment so unresolved-only
     tests still go through the sweep path (one grid point, only unresolved
     stall applied).
+
+    Optional extensions (all default to the legacy behavior when their config
+    keys are absent — existing sweeps are unaffected):
+      unresolved_points : if given, also vary the unresolved-branch stall over
+                          these values, folded into each grid point under the
+                          reserved "__unresolved__" key (honored by
+                          _inject_stalls). Lets one campaign sweep s_U too.
+      max_grid          : if the grid exceeds this, randomly sub-sample (seeded)
+                          down to max_grid points — needed because dense `points`
+                          across several resolved branches blows up the Cartesian
+                          product (itertools.product is len(points)**n_resolved).
+      seed              : RNG seed for the sub-sample; pass a per-stem seed so
+                          different tests cover different regions reproducibly.
     """
     if not resolved_pcs:
-        return [{}]
-    return [
-        dict(zip(resolved_pcs, combo))
-        for combo in itertools.product(points, repeat=len(resolved_pcs))
-    ]
+        base = [{}]
+    else:
+        base = [dict(zip(resolved_pcs, combo))
+                for combo in itertools.product(points, repeat=len(resolved_pcs))]
+    if unresolved_points:
+        grid = []
+        for d in base:
+            for u in unresolved_points:
+                e = dict(d)
+                e["__unresolved__"] = int(u)
+                grid.append(e)
+    else:
+        grid = base
+    if max_grid is not None and len(grid) > max_grid:
+        grid = _random.Random(seed).sample(grid, max_grid)
+    return grid
 
 
 def _inject_stalls(ann: dict, stalls: dict, unresolved_stall: int) -> dict:
@@ -387,7 +414,8 @@ def _inject_stalls(ann: dict, stalls: dict, unresolved_stall: int) -> dict:
         if mode == "correctly_not_taken":
             entry["resolve_stall_cycles"] = int(stalls.get(pc, 0))
         elif mode in ("mispredict_not_taken", "mispredict_taken"):
-            entry["resolve_stall_cycles"] = int(unresolved_stall)
+            entry["resolve_stall_cycles"] = int(
+                stalls.get("__unresolved__", unresolved_stall))
     return out
 
 
@@ -414,7 +442,11 @@ def _enumerate_grid_for_corpus(s_files: list, ann_dir: Path,
             continue
         ann = json.loads(ann_path.read_text())
         resolved, _ = _classify_branches(ann)
-        grid = _grid_points(resolved, points)
+        grid = _grid_points(
+            resolved, points,
+            unresolved_points=sweep_cfg.get("unresolved_points"),
+            max_grid=sweep_cfg.get("max_grid"),
+            seed=(hash(sf.stem) & 0xffffffff))
         manifest[sf.stem] = grid
 
         for idx, stalls in enumerate(grid):
@@ -840,7 +872,11 @@ def phase_asm_gem5_streaming(cfg: dict, model: str, ts_mode: Path,
             for sf in to_test:
                 ann = json.loads((ann_dir / (sf.stem + ".ann.json")).read_text())
                 resolved, _ = _classify_branches(ann)
-                grid = _grid_points(resolved, points)
+                grid = _grid_points(
+                    resolved, points,
+                    unresolved_points=sweep_cfg.get("unresolved_points"),
+                    max_grid=sweep_cfg.get("max_grid"),
+                    seed=(hash(sf.stem) & 0xffffffff))
                 local_manifest[sf.stem] = grid
                 manifest[sf.stem]       = grid
                 for idx, stalls in enumerate(grid):

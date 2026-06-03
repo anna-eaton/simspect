@@ -1,0 +1,49 @@
+{
+  "bug_id": "recon_SLF_stlf_bypass",
+  "title": "Recon/STT store-to-load forwarding bypasses the STT taint check (SLF / STLF)",
+  "verdict": "REAL gem5 defense bug (recon-modded STT build)",
+  "verified_by": "4a:reconHitDiag (2026-06-02)",
+  "representative_stem": "inst-014912",
+  "transmitter_kind": "ld",
+  "run": {
+    "campaign": "results/Recon_6__20260602_122016",
+    "mode": "mispredict_not_taken",
+    "kind_dir": "results/Recon_6__20260602_122016/mispredict_not_taken/ld",
+    "run_config": "results/Recon_6/run_config.jsonc",
+    "campaign_started_at": "2026-06-02 12:20:16"
+  },
+  "build": {
+    "gem5_binary": "/work/gem5-recon-modded/build/X86/gem5.opt",
+    "gem5_binary_mtime": "2026-05-21 05:19:27",
+    "config_script": "/work/gem5-recon-modded/configs/example/se.py",
+    "cpu_type": "X86O3CPU",
+    "scheme": 2,
+    "scheme_meaning": "STT",
+    "allow_leaked": true,
+    "branch_ann_enable": true
+  },
+  "sweep_state_required_to_reproduce": {
+    "note": "stalls are injected into the .ann.json (pipeline._inject_stalls), read by gem5 via --branch-ann-file; NOT env vars",
+    "points": [0, 500, 2500],
+    "unresolved_stall_cycles": 5000,
+    "reproduced_at": {"resolved_stall_cycles": 2500, "unresolved_stall_cycles": 5000}
+  },
+  "testset": {
+    "model": "Recon_6",
+    "xml": "testsets/Recon_6/xml/inst-014912.xml",
+    "asm": "testsets/Recon_6/mispredict_not_taken/asm/inst-014912.s",
+    "ann": "testsets/Recon_6/mispredict_not_taken/ann/inst-014912.ann.json"
+  },
+  "repo_commit": "d8b6caaff7264a237af227cde8c803a293668df6 (d8b6caa-dirty)",
+  "evidence": {
+    "xmit_load_sn": 600,
+    "xmit_pc": "0x401c7c",
+    "executing_load_tick": 2681500,
+    "stl_check": "isTainted=1 isSpeculative=1",
+    "ready_within_rob_tick": 2682500,
+    "load_squash_tick": 2683500,
+    "leak_completed_before_squash": true,
+    "sent_cache_packet": false,
+    "trace_excerpt": "trace_excerpt_sn600.txt"
+  }
+}

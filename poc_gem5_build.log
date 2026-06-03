@@ -1,0 +1,42 @@
+[build 09:43:42]
+                 from build/X86/arch/x86/interrupts.hh:57,
+                 from build/X86/arch/interrupts.hh:1,
+                 from build/X86/cpu/base.hh:57,
+                 from build/X86/cpu/o3/cpu.hh:62,
+                 from build/X86/cpu/o3/dyn_inst.hh:51,
+                 from build/X86/cpu/o3/isa_specific.hh:31,
+                 from build/X86/cpu/o3/lsq_unit.cc:32:
+build/X86/sim/byteswap.hh:149:40: note:   initializing argument 1 of 'T htole(T) [with T = BitfieldBackend::BitUnionOperators<X86ISA::BitfieldUnderlyingClassesTriggerIntMessage>]'
+  149 | template <typename T> inline T htole(T value) {return value;}
+      |                                      ~~^~~~~
+build/X86/sim/byteswap.hh: In instantiation of 'T htole(T) [with T = BitfieldBackend::BitUnionOperators<X86ISA::BitfieldUnderlyingClassesTriggerIntMessage>]':
+build/X86/sim/byteswap.hh:200:41:   required from 'T LittleEndianGuest::htog(T) [with T = BitfieldBackend::BitUnionOperators<X86ISA::BitfieldUnderlyingClassesTriggerIntMessage>]'
+build/X86/mem/packet_access.hh:143:24:   required from 'void Packet::set(T) [with T = BitfieldBackend::BitUnionOperators<X86ISA::BitfieldUnderlyingClassesTriggerIntMessage>]'
+build/X86/arch/x86/intmessage.hh:95:9:   required from 'Packet* X86ISA::buildIntRequest(uint8_t, T, Addr, Addr) [with T = BitfieldBackend::BitUnionOperators<X86ISA::BitfieldUnderlyingClassesTriggerIntMessage>; PacketPtr = Packet*; uint8_t = unsigned char; Addr = long unsigned int]'
+build/X86/arch/x86/intmessage.hh:103:42:   required from here
+build/X86/sim/byteswap.hh:149:55: warning: implicitly-declared 'constexpr BitfieldBackend::BitUnionOperators<X86ISA::BitfieldUnderlyingClassesTriggerIntMessage>::BitUnionOperators(const BitfieldBackend::BitUnionOperators<X86ISA::BitfieldUnderlyingClassesTriggerIntMessage>&)' is deprecated [-Wdeprecated-copy]
+  149 | template <typename T> inline T htole(T value) {return value;}
+      |                                                       ^~~~~
+In file included from build/X86/sim/serialize.hh:61,
+                 from build/X86/sim/eventq.hh:53,
+                 from build/X86/sim/core.hh:44,
+                 from build/X86/base/trace.hh:45,
+                 from build/X86/arch/generic/types.hh:36,
+                 from build/X86/arch/x86/types.hh:45,
+                 from build/X86/arch/x86/isa_traits.hh:43,
+                 from build/X86/arch/isa_traits.hh:1,
+                 from build/X86/cpu/o3/dyn_inst.hh:49,
+                 from build/X86/cpu/o3/isa_specific.hh:31,
+                 from build/X86/cpu/o3/lsq_unit.cc:32:
+build/X86/base/bitunion.hh:260:9: note: because 'BitfieldBackend::BitUnionOperators<X86ISA::BitfieldUnderlyingClassesTriggerIntMessage>' has user-provided 'typename Base::__StorageType BitfieldBackend::BitUnionOperators<Base>::operator=(const BitfieldBackend::BitUnionOperators<Base>&) [with Base = X86ISA::BitfieldUnderlyingClassesTriggerIntMessage; typename Base::__StorageType = unsigned int]'
+  260 |         operator=(BitUnionOperators const &other)
+      |         ^~~~~~~~
+ [    LINK]  -> X86/mem/ruby/profiler/lib.o.partial
+ [    LINK]  -> X86/mem/ruby/slicc_interface/lib.o.partial
+ [    LINK]  -> X86/mem/ruby/network/simple/lib.o.partial
+ [    LINK]  -> X86/mem/ruby/system/lib.o.partial
+ [    LINK]  -> X86/cpu/o3/lib.o.partial
+ [     CXX] X86/base/date.cc -> .o
+ [    LINK]  -> X86/gem5.opt
+scons: done building targets.
+BUILD_DONE_EXIT_0 09:45:20

@@ -1,0 +1,27 @@
+// XML-only enumeration of latestmodels/SPT_6_oneLP.als into the sandbox testsets_latest/.
+// Reads the model from latestmodels/, writes XML to testsets_latest/SPT_6_oneLP/xml/.
+// Does NOT touch the live testsets/ or results/. (Phase 1 only — gem5 block
+// retained for provenance/compat but unused by the xml phase.)
+{
+  "paths": {
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "latestmodels",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "testset_dir":        "testsets_latest",
+    "results_dir":        "results_latest",
+    "results_name":       "SPT_6_oneLP"
+  },
+
+  "alloy": {
+    "max_instances": 200000,
+    "batch_size":    1000
+  },
+
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_not_taken", "mispredict_taken"]
+  }
+}

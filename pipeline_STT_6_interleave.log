@@ -707,3 +707,553 @@
   progress: 351000/400000  ok=351000  errors=0
   progress: 351500/400000  ok=351500  errors=0
   progress: 352000/400000  ok=352000  errors=0
+  progress: 352500/400000  ok=352500  errors=0
+  progress: 353000/400000  ok=353000  errors=0
+  progress: 353500/400000  ok=353500  errors=0
+  progress: 354000/400000  ok=354000  errors=0
+  progress: 354500/400000  ok=354500  errors=0
+  progress: 355000/400000  ok=355000  errors=0
+  progress: 355500/400000  ok=355500  errors=0
+  progress: 356000/400000  ok=356000  errors=0
+  progress: 356500/400000  ok=356500  errors=0
+  progress: 357000/400000  ok=357000  errors=0
+  progress: 357500/400000  ok=357500  errors=0
+  progress: 358000/400000  ok=358000  errors=0
+  progress: 358500/400000  ok=358500  errors=0
+  progress: 359000/400000  ok=359000  errors=0
+  progress: 359500/400000  ok=359500  errors=0
+  progress: 360000/400000  ok=360000  errors=0
+  progress: 360500/400000  ok=360500  errors=0
+  progress: 361000/400000  ok=361000  errors=0
+  progress: 361500/400000  ok=361500  errors=0
+  progress: 362000/400000  ok=362000  errors=0
+  progress: 362500/400000  ok=362500  errors=0
+  progress: 363000/400000  ok=363000  errors=0
+  progress: 363500/400000  ok=363500  errors=0
+  progress: 364000/400000  ok=364000  errors=0
+  progress: 364500/400000  ok=364500  errors=0
+  progress: 365000/400000  ok=365000  errors=0
+  progress: 365500/400000  ok=365500  errors=0
+  progress: 366000/400000  ok=366000  errors=0
+  progress: 366500/400000  ok=366500  errors=0
+  progress: 367000/400000  ok=367000  errors=0
+  progress: 367500/400000  ok=367500  errors=0
+  progress: 368000/400000  ok=368000  errors=0
+  progress: 368500/400000  ok=368500  errors=0
+  progress: 369000/400000  ok=369000  errors=0
+  progress: 369500/400000  ok=369500  errors=0
+  progress: 370000/400000  ok=370000  errors=0
+  progress: 370500/400000  ok=370500  errors=0
+  progress: 371000/400000  ok=371000  errors=0
+  progress: 371500/400000  ok=371500  errors=0
+  progress: 372000/400000  ok=372000  errors=0
+  progress: 372500/400000  ok=372500  errors=0
+  progress: 373000/400000  ok=373000  errors=0
+  progress: 373500/400000  ok=373500  errors=0
+  progress: 374000/400000  ok=374000  errors=0
+  progress: 374500/400000  ok=374500  errors=0
+  progress: 375000/400000  ok=375000  errors=0
+  progress: 375500/400000  ok=375500  errors=0
+  progress: 376000/400000  ok=376000  errors=0
+  progress: 376500/400000  ok=376500  errors=0
+  progress: 377000/400000  ok=377000  errors=0
+  progress: 377500/400000  ok=377500  errors=0
+  progress: 378000/400000  ok=378000  errors=0
+  progress: 378500/400000  ok=378500  errors=0
+  progress: 379000/400000  ok=379000  errors=0
+  progress: 379500/400000  ok=379500  errors=0
+  progress: 380000/400000  ok=380000  errors=0
+  progress: 380500/400000  ok=380500  errors=0
+  progress: 381000/400000  ok=381000  errors=0
+  progress: 381500/400000  ok=381500  errors=0
+  progress: 382000/400000  ok=382000  errors=0
+  progress: 382500/400000  ok=382500  errors=0
+  progress: 383000/400000  ok=383000  errors=0
+  progress: 383500/400000  ok=383500  errors=0
+  progress: 384000/400000  ok=384000  errors=0
+  progress: 384500/400000  ok=384500  errors=0
+  progress: 385000/400000  ok=385000  errors=0
+  progress: 385500/400000  ok=385500  errors=0
+  progress: 386000/400000  ok=386000  errors=0
+  progress: 386500/400000  ok=386500  errors=0
+  progress: 387000/400000  ok=387000  errors=0
+  progress: 387500/400000  ok=387500  errors=0
+  progress: 388000/400000  ok=388000  errors=0
+  progress: 388500/400000  ok=388500  errors=0
+  progress: 389000/400000  ok=389000  errors=0
+  progress: 389500/400000  ok=389500  errors=0
+  progress: 390000/400000  ok=390000  errors=0
+  progress: 390500/400000  ok=390500  errors=0
+  progress: 391000/400000  ok=391000  errors=0
+  progress: 391500/400000  ok=391500  errors=0
+  progress: 392000/400000  ok=392000  errors=0
+  progress: 392500/400000  ok=392500  errors=0
+  progress: 393000/400000  ok=393000  errors=0
+  progress: 393500/400000  ok=393500  errors=0
+  progress: 394000/400000  ok=394000  errors=0
+  progress: 394500/400000  ok=394500  errors=0
+  progress: 395000/400000  ok=395000  errors=0
+  progress: 395500/400000  ok=395500  errors=0
+  progress: 396000/400000  ok=396000  errors=0
+  progress: 396500/400000  ok=396500  errors=0
+  progress: 397000/400000  ok=397000  errors=0
+  progress: 397500/400000  ok=397500  errors=0
+  progress: 398000/400000  ok=398000  errors=0
+  progress: 398500/400000  ok=398500  errors=0
+  progress: 399000/400000  ok=399000  errors=0
+  progress: 399500/400000  ok=399500  errors=0
+  progress: 400000/400000  ok=400000  errors=0
+[asm] Done — 400000 compiled
+[asm] Compiling 192892/400000 .ll files  (jobs=16) …
+  progress: 500/192892  ok=500  errors=0
+  progress: 1000/192892  ok=1000  errors=0
+  progress: 1500/192892  ok=1500  errors=0
+  progress: 2000/192892  ok=2000  errors=0
+  progress: 2500/192892  ok=2500  errors=0
+  progress: 3000/192892  ok=3000  errors=0
+  progress: 3500/192892  ok=3500  errors=0
+  progress: 4000/192892  ok=4000  errors=0
+  progress: 4500/192892  ok=4500  errors=0
+  progress: 5000/192892  ok=5000  errors=0
+  progress: 5500/192892  ok=5500  errors=0
+  progress: 6000/192892  ok=6000  errors=0
+  progress: 6500/192892  ok=6500  errors=0
+  progress: 7000/192892  ok=7000  errors=0
+  progress: 7500/192892  ok=7500  errors=0
+  progress: 8000/192892  ok=8000  errors=0
+  progress: 8500/192892  ok=8500  errors=0
+  progress: 9000/192892  ok=9000  errors=0
+  progress: 9500/192892  ok=9500  errors=0
+  progress: 10000/192892  ok=10000  errors=0
+  progress: 10500/192892  ok=10500  errors=0
+  progress: 11000/192892  ok=11000  errors=0
+  progress: 11500/192892  ok=11500  errors=0
+  progress: 12000/192892  ok=12000  errors=0
+  progress: 12500/192892  ok=12500  errors=0
+  progress: 13000/192892  ok=13000  errors=0
+  progress: 13500/192892  ok=13500  errors=0
+  progress: 14000/192892  ok=14000  errors=0
+  progress: 14500/192892  ok=14500  errors=0
+  progress: 15000/192892  ok=15000  errors=0
+  progress: 15500/192892  ok=15500  errors=0
+  progress: 16000/192892  ok=16000  errors=0
+  progress: 16500/192892  ok=16500  errors=0
+  progress: 17000/192892  ok=17000  errors=0
+  progress: 17500/192892  ok=17500  errors=0
+  progress: 18000/192892  ok=18000  errors=0
+  progress: 18500/192892  ok=18500  errors=0
+  progress: 19000/192892  ok=19000  errors=0
+  progress: 19500/192892  ok=19500  errors=0
+  progress: 20000/192892  ok=20000  errors=0
+  progress: 20500/192892  ok=20500  errors=0
+  progress: 21000/192892  ok=21000  errors=0
+  progress: 21500/192892  ok=21500  errors=0
+  progress: 22000/192892  ok=22000  errors=0
+  progress: 22500/192892  ok=22500  errors=0
+  progress: 23000/192892  ok=23000  errors=0
+  progress: 23500/192892  ok=23500  errors=0
+  progress: 24000/192892  ok=24000  errors=0
+  progress: 24500/192892  ok=24500  errors=0
+  progress: 25000/192892  ok=25000  errors=0
+  progress: 25500/192892  ok=25500  errors=0
+  progress: 26000/192892  ok=26000  errors=0
+  progress: 26500/192892  ok=26500  errors=0
+  progress: 27000/192892  ok=27000  errors=0
+  progress: 27500/192892  ok=27500  errors=0
+  progress: 28000/192892  ok=28000  errors=0
+  progress: 28500/192892  ok=28500  errors=0
+  progress: 29000/192892  ok=29000  errors=0
+  progress: 29500/192892  ok=29500  errors=0
+  progress: 30000/192892  ok=30000  errors=0
+  progress: 30500/192892  ok=30500  errors=0
+  progress: 31000/192892  ok=31000  errors=0
+  progress: 31500/192892  ok=31500  errors=0
+  progress: 32000/192892  ok=32000  errors=0
+  progress: 32500/192892  ok=32500  errors=0
+  progress: 33000/192892  ok=33000  errors=0
+  progress: 33500/192892  ok=33500  errors=0
+  progress: 34000/192892  ok=34000  errors=0
+  progress: 34500/192892  ok=34500  errors=0
+  progress: 35000/192892  ok=35000  errors=0
+  progress: 35500/192892  ok=35500  errors=0
+  progress: 36000/192892  ok=36000  errors=0
+  progress: 36500/192892  ok=36500  errors=0
+  progress: 37000/192892  ok=37000  errors=0
+  progress: 37500/192892  ok=37500  errors=0
+  progress: 38000/192892  ok=38000  errors=0
+  progress: 38500/192892  ok=38500  errors=0
+  progress: 39000/192892  ok=39000  errors=0
+  progress: 39500/192892  ok=39500  errors=0
+  progress: 40000/192892  ok=40000  errors=0
+  progress: 40500/192892  ok=40500  errors=0
+  progress: 41000/192892  ok=41000  errors=0
+  progress: 41500/192892  ok=41500  errors=0
+  progress: 42000/192892  ok=42000  errors=0
+  progress: 42500/192892  ok=42500  errors=0
+  progress: 43000/192892  ok=43000  errors=0
+  progress: 43500/192892  ok=43500  errors=0
+  progress: 44000/192892  ok=44000  errors=0
+  progress: 44500/192892  ok=44500  errors=0
+  progress: 45000/192892  ok=45000  errors=0
+  progress: 45500/192892  ok=45500  errors=0
+  progress: 46000/192892  ok=46000  errors=0
+  progress: 46500/192892  ok=46500  errors=0
+  progress: 47000/192892  ok=47000  errors=0
+  progress: 47500/192892  ok=47500  errors=0
+  progress: 48000/192892  ok=48000  errors=0
+  progress: 48500/192892  ok=48500  errors=0
+  progress: 49000/192892  ok=49000  errors=0
+  progress: 49500/192892  ok=49500  errors=0
+  progress: 50000/192892  ok=50000  errors=0
+  progress: 50500/192892  ok=50500  errors=0
+  progress: 51000/192892  ok=51000  errors=0
+  progress: 51500/192892  ok=51500  errors=0
+  progress: 52000/192892  ok=52000  errors=0
+  progress: 52500/192892  ok=52500  errors=0
+  progress: 53000/192892  ok=53000  errors=0
+  progress: 53500/192892  ok=53500  errors=0
+  progress: 54000/192892  ok=54000  errors=0
+  progress: 54500/192892  ok=54500  errors=0
+  progress: 55000/192892  ok=55000  errors=0
+  progress: 55500/192892  ok=55500  errors=0
+  progress: 56000/192892  ok=56000  errors=0
+  progress: 56500/192892  ok=56500  errors=0
+  progress: 57000/192892  ok=57000  errors=0
+  progress: 57500/192892  ok=57500  errors=0
+  progress: 58000/192892  ok=58000  errors=0
+  progress: 58500/192892  ok=58500  errors=0
+  progress: 59000/192892  ok=59000  errors=0
+  progress: 59500/192892  ok=59500  errors=0
+  progress: 60000/192892  ok=60000  errors=0
+  progress: 60500/192892  ok=60500  errors=0
+  progress: 61000/192892  ok=61000  errors=0
+  progress: 61500/192892  ok=61500  errors=0
+  progress: 62000/192892  ok=62000  errors=0
+  progress: 62500/192892  ok=62500  errors=0
+  progress: 63000/192892  ok=63000  errors=0
+  progress: 63500/192892  ok=63500  errors=0
+  progress: 64000/192892  ok=64000  errors=0
+  progress: 64500/192892  ok=64500  errors=0
+  progress: 65000/192892  ok=65000  errors=0
+  progress: 65500/192892  ok=65500  errors=0
+  progress: 66000/192892  ok=66000  errors=0
+  progress: 66500/192892  ok=66500  errors=0
+  progress: 67000/192892  ok=67000  errors=0
+  progress: 67500/192892  ok=67500  errors=0
+  progress: 68000/192892  ok=68000  errors=0
+  progress: 68500/192892  ok=68500  errors=0
+  progress: 69000/192892  ok=69000  errors=0
+  progress: 69500/192892  ok=69500  errors=0
+  progress: 70000/192892  ok=70000  errors=0
+  progress: 70500/192892  ok=70500  errors=0
+  progress: 71000/192892  ok=71000  errors=0
+  progress: 71500/192892  ok=71500  errors=0
+  progress: 72000/192892  ok=72000  errors=0
+  progress: 72500/192892  ok=72500  errors=0
+  progress: 73000/192892  ok=73000  errors=0
+  progress: 73500/192892  ok=73500  errors=0
+  progress: 74000/192892  ok=74000  errors=0
+  progress: 74500/192892  ok=74500  errors=0
+  progress: 75000/192892  ok=75000  errors=0
+  progress: 75500/192892  ok=75500  errors=0
+  progress: 76000/192892  ok=76000  errors=0
+  progress: 76500/192892  ok=76500  errors=0
+  progress: 77000/192892  ok=77000  errors=0
+  progress: 77500/192892  ok=77500  errors=0
+  progress: 78000/192892  ok=78000  errors=0
+  progress: 78500/192892  ok=78500  errors=0
+  progress: 79000/192892  ok=79000  errors=0
+  progress: 79500/192892  ok=79500  errors=0
+  progress: 80000/192892  ok=80000  errors=0
+  progress: 80500/192892  ok=80500  errors=0
+  progress: 81000/192892  ok=81000  errors=0
+  progress: 81500/192892  ok=81500  errors=0
+  progress: 82000/192892  ok=82000  errors=0
+  progress: 82500/192892  ok=82500  errors=0
+  progress: 83000/192892  ok=83000  errors=0
+  progress: 83500/192892  ok=83500  errors=0
+  progress: 84000/192892  ok=84000  errors=0
+  progress: 84500/192892  ok=84500  errors=0
+  progress: 85000/192892  ok=85000  errors=0
+  progress: 85500/192892  ok=85500  errors=0
+  progress: 86000/192892  ok=86000  errors=0
+  progress: 86500/192892  ok=86500  errors=0
+  progress: 87000/192892  ok=87000  errors=0
+  progress: 87500/192892  ok=87500  errors=0
+  progress: 88000/192892  ok=88000  errors=0
+  progress: 88500/192892  ok=88500  errors=0
+  progress: 89000/192892  ok=89000  errors=0
+  progress: 89500/192892  ok=89500  errors=0
+  progress: 90000/192892  ok=90000  errors=0
+  progress: 90500/192892  ok=90500  errors=0
+  progress: 91000/192892  ok=91000  errors=0
+  progress: 91500/192892  ok=91500  errors=0
+  progress: 92000/192892  ok=92000  errors=0
+  progress: 92500/192892  ok=92500  errors=0
+  progress: 93000/192892  ok=93000  errors=0
+  progress: 93500/192892  ok=93500  errors=0
+  progress: 94000/192892  ok=94000  errors=0
+  progress: 94500/192892  ok=94500  errors=0
+  progress: 95000/192892  ok=95000  errors=0
+  progress: 95500/192892  ok=95500  errors=0
+  progress: 96000/192892  ok=96000  errors=0
+  progress: 96500/192892  ok=96500  errors=0
+  progress: 97000/192892  ok=97000  errors=0
+  progress: 97500/192892  ok=97500  errors=0
+  progress: 98000/192892  ok=98000  errors=0
+  progress: 98500/192892  ok=98500  errors=0
+  progress: 99000/192892  ok=99000  errors=0
+  progress: 99500/192892  ok=99500  errors=0
+  progress: 100000/192892  ok=100000  errors=0
+  progress: 100500/192892  ok=100500  errors=0
+  progress: 101000/192892  ok=101000  errors=0
+  progress: 101500/192892  ok=101500  errors=0
+  progress: 102000/192892  ok=102000  errors=0
+  progress: 102500/192892  ok=102500  errors=0
+  progress: 103000/192892  ok=103000  errors=0
+  progress: 103500/192892  ok=103500  errors=0
+  progress: 104000/192892  ok=104000  errors=0
+  progress: 104500/192892  ok=104500  errors=0
+  progress: 105000/192892  ok=105000  errors=0
+  progress: 105500/192892  ok=105500  errors=0
+  progress: 106000/192892  ok=106000  errors=0
+  progress: 106500/192892  ok=106500  errors=0
+  progress: 107000/192892  ok=107000  errors=0
+  progress: 107500/192892  ok=107500  errors=0
+  progress: 108000/192892  ok=108000  errors=0
+  progress: 108500/192892  ok=108500  errors=0
+  progress: 109000/192892  ok=109000  errors=0
+  progress: 109500/192892  ok=109500  errors=0
+  progress: 110000/192892  ok=110000  errors=0
+  progress: 110500/192892  ok=110500  errors=0
+  progress: 111000/192892  ok=111000  errors=0
+  progress: 111500/192892  ok=111500  errors=0
+  progress: 112000/192892  ok=112000  errors=0
+  progress: 112500/192892  ok=112500  errors=0
+  progress: 113000/192892  ok=113000  errors=0
+  progress: 113500/192892  ok=113500  errors=0
+  progress: 114000/192892  ok=114000  errors=0
+  progress: 114500/192892  ok=114500  errors=0
+  progress: 115000/192892  ok=115000  errors=0
+  progress: 115500/192892  ok=115500  errors=0
+  progress: 116000/192892  ok=116000  errors=0
+  progress: 116500/192892  ok=116500  errors=0
+  progress: 117000/192892  ok=117000  errors=0
+  progress: 117500/192892  ok=117500  errors=0
+  progress: 118000/192892  ok=118000  errors=0
+  progress: 118500/192892  ok=118500  errors=0
+  progress: 119000/192892  ok=119000  errors=0
+  progress: 119500/192892  ok=119500  errors=0
+  progress: 120000/192892  ok=120000  errors=0
+  progress: 120500/192892  ok=120500  errors=0
+  progress: 121000/192892  ok=121000  errors=0
+  progress: 121500/192892  ok=121500  errors=0
+  progress: 122000/192892  ok=122000  errors=0
+  progress: 122500/192892  ok=122500  errors=0
+  progress: 123000/192892  ok=123000  errors=0
+  progress: 123500/192892  ok=123500  errors=0
+  progress: 124000/192892  ok=124000  errors=0
+  progress: 124500/192892  ok=124500  errors=0
+  progress: 125000/192892  ok=125000  errors=0
+  progress: 125500/192892  ok=125500  errors=0
+  progress: 126000/192892  ok=126000  errors=0
+  progress: 126500/192892  ok=126500  errors=0
+  progress: 127000/192892  ok=127000  errors=0
+  progress: 127500/192892  ok=127500  errors=0
+  progress: 128000/192892  ok=128000  errors=0
+  progress: 128500/192892  ok=128500  errors=0
+  progress: 129000/192892  ok=129000  errors=0
+  progress: 129500/192892  ok=129500  errors=0
+  progress: 130000/192892  ok=130000  errors=0
+  progress: 130500/192892  ok=130500  errors=0
+  progress: 131000/192892  ok=131000  errors=0
+  progress: 131500/192892  ok=131500  errors=0
+  progress: 132000/192892  ok=132000  errors=0
+  progress: 132500/192892  ok=132500  errors=0
+  progress: 133000/192892  ok=133000  errors=0
+  progress: 133500/192892  ok=133500  errors=0
+  progress: 134000/192892  ok=134000  errors=0
+  progress: 134500/192892  ok=134500  errors=0
+  progress: 135000/192892  ok=135000  errors=0
+  progress: 135500/192892  ok=135500  errors=0
+  progress: 136000/192892  ok=136000  errors=0
+  progress: 136500/192892  ok=136500  errors=0
+  progress: 137000/192892  ok=137000  errors=0
+  progress: 137500/192892  ok=137500  errors=0
+  progress: 138000/192892  ok=138000  errors=0
+  progress: 138500/192892  ok=138500  errors=0
+  progress: 139000/192892  ok=139000  errors=0
+  progress: 139500/192892  ok=139500  errors=0
+  progress: 140000/192892  ok=140000  errors=0
+  progress: 140500/192892  ok=140500  errors=0
+  progress: 141000/192892  ok=141000  errors=0
+  progress: 141500/192892  ok=141500  errors=0
+  progress: 142000/192892  ok=142000  errors=0
+  progress: 142500/192892  ok=142500  errors=0
+  progress: 143000/192892  ok=143000  errors=0
+  progress: 143500/192892  ok=143500  errors=0
+  progress: 144000/192892  ok=144000  errors=0
+  progress: 144500/192892  ok=144500  errors=0
+  progress: 145000/192892  ok=145000  errors=0
+  progress: 145500/192892  ok=145500  errors=0
+  progress: 146000/192892  ok=146000  errors=0
+  progress: 146500/192892  ok=146500  errors=0
+  progress: 147000/192892  ok=147000  errors=0
+  progress: 147500/192892  ok=147500  errors=0
+  progress: 148000/192892  ok=148000  errors=0
+  progress: 148500/192892  ok=148500  errors=0
+  progress: 149000/192892  ok=149000  errors=0
+  progress: 149500/192892  ok=149500  errors=0
+  progress: 150000/192892  ok=150000  errors=0
+  [err] inst-089386_v3.ll: Traceback (most recent call last):
+  File "/tests/simspect/STAGE2_compilation/compile_annotate.py", line 357, in <module>
+    main()
+  File "/tests/simspect/STAGE2_compilation/compile_annotate.py", li
+  [err] inst-089387_v2.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  progress: 150500/192892  ok=150498  errors=2
+  [err] inst-089416_v1.ll: Traceback (most recent call last):
+  File "/tests/simspect/STAGE2_compilation/compile_annotate.py", line 357, in <module>
+    main()
+  File "/tests/simspect/STAGE2_compilation/compile_annotate.py", li
+  [err] inst-089416_v3.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089418_v0.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089417_v1.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089417_v3.ll: Traceback (most recent call last):
+  File "/tests/simspect/STAGE2_compilation/compile_annotate.py", line 357, in <module>
+    main()
+  File "/tests/simspect/STAGE2_compilation/compile_annotate.py", li
+  [err] inst-089420_v0.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089417_v0.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089416_v2.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089418_v1.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089417_v2.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089419_v3.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089418_v2.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089418_v3.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089419_v2.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  [err] inst-089419_v0.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  progress: 151000/192892  ok=150983  errors=17
+  [err] inst-089639_v2.ll: Traceback (most recent call last):
+  File "/tests/simspect/STAGE2_compilation/compile_annotate.py", line 357, in <module>
+    main()
+  File "/tests/simspect/STAGE2_compilation/compile_annotate.py", li
+  [err] inst-089640_v2.ll: warning: overriding the module target triple with x86_64-unknown-linux-gnu [-Woverride-module]
+fatal error: error in backend: IO failure on output stream: No space left on device
+PLEASE submit a bug r
+  progress: 151500/192892  ok=151481  errors=19
+  [err] inst-089688_v2.ll: Traceback (most recent call last):
+  File "/tests/simspect/STAGE2_compilation/compile_annotate.py", line 357, in <module>
+    main()
+  File "/tests/simspect/STAGE2_compilation/compile_annotate.py", li
+  [err] (suppressing further per-file errors)
+  progress: 152000/192892  ok=151951  errors=49
+  progress: 152500/192892  ok=152421  errors=79
+  progress: 153000/192892  ok=152876  errors=124
+  progress: 153500/192892  ok=153337  errors=163
+  progress: 154000/192892  ok=153837  errors=163
+  progress: 154500/192892  ok=154337  errors=163
+  progress: 155000/192892  ok=154837  errors=163
+  progress: 155500/192892  ok=155337  errors=163
+  progress: 156000/192892  ok=155837  errors=163
+  progress: 156500/192892  ok=156297  errors=203
+  progress: 157000/192892  ok=156725  errors=275
+  progress: 157500/192892  ok=157138  errors=362
+  progress: 158000/192892  ok=157492  errors=508
+  progress: 158500/192892  ok=157902  errors=598
+  progress: 159000/192892  ok=158041  errors=959
+  progress: 159500/192892  ok=158041  errors=1459
+  progress: 160000/192892  ok=158041  errors=1959
+  progress: 160500/192892  ok=158041  errors=2459
+  progress: 161000/192892  ok=158041  errors=2959
+  progress: 161500/192892  ok=158041  errors=3459
+  progress: 162000/192892  ok=158041  errors=3959
+  progress: 162500/192892  ok=158041  errors=4459
+  progress: 163000/192892  ok=158041  errors=4959
+  progress: 163500/192892  ok=158041  errors=5459
+  progress: 164000/192892  ok=158041  errors=5959
+  progress: 164500/192892  ok=158041  errors=6459
+  progress: 165000/192892  ok=158238  errors=6762
+  progress: 165500/192892  ok=158670  errors=6830
+  progress: 166000/192892  ok=158716  errors=7284
+  progress: 166500/192892  ok=158716  errors=7784
+  progress: 167000/192892  ok=158716  errors=8284
+  progress: 167500/192892  ok=158716  errors=8784
+  progress: 168000/192892  ok=158716  errors=9284
+  progress: 168500/192892  ok=158791  errors=9709
+  progress: 169000/192892  ok=159291  errors=9709
+  progress: 169500/192892  ok=159788  errors=9712
+  progress: 170000/192892  ok=160288  errors=9712
+  progress: 170500/192892  ok=160788  errors=9712
+  progress: 171000/192892  ok=161288  errors=9712
+  progress: 171500/192892  ok=161534  errors=9966
+  progress: 172000/192892  ok=161534  errors=10466
+  progress: 172500/192892  ok=161534  errors=10966
+  progress: 173000/192892  ok=161534  errors=11466
+  progress: 173500/192892  ok=161534  errors=11966
+  progress: 174000/192892  ok=161534  errors=12466
+  progress: 174500/192892  ok=161534  errors=12966
+  progress: 175000/192892  ok=161534  errors=13466
+  progress: 175500/192892  ok=161534  errors=13966
+  progress: 176000/192892  ok=161534  errors=14466
+  progress: 176500/192892  ok=161534  errors=14966
+  progress: 177000/192892  ok=161534  errors=15466
+  progress: 177500/192892  ok=161534  errors=15966
+  progress: 178000/192892  ok=161534  errors=16466
+  progress: 178500/192892  ok=161534  errors=16966
+  progress: 179000/192892  ok=161534  errors=17466
+  progress: 179500/192892  ok=161534  errors=17966
+  progress: 180000/192892  ok=161534  errors=18466
+  progress: 180500/192892  ok=161534  errors=18966
+  progress: 181000/192892  ok=161534  errors=19466
+  progress: 181500/192892  ok=161534  errors=19966
+  progress: 182000/192892  ok=161534  errors=20466
+  progress: 182500/192892  ok=161534  errors=20966
+  progress: 183000/192892  ok=161534  errors=21466
+  progress: 183500/192892  ok=161534  errors=21966
+  progress: 184000/192892  ok=161534  errors=22466
+  progress: 184500/192892  ok=161534  errors=22966
+  progress: 185000/192892  ok=161534  errors=23466
+  progress: 185500/192892  ok=161534  errors=23966
+  progress: 186000/192892  ok=161534  errors=24466
+  progress: 186500/192892  ok=161534  errors=24966
+  progress: 187000/192892  ok=161534  errors=25466
+  progress: 187500/192892  ok=161534  errors=25966
+  progress: 188000/192892  ok=161534  errors=26466
+  progress: 188500/192892  ok=161534  errors=26966
+  progress: 189000/192892  ok=161534  errors=27466
+  progress: 189500/192892  ok=161534  errors=27966
+  progress: 190000/192892  ok=161534  errors=28466
+  progress: 190500/192892  ok=161974  errors=28526
+  progress: 191000/192892  ok=162474  errors=28526
+  progress: 191500/192892  ok=162974  errors=28526
+  progress: 192000/192892  ok=163474  errors=28526
+  progress: 192500/192892  ok=163974  errors=28526
+[asm] Done — 164366 compiled, 28526 errors

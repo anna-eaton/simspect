@@ -122,3 +122,35 @@ With `moreTransmitInsts=0` (the default, and the value used by all known configu
 - Upstream: `https://github.com/cwfletcher/stt.git`
 - Branches examined: `master` (HEAD + first commit `01ba263`), `updates` (`9f84aa1`)
 - Amulet artifact: `/work/amulet/amulet-gem5-STT_AE-v1.1` (no git history; matches master for taint logic)
+
+---
+
+## STT_6 / STT_6_interleave sweeps on `/work/stt` (scheme 2, stock se.py) — FULLY ANALYZED, NO BUGS
+
+**Date:** 2026-06-02 (session `1a:inspectSTT`). Runs:
+`results/STT_6_sttbuild__20260602_013615`, `results/STT_6_interleave_sttbuild__20260602_013615`
+(`/work/stt/build/X86/gem5.opt`, `--scheme=2`, stock `configs/example/se.py`,
+`fnc_commit_stall_cycles=150`, sweep grid `[0,500,2500]`, `unresolved_stall_cycles=5000`).
+
+**Result: 0 leaks across every transmitter kind and mode.**
+
+| run | mode | ld | br_x | leaks |
+|-----|------|----|------|-------|
+| STT_6_sttbuild | not_taken | 11,652 | 4,348 | 0 |
+| STT_6_sttbuild | taken | 11,652 | 4,348 | 0 |
+| STT_6_interleave_sttbuild | not_taken | 11,956 | 6,044 | 0 |
+| STT_6_interleave_sttbuild | taken | 10,284 | 5,368 | 0 |
+
+Every `ld` and `br_x` record is `ok`/no-leak — the STT defense holds on these testsets under
+stock timing. Nothing to root-cause. (Contrast: the **recon-modded** STT runs `__015852` do show
+`ld` hits, but those are the load→load `check_ld` false positives already documented in
+`claudelog` / `reconresults.md`, not a `/work/stt` signal.)
+
+**The 348 `error` rows in `STT_6_interleave_sttbuild` taken/ld are NOT a bug** — they are a
+sweep-completeness artifact. `pipeline._aggregate_sweep_results` flags a stem `error` when its row
+is missing from ≥1 of its 3 sweep grid points. All 348 (`inst-003885..~004000_vN`) are present and
+clean `ok` at grid points 0 (`0`) and 1 (`500`); they are absent from grid point 2 (`2500`, the
+heaviest stall) only because that batch's `check_ld` output file (`grid0002_batch0009`) was never
+written — the invocation died mid-batch (~09:18–09:21) and the run wound down. Stock timing, so this
+is **not** the `commitToIEWDelay≥5` slow-comm livelock. Verdict: 🟡 harness/pipeline artifact, no
+hidden leak in the two completed grid points. Full trace: `claudelog.md` 2026-06-02 23:10.

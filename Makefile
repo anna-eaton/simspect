@@ -7,7 +7,7 @@
 #   FORCE     — set to 1 to re-run even if output exists  (default: unset)
 #
 # ── Recommended flow: pipelined producer + per-build consumers ───────────────
-#   make gen   MODEL=SPT_6_oneLP CONFIG=run_config_SPT_6_oneLP.jsonc
+#   make gen   MODEL=SPT_6_oneLP CONFIG=runconfigs/run_config_SPT_6_oneLP.jsonc
 #       Producer: xml + llvm + asm run CONCURRENTLY (all stages progress at
 #       once); resumable; no gem5. Writes testsets/<MODEL>/.
 #   make run   MODEL=SPT_6_oneLP RUNCONFIG=results/SPT_6_oneLP_fence/run_config.jsonc
@@ -78,6 +78,6 @@ help:
 	@echo "Vars: MODEL, CONFIG, RUNCONFIG (default=CONFIG), FORCE=1"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make gen MODEL=SPT_6_oneLP CONFIG=run_config_SPT_6_oneLP.jsonc"
+	@echo "  make gen MODEL=SPT_6_oneLP CONFIG=runconfigs/run_config_SPT_6_oneLP.jsonc"
 	@echo "  make run MODEL=SPT_6_oneLP RUNCONFIG=results/SPT_6_oneLP_fence/run_config.jsonc"
 	@echo ""

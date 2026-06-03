@@ -17,10 +17,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import ctypes
 import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -69,6 +71,15 @@ ALLOW_LEAKED = os.environ.get("SIMSPECT_ALLOW_LEAKED", "").lower() in (
     "1", "true", "yes", "on")
 
 FNC_COMMIT_STALL_CYCLES: int = int(os.environ.get("SIMSPECT_FNC_COMMIT_STALL_CYCLES", "0"))
+
+# Disk safety net: litmus runs finish in well under a second of wall time, so a
+# run still alive after this many seconds is a runaway/livelock (e.g. the
+# commitToIEWDelay>=5 livelock) whose unbounded O3PipeView trace will fill the
+# disk — kill it. SIMSPECT_GEM5_MAX_TICK is belt-and-suspenders: a generous
+# absolute-tick ceiling so gem5 self-exits cleanly long before a legit run
+# would ever reach it (set so high it can only fire on a true runaway).
+GEM5_TIMEOUT_S: int = int(os.environ.get("SIMSPECT_GEM5_TIMEOUT_S", "120"))
+GEM5_MAX_TICK:  int = int(os.environ.get("SIMSPECT_GEM5_MAX_TICK", "100000000000"))
 
 _scheme: int = 2   # mutable; set by run_batch() from CLI
 
@@ -157,6 +168,9 @@ def run_gem5(binary: Path, workdir: Path,
         f"--scheme={_scheme}",
     ]
 
+    if GEM5_MAX_TICK > 0:
+        cmd.append(f"--abs-max-tick={GEM5_MAX_TICK}")
+
     if BRANCH_ANN_ENABLE and ann_path is not None and ann_path.exists():
         base = _func_base_addr(binary, binary.stem)
         cmd.append(f"--branch-ann-file={ann_path}")
@@ -174,8 +188,43 @@ def run_gem5(binary: Path, workdir: Path,
     if extra:
         cmd.extend(a for a in extra.split("\x1f") if a)
 
-    subprocess.run(cmd, check=True, capture_output=True, cwd=str(GEM5_DIR))
+    _run_bounded(cmd)
     return outdir / GEM5_DBG_FILE
+
+
+def _set_pdeathsig():
+    """preexec (child side): SIGKILL this gem5 if the launching python dies.
+
+    Without this, a killed sweep/session orphans gem5 to PID 1 where it keeps
+    appending to its (often already-unlinked) pipeview.txt, pinning the disk at
+    100% until manually killed. Linux-only; the platform here is Linux.
+    """
+    PR_SET_PDEATHSIG = 1
+    ctypes.CDLL("libc.so.6", use_errno=True).prctl(PR_SET_PDEATHSIG,
+                                                   signal.SIGKILL)
+
+
+def _run_bounded(cmd: list) -> None:
+    """Run gem5 with a wall-clock timeout, killing the whole process group on
+    expiry so a runaway/livelock can't fill the disk with O3PipeView trace.
+
+    `start_new_session` puts gem5 in its own group (pgid == pid) so the timeout
+    kill reaps any children too; `_set_pdeathsig` covers the orphan case where
+    the parent dies first. Mirrors `subprocess.run(check=True, capture_output)`:
+    raises CalledProcessError on nonzero exit (with bytes out/err, as before).
+    """
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            cwd=str(GEM5_DIR), start_new_session=True,
+                            preexec_fn=_set_pdeathsig)
+    try:
+        out, err = proc.communicate(timeout=GEM5_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.communicate()
+        raise RuntimeError(
+            f"gem5 timed out after {GEM5_TIMEOUT_S}s (runaway/livelock) — killed")
+    if proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, cmd, out, err)
 
 
 # ── Pipeview parsing ────────────────────────────────────────────────────────
@@ -214,15 +263,47 @@ def parse_lsq(trace_path: Path) -> Dict[int, List[dict]]:
     executes, and exits the LSQ — capturing the cache-touch signal that
     pipeview hides.
 
-    Returns dict pc → list of {sn, insert_tick, execute_tick, squash_tick}.
-    A load with execute_tick > 0 issued a memory request (= cache touched);
-    a load with squash_tick > 0 was squashed.
+    Returns dict pc → list of {sn, insert_tick, execute_tick, squash_tick,
+    packet_tick, spec_read_tick, expose_tick}.
+    expose_tick > 0 → InvisiSpec issued a cache-modifying validate/expose for
+    this load at its visibility point (the real transmit; 0 on non-InvisiSpec
+    builds, which never emit the line). check_ld_invisispec keys its leak
+    verdict on this tick.
+    A load with execute_tick > 0 issued a memory request at the TOP of the load
+    path (pre-defense); a load with squash_tick > 0 was squashed. The cache-fate
+    fields disambiguate what "Executing load" actually did downstream:
+      packet_tick    > 0 → a real read packet went to cache (visible leak)
+      spec_read_tick > 0 → sent only as an invisible spec read (no visible fill)
+      both 0 (executed) → bounced (delay_unit) before any packet — no cache touch
+    These come from the same LSQUnit debug flag (lsq_unit.hh), so they are already
+    in the trace; check_ld uses them as a secondary cache-reach gate on its hits.
     """
     by_pc: Dict[int, List[dict]] = defaultdict(list)
     by_sn: Dict[int, dict] = {}
     insert_re  = re.compile(r"^\s*(\d+):\s+system\.cpu\.iew\.lsq\..*:\s+Inserting load PC \(0x([0-9a-f]+)=>")
     execute_re = re.compile(r"^\s*(\d+):\s+system\.cpu\.iew\.lsq\..*:\s+Executing load PC \(0x([0-9a-f]+)=>")
     squash_re  = re.compile(r"^\s*(\d+):\s+system\.cpu\.iew\.lsq\..*:\s+Load Instruction PC \(0x([0-9a-f]+)=>.*squashed,\s*\[sn:(\d+)\]")
+    packet_re  = re.compile(r"^\s*(\d+):\s+system\.cpu\.iew\.lsq\..*:\s+successfully sent out packet\(s\) for inst \[sn:(\d+)\]")
+    spec_re    = re.compile(r"^\s*(\d+):\s+system\.cpu\.iew\.lsq\..*:\s+send a spec read for inst \[sn:(\d+)\]")
+    # [InvisiSpec] the cache-MODIFYING access (expose/validate) issued at the
+    # load's visibility point — distinct from the invisible spec read above.
+    # Only InvisiSpec traces emit this; a no-op (field stays 0) on other builds.
+    expose_re  = re.compile(r"^\s*(\d+):\s+system\.cpu\.iew\.lsq\..*:\s+Validate/Expose request for inst \[sn:(\d+)\]")
+    # [SpecLFB / newer gem5 base] the load's actual cache access. This base has no
+    # "successfully sent out packet(s)" line; instead LSQUnit::read() logs this
+    # right before issuing the request, and ONLY when the load is NOT store-forwarded
+    # (lsq_unit.cc:1766). So memaccess_tick>0 ⇒ the load went to cache. Separate
+    # field (does not touch packet_tick) so existing checkers are unaffected.
+    memaccess_re = re.compile(r"^\s*(\d+):\s+system\.cpu\.iew\.lsq\..*:\s+Doing memory access for inst \[sn:(\d+)\]")
+    # [SpecLFB] per-load USL classification while branches are unresolved
+    # (Speclfb debug flag). isCUSL=1 ⇒ the load IS a conditional unsafe spec
+    # load (should be protected); isUnsafe=0 on such a load ⇒ SpecLFB left it
+    # UNPROTECTED (the UV6 first-spec-load exemption — its line installs in L1,
+    # vs an isUnsafe=1 load whose fill is held in the LFB). Sets spec_cusl /
+    # spec_unprotected; only SpecLFB emits these lines (no-op elsewhere).
+    speclfb_usl_re = re.compile(
+        r"^\s*(\d+):.*Initiating Translation inst \[sn:(\d+)\] sPC [0-9a-f]+ - "
+        r"Prior Brs Not Resolved\. isCUSL: ([01])\..*?isUnsafe: ([01])")
     insert_sn_re  = re.compile(r"\[sn:(\d+)\]")
     with open(trace_path) as f:
         for line in f:
@@ -231,7 +312,10 @@ def parse_lsq(trace_path: Path) -> Dict[int, List[dict]]:
                 tick = int(m.group(1)); pc = int(m.group(2), 16)
                 sn_m = insert_sn_re.search(line)
                 sn = int(sn_m.group(1)) if sn_m else -1
-                rec = dict(pc=pc, sn=sn, insert_tick=tick, execute_tick=0, squash_tick=0)
+                rec = dict(pc=pc, sn=sn, insert_tick=tick, execute_tick=0,
+                           squash_tick=0, packet_tick=0, spec_read_tick=0,
+                           expose_tick=0, memaccess_tick=0,
+                           spec_cusl=False, spec_unprotected=False)
                 by_sn[sn] = rec
                 by_pc[pc].append(rec)
                 continue
@@ -243,6 +327,38 @@ def parse_lsq(trace_path: Path) -> Dict[int, List[dict]]:
                 rec = by_sn.get(sn)
                 if rec is not None:
                     rec["execute_tick"] = tick
+                continue
+            m = packet_re.match(line)
+            if m:
+                rec = by_sn.get(int(m.group(2)))
+                if rec is not None and rec["packet_tick"] == 0:
+                    rec["packet_tick"] = int(m.group(1))
+                continue
+            m = spec_re.match(line)
+            if m:
+                rec = by_sn.get(int(m.group(2)))
+                if rec is not None and rec["spec_read_tick"] == 0:
+                    rec["spec_read_tick"] = int(m.group(1))
+                continue
+            m = expose_re.match(line)
+            if m:
+                rec = by_sn.get(int(m.group(2)))
+                if rec is not None and rec["expose_tick"] == 0:
+                    rec["expose_tick"] = int(m.group(1))
+                continue
+            m = memaccess_re.match(line)
+            if m:
+                rec = by_sn.get(int(m.group(2)))
+                if rec is not None and rec["memaccess_tick"] == 0:
+                    rec["memaccess_tick"] = int(m.group(1))
+                continue
+            m = speclfb_usl_re.match(line)
+            if m:
+                rec = by_sn.get(int(m.group(2)))
+                if rec is not None and m.group(3) == "1":   # isCUSL: genuine USL
+                    rec["spec_cusl"] = True
+                    if m.group(4) == "0":                   # isUnsafe=0: not protected
+                        rec["spec_unprotected"] = True
                 continue
             m = squash_re.match(line)
             if m:

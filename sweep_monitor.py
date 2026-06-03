@@ -79,22 +79,57 @@ def load_jsonc(p: Path) -> dict:
     return json.loads(txt)
 
 
+# File-count cache: testset asm/llvm dirs hold hundreds of thousands of files and
+# are scanned by every section that references the testset, several times per
+# refresh. A directory's mtime bumps whenever an entry is added/removed, so keying
+# on it means each dir is scanned at most once per refresh (and stable dirs never
+# re-scan). Persisted across runs.
+_COUNT_CACHE: dict = {}   # "path\x1fsuffix" -> [dir_mtime, count]
+
+
 def count_suffix(d: Path, suffix: str) -> int:
-    if not d.is_dir():
+    try:
+        mt = d.stat().st_mtime
+    except OSError:
         return 0
+    k = f"{d}\x1f{suffix}"
+    c = _COUNT_CACHE.get(k)
+    if c and c[0] == mt:
+        return c[1]
     n = 0
-    with os.scandir(d) as it:
-        for e in it:
-            if e.name.endswith(suffix):
-                n += 1
+    try:
+        with os.scandir(d) as it:
+            for e in it:
+                if e.name.endswith(suffix):
+                    n += 1
+    except OSError:
+        return 0
+    _COUNT_CACHE[k] = [mt, n]
     return n
+
+
+# Record-count cache: parsing a big window-results.json every refresh just to
+# count records is the dominant cost (idle dirs hold tens of thousands). Keyed by
+# (mtime, size) so an unchanged file is parsed once ever; a growing/active file
+# re-parses only when it actually changes. Persisted to disk across runs.
+_JLEN_CACHE: dict = {}   # str(path) -> [mtime, size, length]
 
 
 def json_len(p: Path) -> int:
     try:
-        return len(json.loads(p.read_text()))
-    except Exception:
+        st = p.stat()
+    except OSError:
         return 0
+    k = str(p)
+    c = _JLEN_CACHE.get(k)
+    if c and c[0] == st.st_mtime and c[1] == st.st_size:
+        return c[2]
+    try:
+        n = len(json.loads(p.read_text()))
+    except Exception:
+        n = 0
+    _JLEN_CACHE[k] = [st.st_mtime, st.st_size, n]
+    return n
 
 
 def resolve(v: str) -> Path:
@@ -393,8 +428,12 @@ def scan_kind_hits(base: Path, modes: list) -> dict:
 
 
 def gather_hit_stems(base: Path, modes: list) -> list:
-    """Union of hit stems (issued_in_window) across all modes/kinds, for triage."""
-    stems: set = set()
+    """All hit (issued_in_window) occurrences across modes/kinds — NOT
+    deduplicated. The same Alloy stem is run under both branch modes (and shows
+    once per mode in the hits line), so we keep one entry per occurrence; that
+    way triage known+new equals the hits total instead of collapsing the two
+    modes into one set. Per-stem verdicts are cached, so the repeats are cheap."""
+    stems: list = []
     for mode in modes:
         mdir = base if mode is None else base / mode
         if not mdir.is_dir():
@@ -405,20 +444,49 @@ def gather_hit_stems(base: Path, modes: list) -> list:
             files = [f]
         for hf in files:
             try:
-                stems |= {ln.strip() for ln in hf.read_text().splitlines()
-                          if ln.strip()}
+                stems += [ln.strip() for ln in hf.read_text().splitlines()
+                          if ln.strip()]
             except OSError:
                 pass
-    return sorted(stems)
+    return stems
 
 
 # ── known-vs-new triage via per-results diagnostics/ scripts ──────────────────
 # Each results dir carries diagnostics/diag_*.py exposing
 # is_known(stem, xml_dir) -> (matched, reason). A hit is KNOWN if any script
 # matches (attributed to an understood bug), else NEW (the research signal).
-_DIAG_CACHE: dict = {}   # path -> (mtime, is_known_fn | None)
-_VERDICT: dict = {}      # (path, mtime, stem) -> bool
+_DIAG_CACHE: dict = {}   # path -> (mtime, is_known_fn | None)  (in-process only)
+_VERDICT: dict = {}      # "path\x1fmtime\x1fstem" -> bool       (persisted)
 _NEW_PREV: dict = {}     # results_name -> last 'new' (unattributed) hit count
+
+# On-disk cache so a restart doesn't redo the triage XML parses or re-count every
+# big window-results.json. Lives in gitignored results/. Self-invalidating: jlen
+# keys carry (mtime,size), verdict keys carry the diag script's mtime.
+_CACHE_FILE = ROOT / "results" / ".sweep_monitor_cache.json"
+
+
+def load_caches() -> None:
+    try:
+        d = json.loads(_CACHE_FILE.read_text())
+    except Exception:
+        return
+    if isinstance(d.get("verdict"), dict):
+        _VERDICT.update(d["verdict"])
+    if isinstance(d.get("jlen"), dict):
+        _JLEN_CACHE.update({k: list(v) for k, v in d["jlen"].items()})
+    if isinstance(d.get("count"), dict):
+        _COUNT_CACHE.update({k: list(v) for k, v in d["count"].items()})
+
+
+def save_caches() -> None:
+    try:
+        _CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = _CACHE_FILE.with_name(_CACHE_FILE.name + ".tmp")
+        tmp.write_text(json.dumps({"verdict": _VERDICT, "jlen": _JLEN_CACHE,
+                                   "count": _COUNT_CACHE}))
+        tmp.replace(_CACHE_FILE)
+    except Exception:
+        pass
 
 
 def _load_diag_funcs(diag_dir: Path) -> list:
@@ -456,7 +524,8 @@ def triage_hits(stems: list, diag_funcs: list, xml_dir: Path):
     for s in stems:
         hit_known = False
         for path, mt, fn in diag_funcs:
-            key = (path, mt, s)
+            # mt in the key invalidates the verdict when the diag script changes.
+            key = f"{path}\x1f{mt}\x1f{s}"
             v = _VERDICT.get(key)
             if v is None:
                 try:
@@ -809,6 +878,7 @@ def main() -> None:
 
     stale_secs = int(a.stale_mins * 60)
     prev_hits: dict = {}
+    load_caches()
     try:
         while True:
             screen, hits_now, alerts = render(prev_hits, stale_secs)
@@ -817,12 +887,15 @@ def main() -> None:
             if alerts and not a.no_bell:
                 sys.stdout.write(BELL)
             sys.stdout.flush()
+            save_caches()          # persist freshly-computed verdicts/counts
             prev_hits = hits_now
             if a.once:
                 break
             time.sleep(a.interval)
     except KeyboardInterrupt:
         sys.stdout.write("\n")
+    finally:
+        save_caches()
 
 
 if __name__ == "__main__":
