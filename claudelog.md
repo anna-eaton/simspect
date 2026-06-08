@@ -6,6 +6,194 @@ future sessions (and the user) need to know. It is the counterpart to `claudenot
 - `claudenotes.md` = *ephemeral* "what I'm doing right now" scratchpad. Cleared/overwritten freely.
 - `claudelog.md` (this file) = *durable* "what we learned / changed and why". **Append, don't delete.**
 
+## 2026-06-06 — figures — Added `dashboard.py`: web view of both STATUS dashboards + sweep monitor
+
+- **What:** `/tests/simspect/dashboard.py` — a single-file, **stdlib-only** (no flask/markdown;
+  neither is installed here) HTTP dashboard for Anna. Serves:
+  - both `STATUS.md` (Code = `/tests/simspect`, Paper = `/tests/SimSpect-S-P-2027`), rendered via a
+    compact in-file markdown→HTML converter (headings/lists/tables/code/blockquote/inline);
+  - click-through to every `.md` the STATUS files reference (auto-extracted, resolved against the
+    repo roots + `/tests`, existence-checked; `/api/md` is **path-traversal-guarded** to the two
+    repo roots only — verified 404 on `/etc/passwd`);
+  - a **Sweep Monitor** tab that runs `sweep_monitor.py --once` (≈2 s, 8 KB ANSI), cached
+    (min 25 s between runs) with a 40 s timeout, ANSI→HTML so colors survive;
+  - client-side auto-refresh (default 30 s) + refresh-on-focus.
+- **How:** `python3 dashboard.py` (binds `127.0.0.1:8765` — loopback only). Reach it via
+  `ssh -N -L 8765:127.0.0.1:8765 <dev-box>` then open `http://127.0.0.1:8765`. `--selftest` renders
+  once without serving; `--port`/`--host` to override.
+- **Scope (per Anna):** dashboards-first, **no** session launcher/relaunch buttons (deferred —
+  Claude Code has no IPC to inject into a live interactive session; the agreed model is global
+  state in logs/STATUS + fresh/resumed sessions, not driving live ones from the app).
+- Tested: `--selftest` (both STATUS render, 11+11 linked docs resolve) + live `curl` on every
+  endpoint + the sweep panel populating after its background run.
+
+## 2026-06-06 — 5:invisispec — 🔴 InvisiSpec/CleanupSpec runs were on CLASSIC caches (need --ruby) + BUILT the compound InvisiSpec checker
+
+**🔴 BIG: every prior InvisiSpec (and CleanupSpec) run used the CLASSIC cache model, NOT Ruby — the
+defense was INACTIVE.** gem5_common.run_gem5 appends `--caches` but NOT `--ruby`; InvisiSpec's defense
+(Spec-GetS invisibility, SB, eviction toggle) lives in the Ruby MESI `.sm`, so classic runs only exercised
+the CPU/LSQ side (readSpec/SB/expose), not the cache-side invisibility. Evidence: `cache.cc:192 hasRespData`
+aborts = classic cache; `ProtocolTrace` empty w/o --ruby; WITH --ruby it lights up (`SpecLoad M>M`, 1476
+lines). `--caches --ruby` coexist (se.py `if options.ruby:` wins). ⇒ earlier InvisiSpec results (0 leaks,
+expose-in-window) are on the WRONG memory model — don't test InvisiSpec's real cache defense. SpecLFB
+unaffected (classic build/X86, no Ruby).
+
+**BUILT (read `check_ld.py` UNCHANGED — confirmed git-clean; only NEW files + additive gem5_common):**
+- `STAGE3_gem5/check_ld_invisispec_compound.py` — many-pronged checker: parses Ruby `ProtocolTrace`
+  (`<tick> <node> <Machine> <Event> <cur>><next> [addr, line L]`) for the xmit load's full per-line
+  footprint; xmit line from the Squashed "Spec Read Request for PC.., Paddr" line. Flags a USL touching
+  ANY forbidden structure in the spec window: L1_Replacement (eviction=UV1), L2_Replacement, L1 install,
+  dir SpecFetch; reports TBE/MSHR alloc (NP/I>IX) as needs_pressure (UV2). Self-contained runner (reuses
+  gem5_common helpers, own ProtocolTrace parse — does NOT touch the shared CheckFn hot path).
+- launcher `results/STT_6_invisispec_compound/run_invisispec_compound.py` (forces --ruby + ProtocolTrace;
+  `--patch-off` sets apply_spec_eviction_patch=False to repro UV1 on cache-missing tests).
+
+**VALIDATED:** real ProtocolTrace parse (5 SpecLoad events); synthetic miss+evict → `touched_forbidden:
+l1_eviction` + tbe_mshr_alloc; clean hit → `invisible_spec_hit`; live --ruby run on 6 const-hit tests = 0
+forbidden, 0 errors (no classic aborts), spec hit invisible (SpecLoad M>M, no setMRU). NOTE: const-hit
+corpus is all HITS → doesn't exercise eviction/TBE (need cache-MISSING tests + --patch-off to fire UV1);
+also saw 4/6 `no_spec_access_in_window` under --ruby (timing/window differs from classic — worth a look).
+
+## 2026-06-03 — 5:invisispec — DESIGN: compound load-transmission criterion (all µarch structures a USL must not touch) — hook map for all 3 amulet defenses → docs/COMPOUND_TRANSMISSION_CRITERION.md
+
+Deep read-only exploration (no code/model touched) of where a speculative load touches each µarch
+structure across InvisiSpec/SpecLFB/CleanupSpec, to design a COMPOUND criterion (not just cache-install)
+that catches the AMuLeT bug classes. Transmission surface = L1 tag/LRU/eviction, MSHR/TBE, L2, directory,
+D-TLB, L1I, prefetcher, contention — each maps to an AMuLeT bug (eviction=InvisiSpec UV1, MSHR=UV2,
+I-cache=KV1, TLB=STT KV3, residue=CleanupSpec UV3/4/5).
+
+Key findings:
+- **Observability:** Ruby builds (InvisiSpec, CleanupSpec) have `ProtocolTrace` (CONFIRMED compiled) =
+  full per-line per-controller transition+event footprint (L1/L2/dir); classic SpecLFB uses `Cache`+`Speclfb`.
+- **InvisiSpec spec load:** HIT is clean (`h_spec_load_hit` OMITS `setMRU` — no LRU touch, vs `h_load_hit:994`).
+  MISS touches: TBE/MSHR always (`iw_allocateTBEWithoutCacheEntry`, L1cache.sm:1230 = UV2 surface), L2 GETSPEC,
+  and eviction IFF patch OFF (L1cache.sm:514 / L2cache.sm:386, `apply_spec_eviction_patch`=True default).
+  Directory does transient I→II→I, no sharer add (invisible) BUT authors left `// Is it secure?` (dir.sm:499)
+  — transient II observable to a racer.
+- **SpecLFB:** LFB=safe place (`isLFB_RF`/`LFBLatency` cache.cc:806-892); tags handleFill/insertBlock; MSHR
+  allocateMissBuffer (base.cc:270); evictBlock (cache.cc:999); ROB-mask base/unsafe_insqueue. CAVEAT to verify:
+  is the L1 install actually WITHHELD for isUnsafe or only latency-delayed? key the checker on the `Block…moving`
+  install line gated by isUnsafe.
+- **CleanupSpec:** criterion FLIPS — it ALLOWS installs + undoes on squash (CleanupTable/rollback,
+  EvictedLineAddrL1 tracking); leak = un-restored RESIDUE after cleanup (needs final-state/differential
+  observer like AMuLeT). UV3 = writeCallback (Sequencer.cc:443) misses the cleanup metadata readCallback (:548) sets.
+
+Impl plan in the doc: additive parse_ruby/parse_lsq per build → check_ld_compound with a per-STRUCTURE
+outcome vector + touched_forbidden; exclude the safe buffer (SB/LFB); MSHR/contention tagged needs_pressure
+(only leak under small-structure pressure, à la AMuLeT 2-MSHR/2-way). Read-only; nothing launched.
+
+## 2026-06-04 — 8:alloyCheckUpdated — CORRECTION: nmosier STT bug = TWO-branch coinciding squash (commit 18e304f); our build is vulnerable; Alloy CLI CAN re-ingest XML into a 2nd model
+
+**Two corrections, both Anna-directed.**
+
+**(1) The nmosier known STT bug is the "pending-squash" TWO-branch coincidence — NOT the single-branch
+VP-squash race.** Authoritative: `github.com/cwfletcher/stt` commit `18e304f` "fix pending squash bug"
+(branch nmosier/bugfix/pending-squash, PR #10 `5bf4110`), `src/cpu/o3/iew_impl.hh:~1348`. Mechanism: a
+YOUNGER UNTAINTED branch and an OLDER TAINTED branch resolving the SAME CYCLE produce a secret-dependent
+squash signal (IEW notifies commit of only the older tainted mispredict, hiding the younger; vs notifies
+the younger when the tainted branch is correctly predicted). **Our `/work/stt` HEAD `e3283b9` is NOT an
+ancestor of the fix (`git merge-base --is-ancestor 18e304f HEAD` → NO; working-tree iew_impl.hh lacks the
+"Tainted branch misprediction detected" code) → the build we sweep IS the vulnerable pre-fix version.**
+Prior memory `project_coincidence_gap` said single-branch VP-race — now CORRECTED (it even pointed at
+`sweep_design_notes.md §2` for the ≥2-branch class, which is exactly this bug).
+*Why we don't hit it:* (a) **generation gap** — the Alloy model emits only ONE unresolved branch per test
+(`sweep_design_notes.md §2`); this bug needs ≥2 mispredicted branches with MIXED taint (older tainted,
+younger untainted). Structurally unreachable with one. Plus a framing gap: the observable is the younger
+*untainted* branch's squash-redirect timing leaking the older tainted branch's outcome — not an
+operand-in-protset transmit, so `check_br`/leak predicate must be extended. (b) **run-config** — the two
+resolutions must coincide in one cycle; default sweep (`s_R≤2500`, `s_U=5000`) never collides. Needs the
+coincidence band (`§1` item d) + commitToIEWDelay/squashWidth se.py bridge (`§3` item b). Recipe =
+≥2-unresolved-branch `.als` dimension [owner sign-off] + checker squash-signal-dependence detection +
+coincidence run-config. This supersedes the "VP-squash race is the nmosier bug" framing in
+`bug/stt_slowcomm_vp_squash_race` / PAPER_RESULTS (that's a *separate, real* bug — keep it, but it is NOT
+the pending-squash bug).
+
+**(2) Alloy CLI/API CAN read a generated XML instance back into a SECOND model and recheck — the prior
+subagent claim ("Alloy doesn't take an instance as input") was too pessimistic.** The pipeline writes
+Alloy's NATIVE solution XML (`a6CountModels.java:52` `sol.writeXML(...)`; `<alloy>/<instance>/<sig>/<atom>`
+with the command embedded). `alloy6.jar` ships `edu.mit.csail.sdg.translator.A4SolutionReader.read(
+Iterable<Sig>, XMLNode)` → reconstitutes the instance bound to ANY model's sigs, and `A4Solution.eval(
+Expr)` evaluates any predicate of that model against it. So a **second-stage recheck** (run instance
+through a different defense's `secure_speculation_scheme_p`/`leakage_function`) is ~20 lines of Java on
+the existing jar — and trivial here because all 3 defense models share the identical base (L1-307), so an
+instance from one re-reads cleanly into another. *Decoration* (solve for ADDED non-interfering instrs on
+a pinned instance) is also possible but harder: partial-instance bounds via an `inst{}` block or pinned
+Kodkod bounds + enlarged `Instruction` scope (the closed facts `no_extra_ops`/`idx_surjective`/`spo_total`/
+`exactly 6 Instruction` must be relaxed for the synthetic region, like parsexml's `no_extra_inst` carve-out
+already does). Net: the two-stage "enumerate base → recheck/decorate in a 2nd Alloy stage" IS feasible on
+the stock jar; recheck is cheap (evaluator), decorate needs a small custom driver.
+
+## 2026-06-03 — 8:alloyCheckUpdated — ALLOY UP-TO-DATE AUDIT (pre-big-run): SPT_6_oneLP + Recon_6 need rf-last-writer fact; other_x + implicit-flow coverage gaps characterized; OTB/VP-race hittability traced
+
+Read-only audit (no `.als`, no run touched) of the 3 latest models before a big generation run.
+`latestmodels/*.als` == `STAGE1_alloy/models/*.als` (byte-identical).
+
+**(1) Up-to-date verdict per model:**
+- **STT_6 — UP TO DATE.** Has owner-approved `rf_from_most_recent_writer` (L163-169). const-addr correctly NOT a disqualifier for STT (speculation-taint, not data-taint). VP-squash race correctly stays a gem5 signal.
+- **SPT_6_oneLP — NEEDS CHANGES.** (a) MISSING `rf_from_most_recent_writer` — owner-approved Option A, present in STT_6, not propagated here; add after L159 (exact fact = STT_6 L163-169). This is why rf-clobber (~58% clobber-shaped) is filtered gem5-side (`diag_rf_clobber`) instead of ruled out in alloy. (b) inaddr-cleanup (L356 `(i.inreg+i.inaddr)`) + `Stores.inaddr` in leakage_function (L344) are APPLIED, but the deployed testset is PRE-fix → REGEN from xml. (c) const-addr proper fix (seed protset from `Loads.outreg+Instruction.inmem` forward-closure at L341) is DESIGNED in POTENTIAL_MODEL_FIX_constaddr_taint.md but UNAPPROVED — largest disqualifier bucket; data-taint defenses only; keep load→load tainted. Owner decision needed.
+- **Recon_6 — NEEDS CHANGES.** MISSING `rf_from_most_recent_writer` (same owner-approved fact, add after L159). const-addr correctly N/A (speculation-taint). recon-SLF (inst-014912) is a REAL bug, keep. OTB = coverage gap, see below.
+
+**(2) other_x transmitter NOT covered (all 3 models).** `leakage_function` (STT L328) = `Loads.inaddr+Branchxs.inreg`; the `+Otherxs.inreg` variant is COMMENTED OUT (L327). So `speculative_xmit_p`/`tag_xm` can never tag an ALU op as the transmitter → `check_other.py` is effectively dead. Enabling L327 wholesale is NOT faithful for STT: a constant-latency ALU op has no operand→timing channel; only variable-latency ops (mul/div/shift) do. If wanted, scope to variable-latency ops, not a blanket `Otherxs.inreg`. Owner-gated.
+
+**(3) Implicit-flow (`if(secret) x=A else x=B; load(arr[x])`) — STRUCTURALLY inexpressible, but NOT a model-too-conservative gap.** Branch has no outreg (L120), no ddi (L174), no outgoing rf (L156); single straight-line spo, no path-merge → secret can't reach a later value via control. Model captures ONLY the direct branch-direction channel (`Branchxs.inreg`). **Verified gem5-STT (/work/stt rob_impl.hh:809) taints args from `hasExplicitFlow` ONLY — `hasImplicitFlow` computed (L780) but never folded into value taint; `impChannel` only delays a *tainted branch's own* squash.** So STT itself does NOT defend the divergent-value gadget → it's an STT-PERMITTED leak (characterization: "STT leaves this open"), the opposite polarity from our model-says-no/gem5-says-yes signal. Adding it = a `cdep` control-dependence edge folded into `op_edges_p` (test-alloy sketch exists) + parsexml if/else concretization — owner-gated, and would be a *demonstration* of an STT gap, not a discrepancy hunt.
+
+**(4) OTB hittability in STT.** SAT-WHEN-FORCED (cap/ordering artifact, NOT a model limit) — re-confirmed by running Alloy on a throwaway copy with `pred otb_shape {some x:Loads | x in xm and some o:(Otherns+Otherxs) | some (o.outreg & rf.(x.inaddr))}` → SAT, instance has other→outreg→xmit-load.inaddr. Recipe to hit: forcing predicate as a conjunct of the first `run` + `interleave.enabled:true` (injects the 2nd tainted chain onto the other's blank slot). **interleave is OFF in all current STT configs** (`run_config_STT_6.jsonc` interleave.enabled:false; `_latest` has no interleave block). Owner-gated dedicated OTB testset.
+
+**(5) nmosier squash bug (VP↔squash race, A4) hittability.** The gadget IS generated (inst-047231, load-addr-from-older-spec-load; no Alloy change needed). Blocker is RUN-CONFIG: it's a `commitToIEWDelay≥2-3` timing race; stock O3 (delay=1) → 0 hits. **`commitToIEWDelay`/slow-comm is NOT wired into `pipeline.py:_build_gem5_env`** — only the experimental `se_slowcomm.py` applies it. To hit it in a normal sweep, plumb the knob through the config→env bridge. (Distinct from the store→D-TLB/DOLMA bug, which is intentionally out of scope: no store transmitter in leakage_function + TLB install unobservable in the pipeview/LSQ trace.)
+
+Cross-cutting: every (1) fix is a Stage-1 change ⇒ regen testset from `xml --force`; existing SPT/Recon results are pre-fix and contaminated by exactly the rf-clobber/const-addr/nonspec/store buckets.
+
+## 2026-06-03 — overview — CHECKER CHANGE: SpecLFB UV6 leak re-keyed on the actual L1 line-INSTALL (cache miss/fill), not the bare "Doing memory access" tick
+
+Closes the long-standing SpecLFB open item ("memaccess over-approximates the L1 install — re-key on
+the cache.cc/Cache install signal"). Affects **every SpecLFB load sweep** (`check_ld_speclfb.py`).
+
+**What changed (pipeline-side, no gem5 source touched):**
+- `gem5_common.py:parse_lsq` now parses the `Cache` debug flag. The trace pairs each load's
+  `"Doing memory access for inst [sn:N]"` (lsq) with the FOLLOWING `dcache: access for ReadReq
+  [a:b] hit|miss` line (same tick). New per-load fields `cache_fill_tick` (set ONLY on a MISS = L1
+  fill/install) + `cache_access_outcome` (hit/miss). Pairing via a `pending_read_sn` cursor;
+  conservative (a missed pairing leaves fill_tick=0). Loads=ReadReq; WriteReq ignored. No-op on
+  builds without the Cache flag (fields stay 0) → other checkers unaffected.
+- `check_ld_speclfb.py` LEAK signal moved from `memaccess_tick` → `cache_fill_tick`. UV6 leak now =
+  **L1 install (miss) in (lc_retire,fnc_retire) + branches unresolved + `spec_unprotected`**. A load
+  that accesses in-window but HITS a pre-warmed line installs nothing → new outcome
+  `access_hit_in_window_no_install` (NOT a leak). New outcome `cache_install_in_window` = the real
+  UV6 leak.
+- `run_speclfb.py` DBG flag += `Cache` (else `cache_fill_tick` is always 0).
+
+**Result on the 4 prior `cache_access_in_window` UV6 hits (inst-025820/033286/066668/083303):** ALL
+now `access_hit_in_window_no_install` — every leaking load reads the pre-warmed const region
+(0x35c0 etc.) and the dcache reports `ReadReq ... hit` (0 misses in the whole trace) → **0 concrete
+L1 installs**. issued_in_window flips True→False.
+
+**Interpretation (does NOT re-open the const-addr war):** consistent with the owner-confirmed UV6
+verdict. The DATAFLOW SIGNAL (unprotected USL whose address is a spec-load index, accesses in-window:
+`spec_unprotected` + `access_in_window`) is still present and real — SpecLFB leaves the first spec
+load unprotected. The install gate measures the *concrete* cache-state leak, which the
+zero-init/const-addr corpus cannot exhibit (the tainted index VALUE is 0 → const address → cache
+HIT, no install). So the checker now cleanly separates **signal** (mechanism present) from
+**concrete install** (needs the secret-addressed, cache-missing stimulus = test-gen extension #2).
+Verified by hand on a keep-tmp Cache-flag trace for inst-025820.
+
+## 2026-06-03 — results — Integrated the SimSpect results + figures into the S&P paper (/tests/S-P-27-SimSpect)
+
+Cloned the two paper repos to /tests/ (S-P-27-SimSpect = main S&P paper; YArch-26-SimSpect-new = baby
+paper, inspiration). Installed TeX Live (no engine before). **Added the results as new, additive
+sections at the END of the S&P paper** (no existing files overwritten): new `results-simspect.tex`
+(bug table centerpiece + bulleted findings + all-TikZ figures) and `results-methods.tex` (knobs /
+concretization / instrumentation, bulleted); `paper.tex` +preamble(pgfplots/groupplots/colortbl/colors)
+and two `\input` lines; `sample-base.bib`->`bib.bib` symlink so their `\bibliography{sample-base}`
+resolves. **All figures are native TikZ/pgfplots/booktabs** (per owner: no matplotlib "random-font"
+PNGs; no in-figure titles, captions only) and compile to a 12-page PDF (`paper.pdf`). Figures: bug
+table (grouped by defense, the centerpiece), F2 amulet bug-coverage matrix, F8 3-panel timing
+(tests-to-first 6 vs 39, density 23 vs 3.3, gem5-sim 0.092 vs 0.057 comparable), targeting, fragility,
+stall-mask, **STLF mechanism diagram**, **LSQUnit trace example (inst-047231)**, and a **cycle-by-cycle
+visibility-point<->squash race diagram in CheckMate µhb style** (instruction columns × location/cycle
+rows, happens-before edges, red leak node, shaded race gap). NEW-bucket closures done earlier this
+session: STT slow-comm 23,966 race / 0 unattributed; SPT restored to original buckets. Only compile
+error is pre-existing `intro.tex:30` (their undefined macro, non-fatal). Rebuild: `latexmk -pdf paper`.
+
 ## 2026-06-03 11:15 — 1a:inspectSTT — RULED OUT a "taint-not-yet-set" window in STT (stage-of-tainting): commit-stage tainting is inefficient but NOT a correctness hole
 
 Investigated **what stage STT applies taint at** and whether the (commit-stage) choice opens a

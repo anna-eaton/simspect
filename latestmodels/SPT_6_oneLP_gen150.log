@@ -1,0 +1,1045 @@
+[provenance] /tests/simspect/testsets_latest/SPT_6_oneLP/provenance.tar.gz  (git e298a9e1; 6 sources)
+[xml] Enumerating instances from SPT_6_oneLP.als (cap=150000) …
+[gen 17:37:09] xml 0/150000 (enumerating)  |  [mispredict_not_taken] llvm 0 asm 0 ann 0  [mispredict_taken] llvm 0 asm 0 ann 0
+[llvm] [mispredict_not_taken] Generating LLVM IR for 70/70 instances …
+[llvm] Done — 70/70 .ll files
+[asm] Compiling 70/70 .ll files  (jobs=8) …
+[asm] Done — 70 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 78/78 instances …
+[llvm] Done — 78/78 .ll files
+[asm] Compiling 78/78 .ll files  (jobs=8) …
+[asm] Done — 78 compiled
+[gen 17:37:49] xml 115/150000 (enumerating)  |  [mispredict_not_taken] llvm 70 asm 70 ann 70  [mispredict_taken] llvm 78 asm 78 ann 78
+[llvm] [mispredict_not_taken] Generating LLVM IR for 266/336 instances …
+[llvm] Done — 336/336 .ll files
+[asm] Compiling 266/336 .ll files  (jobs=8) …
+[asm] Done — 266 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 387/465 instances …
+[llvm] Done — 465/465 .ll files
+[asm] Compiling 387/465 .ll files  (jobs=8) …
+[asm] Done — 387 compiled
+[gen 17:38:53] xml 659/150000 (enumerating)  |  [mispredict_not_taken] llvm 336 asm 336 ann 336  [mispredict_taken] llvm 465 asm 465 ann 465
+[llvm] [mispredict_not_taken] Generating LLVM IR for 659/995 instances …
+[llvm] Done — 995/995 .ll files
+[asm] Compiling 659/995 .ll files  (jobs=8) …
+  progress: 500/659  ok=500  errors=0
+[asm] Done — 659 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 833/1298 instances …
+[llvm] Done — 1298/1298 .ll files
+[asm] Compiling 833/1298 .ll files  (jobs=8) …
+  progress: 500/833  ok=500  errors=0
+[asm] Done — 833 compiled
+[gen 17:40:50] xml 1714/150000 (enumerating)  |  [mispredict_not_taken] llvm 995 asm 995 ann 995  [mispredict_taken] llvm 1298 asm 1298 ann 1298
+[llvm] [mispredict_not_taken] Generating LLVM IR for 1028/2023 instances …
+[llvm] Done — 2023/2023 .ll files
+[asm] Compiling 1028/2023 .ll files  (jobs=8) …
+  progress: 500/1028  ok=500  errors=0
+  progress: 1000/1028  ok=1000  errors=0
+[asm] Done — 1028 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 1251/2549 instances …
+[llvm] Done — 2549/2549 .ll files
+[asm] Compiling 1251/2549 .ll files  (jobs=8) …
+  progress: 500/1251  ok=500  errors=0
+  progress: 1000/1251  ok=1000  errors=0
+[asm] Done — 1251 compiled
+[gen 17:43:58] xml 3198/150000 (enumerating)  |  [mispredict_not_taken] llvm 2023 asm 2023 ann 2023  [mispredict_taken] llvm 2549 asm 2549 ann 2549
+[llvm] [mispredict_not_taken] Generating LLVM IR for 1441/3464 instances …
+[llvm] Done — 3464/3464 .ll files
+[asm] Compiling 1441/3464 .ll files  (jobs=8) …
+  progress: 500/1441  ok=500  errors=0
+  progress: 1000/1441  ok=1000  errors=0
+[asm] Done — 1441 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 1668/4217 instances …
+[llvm] Done — 4217/4217 .ll files
+[asm] Compiling 1668/4217 .ll files  (jobs=8) …
+  progress: 500/1668  ok=500  errors=0
+  progress: 1000/1668  ok=1000  errors=0
+  progress: 1500/1668  ok=1500  errors=0
+[asm] Done — 1668 compiled
+[gen 17:48:06] xml 4990/150000 (enumerating)  |  [mispredict_not_taken] llvm 3464 asm 3464 ann 3464  [mispredict_taken] llvm 4217 asm 4217 ann 4217
+[llvm] [mispredict_not_taken] Generating LLVM IR for 1787/5251 instances …
+[llvm] Done — 5251/5251 .ll files
+[asm] Compiling 1787/5251 .ll files  (jobs=8) …
+  progress: 500/1787  ok=500  errors=0
+  progress: 1000/1787  ok=1000  errors=0
+  progress: 1500/1787  ok=1500  errors=0
+[asm] Done — 1787 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 1978/6195 instances …
+[llvm] Done — 6195/6195 .ll files
+[asm] Compiling 1978/6195 .ll files  (jobs=8) …
+  progress: 500/1978  ok=500  errors=0
+  progress: 1000/1978  ok=1000  errors=0
+  progress: 1500/1978  ok=1500  errors=0
+[asm] Done — 1978 compiled
+[gen 17:52:58] xml 7055/150000 (enumerating)  |  [mispredict_not_taken] llvm 5251 asm 5251 ann 5251  [mispredict_taken] llvm 6195 asm 6195 ann 6195
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2039/7290 instances …
+[llvm] Done — 7290/7290 .ll files
+[asm] Compiling 2039/7290 .ll files  (jobs=8) …
+  progress: 500/2039  ok=500  errors=0
+  progress: 1000/2039  ok=1000  errors=0
+  progress: 1500/2039  ok=1500  errors=0
+  progress: 2000/2039  ok=2000  errors=0
+[asm] Done — 2039 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2074/8269 instances …
+[llvm] Done — 8269/8269 .ll files
+[asm] Compiling 2074/8269 .ll files  (jobs=8) …
+  progress: 500/2074  ok=500  errors=0
+  progress: 1000/2074  ok=1000  errors=0
+  progress: 1500/2074  ok=1500  errors=0
+  progress: 2000/2074  ok=2000  errors=0
+[asm] Done — 2074 compiled
+[gen 17:57:46] xml 9111/150000 (enumerating)  |  [mispredict_not_taken] llvm 7290 asm 7290 ann 7290  [mispredict_taken] llvm 8269 asm 8269 ann 8269
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2000/9290 instances …
+[llvm] Done — 9290/9290 .ll files
+[asm] Compiling 2000/9290 .ll files  (jobs=8) …
+  progress: 500/2000  ok=500  errors=0
+  progress: 1000/2000  ok=1000  errors=0
+  progress: 1500/2000  ok=1500  errors=0
+  progress: 2000/2000  ok=2000  errors=0
+[asm] Done — 2000 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2111/10380 instances …
+[llvm] Done — 10380/10380 .ll files
+[asm] Compiling 2111/10380 .ll files  (jobs=8) …
+  progress: 500/2111  ok=500  errors=0
+  progress: 1000/2111  ok=1000  errors=0
+  progress: 1500/2111  ok=1500  errors=0
+  progress: 2000/2111  ok=2000  errors=0
+[asm] Done — 2111 compiled
+[gen 18:02:58] xml 11432/150000 (enumerating)  |  [mispredict_not_taken] llvm 9290 asm 9290 ann 9290  [mispredict_taken] llvm 10380 asm 10380 ann 10380
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2402/11692 instances …
+[llvm] Done — 11692/11692 .ll files
+[asm] Compiling 2402/11692 .ll files  (jobs=8) …
+  progress: 500/2402  ok=500  errors=0
+  progress: 1000/2402  ok=1000  errors=0
+  progress: 1500/2402  ok=1500  errors=0
+  progress: 2000/2402  ok=2000  errors=0
+[asm] Done — 2402 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2544/12924 instances …
+[llvm] Done — 12924/12924 .ll files
+[asm] Compiling 2544/12924 .ll files  (jobs=8) …
+  progress: 500/2544  ok=500  errors=0
+  progress: 1000/2544  ok=1000  errors=0
+  progress: 1500/2544  ok=1500  errors=0
+  progress: 2000/2544  ok=2000  errors=0
+  progress: 2500/2544  ok=2500  errors=0
+[asm] Done — 2544 compiled
+[gen 18:08:30] xml 14116/150000 (enumerating)  |  [mispredict_not_taken] llvm 11692 asm 11692 ann 11692  [mispredict_taken] llvm 12924 asm 12924 ann 12924
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2667/14359 instances …
+[llvm] Done — 14359/14359 .ll files
+[asm] Compiling 2667/14359 .ll files  (jobs=8) …
+  progress: 500/2667  ok=500  errors=0
+  progress: 1000/2667  ok=1000  errors=0
+  progress: 1500/2667  ok=1500  errors=0
+  progress: 2000/2667  ok=2000  errors=0
+  progress: 2500/2667  ok=2500  errors=0
+[asm] Done — 2667 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2552/15476 instances …
+[llvm] Done — 15476/15476 .ll files
+[asm] Compiling 2552/15476 .ll files  (jobs=8) …
+  progress: 500/2552  ok=500  errors=0
+  progress: 1000/2552  ok=1000  errors=0
+  progress: 1500/2552  ok=1500  errors=0
+  progress: 2000/2552  ok=2000  errors=0
+  progress: 2500/2552  ok=2500  errors=0
+[asm] Done — 2552 compiled
+[gen 18:14:34] xml 16644/150000 (enumerating)  |  [mispredict_not_taken] llvm 14359 asm 14359 ann 14359  [mispredict_taken] llvm 15476 asm 15476 ann 15476
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2584/16943 instances …
+[llvm] Done — 16943/16943 .ll files
+[asm] Compiling 2584/16943 .ll files  (jobs=8) …
+  progress: 500/2584  ok=500  errors=0
+  progress: 1000/2584  ok=1000  errors=0
+  progress: 1500/2584  ok=1500  errors=0
+  progress: 2000/2584  ok=2000  errors=0
+  progress: 2500/2584  ok=2500  errors=0
+[asm] Done — 2584 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2792/18268 instances …
+[llvm] Done — 18268/18268 .ll files
+[asm] Compiling 2792/18268 .ll files  (jobs=8) …
+  progress: 500/2792  ok=500  errors=0
+  progress: 1000/2792  ok=1000  errors=0
+  progress: 1500/2792  ok=1500  errors=0
+  progress: 2000/2792  ok=2000  errors=0
+  progress: 2500/2792  ok=2500  errors=0
+[asm] Done — 2792 compiled
+[gen 18:21:14] xml 19636/150000 (enumerating)  |  [mispredict_not_taken] llvm 16943 asm 16943 ann 16943  [mispredict_taken] llvm 18268 asm 18268 ann 18268
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3015/19958 instances …
+[llvm] Done — 19958/19958 .ll files
+[asm] Compiling 3015/19958 .ll files  (jobs=8) …
+  progress: 500/3015  ok=500  errors=0
+  progress: 1000/3015  ok=1000  errors=0
+  progress: 1500/3015  ok=1500  errors=0
+  progress: 2000/3015  ok=2000  errors=0
+  progress: 2500/3015  ok=2500  errors=0
+  progress: 3000/3015  ok=3000  errors=0
+[asm] Done — 3015 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3186/21454 instances …
+[llvm] Done — 21454/21454 .ll files
+[asm] Compiling 3186/21454 .ll files  (jobs=8) …
+  progress: 500/3186  ok=500  errors=0
+  progress: 1000/3186  ok=1000  errors=0
+  progress: 1500/3186  ok=1500  errors=0
+  progress: 2000/3186  ok=2000  errors=0
+  progress: 2500/3186  ok=2500  errors=0
+  progress: 3000/3186  ok=3000  errors=0
+[asm] Done — 3186 compiled
+[gen 18:28:32] xml 23100/150000 (enumerating)  |  [mispredict_not_taken] llvm 19958 asm 19958 ann 19958  [mispredict_taken] llvm 21454 asm 21454 ann 21454
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3424/23382 instances …
+[llvm] Done — 23382/23382 .ll files
+[asm] Compiling 3424/23382 .ll files  (jobs=8) …
+  progress: 500/3424  ok=500  errors=0
+  progress: 1000/3424  ok=1000  errors=0
+  progress: 1500/3424  ok=1500  errors=0
+  progress: 2000/3424  ok=2000  errors=0
+  progress: 2500/3424  ok=2500  errors=0
+  progress: 3000/3424  ok=3000  errors=0
+[asm] Done — 3424 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3716/25170 instances …
+[llvm] Done — 25170/25170 .ll files
+[asm] Compiling 3716/25170 .ll files  (jobs=8) …
+  progress: 500/3716  ok=500  errors=0
+  progress: 1000/3716  ok=1000  errors=0
+  progress: 1500/3716  ok=1500  errors=0
+  progress: 2000/3716  ok=2000  errors=0
+  progress: 2500/3716  ok=2500  errors=0
+  progress: 3000/3716  ok=3000  errors=0
+  progress: 3500/3716  ok=3500  errors=0
+[asm] Done — 3716 compiled
+[gen 18:37:23] xml 27022/150000 (enumerating)  |  [mispredict_not_taken] llvm 23382 asm 23382 ann 23382  [mispredict_taken] llvm 25170 asm 25170 ann 25170
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3905/27287 instances …
+[llvm] Done — 27287/27287 .ll files
+[asm] Compiling 3905/27287 .ll files  (jobs=8) …
+  progress: 500/3905  ok=500  errors=0
+  progress: 1000/3905  ok=1000  errors=0
+  progress: 1500/3905  ok=1500  errors=0
+  progress: 2000/3905  ok=2000  errors=0
+  progress: 2500/3905  ok=2500  errors=0
+  progress: 3000/3905  ok=3000  errors=0
+  progress: 3500/3905  ok=3500  errors=0
+[asm] Done — 3905 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3880/29050 instances …
+[llvm] Done — 29050/29050 .ll files
+[asm] Compiling 3880/29050 .ll files  (jobs=8) …
+  progress: 500/3880  ok=500  errors=0
+  progress: 1000/3880  ok=1000  errors=0
+  progress: 1500/3880  ok=1500  errors=0
+  progress: 2000/3880  ok=2000  errors=0
+  progress: 2500/3880  ok=2500  errors=0
+  progress: 3000/3880  ok=3000  errors=0
+  progress: 3500/3880  ok=3500  errors=0
+[asm] Done — 3880 compiled
+[gen 18:46:16] xml 31084/150000 (enumerating)  |  [mispredict_not_taken] llvm 27287 asm 27287 ann 27287  [mispredict_taken] llvm 29050 asm 29050 ann 29050
+[llvm] [mispredict_not_taken] Generating LLVM IR for 4061/31348 instances …
+[llvm] Done — 31348/31348 .ll files
+[asm] Compiling 4061/31348 .ll files  (jobs=8) …
+  progress: 500/4061  ok=500  errors=0
+  progress: 1000/4061  ok=1000  errors=0
+  progress: 1500/4061  ok=1500  errors=0
+  progress: 2000/4061  ok=2000  errors=0
+  progress: 2500/4061  ok=2500  errors=0
+  progress: 3000/4061  ok=3000  errors=0
+  progress: 3500/4061  ok=3500  errors=0
+  progress: 4000/4061  ok=4000  errors=0
+[asm] Done — 4061 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 4441/33491 instances …
+[llvm] Done — 33491/33491 .ll files
+[asm] Compiling 4441/33491 .ll files  (jobs=8) …
+  progress: 500/4441  ok=500  errors=0
+  progress: 1000/4441  ok=1000  errors=0
+  progress: 1500/4441  ok=1500  errors=0
+  progress: 2000/4441  ok=2000  errors=0
+  progress: 2500/4441  ok=2500  errors=0
+  progress: 3000/4441  ok=3000  errors=0
+  progress: 3500/4441  ok=3500  errors=0
+  progress: 4000/4441  ok=4000  errors=0
+[asm] Done — 4441 compiled
+[gen 18:59:35] xml 35821/150000 (enumerating)  |  [mispredict_not_taken] llvm 31348 asm 31348 ann 31348  [mispredict_taken] llvm 33491 asm 33491 ann 33491
+[llvm] [mispredict_not_taken] Generating LLVM IR for 4636/35984 instances …
+[llvm] Done — 35984/35984 .ll files
+[asm] Compiling 4636/35984 .ll files  (jobs=8) …
+  progress: 500/4636  ok=500  errors=0
+  progress: 1000/4636  ok=1000  errors=0
+  progress: 1500/4636  ok=1500  errors=0
+  progress: 2000/4636  ok=2000  errors=0
+  progress: 2500/4636  ok=2500  errors=0
+  progress: 3000/4636  ok=3000  errors=0
+  progress: 3500/4636  ok=3500  errors=0
+  progress: 4000/4636  ok=4000  errors=0
+  progress: 4500/4636  ok=4500  errors=0
+[asm] Done — 4636 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 4473/37964 instances …
+[llvm] Done — 37964/37964 .ll files
+[asm] Compiling 4473/37964 .ll files  (jobs=8) …
+  progress: 500/4473  ok=500  errors=0
+  progress: 1000/4473  ok=1000  errors=0
+  progress: 1500/4473  ok=1500  errors=0
+  progress: 2000/4473  ok=2000  errors=0
+  progress: 2500/4473  ok=2500  errors=0
+  progress: 3000/4473  ok=3000  errors=0
+  progress: 3500/4473  ok=3500  errors=0
+  progress: 4000/4473  ok=4000  errors=0
+[asm] Done — 4473 compiled
+[gen 19:08:54] xml 40142/150000 (enumerating)  |  [mispredict_not_taken] llvm 35984 asm 35984 ann 35984  [mispredict_taken] llvm 37964 asm 37964 ann 37964
+[llvm] [mispredict_not_taken] Generating LLVM IR for 4427/40411 instances …
+[llvm] Done — 40411/40411 .ll files
+[asm] Compiling 4427/40411 .ll files  (jobs=8) …
+  progress: 500/4427  ok=500  errors=0
+  progress: 1000/4427  ok=1000  errors=0
+  progress: 1500/4427  ok=1500  errors=0
+  progress: 2000/4427  ok=2000  errors=0
+  progress: 2500/4427  ok=2500  errors=0
+  progress: 3000/4427  ok=3000  errors=0
+  progress: 3500/4427  ok=3500  errors=0
+  progress: 4000/4427  ok=4000  errors=0
+[asm] Done — 4427 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 4419/42383 instances …
+[llvm] Done — 42383/42383 .ll files
+[asm] Compiling 4419/42383 .ll files  (jobs=8) …
+  progress: 500/4419  ok=500  errors=0
+  progress: 1000/4419  ok=1000  errors=0
+  progress: 1500/4419  ok=1500  errors=0
+  progress: 2000/4419  ok=2000  errors=0
+  progress: 2500/4419  ok=2500  errors=0
+  progress: 3000/4419  ok=3000  errors=0
+  progress: 3500/4419  ok=3500  errors=0
+  progress: 4000/4419  ok=4000  errors=0
+[asm] Done — 4419 compiled
+[gen 19:17:48] xml 44514/150000 (enumerating)  |  [mispredict_not_taken] llvm 40411 asm 40411 ann 40411  [mispredict_taken] llvm 42383 asm 42383 ann 42383
+[llvm] [mispredict_not_taken] Generating LLVM IR for 4394/44805 instances …
+[llvm] Done — 44805/44805 .ll files
+[asm] Compiling 4394/44805 .ll files  (jobs=8) …
+  progress: 500/4394  ok=500  errors=0
+  progress: 1000/4394  ok=1000  errors=0
+  progress: 1500/4394  ok=1500  errors=0
+  progress: 2000/4394  ok=2000  errors=0
+  progress: 2500/4394  ok=2500  errors=0
+  progress: 3000/4394  ok=3000  errors=0
+  progress: 3500/4394  ok=3500  errors=0
+  progress: 4000/4394  ok=4000  errors=0
+[asm] Done — 4394 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 4822/47205 instances …
+[llvm] Done — 47205/47205 .ll files
+[asm] Compiling 4822/47205 .ll files  (jobs=8) …
+  progress: 500/4822  ok=500  errors=0
+  progress: 1000/4822  ok=1000  errors=0
+  progress: 1500/4822  ok=1500  errors=0
+  progress: 2000/4822  ok=2000  errors=0
+  progress: 2500/4822  ok=2500  errors=0
+  progress: 3000/4822  ok=3000  errors=0
+  progress: 3500/4822  ok=3500  errors=0
+  progress: 4000/4822  ok=4000  errors=0
+  progress: 4500/4822  ok=4500  errors=0
+[asm] Done — 4822 compiled
+[gen 19:30:38] xml 49695/150000 (enumerating)  |  [mispredict_not_taken] llvm 44805 asm 44805 ann 44805  [mispredict_taken] llvm 47205 asm 47205 ann 47205
+[llvm] [mispredict_not_taken] Generating LLVM IR for 5139/49944 instances …
+[llvm] Done — 49944/49944 .ll files
+[asm] Compiling 5139/49944 .ll files  (jobs=8) …
+  progress: 500/5139  ok=500  errors=0
+  progress: 1000/5139  ok=1000  errors=0
+  progress: 1500/5139  ok=1500  errors=0
+  progress: 2000/5139  ok=2000  errors=0
+  progress: 2500/5139  ok=2500  errors=0
+  progress: 3000/5139  ok=3000  errors=0
+  progress: 3500/5139  ok=3500  errors=0
+  progress: 4000/5139  ok=4000  errors=0
+  progress: 4500/5139  ok=4500  errors=0
+  progress: 5000/5139  ok=5000  errors=0
+[asm] Done — 5139 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 5304/52509 instances …
+[llvm] Done — 52509/52509 .ll files
+[asm] Compiling 5304/52509 .ll files  (jobs=8) …
+  progress: 500/5304  ok=500  errors=0
+  progress: 1000/5304  ok=1000  errors=0
+  progress: 1500/5304  ok=1500  errors=0
+  progress: 2000/5304  ok=2000  errors=0
+  progress: 2500/5304  ok=2500  errors=0
+  progress: 3000/5304  ok=3000  errors=0
+  progress: 3500/5304  ok=3500  errors=0
+  progress: 4000/5304  ok=4000  errors=0
+  progress: 4500/5304  ok=4500  errors=0
+  progress: 5000/5304  ok=5000  errors=0
+[asm] Done — 5304 compiled
+[gen 19:42:45] xml 55071/150000 (enumerating)  |  [mispredict_not_taken] llvm 49944 asm 49944 ann 49944  [mispredict_taken] llvm 52509 asm 52509 ann 52509
+[llvm] [mispredict_not_taken] Generating LLVM IR for 5388/55332 instances …
+[llvm] Done — 55332/55332 .ll files
+[asm] Compiling 5388/55332 .ll files  (jobs=8) …
+  progress: 500/5388  ok=500  errors=0
+  progress: 1000/5388  ok=1000  errors=0
+  progress: 1500/5388  ok=1500  errors=0
+  progress: 2000/5388  ok=2000  errors=0
+  progress: 2500/5388  ok=2500  errors=0
+  progress: 3000/5388  ok=3000  errors=0
+  progress: 3500/5388  ok=3500  errors=0
+  progress: 4000/5388  ok=4000  errors=0
+  progress: 4500/5388  ok=4500  errors=0
+  progress: 5000/5388  ok=5000  errors=0
+[asm] Done — 5388 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 5216/57725 instances …
+[llvm] Done — 57725/57725 .ll files
+[asm] Compiling 5216/57725 .ll files  (jobs=8) …
+  progress: 500/5216  ok=500  errors=0
+  progress: 1000/5216  ok=1000  errors=0
+  progress: 1500/5216  ok=1500  errors=0
+  progress: 2000/5216  ok=2000  errors=0
+  progress: 2500/5216  ok=2500  errors=0
+  progress: 3000/5216  ok=3000  errors=0
+  progress: 3500/5216  ok=3500  errors=0
+  progress: 4000/5216  ok=4000  errors=0
+  progress: 4500/5216  ok=4500  errors=0
+  progress: 5000/5216  ok=5000  errors=0
+[asm] Done — 5216 compiled
+[gen 19:55:39] xml 59360/150000 (enumerating)  |  [mispredict_not_taken] llvm 55332 asm 55332 ann 55332  [mispredict_taken] llvm 57725 asm 57725 ann 57725
+[llvm] [mispredict_not_taken] Generating LLVM IR for 4155/59487 instances …
+[llvm] Done — 59487/59487 .ll files
+[asm] Compiling 4155/59487 .ll files  (jobs=8) …
+  progress: 500/4155  ok=500  errors=0
+  progress: 1000/4155  ok=1000  errors=0
+  progress: 1500/4155  ok=1500  errors=0
+  progress: 2000/4155  ok=2000  errors=0
+  progress: 2500/4155  ok=2500  errors=0
+  progress: 3000/4155  ok=3000  errors=0
+  progress: 3500/4155  ok=3500  errors=0
+  progress: 4000/4155  ok=4000  errors=0
+[asm] Done — 4155 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3960/61685 instances …
+[llvm] Done — 61685/61685 .ll files
+[asm] Compiling 3960/61685 .ll files  (jobs=8) …
+  progress: 500/3960  ok=500  errors=0
+  progress: 1000/3960  ok=1000  errors=0
+  progress: 1500/3960  ok=1500  errors=0
+  progress: 2000/3960  ok=2000  errors=0
+  progress: 2500/3960  ok=2500  errors=0
+  progress: 3000/3960  ok=3000  errors=0
+  progress: 3500/3960  ok=3500  errors=0
+[asm] Done — 3960 compiled
+[gen 20:06:16] xml 63767/150000 (enumerating)  |  [mispredict_not_taken] llvm 59487 asm 59487 ann 59487  [mispredict_taken] llvm 61685 asm 61685 ann 61685
+[llvm] [mispredict_not_taken] Generating LLVM IR for 4541/64028 instances …
+[llvm] Done — 64028/64028 .ll files
+[asm] Compiling 4541/64028 .ll files  (jobs=8) …
+  progress: 500/4541  ok=500  errors=0
+  progress: 1000/4541  ok=1000  errors=0
+  progress: 1500/4541  ok=1500  errors=0
+  progress: 2000/4541  ok=2000  errors=0
+  progress: 2500/4541  ok=2500  errors=0
+  progress: 3000/4541  ok=3000  errors=0
+  progress: 3500/4541  ok=3500  errors=0
+  progress: 4000/4541  ok=4000  errors=0
+  progress: 4500/4541  ok=4500  errors=0
+[asm] Done — 4541 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 4553/66238 instances …
+[llvm] Done — 66238/66238 .ll files
+[asm] Compiling 4553/66238 .ll files  (jobs=8) …
+  progress: 500/4553  ok=500  errors=0
+  progress: 1000/4553  ok=1000  errors=0
+  progress: 1500/4553  ok=1500  errors=0
+  progress: 2000/4553  ok=2000  errors=0
+  progress: 2500/4553  ok=2500  errors=0
+  progress: 3000/4553  ok=3000  errors=0
+  progress: 3500/4553  ok=3500  errors=0
+  progress: 4000/4553  ok=4000  errors=0
+  progress: 4500/4553  ok=4500  errors=0
+[asm] Done — 4553 compiled
+[gen 20:15:40] xml 68389/150000 (enumerating)  |  [mispredict_not_taken] llvm 64028 asm 64028 ann 64028  [mispredict_taken] llvm 66238 asm 66238 ann 66238
+[llvm] [mispredict_not_taken] Generating LLVM IR for 4666/68694 instances …
+[llvm] Done — 68694/68694 .ll files
+[asm] Compiling 4666/68694 .ll files  (jobs=8) …
+  progress: 500/4666  ok=500  errors=0
+  progress: 1000/4666  ok=1000  errors=0
+  progress: 1500/4666  ok=1500  errors=0
+  progress: 2000/4666  ok=2000  errors=0
+  progress: 2500/4666  ok=2500  errors=0
+  progress: 3000/4666  ok=3000  errors=0
+  progress: 3500/4666  ok=3500  errors=0
+  progress: 4000/4666  ok=4000  errors=0
+  progress: 4500/4666  ok=4500  errors=0
+[asm] Done — 4666 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 4526/70764 instances …
+[llvm] Done — 70764/70764 .ll files
+[asm] Compiling 4526/70764 .ll files  (jobs=8) …
+  progress: 500/4526  ok=500  errors=0
+  progress: 1000/4526  ok=1000  errors=0
+  progress: 1500/4526  ok=1500  errors=0
+  progress: 2000/4526  ok=2000  errors=0
+  progress: 2500/4526  ok=2500  errors=0
+  progress: 3000/4526  ok=3000  errors=0
+  progress: 3500/4526  ok=3500  errors=0
+  progress: 4000/4526  ok=4000  errors=0
+  progress: 4500/4526  ok=4500  errors=0
+[asm] Done — 4526 compiled
+[gen 20:24:03] xml 72704/150000 (enumerating)  |  [mispredict_not_taken] llvm 68694 asm 68694 ann 68694  [mispredict_taken] llvm 70764 asm 70764 ann 70764
+[llvm] [mispredict_not_taken] Generating LLVM IR for 4320/73014 instances …
+[llvm] Done — 73014/73014 .ll files
+[asm] Compiling 4320/73014 .ll files  (jobs=8) …
+  progress: 500/4320  ok=500  errors=0
+  progress: 1000/4320  ok=1000  errors=0
+  progress: 1500/4320  ok=1500  errors=0
+  progress: 2000/4320  ok=2000  errors=0
+  progress: 2500/4320  ok=2500  errors=0
+  progress: 3000/4320  ok=3000  errors=0
+  progress: 3500/4320  ok=3500  errors=0
+  progress: 4000/4320  ok=4000  errors=0
+[asm] Done — 4320 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 4149/74913 instances …
+[llvm] Done — 74913/74913 .ll files
+[asm] Compiling 4149/74913 .ll files  (jobs=8) …
+  progress: 500/4149  ok=500  errors=0
+  progress: 1000/4149  ok=1000  errors=0
+  progress: 1500/4149  ok=1500  errors=0
+  progress: 2000/4149  ok=2000  errors=0
+  progress: 2500/4149  ok=2500  errors=0
+  progress: 3000/4149  ok=3000  errors=0
+  progress: 3500/4149  ok=3500  errors=0
+  progress: 4000/4149  ok=4000  errors=0
+[asm] Done — 4149 compiled
+[gen 20:31:33] xml 76740/150000 (enumerating)  |  [mispredict_not_taken] llvm 73014 asm 73014 ann 73014  [mispredict_taken] llvm 74913 asm 74913 ann 74913
+[llvm] [mispredict_not_taken] Generating LLVM IR for 4047/77061 instances …
+[llvm] Done — 77061/77061 .ll files
+[asm] Compiling 4047/77061 .ll files  (jobs=8) …
+  progress: 500/4047  ok=500  errors=0
+  progress: 1000/4047  ok=1000  errors=0
+  progress: 1500/4047  ok=1500  errors=0
+  progress: 2000/4047  ok=2000  errors=0
+  progress: 2500/4047  ok=2500  errors=0
+  progress: 3000/4047  ok=3000  errors=0
+  progress: 3500/4047  ok=3500  errors=0
+  progress: 4000/4047  ok=4000  errors=0
+[asm] Done — 4047 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3883/78796 instances …
+[llvm] Done — 78796/78796 .ll files
+[asm] Compiling 3883/78796 .ll files  (jobs=8) …
+  progress: 500/3883  ok=500  errors=0
+  progress: 1000/3883  ok=1000  errors=0
+  progress: 1500/3883  ok=1500  errors=0
+  progress: 2000/3883  ok=2000  errors=0
+  progress: 2500/3883  ok=2500  errors=0
+  progress: 3000/3883  ok=3000  errors=0
+  progress: 3500/3883  ok=3500  errors=0
+[asm] Done — 3883 compiled
+[gen 20:38:45] xml 80461/150000 (enumerating)  |  [mispredict_not_taken] llvm 77061 asm 77061 ann 77061  [mispredict_taken] llvm 78796 asm 78796 ann 78796
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3751/80812 instances …
+[llvm] Done — 80812/80812 .ll files
+[asm] Compiling 3751/80812 .ll files  (jobs=8) …
+  progress: 500/3751  ok=500  errors=0
+  progress: 1000/3751  ok=1000  errors=0
+  progress: 1500/3751  ok=1500  errors=0
+  progress: 2000/3751  ok=2000  errors=0
+  progress: 2500/3751  ok=2500  errors=0
+  progress: 3000/3751  ok=3000  errors=0
+  progress: 3500/3751  ok=3500  errors=0
+[asm] Done — 3751 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3654/82450 instances …
+[llvm] Done — 82450/82450 .ll files
+[asm] Compiling 3654/82450 .ll files  (jobs=8) …
+  progress: 500/3654  ok=500  errors=0
+  progress: 1000/3654  ok=1000  errors=0
+  progress: 1500/3654  ok=1500  errors=0
+  progress: 2000/3654  ok=2000  errors=0
+  progress: 2500/3654  ok=2500  errors=0
+  progress: 3000/3654  ok=3000  errors=0
+  progress: 3500/3654  ok=3500  errors=0
+[asm] Done — 3654 compiled
+[gen 20:45:13] xml 84039/150000 (enumerating)  |  [mispredict_not_taken] llvm 80812 asm 80812 ann 80812  [mispredict_taken] llvm 82450 asm 82450 ann 82450
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3551/84363 instances …
+[llvm] Done — 84363/84363 .ll files
+[asm] Compiling 3551/84363 .ll files  (jobs=8) …
+  progress: 500/3551  ok=500  errors=0
+  progress: 1000/3551  ok=1000  errors=0
+  progress: 1500/3551  ok=1500  errors=0
+  progress: 2000/3551  ok=2000  errors=0
+  progress: 2500/3551  ok=2500  errors=0
+  progress: 3000/3551  ok=3000  errors=0
+  progress: 3500/3551  ok=3500  errors=0
+[asm] Done — 3551 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3451/85901 instances …
+[llvm] Done — 85901/85901 .ll files
+[asm] Compiling 3451/85901 .ll files  (jobs=8) …
+  progress: 500/3451  ok=500  errors=0
+  progress: 1000/3451  ok=1000  errors=0
+  progress: 1500/3451  ok=1500  errors=0
+  progress: 2000/3451  ok=2000  errors=0
+  progress: 2500/3451  ok=2500  errors=0
+  progress: 3000/3451  ok=3000  errors=0
+[asm] Done — 3451 compiled
+[gen 20:51:44] xml 87428/150000 (enumerating)  |  [mispredict_not_taken] llvm 84363 asm 84363 ann 84363  [mispredict_taken] llvm 85901 asm 85901 ann 85901
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3396/87759 instances …
+[llvm] Done — 87759/87759 .ll files
+[asm] Compiling 3396/87759 .ll files  (jobs=8) …
+  progress: 500/3396  ok=500  errors=0
+  progress: 1000/3396  ok=1000  errors=0
+  progress: 1500/3396  ok=1500  errors=0
+  progress: 2000/3396  ok=2000  errors=0
+  progress: 2500/3396  ok=2500  errors=0
+  progress: 3000/3396  ok=3000  errors=0
+[asm] Done — 3396 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3355/89256 instances …
+[llvm] Done — 89256/89256 .ll files
+[asm] Compiling 3355/89256 .ll files  (jobs=8) …
+  progress: 500/3355  ok=500  errors=0
+  progress: 1000/3355  ok=1000  errors=0
+  progress: 1500/3355  ok=1500  errors=0
+  progress: 2000/3355  ok=2000  errors=0
+  progress: 2500/3355  ok=2500  errors=0
+  progress: 3000/3355  ok=3000  errors=0
+[asm] Done — 3355 compiled
+[gen 20:57:58] xml 90714/150000 (enumerating)  |  [mispredict_not_taken] llvm 87759 asm 87759 ann 87759  [mispredict_taken] llvm 89256 asm 89256 ann 89256
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3300/91059 instances …
+[llvm] Done — 91059/91059 .ll files
+[asm] Compiling 3300/91059 .ll files  (jobs=8) …
+  progress: 500/3300  ok=500  errors=0
+  progress: 1000/3300  ok=1000  errors=0
+  progress: 1500/3300  ok=1500  errors=0
+  progress: 2000/3300  ok=2000  errors=0
+  progress: 2500/3300  ok=2500  errors=0
+  progress: 3000/3300  ok=3000  errors=0
+[asm] Done — 3300 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3284/92540 instances …
+[llvm] Done — 92540/92540 .ll files
+[asm] Compiling 3284/92540 .ll files  (jobs=8) …
+  progress: 500/3284  ok=500  errors=0
+  progress: 1000/3284  ok=1000  errors=0
+  progress: 1500/3284  ok=1500  errors=0
+  progress: 2000/3284  ok=2000  errors=0
+  progress: 2500/3284  ok=2500  errors=0
+  progress: 3000/3284  ok=3000  errors=0
+[asm] Done — 3284 compiled
+[gen 21:04:34] xml 94065/150000 (enumerating)  |  [mispredict_not_taken] llvm 91059 asm 91059 ann 91059  [mispredict_taken] llvm 92540 asm 92540 ann 92540
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3305/94364 instances …
+[llvm] Done — 94364/94364 .ll files
+[asm] Compiling 3305/94364 .ll files  (jobs=8) …
+  progress: 500/3305  ok=500  errors=0
+  progress: 1000/3305  ok=1000  errors=0
+  progress: 1500/3305  ok=1500  errors=0
+  progress: 2000/3305  ok=2000  errors=0
+  progress: 2500/3305  ok=2500  errors=0
+  progress: 3000/3305  ok=3000  errors=0
+[asm] Done — 3305 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3276/95816 instances …
+[llvm] Done — 95816/95816 .ll files
+[asm] Compiling 3276/95816 .ll files  (jobs=8) …
+  progress: 500/3276  ok=500  errors=0
+  progress: 1000/3276  ok=1000  errors=0
+  progress: 1500/3276  ok=1500  errors=0
+  progress: 2000/3276  ok=2000  errors=0
+  progress: 2500/3276  ok=2500  errors=0
+  progress: 3000/3276  ok=3000  errors=0
+[asm] Done — 3276 compiled
+[gen 21:10:41] xml 97276/150000 (enumerating)  |  [mispredict_not_taken] llvm 94364 asm 94364 ann 94364  [mispredict_taken] llvm 95816 asm 95816 ann 95816
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3221/97585 instances …
+[llvm] Done — 97585/97585 .ll files
+[asm] Compiling 3221/97585 .ll files  (jobs=8) …
+  progress: 500/3221  ok=500  errors=0
+  progress: 1000/3221  ok=1000  errors=0
+  progress: 1500/3221  ok=1500  errors=0
+  progress: 2000/3221  ok=2000  errors=0
+  progress: 2500/3221  ok=2500  errors=0
+  progress: 3000/3221  ok=3000  errors=0
+[asm] Done — 3221 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3258/99074 instances …
+[llvm] Done — 99074/99074 .ll files
+[asm] Compiling 3258/99074 .ll files  (jobs=8) …
+  progress: 500/3258  ok=500  errors=0
+  progress: 1000/3258  ok=1000  errors=0
+  progress: 1500/3258  ok=1500  errors=0
+  progress: 2000/3258  ok=2000  errors=0
+  progress: 2500/3258  ok=2500  errors=0
+  progress: 3000/3258  ok=3000  errors=0
+[asm] Done — 3258 compiled
+[gen 21:16:57] xml 100287/150000 (enumerating)  |  [mispredict_not_taken] llvm 97585 asm 97585 ann 97585  [mispredict_taken] llvm 99074 asm 99074 ann 99074
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2910/100495 instances …
+[llvm] Done — 100495/100495 .ll files
+[asm] Compiling 2910/100495 .ll files  (jobs=8) …
+  progress: 500/2910  ok=500  errors=0
+  progress: 1000/2910  ok=1000  errors=0
+  progress: 1500/2910  ok=1500  errors=0
+  progress: 2000/2910  ok=2000  errors=0
+  progress: 2500/2910  ok=2500  errors=0
+[asm] Done — 2910 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2718/101792 instances …
+[llvm] Done — 101792/101792 .ll files
+[asm] Compiling 2718/101792 .ll files  (jobs=8) …
+  progress: 500/2718  ok=500  errors=0
+  progress: 1000/2718  ok=1000  errors=0
+  progress: 1500/2718  ok=1500  errors=0
+  progress: 2000/2718  ok=2000  errors=0
+  progress: 2500/2718  ok=2500  errors=0
+[asm] Done — 2718 compiled
+[gen 21:22:24] xml 103003/150000 (enumerating)  |  [mispredict_not_taken] llvm 100495 asm 100495 ann 100495  [mispredict_taken] llvm 101792 asm 101792 ann 101792
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2566/103061 instances …
+[llvm] Done — 103061/103061 .ll files
+[asm] Compiling 2566/103061 .ll files  (jobs=8) …
+  progress: 500/2566  ok=500  errors=0
+  progress: 1000/2566  ok=1000  errors=0
+  progress: 1500/2566  ok=1500  errors=0
+  progress: 2000/2566  ok=2000  errors=0
+  progress: 2500/2566  ok=2500  errors=0
+[asm] Done — 2566 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 1326/103118 instances …
+[llvm] Done — 103118/103118 .ll files
+[asm] Compiling 1326/103118 .ll files  (jobs=8) …
+  progress: 500/1326  ok=500  errors=0
+  progress: 1000/1326  ok=1000  errors=0
+[asm] Done — 1326 compiled
+[gen 21:25:57] xml 103148/150000 (enumerating)  |  [mispredict_not_taken] llvm 103061 asm 103061 ann 103061  [mispredict_taken] llvm 103118 asm 103118 ann 103118
+[llvm] [mispredict_not_taken] Generating LLVM IR for 448/103509 instances …
+[llvm] Done — 103509/103509 .ll files
+[asm] Compiling 448/103509 .ll files  (jobs=8) …
+[asm] Done — 448 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 644/103762 instances …
+[llvm] Done — 103762/103762 .ll files
+[asm] Compiling 644/103762 .ll files  (jobs=8) …
+  progress: 500/644  ok=500  errors=0
+[asm] Done — 644 compiled
+[gen 21:27:41] xml 104118/150000 (enumerating)  |  [mispredict_not_taken] llvm 103509 asm 103509 ann 103509  [mispredict_taken] llvm 103762 asm 103762 ann 103762
+[llvm] [mispredict_not_taken] Generating LLVM IR for 917/104426 instances …
+[llvm] Done — 104426/104426 .ll files
+[asm] Compiling 917/104426 .ll files  (jobs=8) …
+  progress: 500/917  ok=500  errors=0
+[asm] Done — 917 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 1139/104901 instances …
+[llvm] Done — 104901/104901 .ll files
+[asm] Compiling 1139/104901 .ll files  (jobs=8) …
+  progress: 500/1139  ok=500  errors=0
+  progress: 1000/1139  ok=1000  errors=0
+[asm] Done — 1139 compiled
+[gen 21:30:20] xml 105477/150000 (enumerating)  |  [mispredict_not_taken] llvm 104426 asm 104426 ann 104426  [mispredict_taken] llvm 104901 asm 104901 ann 104901
+[llvm] [mispredict_not_taken] Generating LLVM IR for 1376/105802 instances …
+[llvm] Done — 105802/105802 .ll files
+[asm] Compiling 1376/105802 .ll files  (jobs=8) …
+  progress: 500/1376  ok=500  errors=0
+  progress: 1000/1376  ok=1000  errors=0
+[asm] Done — 1376 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 1564/106465 instances …
+[llvm] Done — 106465/106465 .ll files
+[asm] Compiling 1564/106465 .ll files  (jobs=8) …
+  progress: 500/1564  ok=500  errors=0
+  progress: 1000/1564  ok=1000  errors=0
+  progress: 1500/1564  ok=1500  errors=0
+[asm] Done — 1564 compiled
+[gen 21:33:40] xml 107192/150000 (enumerating)  |  [mispredict_not_taken] llvm 105802 asm 105802 ann 105802  [mispredict_taken] llvm 106465 asm 106465 ann 106465
+[llvm] [mispredict_not_taken] Generating LLVM IR for 1720/107522 instances …
+[llvm] Done — 107522/107522 .ll files
+[asm] Compiling 1720/107522 .ll files  (jobs=8) …
+  progress: 500/1720  ok=500  errors=0
+  progress: 1000/1720  ok=1000  errors=0
+  progress: 1500/1720  ok=1500  errors=0
+[asm] Done — 1720 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 1847/108312 instances …
+[llvm] Done — 108312/108312 .ll files
+[asm] Compiling 1847/108312 .ll files  (jobs=8) …
+  progress: 500/1847  ok=500  errors=0
+  progress: 1000/1847  ok=1000  errors=0
+  progress: 1500/1847  ok=1500  errors=0
+[asm] Done — 1847 compiled
+[gen 21:37:20] xml 109168/150000 (enumerating)  |  [mispredict_not_taken] llvm 107522 asm 107522 ann 107522  [mispredict_taken] llvm 108312 asm 108312 ann 108312
+[llvm] [mispredict_not_taken] Generating LLVM IR for 1992/109514 instances …
+[llvm] Done — 109514/109514 .ll files
+[asm] Compiling 1992/109514 .ll files  (jobs=8) …
+  progress: 500/1992  ok=500  errors=0
+  progress: 1000/1992  ok=1000  errors=0
+  progress: 1500/1992  ok=1500  errors=0
+[asm] Done — 1992 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2157/110469 instances …
+[llvm] Done — 110469/110469 .ll files
+[asm] Compiling 2157/110469 .ll files  (jobs=8) …
+  progress: 500/2157  ok=500  errors=0
+  progress: 1000/2157  ok=1000  errors=0
+  progress: 1500/2157  ok=1500  errors=0
+  progress: 2000/2157  ok=2000  errors=0
+[asm] Done — 2157 compiled
+[gen 21:41:41] xml 111500/150000 (enumerating)  |  [mispredict_not_taken] llvm 109514 asm 109514 ann 109514  [mispredict_taken] llvm 110469 asm 110469 ann 110469
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2288/111802 instances …
+[llvm] Done — 111802/111802 .ll files
+[asm] Compiling 2288/111802 .ll files  (jobs=8) …
+  progress: 500/2288  ok=500  errors=0
+  progress: 1000/2288  ok=1000  errors=0
+  progress: 1500/2288  ok=1500  errors=0
+  progress: 2000/2288  ok=2000  errors=0
+[asm] Done — 2288 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2342/112811 instances …
+[llvm] Done — 112811/112811 .ll files
+[asm] Compiling 2342/112811 .ll files  (jobs=8) …
+  progress: 500/2342  ok=500  errors=0
+  progress: 1000/2342  ok=1000  errors=0
+  progress: 1500/2342  ok=1500  errors=0
+  progress: 2000/2342  ok=2000  errors=0
+[asm] Done — 2342 compiled
+[gen 21:46:26] xml 113818/150000 (enumerating)  |  [mispredict_not_taken] llvm 111802 asm 111802 ann 111802  [mispredict_taken] llvm 112811 asm 112811 ann 112811
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2282/114084 instances …
+[llvm] Done — 114084/114084 .ll files
+[asm] Compiling 2282/114084 .ll files  (jobs=8) …
+  progress: 500/2282  ok=500  errors=0
+  progress: 1000/2282  ok=1000  errors=0
+  progress: 1500/2282  ok=1500  errors=0
+  progress: 2000/2282  ok=2000  errors=0
+[asm] Done — 2282 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2258/115069 instances …
+[llvm] Done — 115069/115069 .ll files
+[asm] Compiling 2258/115069 .ll files  (jobs=8) …
+  progress: 500/2258  ok=500  errors=0
+  progress: 1000/2258  ok=1000  errors=0
+  progress: 1500/2258  ok=1500  errors=0
+  progress: 2000/2258  ok=2000  errors=0
+[asm] Done — 2258 compiled
+[gen 21:50:58] xml 115863/150000 (enumerating)  |  [mispredict_not_taken] llvm 114084 asm 114084 ann 114084  [mispredict_taken] llvm 115069 asm 115069 ann 115069
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2141/116225 instances …
+[llvm] Done — 116225/116225 .ll files
+[asm] Compiling 2141/116225 .ll files  (jobs=8) …
+  progress: 500/2141  ok=500  errors=0
+  progress: 1000/2141  ok=1000  errors=0
+  progress: 1500/2141  ok=1500  errors=0
+  progress: 2000/2141  ok=2000  errors=0
+[asm] Done — 2141 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2141/117210 instances …
+[llvm] Done — 117210/117210 .ll files
+[asm] Compiling 2141/117210 .ll files  (jobs=8) …
+  progress: 500/2141  ok=500  errors=0
+  progress: 1000/2141  ok=1000  errors=0
+  progress: 1500/2141  ok=1500  errors=0
+  progress: 2000/2141  ok=2000  errors=0
+[asm] Done — 2141 compiled
+[gen 21:54:51] xml 117987/150000 (enumerating)  |  [mispredict_not_taken] llvm 116225 asm 116225 ann 116225  [mispredict_taken] llvm 117210 asm 117210 ann 117210
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2114/118339 instances …
+[llvm] Done — 118339/118339 .ll files
+[asm] Compiling 2114/118339 .ll files  (jobs=8) …
+  progress: 500/2114  ok=500  errors=0
+  progress: 1000/2114  ok=1000  errors=0
+  progress: 1500/2114  ok=1500  errors=0
+  progress: 2000/2114  ok=2000  errors=0
+[asm] Done — 2114 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2129/119339 instances …
+[llvm] Done — 119339/119339 .ll files
+[asm] Compiling 2129/119339 .ll files  (jobs=8) …
+  progress: 500/2129  ok=500  errors=0
+  progress: 1000/2129  ok=1000  errors=0
+  progress: 1500/2129  ok=1500  errors=0
+  progress: 2000/2129  ok=2000  errors=0
+[asm] Done — 2129 compiled
+[gen 21:59:21] xml 120244/150000 (enumerating)  |  [mispredict_not_taken] llvm 118339 asm 118339 ann 118339  [mispredict_taken] llvm 119339 asm 119339 ann 119339
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2212/120551 instances …
+[llvm] Done — 120551/120551 .ll files
+[asm] Compiling 2212/120551 .ll files  (jobs=8) …
+  progress: 500/2212  ok=500  errors=0
+  progress: 1000/2212  ok=1000  errors=0
+  progress: 1500/2212  ok=1500  errors=0
+  progress: 2000/2212  ok=2000  errors=0
+[asm] Done — 2212 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2115/121454 instances …
+[llvm] Done — 121454/121454 .ll files
+[asm] Compiling 2115/121454 .ll files  (jobs=8) …
+  progress: 500/2115  ok=500  errors=0
+  progress: 1000/2115  ok=1000  errors=0
+  progress: 1500/2115  ok=1500  errors=0
+  progress: 2000/2115  ok=2000  errors=0
+[asm] Done — 2115 compiled
+[gen 22:03:37] xml 122389/150000 (enumerating)  |  [mispredict_not_taken] llvm 120551 asm 120551 ann 120551  [mispredict_taken] llvm 121454 asm 121454 ann 121454
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2149/122700 instances …
+[llvm] Done — 122700/122700 .ll files
+[asm] Compiling 2149/122700 .ll files  (jobs=8) …
+  progress: 500/2149  ok=500  errors=0
+  progress: 1000/2149  ok=1000  errors=0
+  progress: 1500/2149  ok=1500  errors=0
+  progress: 2000/2149  ok=2000  errors=0
+[asm] Done — 2149 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2220/123674 instances …
+[llvm] Done — 123674/123674 .ll files
+[asm] Compiling 2220/123674 .ll files  (jobs=8) …
+  progress: 500/2220  ok=500  errors=0
+  progress: 1000/2220  ok=1000  errors=0
+  progress: 1500/2220  ok=1500  errors=0
+  progress: 2000/2220  ok=2000  errors=0
+[asm] Done — 2220 compiled
+[gen 22:08:07] xml 124688/150000 (enumerating)  |  [mispredict_not_taken] llvm 122700 asm 122700 ann 122700  [mispredict_taken] llvm 123674 asm 123674 ann 123674
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2289/124989 instances …
+[llvm] Done — 124989/124989 .ll files
+[asm] Compiling 2289/124989 .ll files  (jobs=8) …
+  progress: 500/2289  ok=500  errors=0
+  progress: 1000/2289  ok=1000  errors=0
+  progress: 1500/2289  ok=1500  errors=0
+  progress: 2000/2289  ok=2000  errors=0
+[asm] Done — 2289 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2339/126013 instances …
+[llvm] Done — 126013/126013 .ll files
+[asm] Compiling 2339/126013 .ll files  (jobs=8) …
+  progress: 500/2339  ok=500  errors=0
+  progress: 1000/2339  ok=1000  errors=0
+  progress: 1500/2339  ok=1500  errors=0
+  progress: 2000/2339  ok=2000  errors=0
+[asm] Done — 2339 compiled
+[gen 22:12:38] xml 127092/150000 (enumerating)  |  [mispredict_not_taken] llvm 124989 asm 124989 ann 124989  [mispredict_taken] llvm 126013 asm 126013 ann 126013
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2428/127417 instances …
+[llvm] Done — 127417/127417 .ll files
+[asm] Compiling 2428/127417 .ll files  (jobs=8) …
+  progress: 500/2428  ok=500  errors=0
+  progress: 1000/2428  ok=1000  errors=0
+  progress: 1500/2428  ok=1500  errors=0
+  progress: 2000/2428  ok=2000  errors=0
+[asm] Done — 2428 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2468/128481 instances …
+[llvm] Done — 128481/128481 .ll files
+[asm] Compiling 2468/128481 .ll files  (jobs=8) …
+  progress: 500/2468  ok=500  errors=0
+  progress: 1000/2468  ok=1000  errors=0
+  progress: 1500/2468  ok=1500  errors=0
+  progress: 2000/2468  ok=2000  errors=0
+[asm] Done — 2468 compiled
+[gen 22:17:21] xml 129587/150000 (enumerating)  |  [mispredict_not_taken] llvm 127417 asm 127417 ann 127417  [mispredict_taken] llvm 128481 asm 128481 ann 128481
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2519/129936 instances …
+[llvm] Done — 129936/129936 .ll files
+[asm] Compiling 2519/129936 .ll files  (jobs=8) …
+  progress: 500/2519  ok=500  errors=0
+  progress: 1000/2519  ok=1000  errors=0
+  progress: 1500/2519  ok=1500  errors=0
+  progress: 2000/2519  ok=2000  errors=0
+  progress: 2500/2519  ok=2500  errors=0
+[asm] Done — 2519 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2569/131050 instances …
+[llvm] Done — 131050/131050 .ll files
+[asm] Compiling 2569/131050 .ll files  (jobs=8) …
+  progress: 500/2569  ok=500  errors=0
+  progress: 1000/2569  ok=1000  errors=0
+  progress: 1500/2569  ok=1500  errors=0
+  progress: 2000/2569  ok=2000  errors=0
+  progress: 2500/2569  ok=2500  errors=0
+[asm] Done — 2569 compiled
+[gen 22:22:28] xml 132211/150000 (enumerating)  |  [mispredict_not_taken] llvm 129936 asm 129936 ann 129936  [mispredict_taken] llvm 131050 asm 131050 ann 131050
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2583/132519 instances …
+[llvm] Done — 132519/132519 .ll files
+[asm] Compiling 2583/132519 .ll files  (jobs=8) …
+  progress: 500/2583  ok=500  errors=0
+  progress: 1000/2583  ok=1000  errors=0
+  progress: 1500/2583  ok=1500  errors=0
+  progress: 2000/2583  ok=2000  errors=0
+  progress: 2500/2583  ok=2500  errors=0
+[asm] Done — 2583 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2598/133648 instances …
+[llvm] Done — 133648/133648 .ll files
+[asm] Compiling 2598/133648 .ll files  (jobs=8) …
+  progress: 500/2598  ok=500  errors=0
+  progress: 1000/2598  ok=1000  errors=0
+  progress: 1500/2598  ok=1500  errors=0
+  progress: 2000/2598  ok=2000  errors=0
+  progress: 2500/2598  ok=2500  errors=0
+[asm] Done — 2598 compiled
+[gen 22:27:32] xml 134782/150000 (enumerating)  |  [mispredict_not_taken] llvm 132519 asm 132519 ann 132519  [mispredict_taken] llvm 133648 asm 133648 ann 133648
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2683/135202 instances …
+[llvm] Done — 135202/135202 .ll files
+[asm] Compiling 2683/135202 .ll files  (jobs=8) …
+  progress: 500/2683  ok=500  errors=0
+  progress: 1000/2683  ok=1000  errors=0
+  progress: 1500/2683  ok=1500  errors=0
+  progress: 2000/2683  ok=2000  errors=0
+  progress: 2500/2683  ok=2500  errors=0
+[asm] Done — 2683 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2895/136543 instances …
+[llvm] Done — 136543/136543 .ll files
+[asm] Compiling 2895/136543 .ll files  (jobs=8) …
+  progress: 500/2895  ok=500  errors=0
+  progress: 1000/2895  ok=1000  errors=0
+  progress: 1500/2895  ok=1500  errors=0
+  progress: 2000/2895  ok=2000  errors=0
+  progress: 2500/2895  ok=2500  errors=0
+[asm] Done — 2895 compiled
+[gen 22:31:47] xml 137954/150000 (enumerating)  |  [mispredict_not_taken] llvm 135202 asm 135202 ann 135202  [mispredict_taken] llvm 136543 asm 136543 ann 136543
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3154/138356 instances …
+[llvm] Done — 138356/138356 .ll files
+[asm] Compiling 3154/138356 .ll files  (jobs=8) …
+  progress: 500/3154  ok=500  errors=0
+  progress: 1000/3154  ok=1000  errors=0
+  progress: 1500/3154  ok=1500  errors=0
+  progress: 2000/3154  ok=2000  errors=0
+  progress: 2500/3154  ok=2500  errors=0
+  progress: 3000/3154  ok=3000  errors=0
+[asm] Done — 3154 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3421/139964 instances …
+[llvm] Done — 139964/139964 .ll files
+[asm] Compiling 3421/139964 .ll files  (jobs=8) …
+  progress: 500/3421  ok=500  errors=0
+  progress: 1000/3421  ok=1000  errors=0
+  progress: 1500/3421  ok=1500  errors=0
+  progress: 2000/3421  ok=2000  errors=0
+  progress: 2500/3421  ok=2500  errors=0
+  progress: 3000/3421  ok=3000  errors=0
+[asm] Done — 3421 compiled
+[gen 22:36:58] xml 141538/150000 (enumerating)  |  [mispredict_not_taken] llvm 138356 asm 138356 ann 138356  [mispredict_taken] llvm 139964 asm 139964 ann 139964
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3532/141888 instances …
+[llvm] Done — 141888/141888 .ll files
+[asm] Compiling 3532/141888 .ll files  (jobs=8) …
+  progress: 500/3532  ok=500  errors=0
+  progress: 1000/3532  ok=1000  errors=0
+  progress: 1500/3532  ok=1500  errors=0
+  progress: 2000/3532  ok=2000  errors=0
+  progress: 2500/3532  ok=2500  errors=0
+  progress: 3000/3532  ok=3000  errors=0
+  progress: 3500/3532  ok=3500  errors=0
+[asm] Done — 3532 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3604/143568 instances …
+[llvm] Done — 143568/143568 .ll files
+[asm] Compiling 3604/143568 .ll files  (jobs=8) …
+  progress: 500/3604  ok=500  errors=0
+  progress: 1000/3604  ok=1000  errors=0
+  progress: 1500/3604  ok=1500  errors=0
+  progress: 2000/3604  ok=2000  errors=0
+  progress: 2500/3604  ok=2500  errors=0
+  progress: 3000/3604  ok=3000  errors=0
+  progress: 3500/3604  ok=3500  errors=0
+[asm] Done — 3604 compiled
+[gen 22:42:38] xml 145265/150000 (enumerating)  |  [mispredict_not_taken] llvm 141888 asm 141888 ann 141888  [mispredict_taken] llvm 143568 asm 143568 ann 143568
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3805/145693 instances …
+[llvm] Done — 145693/145693 .ll files
+[asm] Compiling 3805/145693 .ll files  (jobs=8) …
+  progress: 500/3805  ok=500  errors=0
+  progress: 1000/3805  ok=1000  errors=0
+  progress: 1500/3805  ok=1500  errors=0
+  progress: 2000/3805  ok=2000  errors=0
+  progress: 2500/3805  ok=2500  errors=0
+  progress: 3000/3805  ok=3000  errors=0
+  progress: 3500/3805  ok=3500  errors=0
+[asm] Done — 3805 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 3801/147369 instances …
+[llvm] Done — 147369/147369 .ll files
+[asm] Compiling 3801/147369 .ll files  (jobs=8) …
+  progress: 500/3801  ok=500  errors=0
+  progress: 1000/3801  ok=1000  errors=0
+  progress: 1500/3801  ok=1500  errors=0
+  progress: 2000/3801  ok=2000  errors=0
+  progress: 2500/3801  ok=2500  errors=0
+  progress: 3000/3801  ok=3000  errors=0
+  progress: 3500/3801  ok=3500  errors=0
+[asm] Done — 3801 compiled
+[gen 22:48:51] xml 147914/150000 (enumerating)  |  [mispredict_not_taken] llvm 145693 asm 145693 ann 145693  [mispredict_taken] llvm 147369 asm 147369 ann 147369
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2651/148344 instances …
+[llvm] Done — 148344/148344 .ll files
+[asm] Compiling 2651/148344 .ll files  (jobs=8) …
+  progress: 500/2651  ok=500  errors=0
+  progress: 1000/2651  ok=1000  errors=0
+  progress: 1500/2651  ok=1500  errors=0
+  progress: 2000/2651  ok=2000  errors=0
+  progress: 2500/2651  ok=2500  errors=0
+[asm] Done — 2651 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2321/149690 instances …
+[llvm] Done — 149690/149690 .ll files
+[asm] Compiling 2321/149690 .ll files  (jobs=8) …
+[xml] Done — 150000 instances
+  progress: 500/2321  ok=500  errors=0
+  progress: 1000/2321  ok=1000  errors=0
+  progress: 1500/2321  ok=1500  errors=0
+  progress: 2000/2321  ok=2000  errors=0
+[asm] Done — 2321 compiled
+[gen 22:52:50] xml 150000/150000 (done)  |  [mispredict_not_taken] llvm 148344 asm 148344 ann 148344  [mispredict_taken] llvm 149690 asm 149690 ann 149690
+[llvm] [mispredict_not_taken] Generating LLVM IR for 1656/150000 instances …
+[llvm] Done — 150000/150000 .ll files
+[asm] Compiling 1656/150000 .ll files  (jobs=8) …
+  progress: 500/1656  ok=500  errors=0
+  progress: 1000/1656  ok=1000  errors=0
+  progress: 1500/1656  ok=1500  errors=0
+[asm] Done — 1656 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 310/150000 instances …
+[llvm] Done — 150000/150000 .ll files
+[asm] Compiling 310/150000 .ll files  (jobs=8) …
+[asm] Done — 310 compiled
+[gen 22:54:52] xml 150000/150000 (done)  |  [mispredict_not_taken] llvm 150000 asm 150000 ann 150000  [mispredict_taken] llvm 150000 asm 150000 ann 150000
+[llvm] All 150000 .ll files already generated — skipping
+[asm] All 150000 .s files already compiled — skipping
+[llvm] All 150000 .ll files already generated — skipping
+[asm] All 150000 .s files already compiled — skipping
+[gen 22:55:44] xml 150000/150000 (done)  |  [mispredict_not_taken] llvm 150000 asm 150000 ann 150000  [mispredict_taken] llvm 150000 asm 150000 ann 150000
+[gen] complete — xml done and no new asm produced. Testset ready for testrun.py.

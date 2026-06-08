@@ -295,6 +295,20 @@ def parse_lsq(trace_path: Path) -> Dict[int, List[dict]]:
     # (lsq_unit.cc:1766). So memaccess_tick>0 ⇒ the load went to cache. Separate
     # field (does not touch packet_tick) so existing checkers are unaffected.
     memaccess_re = re.compile(r"^\s*(\d+):\s+system\.cpu\.iew\.lsq\..*:\s+Doing memory access for inst \[sn:(\d+)\]")
+    # [SpecLFB / Cache debug flag] the L1D outcome of the load's access. In the
+    # trace a load logs "Doing memory access for inst [sn:N]" and then, on the
+    # next dcache line (same tick), the cache reports "access for ReadReq
+    # [a:b] hit ..." or "... miss". A MISS installs a (secret-dependent) line in
+    # L1 = the real cache-state perturbation the UV6 channel needs; a HIT on a
+    # pre-warmed constant line changes no tag state (the const-addr
+    # over-approximation). So we pair each memaccess [sn:N] with the FOLLOWING
+    # ReadReq outcome and record cache_fill_tick (set only on a MISS = install).
+    # Loads = ReadReq (stores = WriteReq, ignored). No-op on builds without the
+    # Cache flag (the field stays 0). Pairing is conservative: a missed pairing
+    # leaves cache_fill_tick=0 (treated as no-install).
+    dcache_read_re = re.compile(
+        r"^\s*(\d+):\s+system\.cpu\.dcache:\s+access for ReadReq \[[0-9a-f]+:[0-9a-f]+\]\s+(hit|miss)")
+    pending_read_sn = None  # sn of the last load memaccess awaiting its ReadReq outcome
     # [SpecLFB] per-load USL classification while branches are unresolved
     # (Speclfb debug flag). isCUSL=1 ⇒ the load IS a conditional unsafe spec
     # load (should be protected); isUnsafe=0 on such a load ⇒ SpecLFB left it
@@ -314,7 +328,8 @@ def parse_lsq(trace_path: Path) -> Dict[int, List[dict]]:
                 sn = int(sn_m.group(1)) if sn_m else -1
                 rec = dict(pc=pc, sn=sn, insert_tick=tick, execute_tick=0,
                            squash_tick=0, packet_tick=0, spec_read_tick=0,
-                           expose_tick=0, memaccess_tick=0,
+                           expose_tick=0, memaccess_tick=0, cache_fill_tick=0,
+                           cache_access_outcome="",
                            spec_cusl=False, spec_unprotected=False)
                 by_sn[sn] = rec
                 by_pc[pc].append(rec)
@@ -348,9 +363,20 @@ def parse_lsq(trace_path: Path) -> Dict[int, List[dict]]:
                 continue
             m = memaccess_re.match(line)
             if m:
-                rec = by_sn.get(int(m.group(2)))
+                sn = int(m.group(2))
+                rec = by_sn.get(sn)
                 if rec is not None and rec["memaccess_tick"] == 0:
                     rec["memaccess_tick"] = int(m.group(1))
+                pending_read_sn = sn  # its ReadReq outcome is the next dcache line
+                continue
+            m = dcache_read_re.match(line)
+            if m and pending_read_sn is not None:
+                rec = by_sn.get(pending_read_sn)
+                if rec is not None and rec["cache_access_outcome"] == "":
+                    rec["cache_access_outcome"] = m.group(2)
+                    if m.group(2) == "miss":        # miss → L1 fill/install
+                        rec["cache_fill_tick"] = int(m.group(1))
+                pending_read_sn = None
                 continue
             m = speclfb_usl_re.match(line)
             if m:

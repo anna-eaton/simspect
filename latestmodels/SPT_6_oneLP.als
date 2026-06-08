@@ -340,7 +340,8 @@ fun speculation_contract_p[p: PTag->univ] : Instruction {uncommitted_p[p] & has_
 
 fun hardware_protection_policy: Operand {Instruction.operands - ((Inreg + Inaddr) - Instruction.outreg.rf)} // all the input memory
 //fun leakage_function : Operand {Loads.inaddr+(Branchxs+Otherxs).inreg}
-fun leakage_function : Operand {Loads.inaddr+(Branchxs).inreg}
+// stores transmit their address (cache access) — like loads; tests decide if committed matters
+fun leakage_function : Operand {Loads.inaddr+(Branchxs).inreg+Stores.inaddr}
 fun prot_set_propagation_p[p:PTag->univ,i:Instruction,o:Operand] : Operand {
 	// s - (Loads & committed_p[p] & i).inaddr.opstate // committed loads remove their inaddr from the protset
 	o // - (Loads & no_unresolved_brs_bf_or_is_p[p] & i).inmem // loads that have no unresolvd brs before them remove their inaddr from protset (acc load is not branch so probs chill)
@@ -350,7 +351,9 @@ fun prot_set_propagation_p[p:PTag->univ,i:Instruction,o:Operand] : Operand {
        - (i & ((Otherns + Otherxs) - inreg.Inreg)).outreg
 	// when every input is outside of prot set untaint output
 	- (i & ((Otherns + Otherxs) - inreg.o)).outreg
-	- (i.inreg & (Operand - o).(rf_p[p]))
+	// de-protect an input whose rf-source left the protset — inaddr too, not just inreg
+	// (loads transmit through inaddr and have no inreg, so inreg-only missed load-address transmitters)
+	- ((i.inreg + i.inaddr) & (Operand - o).(rf_p[p]))
 	- (i & Loads & inmem.( ((Stores - inreg.o) & inreg.Inreg).outmem.(rf_p[p]) )).(outreg + inmem)
 
 //((last_committed_protset_p[no_p] & nonspeculative_xmit_p[no_p] & xm.operands) +

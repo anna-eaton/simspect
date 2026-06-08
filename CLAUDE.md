@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Paper & figures
+
+The paper/writing workspace is a **separate repo at `/tests/SimSpect-S-P-2027/`** (S&P 2027,
+`git@github.com:anna-eaton/SimSpect-S-P-2027.git`) — see its own `CLAUDE.md` for all paper
+conventions (critique style, figure generation, logs). Do paper work there, not here.
+
 ## Session notes (inter-session comms)
 
 Multiple Claude sessions may run concurrently. Two files coordinate them — **read both first**:
@@ -29,6 +35,15 @@ conclusion, a reason to restart a sweep) — a dated, self-contained entry in th
 `claudelog.md`. Big things and changes must **stick around** so future sessions inherit them
 without re-deriving; if in doubt whether it's big, append it. This is a standing requirement,
 not a per-task instruction.
+
+**Human dashboard for Anna → `STATUS.md`.** `STATUS.md` (repo root) is the human-readable
+rollup *for Anna*, distilled from `claudelog.md` + `claudenotes.md` + the review `.md`s.
+**Every session keeps it current** (refresh the "Last refreshed" line) so it always reflects:
+the review docs **to read**, what's **awaiting Anna's approval/decision** (esp. pending `.als`
+edits + regens), what **runs/work are in flight** (mark "as last logged" — verify before
+trusting), the **development front**, and what's **scoped/parked for future**. Terse and
+current — it's the one file Anna reads to see where everything stands. It is a *digest* of the
+logs, not a substitute: still write `claudenotes`/`claudelog` as usual.
 
 **Big bugs / fundamental results → write a standalone review `.md` for the owner (Anna).** The
 `claudelog.md` entry is the terse durable record; it is NOT enough for a result Anna must review in

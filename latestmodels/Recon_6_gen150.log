@@ -1,0 +1,698 @@
+[provenance] /tests/simspect/testsets_latest/Recon_6/provenance.tar.gz  (git e298a9e1; 6 sources)
+[xml] Enumerating instances from Recon_6.als (cap=150000) …
+[gen 17:37:09] xml 0/150000 (enumerating)  |  [mispredict_not_taken] llvm 0 asm 0 ann 0  [mispredict_taken] llvm 0 asm 0 ann 0
+[llvm] [mispredict_not_taken] Generating LLVM IR for 305/305 instances …
+[llvm] Done — 305/305 .ll files
+[asm] Compiling 305/305 .ll files  (jobs=8) …
+[asm] Done — 305 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 563/563 instances …
+[llvm] Done — 563/563 .ll files
+[asm] Compiling 563/563 .ll files  (jobs=8) …
+  progress: 500/563  ok=500  errors=0
+[asm] Done — 563 compiled
+[gen 17:38:25] xml 773/150000 (enumerating)  |  [mispredict_not_taken] llvm 305 asm 305 ann 305  [mispredict_taken] llvm 563 asm 563 ann 563
+[llvm] [mispredict_not_taken] Generating LLVM IR for 849/1154 instances …
+[llvm] Done — 1154/1154 .ll files
+[asm] Compiling 849/1154 .ll files  (jobs=8) …
+  progress: 500/849  ok=500  errors=0
+[asm] Done — 849 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 1048/1611 instances …
+[llvm] Done — 1611/1611 .ll files
+[asm] Compiling 1048/1611 .ll files  (jobs=8) …
+  progress: 500/1048  ok=500  errors=0
+  progress: 1000/1048  ok=1000  errors=0
+[asm] Done — 1048 compiled
+[gen 17:40:40] xml 2230/150000 (enumerating)  |  [mispredict_not_taken] llvm 1154 asm 1154 ann 1154  [mispredict_taken] llvm 1611 asm 1611 ann 1611
+[llvm] [mispredict_not_taken] Generating LLVM IR for 1340/2494 instances …
+[llvm] Done — 2494/2494 .ll files
+[asm] Compiling 1340/2494 .ll files  (jobs=8) …
+  progress: 500/1340  ok=500  errors=0
+  progress: 1000/1340  ok=1000  errors=0
+[asm] Done — 1340 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 1608/3219 instances …
+[llvm] Done — 3219/3219 .ll files
+[asm] Compiling 1608/3219 .ll files  (jobs=8) …
+  progress: 500/1608  ok=500  errors=0
+  progress: 1000/1608  ok=1000  errors=0
+  progress: 1500/1608  ok=1500  errors=0
+[asm] Done — 1608 compiled
+[gen 17:44:26] xml 4249/150000 (enumerating)  |  [mispredict_not_taken] llvm 2494 asm 2494 ann 2494  [mispredict_taken] llvm 3219 asm 3219 ann 3219
+[llvm] [mispredict_not_taken] Generating LLVM IR for 2096/4590 instances …
+[llvm] Done — 4590/4590 .ll files
+[asm] Compiling 2096/4590 .ll files  (jobs=8) …
+  progress: 500/2096  ok=500  errors=0
+  progress: 1000/2096  ok=1000  errors=0
+  progress: 1500/2096  ok=1500  errors=0
+  progress: 2000/2096  ok=2000  errors=0
+[asm] Done — 2096 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 2878/6097 instances …
+[llvm] Done — 6097/6097 .ll files
+[asm] Compiling 2878/6097 .ll files  (jobs=8) …
+  progress: 500/2878  ok=500  errors=0
+  progress: 1000/2878  ok=1000  errors=0
+  progress: 1500/2878  ok=1500  errors=0
+  progress: 2000/2878  ok=2000  errors=0
+  progress: 2500/2878  ok=2500  errors=0
+[asm] Done — 2878 compiled
+[gen 17:50:48] xml 8222/150000 (enumerating)  |  [mispredict_not_taken] llvm 4590 asm 4590 ann 4590  [mispredict_taken] llvm 6097 asm 6097 ann 6097
+[llvm] [mispredict_not_taken] Generating LLVM IR for 3928/8518 instances …
+[llvm] Done — 8518/8518 .ll files
+[asm] Compiling 3928/8518 .ll files  (jobs=8) …
+  progress: 500/3928  ok=500  errors=0
+  progress: 1000/3928  ok=1000  errors=0
+  progress: 1500/3928  ok=1500  errors=0
+  progress: 2000/3928  ok=2000  errors=0
+  progress: 2500/3928  ok=2500  errors=0
+  progress: 3000/3928  ok=3000  errors=0
+  progress: 3500/3928  ok=3500  errors=0
+[asm] Done — 3928 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 5437/11534 instances …
+[llvm] Done — 11534/11534 .ll files
+[asm] Compiling 5437/11534 .ll files  (jobs=8) …
+  progress: 500/5437  ok=500  errors=0
+  progress: 1000/5437  ok=1000  errors=0
+  progress: 1500/5437  ok=1500  errors=0
+  progress: 2000/5437  ok=2000  errors=0
+  progress: 2500/5437  ok=2500  errors=0
+  progress: 3000/5437  ok=3000  errors=0
+  progress: 3500/5437  ok=3500  errors=0
+  progress: 4000/5437  ok=4000  errors=0
+  progress: 4500/5437  ok=4500  errors=0
+  progress: 5000/5437  ok=5000  errors=0
+[asm] Done — 5437 compiled
+[gen 18:01:23] xml 15881/150000 (enumerating)  |  [mispredict_not_taken] llvm 8518 asm 8518 ann 8518  [mispredict_taken] llvm 11534 asm 11534 ann 11534
+[llvm] [mispredict_not_taken] Generating LLVM IR for 7833/16351 instances …
+[llvm] Done — 16351/16351 .ll files
+[asm] Compiling 7833/16351 .ll files  (jobs=8) …
+  progress: 500/7833  ok=500  errors=0
+  progress: 1000/7833  ok=1000  errors=0
+  progress: 1500/7833  ok=1500  errors=0
+  progress: 2000/7833  ok=2000  errors=0
+  progress: 2500/7833  ok=2500  errors=0
+  progress: 3000/7833  ok=3000  errors=0
+  progress: 3500/7833  ok=3500  errors=0
+  progress: 4000/7833  ok=4000  errors=0
+  progress: 4500/7833  ok=4500  errors=0
+  progress: 5000/7833  ok=5000  errors=0
+  progress: 5500/7833  ok=5500  errors=0
+  progress: 6000/7833  ok=6000  errors=0
+  progress: 6500/7833  ok=6500  errors=0
+  progress: 7000/7833  ok=7000  errors=0
+  progress: 7500/7833  ok=7500  errors=0
+[asm] Done — 7833 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 10835/22369 instances …
+[llvm] Done — 22369/22369 .ll files
+[asm] Compiling 10835/22369 .ll files  (jobs=8) …
+  progress: 500/10835  ok=500  errors=0
+  progress: 1000/10835  ok=1000  errors=0
+  progress: 1500/10835  ok=1500  errors=0
+  progress: 2000/10835  ok=2000  errors=0
+  progress: 2500/10835  ok=2500  errors=0
+  progress: 3000/10835  ok=3000  errors=0
+  progress: 3500/10835  ok=3500  errors=0
+  progress: 4000/10835  ok=4000  errors=0
+  progress: 4500/10835  ok=4500  errors=0
+  progress: 5000/10835  ok=5000  errors=0
+  progress: 5500/10835  ok=5500  errors=0
+  progress: 6000/10835  ok=6000  errors=0
+  progress: 6500/10835  ok=6500  errors=0
+  progress: 7000/10835  ok=7000  errors=0
+  progress: 7500/10835  ok=7500  errors=0
+  progress: 8000/10835  ok=8000  errors=0
+  progress: 8500/10835  ok=8500  errors=0
+  progress: 9000/10835  ok=9000  errors=0
+  progress: 9500/10835  ok=9500  errors=0
+  progress: 10000/10835  ok=10000  errors=0
+  progress: 10500/10835  ok=10500  errors=0
+[asm] Done — 10835 compiled
+[gen 18:21:24] xml 28994/150000 (enumerating)  |  [mispredict_not_taken] llvm 16351 asm 16351 ann 16351  [mispredict_taken] llvm 22369 asm 22369 ann 22369
+[llvm] [mispredict_not_taken] Generating LLVM IR for 13160/29511 instances …
+[llvm] Done — 29511/29511 .ll files
+[asm] Compiling 13160/29511 .ll files  (jobs=8) …
+  progress: 500/13160  ok=500  errors=0
+  progress: 1000/13160  ok=1000  errors=0
+  progress: 1500/13160  ok=1500  errors=0
+  progress: 2000/13160  ok=2000  errors=0
+  progress: 2500/13160  ok=2500  errors=0
+  progress: 3000/13160  ok=3000  errors=0
+  progress: 3500/13160  ok=3500  errors=0
+  progress: 4000/13160  ok=4000  errors=0
+  progress: 4500/13160  ok=4500  errors=0
+  progress: 5000/13160  ok=5000  errors=0
+  progress: 5500/13160  ok=5500  errors=0
+  progress: 6000/13160  ok=6000  errors=0
+  progress: 6500/13160  ok=6500  errors=0
+  progress: 7000/13160  ok=7000  errors=0
+  progress: 7500/13160  ok=7500  errors=0
+  progress: 8000/13160  ok=8000  errors=0
+  progress: 8500/13160  ok=8500  errors=0
+  progress: 9000/13160  ok=9000  errors=0
+  progress: 9500/13160  ok=9500  errors=0
+  progress: 10000/13160  ok=10000  errors=0
+  progress: 10500/13160  ok=10500  errors=0
+  progress: 11000/13160  ok=11000  errors=0
+  progress: 11500/13160  ok=11500  errors=0
+  progress: 12000/13160  ok=12000  errors=0
+  progress: 12500/13160  ok=12500  errors=0
+  progress: 13000/13160  ok=13000  errors=0
+[asm] Done — 13160 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 16470/38839 instances …
+[llvm] Done — 38839/38839 .ll files
+[asm] Compiling 16470/38839 .ll files  (jobs=8) …
+  progress: 500/16470  ok=500  errors=0
+  progress: 1000/16470  ok=1000  errors=0
+  progress: 1500/16470  ok=1500  errors=0
+  progress: 2000/16470  ok=2000  errors=0
+  progress: 2500/16470  ok=2500  errors=0
+  progress: 3000/16470  ok=3000  errors=0
+  progress: 3500/16470  ok=3500  errors=0
+  progress: 4000/16470  ok=4000  errors=0
+  progress: 4500/16470  ok=4500  errors=0
+  progress: 5000/16470  ok=5000  errors=0
+  progress: 5500/16470  ok=5500  errors=0
+  progress: 6000/16470  ok=6000  errors=0
+  progress: 6500/16470  ok=6500  errors=0
+  progress: 7000/16470  ok=7000  errors=0
+  progress: 7500/16470  ok=7500  errors=0
+  progress: 8000/16470  ok=8000  errors=0
+  progress: 8500/16470  ok=8500  errors=0
+  progress: 9000/16470  ok=9000  errors=0
+  progress: 9500/16470  ok=9500  errors=0
+  progress: 10000/16470  ok=10000  errors=0
+  progress: 10500/16470  ok=10500  errors=0
+  progress: 11000/16470  ok=11000  errors=0
+  progress: 11500/16470  ok=11500  errors=0
+  progress: 12000/16470  ok=12000  errors=0
+  progress: 12500/16470  ok=12500  errors=0
+  progress: 13000/16470  ok=13000  errors=0
+  progress: 13500/16470  ok=13500  errors=0
+  progress: 14000/16470  ok=14000  errors=0
+  progress: 14500/16470  ok=14500  errors=0
+  progress: 15000/16470  ok=15000  errors=0
+  progress: 15500/16470  ok=15500  errors=0
+  progress: 16000/16470  ok=16000  errors=0
+[asm] Done — 16470 compiled
+[gen 18:56:05] xml 49585/150000 (enumerating)  |  [mispredict_not_taken] llvm 29511 asm 29511 ann 29511  [mispredict_taken] llvm 38839 asm 38839 ann 38839
+[llvm] [mispredict_not_taken] Generating LLVM IR for 20290/49801 instances …
+[llvm] Done — 49801/49801 .ll files
+[asm] Compiling 20290/49801 .ll files  (jobs=8) …
+  progress: 500/20290  ok=500  errors=0
+  progress: 1000/20290  ok=1000  errors=0
+  progress: 1500/20290  ok=1500  errors=0
+  progress: 2000/20290  ok=2000  errors=0
+  progress: 2500/20290  ok=2500  errors=0
+  progress: 3000/20290  ok=3000  errors=0
+  progress: 3500/20290  ok=3500  errors=0
+  progress: 4000/20290  ok=4000  errors=0
+  progress: 4500/20290  ok=4500  errors=0
+  progress: 5000/20290  ok=5000  errors=0
+  progress: 5500/20290  ok=5500  errors=0
+  progress: 6000/20290  ok=6000  errors=0
+  progress: 6500/20290  ok=6500  errors=0
+  progress: 7000/20290  ok=7000  errors=0
+  progress: 7500/20290  ok=7500  errors=0
+  progress: 8000/20290  ok=8000  errors=0
+  progress: 8500/20290  ok=8500  errors=0
+  progress: 9000/20290  ok=9000  errors=0
+  progress: 9500/20290  ok=9500  errors=0
+  progress: 10000/20290  ok=10000  errors=0
+  progress: 10500/20290  ok=10500  errors=0
+  progress: 11000/20290  ok=11000  errors=0
+  progress: 11500/20290  ok=11500  errors=0
+  progress: 12000/20290  ok=12000  errors=0
+  progress: 12500/20290  ok=12500  errors=0
+  progress: 13000/20290  ok=13000  errors=0
+  progress: 13500/20290  ok=13500  errors=0
+  progress: 14000/20290  ok=14000  errors=0
+  progress: 14500/20290  ok=14500  errors=0
+  progress: 15000/20290  ok=15000  errors=0
+  progress: 15500/20290  ok=15500  errors=0
+  progress: 16000/20290  ok=16000  errors=0
+  progress: 16500/20290  ok=16500  errors=0
+  progress: 17000/20290  ok=17000  errors=0
+  progress: 17500/20290  ok=17500  errors=0
+  progress: 18000/20290  ok=18000  errors=0
+  progress: 18500/20290  ok=18500  errors=0
+  progress: 19000/20290  ok=19000  errors=0
+  progress: 19500/20290  ok=19500  errors=0
+  progress: 20000/20290  ok=20000  errors=0
+[asm] Done — 20290 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 22848/61687 instances …
+[llvm] Done — 61687/61687 .ll files
+[asm] Compiling 22848/61687 .ll files  (jobs=8) …
+  progress: 500/22848  ok=500  errors=0
+  progress: 1000/22848  ok=1000  errors=0
+  progress: 1500/22848  ok=1500  errors=0
+  progress: 2000/22848  ok=2000  errors=0
+  progress: 2500/22848  ok=2500  errors=0
+  progress: 3000/22848  ok=3000  errors=0
+  progress: 3500/22848  ok=3500  errors=0
+  progress: 4000/22848  ok=4000  errors=0
+  progress: 4500/22848  ok=4500  errors=0
+  progress: 5000/22848  ok=5000  errors=0
+  progress: 5500/22848  ok=5500  errors=0
+  progress: 6000/22848  ok=6000  errors=0
+  progress: 6500/22848  ok=6500  errors=0
+  progress: 7000/22848  ok=7000  errors=0
+  progress: 7500/22848  ok=7500  errors=0
+  progress: 8000/22848  ok=8000  errors=0
+  progress: 8500/22848  ok=8500  errors=0
+  progress: 9000/22848  ok=9000  errors=0
+  progress: 9500/22848  ok=9500  errors=0
+  progress: 10000/22848  ok=10000  errors=0
+  progress: 10500/22848  ok=10500  errors=0
+  progress: 11000/22848  ok=11000  errors=0
+  progress: 11500/22848  ok=11500  errors=0
+  progress: 12000/22848  ok=12000  errors=0
+  progress: 12500/22848  ok=12500  errors=0
+  progress: 13000/22848  ok=13000  errors=0
+  progress: 13500/22848  ok=13500  errors=0
+  progress: 14000/22848  ok=14000  errors=0
+  progress: 14500/22848  ok=14500  errors=0
+  progress: 15000/22848  ok=15000  errors=0
+  progress: 15500/22848  ok=15500  errors=0
+  progress: 16000/22848  ok=16000  errors=0
+  progress: 16500/22848  ok=16500  errors=0
+  progress: 17000/22848  ok=17000  errors=0
+  progress: 17500/22848  ok=17500  errors=0
+  progress: 18000/22848  ok=18000  errors=0
+  progress: 18500/22848  ok=18500  errors=0
+  progress: 19000/22848  ok=19000  errors=0
+  progress: 19500/22848  ok=19500  errors=0
+  progress: 20000/22848  ok=20000  errors=0
+  progress: 20500/22848  ok=20500  errors=0
+  progress: 21000/22848  ok=21000  errors=0
+  progress: 21500/22848  ok=21500  errors=0
+  progress: 22000/22848  ok=22000  errors=0
+  progress: 22500/22848  ok=22500  errors=0
+[asm] Done — 22848 compiled
+[gen 19:44:48] xml 77247/150000 (enumerating)  |  [mispredict_not_taken] llvm 49801 asm 49801 ann 49801  [mispredict_taken] llvm 61687 asm 61687 ann 61687
+[llvm] [mispredict_not_taken] Generating LLVM IR for 27835/77636 instances …
+[llvm] Done — 77636/77636 .ll files
+[asm] Compiling 27835/77636 .ll files  (jobs=8) …
+  progress: 500/27835  ok=500  errors=0
+  progress: 1000/27835  ok=1000  errors=0
+  progress: 1500/27835  ok=1500  errors=0
+  progress: 2000/27835  ok=2000  errors=0
+  progress: 2500/27835  ok=2500  errors=0
+  progress: 3000/27835  ok=3000  errors=0
+  progress: 3500/27835  ok=3500  errors=0
+  progress: 4000/27835  ok=4000  errors=0
+  progress: 4500/27835  ok=4500  errors=0
+  progress: 5000/27835  ok=5000  errors=0
+  progress: 5500/27835  ok=5500  errors=0
+  progress: 6000/27835  ok=6000  errors=0
+  progress: 6500/27835  ok=6500  errors=0
+  progress: 7000/27835  ok=7000  errors=0
+  progress: 7500/27835  ok=7500  errors=0
+  progress: 8000/27835  ok=8000  errors=0
+  progress: 8500/27835  ok=8500  errors=0
+  progress: 9000/27835  ok=9000  errors=0
+  progress: 9500/27835  ok=9500  errors=0
+  progress: 10000/27835  ok=10000  errors=0
+  progress: 10500/27835  ok=10500  errors=0
+  progress: 11000/27835  ok=11000  errors=0
+  progress: 11500/27835  ok=11500  errors=0
+  progress: 12000/27835  ok=12000  errors=0
+  progress: 12500/27835  ok=12500  errors=0
+  progress: 13000/27835  ok=13000  errors=0
+  progress: 13500/27835  ok=13500  errors=0
+  progress: 14000/27835  ok=14000  errors=0
+  progress: 14500/27835  ok=14500  errors=0
+  progress: 15000/27835  ok=15000  errors=0
+  progress: 15500/27835  ok=15500  errors=0
+  progress: 16000/27835  ok=16000  errors=0
+  progress: 16500/27835  ok=16500  errors=0
+  progress: 17000/27835  ok=17000  errors=0
+  progress: 17500/27835  ok=17500  errors=0
+  progress: 18000/27835  ok=18000  errors=0
+  progress: 18500/27835  ok=18500  errors=0
+  progress: 19000/27835  ok=19000  errors=0
+  progress: 19500/27835  ok=19500  errors=0
+  progress: 20000/27835  ok=20000  errors=0
+  progress: 20500/27835  ok=20500  errors=0
+  progress: 21000/27835  ok=21000  errors=0
+  progress: 21500/27835  ok=21500  errors=0
+  progress: 22000/27835  ok=22000  errors=0
+  progress: 22500/27835  ok=22500  errors=0
+  progress: 23000/27835  ok=23000  errors=0
+  progress: 23500/27835  ok=23500  errors=0
+  progress: 24000/27835  ok=24000  errors=0
+  progress: 24500/27835  ok=24500  errors=0
+  progress: 25000/27835  ok=25000  errors=0
+  progress: 25500/27835  ok=25500  errors=0
+  progress: 26000/27835  ok=26000  errors=0
+  progress: 26500/27835  ok=26500  errors=0
+  progress: 27000/27835  ok=27000  errors=0
+  progress: 27500/27835  ok=27500  errors=0
+[asm] Done — 27835 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 35063/96750 instances …
+[llvm] Done — 96750/96750 .ll files
+[asm] Compiling 35063/96750 .ll files  (jobs=8) …
+  progress: 500/35063  ok=500  errors=0
+  progress: 1000/35063  ok=1000  errors=0
+  progress: 1500/35063  ok=1500  errors=0
+  progress: 2000/35063  ok=2000  errors=0
+  progress: 2500/35063  ok=2500  errors=0
+  progress: 3000/35063  ok=3000  errors=0
+  progress: 3500/35063  ok=3500  errors=0
+  progress: 4000/35063  ok=4000  errors=0
+  progress: 4500/35063  ok=4500  errors=0
+  progress: 5000/35063  ok=5000  errors=0
+  progress: 5500/35063  ok=5500  errors=0
+  progress: 6000/35063  ok=6000  errors=0
+  progress: 6500/35063  ok=6500  errors=0
+  progress: 7000/35063  ok=7000  errors=0
+  progress: 7500/35063  ok=7500  errors=0
+  progress: 8000/35063  ok=8000  errors=0
+  progress: 8500/35063  ok=8500  errors=0
+  progress: 9000/35063  ok=9000  errors=0
+  progress: 9500/35063  ok=9500  errors=0
+  progress: 10000/35063  ok=10000  errors=0
+  progress: 10500/35063  ok=10500  errors=0
+  progress: 11000/35063  ok=11000  errors=0
+  progress: 11500/35063  ok=11500  errors=0
+  progress: 12000/35063  ok=12000  errors=0
+  progress: 12500/35063  ok=12500  errors=0
+  progress: 13000/35063  ok=13000  errors=0
+  progress: 13500/35063  ok=13500  errors=0
+  progress: 14000/35063  ok=14000  errors=0
+  progress: 14500/35063  ok=14500  errors=0
+  progress: 15000/35063  ok=15000  errors=0
+  progress: 15500/35063  ok=15500  errors=0
+  progress: 16000/35063  ok=16000  errors=0
+  progress: 16500/35063  ok=16500  errors=0
+  progress: 17000/35063  ok=17000  errors=0
+  progress: 17500/35063  ok=17500  errors=0
+  progress: 18000/35063  ok=18000  errors=0
+  progress: 18500/35063  ok=18500  errors=0
+  progress: 19000/35063  ok=19000  errors=0
+  progress: 19500/35063  ok=19500  errors=0
+  progress: 20000/35063  ok=20000  errors=0
+  progress: 20500/35063  ok=20500  errors=0
+  progress: 21000/35063  ok=21000  errors=0
+  progress: 21500/35063  ok=21500  errors=0
+  progress: 22000/35063  ok=22000  errors=0
+  progress: 22500/35063  ok=22500  errors=0
+  progress: 23000/35063  ok=23000  errors=0
+  progress: 23500/35063  ok=23500  errors=0
+  progress: 24000/35063  ok=24000  errors=0
+  progress: 24500/35063  ok=24500  errors=0
+  progress: 25000/35063  ok=25000  errors=0
+  progress: 25500/35063  ok=25500  errors=0
+  progress: 26000/35063  ok=26000  errors=0
+  progress: 26500/35063  ok=26500  errors=0
+  progress: 27000/35063  ok=27000  errors=0
+  progress: 27500/35063  ok=27500  errors=0
+  progress: 28000/35063  ok=28000  errors=0
+  progress: 28500/35063  ok=28500  errors=0
+  progress: 29000/35063  ok=29000  errors=0
+  progress: 29500/35063  ok=29500  errors=0
+  progress: 30000/35063  ok=30000  errors=0
+  progress: 30500/35063  ok=30500  errors=0
+  progress: 31000/35063  ok=31000  errors=0
+  progress: 31500/35063  ok=31500  errors=0
+  progress: 32000/35063  ok=32000  errors=0
+  progress: 32500/35063  ok=32500  errors=0
+  progress: 33000/35063  ok=33000  errors=0
+  progress: 33500/35063  ok=33500  errors=0
+  progress: 34000/35063  ok=34000  errors=0
+  progress: 34500/35063  ok=34500  errors=0
+  progress: 35000/35063  ok=35000  errors=0
+[asm] Done — 35063 compiled
+[gen 20:44:39] xml 117202/150000 (enumerating)  |  [mispredict_not_taken] llvm 77636 asm 77636 ann 77636  [mispredict_taken] llvm 96750 asm 96750 ann 96750
+[llvm] [mispredict_not_taken] Generating LLVM IR for 40008/117644 instances …
+[llvm] Done — 117644/117644 .ll files
+[asm] Compiling 40008/117644 .ll files  (jobs=8) …
+  progress: 500/40008  ok=500  errors=0
+  progress: 1000/40008  ok=1000  errors=0
+  progress: 1500/40008  ok=1500  errors=0
+  progress: 2000/40008  ok=2000  errors=0
+  progress: 2500/40008  ok=2500  errors=0
+  progress: 3000/40008  ok=3000  errors=0
+  progress: 3500/40008  ok=3500  errors=0
+  progress: 4000/40008  ok=4000  errors=0
+  progress: 4500/40008  ok=4500  errors=0
+  progress: 5000/40008  ok=5000  errors=0
+  progress: 5500/40008  ok=5500  errors=0
+  progress: 6000/40008  ok=6000  errors=0
+  progress: 6500/40008  ok=6500  errors=0
+  progress: 7000/40008  ok=7000  errors=0
+  progress: 7500/40008  ok=7500  errors=0
+  progress: 8000/40008  ok=8000  errors=0
+  progress: 8500/40008  ok=8500  errors=0
+  progress: 9000/40008  ok=9000  errors=0
+  progress: 9500/40008  ok=9500  errors=0
+  progress: 10000/40008  ok=10000  errors=0
+  progress: 10500/40008  ok=10500  errors=0
+  progress: 11000/40008  ok=11000  errors=0
+  progress: 11500/40008  ok=11500  errors=0
+  progress: 12000/40008  ok=12000  errors=0
+  progress: 12500/40008  ok=12500  errors=0
+  progress: 13000/40008  ok=13000  errors=0
+  progress: 13500/40008  ok=13500  errors=0
+  progress: 14000/40008  ok=14000  errors=0
+  progress: 14500/40008  ok=14500  errors=0
+  progress: 15000/40008  ok=15000  errors=0
+  progress: 15500/40008  ok=15500  errors=0
+  progress: 16000/40008  ok=16000  errors=0
+  progress: 16500/40008  ok=16500  errors=0
+  progress: 17000/40008  ok=17000  errors=0
+  progress: 17500/40008  ok=17500  errors=0
+  progress: 18000/40008  ok=18000  errors=0
+  progress: 18500/40008  ok=18500  errors=0
+  progress: 19000/40008  ok=19000  errors=0
+  progress: 19500/40008  ok=19500  errors=0
+  progress: 20000/40008  ok=20000  errors=0
+  progress: 20500/40008  ok=20500  errors=0
+  progress: 21000/40008  ok=21000  errors=0
+  progress: 21500/40008  ok=21500  errors=0
+  progress: 22000/40008  ok=22000  errors=0
+  progress: 22500/40008  ok=22500  errors=0
+  progress: 23000/40008  ok=23000  errors=0
+  progress: 23500/40008  ok=23500  errors=0
+  progress: 24000/40008  ok=24000  errors=0
+  progress: 24500/40008  ok=24500  errors=0
+  progress: 25000/40008  ok=25000  errors=0
+  progress: 25500/40008  ok=25500  errors=0
+  progress: 26000/40008  ok=26000  errors=0
+  progress: 26500/40008  ok=26500  errors=0
+  progress: 27000/40008  ok=27000  errors=0
+  progress: 27500/40008  ok=27500  errors=0
+  progress: 28000/40008  ok=28000  errors=0
+  progress: 28500/40008  ok=28500  errors=0
+  progress: 29000/40008  ok=29000  errors=0
+  progress: 29500/40008  ok=29500  errors=0
+  progress: 30000/40008  ok=30000  errors=0
+  progress: 30500/40008  ok=30500  errors=0
+  progress: 31000/40008  ok=31000  errors=0
+  progress: 31500/40008  ok=31500  errors=0
+  progress: 32000/40008  ok=32000  errors=0
+  progress: 32500/40008  ok=32500  errors=0
+  progress: 33000/40008  ok=33000  errors=0
+  progress: 33500/40008  ok=33500  errors=0
+  progress: 34000/40008  ok=34000  errors=0
+  progress: 34500/40008  ok=34500  errors=0
+  progress: 35000/40008  ok=35000  errors=0
+  progress: 35500/40008  ok=35500  errors=0
+  progress: 36000/40008  ok=36000  errors=0
+  progress: 36500/40008  ok=36500  errors=0
+  progress: 37000/40008  ok=37000  errors=0
+  progress: 37500/40008  ok=37500  errors=0
+  progress: 38000/40008  ok=38000  errors=0
+  progress: 38500/40008  ok=38500  errors=0
+  progress: 39000/40008  ok=39000  errors=0
+  progress: 39500/40008  ok=39500  errors=0
+  progress: 40000/40008  ok=40000  errors=0
+[asm] Done — 40008 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 44230/140980 instances …
+[llvm] Done — 140980/140980 .ll files
+[asm] Compiling 44230/140980 .ll files  (jobs=8) …
+  progress: 500/44230  ok=500  errors=0
+  progress: 1000/44230  ok=1000  errors=0
+  progress: 1500/44230  ok=1500  errors=0
+  progress: 2000/44230  ok=2000  errors=0
+  progress: 2500/44230  ok=2500  errors=0
+  progress: 3000/44230  ok=3000  errors=0
+  progress: 3500/44230  ok=3500  errors=0
+  progress: 4000/44230  ok=4000  errors=0
+  progress: 4500/44230  ok=4500  errors=0
+  progress: 5000/44230  ok=5000  errors=0
+  progress: 5500/44230  ok=5500  errors=0
+  progress: 6000/44230  ok=6000  errors=0
+  progress: 6500/44230  ok=6500  errors=0
+  progress: 7000/44230  ok=7000  errors=0
+  progress: 7500/44230  ok=7500  errors=0
+  progress: 8000/44230  ok=8000  errors=0
+  progress: 8500/44230  ok=8500  errors=0
+  progress: 9000/44230  ok=9000  errors=0
+  progress: 9500/44230  ok=9500  errors=0
+  progress: 10000/44230  ok=10000  errors=0
+  progress: 10500/44230  ok=10500  errors=0
+  progress: 11000/44230  ok=11000  errors=0
+  progress: 11500/44230  ok=11500  errors=0
+  progress: 12000/44230  ok=12000  errors=0
+[xml] Done — 150000 instances
+  progress: 12500/44230  ok=12500  errors=0
+  progress: 13000/44230  ok=13000  errors=0
+  progress: 13500/44230  ok=13500  errors=0
+  progress: 14000/44230  ok=14000  errors=0
+  progress: 14500/44230  ok=14500  errors=0
+  progress: 15000/44230  ok=15000  errors=0
+  progress: 15500/44230  ok=15500  errors=0
+  progress: 16000/44230  ok=16000  errors=0
+  progress: 16500/44230  ok=16500  errors=0
+  progress: 17000/44230  ok=17000  errors=0
+  progress: 17500/44230  ok=17500  errors=0
+  progress: 18000/44230  ok=18000  errors=0
+  progress: 18500/44230  ok=18500  errors=0
+  progress: 19000/44230  ok=19000  errors=0
+  progress: 19500/44230  ok=19500  errors=0
+  progress: 20000/44230  ok=20000  errors=0
+  progress: 20500/44230  ok=20500  errors=0
+  progress: 21000/44230  ok=21000  errors=0
+  progress: 21500/44230  ok=21500  errors=0
+  progress: 22000/44230  ok=22000  errors=0
+  progress: 22500/44230  ok=22500  errors=0
+  progress: 23000/44230  ok=23000  errors=0
+  progress: 23500/44230  ok=23500  errors=0
+  progress: 24000/44230  ok=24000  errors=0
+  progress: 24500/44230  ok=24500  errors=0
+  progress: 25000/44230  ok=25000  errors=0
+  progress: 25500/44230  ok=25500  errors=0
+  progress: 26000/44230  ok=26000  errors=0
+  progress: 26500/44230  ok=26500  errors=0
+  progress: 27000/44230  ok=27000  errors=0
+  progress: 27500/44230  ok=27500  errors=0
+  progress: 28000/44230  ok=28000  errors=0
+  progress: 28500/44230  ok=28500  errors=0
+  progress: 29000/44230  ok=29000  errors=0
+  progress: 29500/44230  ok=29500  errors=0
+  progress: 30000/44230  ok=30000  errors=0
+  progress: 30500/44230  ok=30500  errors=0
+  progress: 31000/44230  ok=31000  errors=0
+  progress: 31500/44230  ok=31500  errors=0
+  progress: 32000/44230  ok=32000  errors=0
+  progress: 32500/44230  ok=32500  errors=0
+  progress: 33000/44230  ok=33000  errors=0
+  progress: 33500/44230  ok=33500  errors=0
+  progress: 34000/44230  ok=34000  errors=0
+  progress: 34500/44230  ok=34500  errors=0
+  progress: 35000/44230  ok=35000  errors=0
+  progress: 35500/44230  ok=35500  errors=0
+  progress: 36000/44230  ok=36000  errors=0
+  progress: 36500/44230  ok=36500  errors=0
+  progress: 37000/44230  ok=37000  errors=0
+  progress: 37500/44230  ok=37500  errors=0
+  progress: 38000/44230  ok=38000  errors=0
+  progress: 38500/44230  ok=38500  errors=0
+  progress: 39000/44230  ok=39000  errors=0
+  progress: 39500/44230  ok=39500  errors=0
+  progress: 40000/44230  ok=40000  errors=0
+  progress: 40500/44230  ok=40500  errors=0
+  progress: 41000/44230  ok=41000  errors=0
+  progress: 41500/44230  ok=41500  errors=0
+  progress: 42000/44230  ok=42000  errors=0
+  progress: 42500/44230  ok=42500  errors=0
+  progress: 43000/44230  ok=43000  errors=0
+  progress: 43500/44230  ok=43500  errors=0
+  progress: 44000/44230  ok=44000  errors=0
+[asm] Done — 44230 compiled
+[gen 21:53:19] xml 150000/150000 (done)  |  [mispredict_not_taken] llvm 117644 asm 117644 ann 117644  [mispredict_taken] llvm 140980 asm 140980 ann 140980
+[llvm] [mispredict_not_taken] Generating LLVM IR for 32356/150000 instances …
+[llvm] Done — 150000/150000 .ll files
+[asm] Compiling 32356/150000 .ll files  (jobs=8) …
+  progress: 500/32356  ok=500  errors=0
+  progress: 1000/32356  ok=1000  errors=0
+  progress: 1500/32356  ok=1500  errors=0
+  progress: 2000/32356  ok=2000  errors=0
+  progress: 2500/32356  ok=2500  errors=0
+  progress: 3000/32356  ok=3000  errors=0
+  progress: 3500/32356  ok=3500  errors=0
+  progress: 4000/32356  ok=4000  errors=0
+  progress: 4500/32356  ok=4500  errors=0
+  progress: 5000/32356  ok=5000  errors=0
+  progress: 5500/32356  ok=5500  errors=0
+  progress: 6000/32356  ok=6000  errors=0
+  progress: 6500/32356  ok=6500  errors=0
+  progress: 7000/32356  ok=7000  errors=0
+  progress: 7500/32356  ok=7500  errors=0
+  progress: 8000/32356  ok=8000  errors=0
+  progress: 8500/32356  ok=8500  errors=0
+  progress: 9000/32356  ok=9000  errors=0
+  progress: 9500/32356  ok=9500  errors=0
+  progress: 10000/32356  ok=10000  errors=0
+  progress: 10500/32356  ok=10500  errors=0
+  progress: 11000/32356  ok=11000  errors=0
+  progress: 11500/32356  ok=11500  errors=0
+  progress: 12000/32356  ok=12000  errors=0
+  progress: 12500/32356  ok=12500  errors=0
+  progress: 13000/32356  ok=13000  errors=0
+  progress: 13500/32356  ok=13500  errors=0
+  progress: 14000/32356  ok=14000  errors=0
+  progress: 14500/32356  ok=14500  errors=0
+  progress: 15000/32356  ok=15000  errors=0
+  progress: 15500/32356  ok=15500  errors=0
+  progress: 16000/32356  ok=16000  errors=0
+  progress: 16500/32356  ok=16500  errors=0
+  progress: 17000/32356  ok=17000  errors=0
+  progress: 17500/32356  ok=17500  errors=0
+  progress: 18000/32356  ok=18000  errors=0
+  progress: 18500/32356  ok=18500  errors=0
+  progress: 19000/32356  ok=19000  errors=0
+  progress: 19500/32356  ok=19500  errors=0
+  progress: 20000/32356  ok=20000  errors=0
+  progress: 20500/32356  ok=20500  errors=0
+  progress: 21000/32356  ok=21000  errors=0
+  progress: 21500/32356  ok=21500  errors=0
+  progress: 22000/32356  ok=22000  errors=0
+  progress: 22500/32356  ok=22500  errors=0
+  progress: 23000/32356  ok=23000  errors=0
+  progress: 23500/32356  ok=23500  errors=0
+  progress: 24000/32356  ok=24000  errors=0
+  progress: 24500/32356  ok=24500  errors=0
+  progress: 25000/32356  ok=25000  errors=0
+  progress: 25500/32356  ok=25500  errors=0
+  progress: 26000/32356  ok=26000  errors=0
+  progress: 26500/32356  ok=26500  errors=0
+  progress: 27000/32356  ok=27000  errors=0
+  progress: 27500/32356  ok=27500  errors=0
+  progress: 28000/32356  ok=28000  errors=0
+  progress: 28500/32356  ok=28500  errors=0
+  progress: 29000/32356  ok=29000  errors=0
+  progress: 29500/32356  ok=29500  errors=0
+  progress: 30000/32356  ok=30000  errors=0
+  progress: 30500/32356  ok=30500  errors=0
+  progress: 31000/32356  ok=31000  errors=0
+  progress: 31500/32356  ok=31500  errors=0
+  progress: 32000/32356  ok=32000  errors=0
+[asm] Done — 32356 compiled
+[llvm] [mispredict_taken] Generating LLVM IR for 9020/150000 instances …
+[llvm] Done — 150000/150000 .ll files
+[asm] Compiling 9020/150000 .ll files  (jobs=8) …
+  progress: 500/9020  ok=500  errors=0
+  progress: 1000/9020  ok=1000  errors=0
+  progress: 1500/9020  ok=1500  errors=0
+  progress: 2000/9020  ok=2000  errors=0
+  progress: 2500/9020  ok=2500  errors=0
+  progress: 3000/9020  ok=3000  errors=0
+  progress: 3500/9020  ok=3500  errors=0
+  progress: 4000/9020  ok=4000  errors=0
+  progress: 4500/9020  ok=4500  errors=0
+  progress: 5000/9020  ok=5000  errors=0
+  progress: 5500/9020  ok=5500  errors=0
+  progress: 6000/9020  ok=6000  errors=0
+  progress: 6500/9020  ok=6500  errors=0
+  progress: 7000/9020  ok=7000  errors=0
+  progress: 7500/9020  ok=7500  errors=0
+  progress: 8000/9020  ok=8000  errors=0
+  progress: 8500/9020  ok=8500  errors=0
+  progress: 9000/9020  ok=9000  errors=0
+[asm] Done — 9020 compiled
+[gen 22:27:04] xml 150000/150000 (done)  |  [mispredict_not_taken] llvm 150000 asm 150000 ann 150000  [mispredict_taken] llvm 150000 asm 150000 ann 150000
+[llvm] All 150000 .ll files already generated — skipping
+[asm] All 150000 .s files already compiled — skipping
+[llvm] All 150000 .ll files already generated — skipping
+[asm] All 150000 .s files already compiled — skipping
+[gen 22:27:58] xml 150000/150000 (done)  |  [mispredict_not_taken] llvm 150000 asm 150000 ann 150000  [mispredict_taken] llvm 150000 asm 150000 ann 150000
+[gen] complete — xml done and no new asm produced. Testset ready for testrun.py.

@@ -18,13 +18,21 @@ first). The AMuLeT UV6 bug is that the FIRST speculative load in the LSQ has its
 protection cleared (`isReallyUnsafe` cleared) — so it is NOT stalled and installs
 a secret-dependent line into the cache WHILE SPECULATIVE.
 
-LEAK CRITERION (the UV6 cache channel): the transmitter load issues its cache
-access in the speculative window:
+LEAK CRITERION (the UV6 cache channel): the transmitter load installs a line in
+L1 (a cache MISS / fill — the actual secret-dependent cache-state perturbation)
+in the speculative window:
 
-    lc_retire < memaccess_tick < fnc_retire   AND   guarding branches unresolved
+    lc_retire < cache_fill_tick < fnc_retire   AND   branches unresolved
+                                               AND   SpecLFB left it unprotected
 
-A correctly-protected load yields issued_in_window=False (no in-window memory
-access); an unprotected (UV6) load yields True.
+This is the actual-install signal (Cache debug flag), NOT the bare "Doing memory
+access" tick. A load logs the memaccess and then the dcache reports hit/miss;
+parse_lsq pairs them and records cache_fill_tick only on a MISS. Re-keying on the
+install (rather than memaccess) gates out the const-addr over-approximation: a
+load that accesses in-window but HITS a pre-warmed constant line changes no L1
+tag state, so it is `access_hit_in_window_no_install`, NOT a leak. A correctly
+protected load is stalled before any access (issued_in_window=False); an
+unprotected (UV6) load that misses+installs in-window yields True.
 
 NB store-forwarding (SLF): a load satisfied from the store queue never reaches
 "Doing memory access" (the forwarding case returns earlier). SLF is a non-cache
@@ -47,8 +55,11 @@ def check_ld_speclfb(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved,
     lc_rec   = best_record(by_pc.get(lc_pc,   [])) if lc_pc  else None
     fnc_rec  = best_record(by_pc.get(fnc_pc,  [])) if fnc_pc else None
 
-    # The transmit = the load's cache access (UV6 channel).
+    # The transmit = the load's L1 line INSTALL (a cache miss/fill), the real
+    # cache-state perturbation. memaccess_tick (the bare access) is kept as a
+    # diagnostic; cache_fill_tick (set only on a MISS) is the leak signal.
     memaccess_tick = _max_field(lsq_by_pc, xmit_pc, "memaccess_tick")
+    cache_fill_tick = _max_field(lsq_by_pc, xmit_pc, "cache_fill_tick")
     execute_tick   = _max_field(lsq_by_pc, xmit_pc, "execute_tick")
     load_squash    = _max_field(lsq_by_pc, xmit_pc, "squash_tick")
     has_lsq_rec    = bool((lsq_by_pc or {}).get(xmit_pc))
@@ -61,7 +72,7 @@ def check_ld_speclfb(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved,
     spec_cusl       = any(r.get("spec_cusl") for r in recs)
     spec_unprotected = any(r.get("spec_unprotected") for r in recs)
 
-    xmit_signal  = memaccess_tick
+    xmit_signal  = cache_fill_tick or memaccess_tick   # install if it missed, else access
     xmit_complete = xmit_rec["complete"] if xmit_rec else 0
     xmit_issue   = xmit_rec["issue"]  if xmit_rec else 0
     xmit_retire  = xmit_rec["retire"] if xmit_rec else 0
@@ -72,20 +83,31 @@ def check_ld_speclfb(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved,
     lc_unretired_but_specified = (lc_pc is not None) and (lc_retire == 0)
     disqualified = lc_unretired_but_specified
 
-    after_lc   = (lc_retire == 0) or (xmit_signal > lc_retire)
-    before_fnc = (fnc_retire == 0) or (xmit_signal < fnc_retire)
+    # Leak window keyed on the INSTALL tick (cache miss/fill). Branch-resolution
+    # and lc/fnc bounds are evaluated at that tick.
+    after_lc   = (lc_retire == 0) or (cache_fill_tick > lc_retire)
+    before_fnc = (fnc_retire == 0) or (cache_fill_tick < fnc_retire)
     branches_unresolved, branch_details = check_branch_resolutions(
-        by_pc, xmit_signal, unresolved, ticks_per_cycle)
+        by_pc, cache_fill_tick, unresolved, ticks_per_cycle)
 
-    # LEAK iff: the load issued a cache access in the speculative window AND
-    # SpecLFB left it unprotected (isUnsafe=0 = UV6) so the line actually installs
-    # in L1. A protected (LFB-held) load can also do memaccess in-window but does
-    # NOT install — so spec_unprotected gates out that over-approximation.
-    cache_in_window = (not disqualified
-                       and (memaccess_tick > 0) and after_lc and before_fnc
-                       and branches_unresolved)
-    in_window = cache_in_window and spec_unprotected
+    # LEAK iff: the load INSTALLED a line in L1 (a cache miss/fill) in the
+    # speculative window AND SpecLFB left it unprotected (isUnsafe=0 = UV6). A
+    # load that merely accesses in-window but HITS a pre-warmed constant line
+    # installs nothing (const-addr over-approximation) → not a leak.
+    install_in_window = (not disqualified
+                         and (cache_fill_tick > 0) and after_lc and before_fnc
+                         and branches_unresolved)
+    in_window = install_in_window and spec_unprotected
     issued_in_window = in_window
+
+    # Diagnostic: the bare access (memaccess) fell in-window but the load HIT
+    # (no install) — the const-addr over-approximation the install gate removes.
+    ma_after_lc   = (lc_retire == 0) or (memaccess_tick > lc_retire)
+    ma_before_fnc = (fnc_retire == 0) or (memaccess_tick < fnc_retire)
+    ma_unresolved, _ = check_branch_resolutions(
+        by_pc, memaccess_tick, unresolved, ticks_per_cycle)
+    access_in_window = ((memaccess_tick > 0) and ma_after_lc and ma_before_fnc
+                        and ma_unresolved)
 
     # Diagnostic: store-forward in-window (non-cache channel, not the UV6 verdict).
     sf_after_lc   = (lc_retire == 0) or (xmit_complete > lc_retire)
@@ -104,14 +126,16 @@ def check_ld_speclfb(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved,
         outcome = ("store_forward_in_window" if store_forward_in_window
                    else ("protected_squashed" if load_squash > 0
                          else "protected_no_cache_access"))
-    elif cache_in_window and spec_unprotected:
-        outcome = "cache_access_in_window"        # UV6 LEAK (unprotected USL installs in L1)
-    elif cache_in_window and spec_cusl:
-        outcome = "protected_lfb_access"          # USL accessed in-window but LFB-held (no install)
-    elif cache_in_window:
-        outcome = "cache_access_in_window_nonusl" # accessed in-window but not flagged a USL
+    elif install_in_window and spec_unprotected:
+        outcome = "cache_install_in_window"       # UV6 LEAK (unprotected USL misses+installs in L1)
+    elif install_in_window and spec_cusl:
+        outcome = "protected_lfb_install"         # USL installed in-window but LFB-held (rare)
+    elif install_in_window:
+        outcome = "cache_install_in_window_nonusl"
+    elif access_in_window:
+        outcome = "access_hit_in_window_no_install"  # const-addr over-approx: accessed but HIT (no install)
     else:
-        outcome = "accessed_after_resolution"     # defense worked
+        outcome = "accessed_after_resolution"     # defense worked / accessed post-resolution
 
     return dict(
         issued_in_window=issued_in_window,
@@ -119,8 +143,11 @@ def check_ld_speclfb(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved,
         outcome=outcome,
         xmit_signal=xmit_signal,
         memaccess_tick=memaccess_tick,
+        cache_fill_tick=cache_fill_tick,
         cache_accessed=(memaccess_tick > 0),
-        cache_in_window=cache_in_window,
+        cache_installed=(cache_fill_tick > 0),
+        install_in_window=install_in_window,
+        access_in_window=access_in_window,
         spec_cusl=spec_cusl,
         spec_unprotected=spec_unprotected,
         store_forward_in_window=store_forward_in_window,
@@ -141,5 +168,5 @@ def check_ld_speclfb(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved,
 
 if __name__ == "__main__":
     run_batch(check_ld_speclfb,
-              description="SpecLFB load transmitter: cache access (Doing memory "
-                          "access) in (lc_retire, fnc_retire) = UV6 leak")
+              description="SpecLFB load transmitter: L1 line INSTALL (cache miss) "
+                          "in (lc_retire, fnc_retire) = UV6 leak")

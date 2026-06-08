@@ -1,0 +1,42 @@
+Subject: Thank you — and a quick request re: publishing our evaluation results
+
+Hi [Name],
+
+I hope you're doing well! I wanted to start by saying how genuinely grateful I am
+that you trusted us with your implementation. Getting to evaluate it directly has
+been invaluable, and none of this work would have been possible without your
+generosity — thank you, really.
+
+I'm writing because our evaluation has reached the write-up stage, and I want to
+make sure you're comfortable before anything goes out. Your call governs completely
+here — if there's anything you'd rather we hold back, change, or frame differently,
+I'll absolutely defer to you.
+
+Our pipeline surfaced two issues in the recon implementation, both of which I
+believe are already familiar to you and that your earlier sweep versions also turned
+up:
+
+  1. The getOldestTaint (OTB) gadget.
+  2. A store-to-load-forwarding (SLF) taint bypass — a forwarded speculative load
+     obtains its data and completes before the taint check applies, leaking without
+     ever sending a cache request.
+
+I've attached a single figure summarizing how these appear in our results so you can
+see exactly what we'd be including. These are narrow, timing-sensitive corner cases —
+precisely what a targeted litmus-test generator is built to find — and they take
+nothing away from the contribution of the design. For context, this isn't specific
+to recon: in the same study we also found a closely related squash-timing
+(visibility-point <-> squash) race in both STT and SPT, where protection is lifted at
+branch resolution a cycle or two before the squash propagates. We see it as a general
+lesson about this class of defense rather than a knock on any one implementation.
+
+Would it be alright with you if we include the recon results in our submission? I'd
+be glad to credit your implementation however you prefer — by name with full
+acknowledgment, or anonymized if you'd rather it not be named — and to adjust
+anything on your timeline. I'd hate to move forward without your sign-off, so even a
+quick note back would mean a great deal.
+
+Thank you again, sincerely, for making this possible. I really appreciate you.
+
+Warm regards,
+[Your name]
