@@ -90,13 +90,15 @@ def check_ld_speclfb(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved,
     branches_unresolved, branch_details = check_branch_resolutions(
         by_pc, cache_fill_tick, unresolved, ticks_per_cycle)
 
-    # LEAK iff: the load INSTALLED a line in L1 (a cache miss/fill) in the
-    # speculative window AND SpecLFB left it unprotected (isUnsafe=0 = UV6). A
-    # load that merely accesses in-window but HITS a pre-warmed constant line
-    # installs nothing (const-addr over-approximation) → not a leak.
+    # LEAK iff: the load INSTALLED a line in L1 (a cache miss/fill) in the STRICT
+    # model window lc_retire < fill < fnc_retire AND branches unresolved, AND SpecLFB
+    # left it unprotected (isUnsafe=0 = UV6). The lc/fnc window is the fundamental
+    # model formulation and is NOT widened (before_fnc is open only when fnc_retire==0,
+    # i.e. fnc itself was squashed — the model's own rule). A load that merely accesses
+    # in-window but HITS a pre-warmed const line installs nothing → not a leak.
     install_in_window = (not disqualified
-                         and (cache_fill_tick > 0) and after_lc and before_fnc
-                         and branches_unresolved)
+                         and (cache_fill_tick > 0) and after_lc
+                         and before_fnc and branches_unresolved)
     in_window = install_in_window and spec_unprotected
     issued_in_window = in_window
 

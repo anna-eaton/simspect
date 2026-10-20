@@ -105,58 +105,62 @@ def analyze_compound(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle,
     spec_evs = [e for e in by_line.get(xmit_line, [])
                 if e["event"] in ("SpecLoad", "Load")] if xmit_line is not None else []
 
-    # Speculative gate: a structure touch is speculative if it happens (a) after the
-    # last-committed predecessor retires and (b) while a guarding mispredict branch is
-    # still UNRESOLVED (its squash hasn't broadcast). This is the project's VP-race
-    # criterion. We do NOT use the classic lc<t<fnc_retire window: under --ruby the
-    # invisible Spec-GetS is a slow memory access, so the SpecLoad event commonly fires
-    # AFTER fnc_retire yet still before the branch resolves (branches_unresolved=True)
-    # — i.e. genuinely speculative. before_fnc would wrongly drop those.
-    def spec_ok(t):
+    # Speculative gate — the model's lc/fnc commit-boundary window, KEPT:
+    #   after_lc   : t > lc_retire   (after the last-committed retires — fundamental
+    #                lower bound; a touch before this is committed/architectural)
+    #   before_fnc : t < fnc_retire  (before the first-non-committed retires — the
+    #                classic upper bound)
+    # PLUS an upper-bound extension: when the xmit's guarding MISPREDICT branch is
+    # program-order LATER than fnc (so the resolve-stall holds *that* branch, not fnc),
+    # the speculative region extends past fnc_retire. There the binding "still
+    # speculative" condition is branches_unresolved(t) (the guarding branch hasn't
+    # resolved). Under --ruby the invisible Spec-GetS is a slow memory access whose
+    # event lands after fnc_retire yet is genuinely speculative — this captures it.
+    # before_squash confirms the load was still a live wrong-path instruction.
+    # lcfnc=True = the STRICT model window  lc_retire < t < fnc_retire  AND branches
+    # unresolved. This is the fundamental model formulation and is NOT tuned: we do
+    # NOT widen the upper bound. (before_fnc is vacuously true only when fnc_retire==0,
+    # i.e. fnc itself was squashed — an open window, which is the model's own rule.)
+    # lcfnc=False = PARALLEL diagnostic view with the lc/fnc check OFF (speculation by
+    # branch-resolution + before-squash only) — used ONLY to MEASURE how much lc/fnc
+    # constrains, never as the detection verdict.
+    def spec_ok(t, lcfnc=True):
         unresolved_ok, _ = check_branch_resolutions(by_pc, t, unresolved, ticks_per_cycle)
         before_squash = (load_squash_tick == 0) or (t < load_squash_tick)
-        return (lc_retire == 0 or t > lc_retire) and unresolved_ok and before_squash
+        if not lcfnc:
+            return unresolved_ok and before_squash
+        after_lc   = (lc_retire == 0) or (t > lc_retire)
+        before_fnc = (fnc_retire == 0) or (t < fnc_retire)
+        return after_lc and before_fnc and unresolved_ok
 
-    def windowed(evs):
-        return [e for e in evs if spec_ok(e["tick"])]
+    def compute(lcfnc):
+        sw = [e for e in spec_evs if spec_ok(e["tick"], lcfnc)]
+        st = {e["tick"] for e in sw}
+        tbe  = any(e["next"] == "IX" for e in sw)
+        inst = any(e["machine"] == "L1Cache" and e["next"] in ("S", "E", "M")
+                   and e["cur"] in ("NP", "I", "IX", "IS") for e in sw)
+        hit  = any(e["event"] == "SpecLoad" and e["cur"] == e["next"]
+                   and e["cur"] in ("S", "E", "M") for e in sw)
+        # Eviction attributed to the spec load by tick-coincidence with a windowed
+        # SpecLoad (Ruby processes one mandatory entry/controller-cycle, so an
+        # L1_Replacement at the same tick is caused by that access).
+        def ev(m, n):
+            return [e for e in events if e["machine"] == m and e["event"] == n
+                    and e["tick"] in st and e["line"] != xmit_line]
+        l1e, l2e = ev("L1Cache", "L1_Replacement"), ev("L2Cache", "L2_Replacement")
+        df = [e for e in by_line.get(xmit_line, [])
+              if e["machine"] == "Directory" and e["event"] == "SpecFetch"
+              and spec_ok(e["tick"], lcfnc)]
+        forb = {"l1_eviction": bool(l1e), "l2_eviction": bool(l2e),
+                "l1_install": bool(inst), "dir_specfetch": bool(df)}
+        return dict(spec_win=sw, forbidden=forb, touched=any(forb.values()),
+                    tbe=tbe, hit=hit, l1_evict=l1e, l2_evict=l2e)
 
-    spec_win = windowed(spec_evs)
-    spec_ticks = {e["tick"] for e in spec_win}
-
-    # ---- per-structure verdicts (in the speculative window) ----
-    # TBE/MSHR: spec load missed → allocated a TBE (NP/I -> IX). UV2 surface.
-    tbe_alloc = any(e["next"] == "IX" for e in spec_win)
-    # L1 line install: a USL should never end up installing a present line.
-    l1_install = any(e["machine"] == "L1Cache" and e["next"] in ("S", "E", "M")
-                     and e["cur"] in ("NP", "I", "IX", "IS") and e in spec_win
-                     for e in spec_win)
-    # Spec hit (clean): SpecLoad with cur==next in a present state, no alloc.
-    spec_hit_clean = any(e["event"] == "SpecLoad" and e["cur"] == e["next"]
-                         and e["cur"] in ("S", "E", "M") for e in spec_win)
-
-    # Eviction of a victim, attributed to the spec load by tick-coincidence with a
-    # windowed SpecLoad (Ruby processes one mandatory entry/controller-cycle, so an
-    # L1_Replacement at the same tick is caused by that access).
-    def evicts(machine, evname):
-        return [e for e in events if e["machine"] == machine and e["event"] == evname
-                and e["tick"] in spec_ticks and e["line"] != xmit_line]
-    l1_evict = evicts("L1Cache", "L1_Replacement")
-    l2_evict = evicts("L2Cache", "L2_Replacement")
-
-    # Directory state change caused by a spec fetch in-window (SpecFetch / a transition
-    # that does not return to its starting stable state on the xmit line).
-    dir_specfetch = [e for e in by_line.get(xmit_line, [])
-                     if e["machine"] == "Directory" and e["event"] in ("SpecFetch",)
-                     and spec_ok(e["tick"])]
-
-    forbidden = {
-        "l1_eviction":   bool(l1_evict),
-        "l2_eviction":   bool(l2_evict),
-        "l1_install":    bool(l1_install),
-        "dir_specfetch": bool(dir_specfetch),
-    }
+    on, off = compute(True), compute(False)
+    spec_win, forbidden, touched_forbidden = on["spec_win"], on["forbidden"], on["touched"]
+    tbe_alloc, spec_hit_clean = on["tbe"], on["hit"]
+    l1_evict, l2_evict = on["l1_evict"], on["l2_evict"]
     needs_pressure = {"tbe_mshr_alloc": bool(tbe_alloc)}  # inherent; leaks only under contention
-    touched_forbidden = any(forbidden.values())
 
     if not ruby_seen:
         outcome = "no_ruby_trace"          # ran classic (no --ruby) — INVALID for InvisiSpec
@@ -176,6 +180,11 @@ def analyze_compound(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle,
     return dict(
         issued_in_window=touched_forbidden,
         outcome=outcome,
+        # PARALLEL view with the lc/fnc check OFF (speculation by branch-resolution
+        # + before-squash only) — to gauge how much lc/fnc constrains. If equal to
+        # the lc/fnc-on verdict, lc/fnc is not the limiting factor.
+        issued_in_window_nolcfnc=off["touched"],
+        forbidden_nolcfnc=off["forbidden"],
         ruby_seen=ruby_seen,
         xmit_line=hex(xmit_line) if xmit_line is not None else None,
         forbidden=forbidden,

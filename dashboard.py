@@ -7,8 +7,17 @@ human dashboards (STATUS.md) plus a live sweep-monitor panel.
     python3 dashboard.py --port 9000
     python3 dashboard.py --selftest      # render everything once, no server
 
-Then forward the port to your laptop and open it in a browser:
-    ssh -N -L 8765:127.0.0.1:8765 <dev-box>        # on your laptop
+If you run inside a Docker container (ssh -> docker exec), loopback isn't
+reachable from the host's SSH tunnel. Bind all interfaces instead:
+
+    python3 /tests/simspect/dashboard.py --host 0.0.0.0
+
+then forward to the *container's* bridge IP from your laptop:
+    ssh -N -L 8765:<container-ip>:8765 <dev-box>   # container-ip from `hostname -I`
+    open http://127.0.0.1:8765
+
+Plain loopback (no container in between) is just:
+    ssh -N -L 8765:127.0.0.1:8765 <dev-box>
     open http://127.0.0.1:8765
 
 What it shows (read-only):
@@ -348,7 +357,20 @@ header h1{font-size:15px;margin:0;font-weight:600;color:var(--heading)}
 #theme{padding:4px 10px;border-radius:6px;cursor:pointer;background:var(--tab-bg);
        color:var(--tab-text);border:1px solid var(--border);font-size:12px}
 .wrap{display:flex;min-height:calc(100vh - 46px)}
-nav{width:280px;border-right:1px solid var(--border);padding:12px;overflow:auto;background:var(--panel2)}
+nav{width:280px;flex:0 0 280px;border-right:1px solid var(--border);padding:12px;overflow:auto;background:var(--panel2)}
+#navtoggle{display:none;padding:4px 10px;border-radius:6px;cursor:pointer;background:var(--tab-bg);
+       color:var(--tab-text);border:1px solid var(--border);font-size:14px;line-height:1}
+/* narrow window: sidebar collapses to an off-canvas drawer toggled by the ☰ button */
+@media (max-width:760px){
+  #navtoggle{display:inline-block}
+  main{max-width:none}
+  nav{position:fixed;top:46px;left:0;bottom:0;z-index:10;width:280px;flex:none;
+      transform:translateX(-100%);transition:transform .18s ease;
+      box-shadow:2px 0 12px rgba(0,0,0,.35)}
+  body.nav-open nav{transform:translateX(0)}
+  body.nav-open::after{content:"";position:fixed;top:46px;left:280px;right:0;bottom:0;
+      background:rgba(0,0,0,.4);z-index:9}
+}
 nav h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:14px 0 6px}
 nav a{display:block;padding:4px 8px;border-radius:5px;color:var(--navlink);cursor:pointer;
       text-decoration:none;word-break:break-all;font-size:12.5px}
@@ -377,6 +399,7 @@ li{margin:2px 0}
 .spin{color:var(--muted)}
 </style></head><body>
 <header>
+  <button id="navtoggle" title="toggle sidebar">☰</button>
   <h1>SimSpect</h1>
   <div class="tabs">
     <div class="tab" data-view="code">Code STATUS</div>
@@ -399,7 +422,14 @@ li{margin:2px 0}
 <script>
 let view="code", timer=null;
 const main=document.getElementById('main'), nav=document.getElementById('nav'),
-      updated=document.getElementById('updated'), themeBtn=document.getElementById('theme');
+      updated=document.getElementById('updated'), themeBtn=document.getElementById('theme'),
+      navToggle=document.getElementById('navtoggle');
+navToggle.onclick=()=>document.body.classList.toggle('nav-open');
+function closeNav(){document.body.classList.remove('nav-open');}
+document.addEventListener('click',e=>{ // tap the dimmed overlay to close
+  if(document.body.classList.contains('nav-open') &&
+     !nav.contains(e.target) && e.target!==navToggle) closeNav();
+});
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme',t);
   themeBtn.textContent = t==='light' ? '☀️ light' : '🌙 dark';
@@ -422,7 +452,7 @@ async function loadNav(){
   nav.querySelectorAll('a[data-path]').forEach(a=>a.onclick=()=>openDoc(a.dataset.path,a.textContent));
 }
 async function openDoc(path,label){
-  view='doc'; setActive();
+  view='doc'; setActive(); closeNav();
   main.innerHTML='<p class="spin">loading '+label+'…</p>';
   const r=await fetch('/api/md?path='+path);
   main.innerHTML='<p><a id="back">&larr; back to dashboards</a></p>'+(await r.text());
