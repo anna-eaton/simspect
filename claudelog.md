@@ -6,6 +6,24 @@ future sessions (and the user) need to know. It is the counterpart to `claudenot
 - `claudenotes.md` = *ephemeral* "what I'm doing right now" scratchpad. Cleared/overwritten freely.
 - `claudelog.md` (this file) = *durable* "what we learned / changed and why". **Append, don't delete.**
 
+## 2026-10-21 — models+builds — curated models/builds/hooks registries + 3 new Utilities tables
+- Wrote the **models & builds reference** `wiki/design/MODELS_AND_BUILDS.md` (linked from `wiki/README.md`):
+  every Alloy model (latest 3 first — STT_6 / SPT_6_oneLP / Recon_6 — then variants, bugsynth probes,
+  legacy) + every gem5 build with my intention for each, incl. the **four** `/work/amulet/amulet-gem5-*_AE-v1.1`
+  builds (InvisiSpec/SpecLFB/CleanupSpec/STT — separate trees, not scheme flags of one gem5).
+- Added **three source-of-truth JSONs** (canonical-location + dashboard-view per CLAUDE.md):
+  `specs/gem5_builds.json` (one annotated entry per build + **timing-hook status**: branch-force +
+  fnc-commit-stall; amulet-STT flagged FNC-unconfirmed, recon/sdo are control/none), `specs/gem5_hooks.json`
+  (every realization/observation/bridge hook + purpose + known gaps), `specs/alloy_models.json`
+  (curated tier/summary/intention/caveat per `.als`).
+- Wired **three new Utilities tabs** reading those: *Alloy models* (`/api/alloy_models` — joins
+  auto-parsed `model_inventory` with the annotations), *gem5 builds* (`/api/gem5_builds` — BF/FNC
+  hook dots + status badge), *Hooks (purposes)* (`/api/gem5_hooks`). Data fns in `dashboard_data.py`
+  (`gem5_builds`/`gem5_hooks_registry`/`alloy_models`), routes in `dashboard.py`, renderers in
+  `dashboard_ui.py`. Selftest PASS; all 3 endpoints verified over HTTP (10 builds / 12 hooks / 19 models).
+- Parked a TODO in `wiki/state/OPEN.md`: **consolidate enumeration so we don't enumerate a model
+  "by bound"** — enumerate all bounds together, present each model as one consolidated entity.
+
 
 
 

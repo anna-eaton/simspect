@@ -34,6 +34,14 @@ Dated, grouped. Refreshed by `/session-log`. Newest context at top of each group
 - **Next experiments** (none launched this session — "decide after seeing state"): branch-hit
   sweeps / resolved-br windows, and the natural + short-timing sweeps, per Anna's TODO in `STATUS.md`.
 
+## Dashboard / views follow-ups
+- **Consolidate enumeration so we don't enumerate a model "by bound."** Right now a model is
+  enumerated at a fixed instruction scope (`exactly 6 Instruction`), and the dashboard model views
+  treat each bound as its own corpus. Eventually we want to **enumerate all bounds together** —
+  one logical testset per model spanning its scopes — and the dashboard view should present the
+  model as a single consolidated entity (aggregate counts across bounds), not a separate row/corpus
+  per bound. (Raised 2026-10-21 while building the Utilities Alloy-models/gem5-builds/hooks tables.)
+
 ## Questions for Anna
 - After git recovery: is cafe2's container the authority for the untracked June `.als`/`stage_pipeline.py`
   work, or the laptop? (Determines sync direction once git is healthy.)

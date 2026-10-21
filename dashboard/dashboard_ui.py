@@ -514,6 +514,23 @@ code {
 .run-bucket { cursor: pointer; }
 .run-bucket:hover { background: var(--hover); }
 .run-bucket-new { border: 2px solid var(--err); }
+.run-stem-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+}
+.run-stem-row {
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.run-stem-row:hover { background: var(--hover); }
 .pl-box-top {
   display: flex;
   align-items: center;
@@ -693,10 +710,13 @@ const UTIL_TABS = [
   { id: 'tables', label: 'Fanout Tables' },
   { id: 'launch', label: 'Launch Fanout' },
   { id: 'execgraph', label: 'Execution Graph' },
+  { id: 'alloymodels', label: 'Alloy models' },
+  { id: 'gem5builds', label: 'gem5 builds' },
+  { id: 'hookreg', label: 'Hooks (purposes)' },
   { id: 'docs', label: 'Docs' },
   { id: 'specs', label: 'Sources of Truth' },
   { id: 'runconfigs', label: 'Run configs' },
-  { id: 'gem5hooks', label: 'gem5 hooks' },
+  { id: 'gem5hooks', label: 'gem5 hooks (files)' },
   { id: 'findings', label: 'Findings' },
   { id: 'hitcats', label: 'Hit categories' },
   { id: 'xmlviz', label: 'XML graph' },
@@ -1137,16 +1157,67 @@ async function openXmlInspector(model, pl, inv) {
       <button onclick="stubAction('${isUnenum ? 'Enumerate' : 'Regen XML'} — ${esc(model)}')">${isUnenum ? 'Enumerate (stub)' : 'Regen XML (stub)'}</button>
     </div>
   </div>
+  <div class="card" id="xmlInstancesBody"><p class="spin">loading instances…</p></div>
   <div id="alsSourceBody"><p class="spin">loading .als source…</p></div>`;
   if (pl) meta += `<div id="inspBody"><p class="spin">loading…</p></div>`;
   document.getElementById('uModalBody').innerHTML = meta;
   loadAlsSource(model);
+  loadXmlInstancesList(model);
   if (pl) {
     state.selectedCorpus = model;
     state.selectedMode = null;
     state.selectedTest = null;
     refreshInspectorBody();
   }
+}
+
+// Instances section: a dropdown of the first N generated XML-instance stems
+// for this model, so Anna can inspect one right from the XML-card inspector.
+async function loadXmlInstancesList(model) {
+  const target = document.getElementById('xmlInstancesBody');
+  if (!target) return;
+  const data = await apiCall('/api/xml_instances?model=' + encodeURIComponent(model) + '&limit=50');
+  if (data.error || !data.ok) {
+    target.innerHTML = `<h4 style="margin:0 0 4px">Instances</h4>
+      <p class="err">Error: ${esc(data.error || 'could not list instances')}</p>`;
+    return;
+  }
+  const stems = data.stems || [];
+  const total = data.total || 0;
+  if (!total) {
+    target.innerHTML = `<h4 style="margin:0 0 4px">Instances</h4><p class="empty">no instances generated yet</p>`;
+    return;
+  }
+  const opts = stems.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  target.innerHTML = `<h4 style="margin:0 0 4px">Instances</h4>
+    <div class="card-meta" style="margin-bottom:6px">first ${stems.length} of ${total}</div>
+    <select onchange="loadXmlInstance('${esc(model)}', this.value)">
+      <option value="">— choose an instance —</option>
+      ${opts}
+    </select>
+    <div id="xmlInstBody" style="margin-top:10px"></div>`;
+}
+
+async function loadXmlInstance(model, stem) {
+  const target = document.getElementById('xmlInstBody');
+  if (!target) return;
+  if (!stem) { target.innerHTML = ''; return; }
+  target.innerHTML = '<p class="spin">loading…</p>';
+  const data = await apiCall('/api/file?model=' + encodeURIComponent(model)
+    + '&stem=' + encodeURIComponent(stem) + '&kind=xml');
+  if (data.error) {
+    target.innerHTML = `<p class="err">Error: ${esc(data.error)}</p>`;
+    return;
+  }
+  const txt = data.text !== undefined ? data.text : (data.html || data.content || '');
+  const bar = data.vscode
+    ? `<div class="file-bar"><code>${esc(data.path || '')}</code> `
+      + `<a class="vscode-link" href="${esc(data.vscode)}">open in VSCode</a></div>`
+    : '';
+  target.innerHTML = `${bar}<pre class="file-content">${esc(txt)}</pre>
+    <div style="margin-top:6px">
+      <button onclick="stubAction('graph for ${esc(stem)}')">View as graph</button>
+    </div>`;
 }
 
 async function loadAlsSource(model) {
@@ -1287,7 +1358,7 @@ function buildRunDetailHtml(data) {
           ? `<a onclick="event.stopPropagation(); loadRunBucketWriteup('${esc(b.bug_md)}')" style="color:var(--link);cursor:pointer">open writeup</a>`
           : `<code>${esc(b.bug_md)}</code>`;
       }
-      html += `<div class="card run-bucket${emphasize ? ' run-bucket-new' : ''}" onclick="loadRunHits('${esc(data.results_name)}','${esc(b.category)}')">
+      html += `<div class="card run-bucket${emphasize ? ' run-bucket-new' : ''}" onclick="loadRunHits('${esc(data.results_name)}','${esc(b.category)}','${esc(data.model || '')}')">
         <div class="pl-box-top"><strong>${b.count}</strong>&nbsp;<span>${esc(b.label || b.category)}</span>${vb}</div>
         <div class="card-meta">${esc(b.description || '')}${writeup ? ' &middot; ' + writeup : ''}</div>
       </div>`;
@@ -1297,7 +1368,9 @@ function buildRunDetailHtml(data) {
   return html;
 }
 
-async function loadRunHits(name, bucket) {
+// bucket drill-in: /api/run_hits now returns stems as {stem, mode} objects
+// (not bare strings) — each row is clickable and shows that test's program.
+async function loadRunHits(name, bucket, model) {
   const target = document.getElementById('runHitsBody');
   if (!target) return;
   target.innerHTML = '<p class="spin">loading…</p>';
@@ -1310,8 +1383,40 @@ async function loadRunHits(name, bucket) {
   const stems = data.stems || [];
   const note = (data.total || 0) > stems.length
     ? `total ${data.total}, showing first ${stems.length}` : `${data.total || 0} stem(s)`;
+  const rows = stems.map(s => {
+    const stem = (s && typeof s === 'object') ? (s.stem || '') : (s || '');
+    const mode = (s && typeof s === 'object') ? (s.mode || '') : '';
+    return `<div class="run-stem-row" onclick="loadRunStemProgram('${esc(model || '')}','${esc(mode)}','${esc(stem)}')">
+      <code>${esc(stem)}</code>${mode ? ` <span class="card-meta">(${esc(mode)})</span>` : ''}
+    </div>`;
+  }).join('');
   target.innerHTML = `<h4 style="margin:6px 0 4px">${esc(bucket)} &mdash; ${esc(note)}</h4>
-    <pre class="file-content">${esc(stems.join('\n'))}</pre>`;
+    <div class="run-stem-list">${rows || '<p class="empty">no stems</p>'}</div>
+    <div id="runProgramBody" style="margin-top:10px"></div>`;
+}
+
+// Stem click → the PROGRAM (assembly) for that test, reusing the same
+// /api/file + file-bar/vscode-link rendering as the corpus file viewer.
+async function loadRunStemProgram(model, mode, stem) {
+  const target = document.getElementById('runProgramBody');
+  if (!target) return;
+  target.innerHTML = '<p class="spin">loading…</p>';
+  const data = await apiCall('/api/file?model=' + encodeURIComponent(model)
+    + '&mode=' + encodeURIComponent(mode) + '&stem=' + encodeURIComponent(stem) + '&kind=s');
+  if (data.error) {
+    target.innerHTML = `<p class="err">Error: ${esc(data.error)}</p>`;
+    return;
+  }
+  const txt = data.text !== undefined ? data.text : (data.html || data.content || '');
+  const bar = data.vscode
+    ? `<div class="file-bar"><code>${esc(data.path || '')}</code> `
+      + `<a class="vscode-link" href="${esc(data.vscode)}">open in VSCode</a></div>`
+    : '';
+  target.innerHTML = `<h4 style="margin:6px 0 4px">${esc(stem)} &mdash; program</h4>
+    ${bar}<pre class="file-content">${esc(txt)}</pre>
+    <div style="margin-top:6px">
+      <button onclick="stubAction('exec graph for ${esc(stem)}')">View execution graph</button>
+    </div>`;
 }
 
 async function loadRunBucketWriteup(path) {
@@ -1587,13 +1692,13 @@ function openUnitInspector(number) {
   document.getElementById('uModalBody').innerHTML = html;
 }
 
-// To-run panel — pinned above the grid: defense units the paper discusses
-// that have no results on disk yet, each with its checklist of what's needed.
+// To-run (TODO) panel — pinned below the grid: defense units with no results
+// on disk yet, each with its checklist of what's needed.
 function renderToRunPanel(units) {
   const toRun = (units || []).filter(u => u.status === 'to_run').sort((a, b) => a.number - b.number);
   if (!toRun.length) return '';
   let html = `<div class="card to-run-panel">
-    <h3 style="margin-top:0;color:var(--warn)">To run (in the paper, no results here yet)</h3>`;
+    <h3 style="margin-top:0;color:var(--warn)">To run — TODO</h3>`;
   for (const u of toRun) {
     html += `<div class="to-run-card">
       <div class="pl-box-top">
@@ -1633,7 +1738,7 @@ function renderUnitsRollup(units) {
     <p style="font-size:13px;margin:0 0 4px">
       <span style="color:var(--ok);font-weight:700">${done.length} done</span>${done.length ? ' (' + esc(nameList(done)) + ')' : ''}.
       ${inProgress.length ? `<span style="color:var(--warn);font-weight:700">${inProgress.length} in progress</span> (${esc(nameList(inProgress))}). ` : ''}
-      <span style="color:var(--warn);font-weight:700">${toRun.length} to run</span>${toRun.length ? ' (' + esc(nameList(toRun)) + ')' : ''}.
+      <span style="color:var(--warn);font-weight:700">${toRun.length} TODO</span>${toRun.length ? ' (' + esc(nameList(toRun)) + ')' : ''}.
     </p>`;
   if (toRun.length) {
     for (const u of toRun) {
@@ -1657,8 +1762,7 @@ function renderGem5Orphans(orphans) {
 
 function buildPipelineHtml(pipelineData, modelsData, unitsData) {
   const units = (unitsData && unitsData.units) || [];
-  let html = renderToRunPanel(units);
-  html += renderJobsStrip(pipelineData.jobs || []);
+  let html = renderJobsStrip(pipelineData.jobs || []);
   html += `<div style="margin:10px 0 16px">
     <button class="primary" onclick="openLaunchModal()">+ New fanout</button>
   </div>`;
@@ -1668,6 +1772,7 @@ function buildPipelineHtml(pipelineData, modelsData, unitsData) {
   const rows = mergeModelRows(pipelineData, modelsData);
   html += renderPipelineGrid(rows, unitsByModel(units));
   html += renderGem5Orphans(pipelineData.gem5_orphans || []);
+  html += renderToRunPanel(units);
   return html;
 }
 
@@ -2322,6 +2427,117 @@ async function renderHitCategories() {
   return html;
 }
 
+// ====== Alloy models (annotated table) — Utilities tab ======
+async function renderAlloyModels() {
+  const data = await apiCall('/api/alloy_models');
+  if (data.error || data.ok === false) {
+    return `<p class="err">Error: ${esc(data.error || 'failed to load')}</p>`;
+  }
+  let html = `<h3 style="margin-top:0">Alloy models</h3>`;
+  html += `<p class="card-meta">Every <code>.als</code> in <code>STAGE1_alloy/models/</code>, grouped by tier. Auto-parsed (defense family / scope / transmitters / XML count) + curated annotations from <code>specs/alloy_models.json</code>${data._vscode ? ` <a class="vscode-link" href="${esc(data._vscode)}">edit annotations</a>` : ''}. ${data.archived ? data.archived + ' archived in old_models/.' : ''}</p>`;
+  const models = data.models || [];
+  if (!models.length) { html += `<p class="empty">No models found.</p>`; return html; }
+  const tierLabel = {production: '⭐ Production (latest)', variant: 'Variants', bugsynth: 'Bugsynth probes', legacy: 'Legacy', '': 'Other'};
+  let curTier = null;
+  html += `<table><thead><tr><th>model</th><th>tier</th><th>defense</th><th>scope</th><th>transmitters</th><th>XML</th><th>summary / intention</th></tr></thead><tbody>`;
+  for (const m of models) {
+    if (m.tier !== curTier) {
+      curTier = m.tier;
+      html += `<tr><td colspan="7" style="background:var(--border);font-weight:600;font-size:11px;padding:4px 8px">${esc(tierLabel[curTier] || curTier)}</td></tr>`;
+    }
+    const link = m.symlink_target ? ` <span class="muted">→ ${esc(m.symlink_target)}</span>` : '';
+    const enumBadge = m.enumerated ? `<span class="badge ok">${m.xml_count}</span>` : `<span class="muted">0</span>`;
+    let note = esc(m.summary || '');
+    if (m.intention) note += `<br><span class="muted">▸ ${esc(m.intention)}</span>`;
+    if (m.caveat) note += `<br><span style="color:var(--warn,#c80)">⚠ ${esc(m.caveat)}</span>`;
+    if (m.aliases) note += `<br><span class="muted">aliases: ${esc(m.aliases)}</span>`;
+    html += `<tr>
+      <td><code>${esc(m.name)}</code>${link}${m.vscode ? ` <a class="vscode-link" href="${esc(m.vscode)}">src</a>` : ''}</td>
+      <td style="font-size:11px">${esc(m.tier || '')}</td>
+      <td style="font-size:11px">${esc(m.defense_family || '')}</td>
+      <td style="font-size:11px">${esc(m.instr_scope || '')}</td>
+      <td style="font-size:11px"><code>${esc(m.transmitters || '')}</code></td>
+      <td>${enumBadge}</td>
+      <td style="font-size:11px">${note}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+  return html;
+}
+
+// ====== gem5 builds (annotated table + timing-hook status) — Utilities tab ======
+async function renderGem5Builds() {
+  const data = await apiCall('/api/gem5_builds');
+  if (data.error || data.ok === false) {
+    return `<p class="err">Error: ${esc(data.error || 'failed to load')}</p>`;
+  }
+  let html = `<h3 style="margin-top:0">gem5 builds</h3>`;
+  html += `<p class="card-meta">One entry per distinct build tree. <b>Timing hooks</b>: BF = branch-force (<code>--branch-ann-file</code> BTB override + resolve-stall); FNC = first-not-committed commit stall (window widener). Source of truth: <code>specs/gem5_builds.json</code>${data._vscode ? ` <a class="vscode-link" href="${esc(data._vscode)}">edit</a>` : ''}.</p>`;
+  const builds = data.builds || [];
+  if (!builds.length) { html += `<p class="empty">No builds registered.</p>`; return html; }
+  const dot = (ok) => ok ? '<span style="color:#2a2">●</span>' : '<span style="color:#c33">○</span>';
+  const statusBadge = (s) => {
+    const cls = s === 'full' ? 'ok' : (s === 'none' ? 'failed' : 'warn');
+    return `<span class="badge ${cls}">${esc(s || '?')}</span>`;
+  };
+  html += `<table><thead><tr><th>build</th><th>defense</th><th>CPU / cache</th><th>scheme</th><th>timing hooks</th><th>git</th><th>intention</th></tr></thead><tbody>`;
+  for (const b of builds) {
+    const t = b.timing_hooks || {};
+    const hooks = `BF ${dot(t.branch_force)} &nbsp; FNC ${dot(t.fnc_commit_stall)}<br>${statusBadge(t.status)}${t.note ? `<br><span class="muted" style="font-size:10px">${esc(t.note)}</span>` : ''}`;
+    let intent = esc(b.intention || '');
+    if (b.variants && b.variants !== 'none') intent += `<br><span class="muted">variants: ${esc(b.variants)}</span>`;
+    if (b.hooks_backup) intent += `<br><span class="muted">hooks: ${esc(b.hooks_backup)}</span>`;
+    html += `<tr>
+      <td><code>${esc(b.id)}</code><br><span class="muted" style="font-size:10px">${esc(b.path || '')}</span></td>
+      <td style="font-size:11px">${esc(b.defense || '')}</td>
+      <td style="font-size:11px">${esc(b.cpu || '')}</td>
+      <td style="font-size:11px"><code>${esc(b.scheme || '')}</code></td>
+      <td style="font-size:11px">${hooks}</td>
+      <td style="font-size:11px">${b.git_tracked ? '<span class="badge ok">git</span>' : '<span class="badge failed">no git</span>'}</td>
+      <td style="font-size:11px">${intent}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+  return html;
+}
+
+// ====== gem5 hooks registry (purposes table) — Utilities tab ======
+async function renderHookRegistry() {
+  const data = await apiCall('/api/gem5_hooks');
+  if (data.error || data.ok === false) {
+    return `<p class="err">Error: ${esc(data.error || 'failed to load')}</p>`;
+  }
+  let html = `<h3 style="margin-top:0">gem5 hooks — purposes</h3>`;
+  html += `<p class="card-meta">Every instrumentation / observation hook we've built + its purpose. <b>realization</b> = gem5 source change (manufactures the scenario); <b>observation</b> = checker-side trace parser (no source change); <b>bridge</b> = config→env plumbing. ⏱ = timing hook. Source: <code>specs/gem5_hooks.json</code>${data._vscode ? ` <a class="vscode-link" href="${esc(data._vscode)}">edit</a>` : ''}.</p>`;
+  const hooks = data.hooks || [];
+  if (!hooks.length) { html += `<p class="empty">No hooks registered.</p>`; return html; }
+  const catOrder = {realization: 0, observation: 1, bridge: 2};
+  hooks.sort((a, b) => (catOrder[a.category] ?? 9) - (catOrder[b.category] ?? 9));
+  let curCat = null;
+  html += `<table><thead><tr><th>hook</th><th>⏱</th><th>site</th><th>purpose</th><th>builds</th></tr></thead><tbody>`;
+  for (const h of hooks) {
+    if (h.category !== curCat) {
+      curCat = h.category;
+      html += `<tr><td colspan="5" style="background:var(--border);font-weight:600;font-size:11px;padding:4px 8px">${esc((curCat||'').toUpperCase())} — ${esc((data.categories||{})[curCat] || '')}</td></tr>`;
+    }
+    html += `<tr>
+      <td><b>${esc(h.name || h.id)}</b><br><span class="muted" style="font-size:10px"><code>${esc(h.id)}</code></span></td>
+      <td style="text-align:center">${h.timing ? '⏱' : ''}</td>
+      <td style="font-size:10px"><code>${esc(h.site || '')}</code></td>
+      <td style="font-size:11px">${esc(h.purpose || '')}</td>
+      <td style="font-size:10px">${esc(h.builds || '')}</td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+  const gaps = data.known_gaps || [];
+  if (gaps.length) {
+    html += `<h4 style="margin:16px 0 6px">Known gaps / TODO hooks</h4><ul style="font-size:11px">`;
+    for (const g of gaps) html += `<li>${esc(g)}</li>`;
+    html += `</ul>`;
+  }
+  return html;
+}
+
 // ====== Utilities tab (sub-tab/section selector) ======
 
 function renderUtilSubTabs() {
@@ -2352,6 +2568,15 @@ async function showUtilSection(id) {
       break;
     case 'execgraph':
       html = await renderExecGraph();
+      break;
+    case 'alloymodels':
+      html = await renderAlloyModels();
+      break;
+    case 'gem5builds':
+      html = await renderGem5Builds();
+      break;
+    case 'hookreg':
+      html = await renderHookRegistry();
       break;
     case 'docs':
       html = await renderDocs();

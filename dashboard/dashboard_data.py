@@ -720,6 +720,61 @@ def _catalog_entry(path: Path, base: Path) -> dict:
     return rec
 
 
+@_safe(lambda: {"ok": False, "builds": []})
+def gem5_builds() -> dict:
+    """The gem5-build registry (specs/gem5_builds.json) — one annotated entry per
+    build + its timing-hook status. Source of truth for Utilities > gem5 builds."""
+    p = _SPECS_DIR / "gem5_builds.json"
+    if not p.exists():
+        return {"ok": False, "error": f"missing {p}", "builds": []}
+    data = json.loads(p.read_text(encoding="utf-8"))
+    data["ok"] = True
+    data["_path"] = str(p)
+    data["_vscode"] = vscode_uri(str(p))
+    return data
+
+
+@_safe(lambda: {"ok": False, "hooks": []})
+def gem5_hooks_registry() -> dict:
+    """The gem5-hook registry (specs/gem5_hooks.json) — every instrumentation /
+    observation hook we've built + its purpose. Utilities > gem5 hooks (purposes)."""
+    p = _SPECS_DIR / "gem5_hooks.json"
+    if not p.exists():
+        return {"ok": False, "error": f"missing {p}", "hooks": []}
+    data = json.loads(p.read_text(encoding="utf-8"))
+    data["ok"] = True
+    data["_path"] = str(p)
+    data["_vscode"] = vscode_uri(str(p))
+    return data
+
+
+@_safe(lambda: {"ok": False, "models": []})
+def alloy_models() -> dict:
+    """Annotated Alloy-model table: the auto-parsed model_inventory (defense family,
+    scope, transmitters, xml count) joined with curated specs/alloy_models.json
+    (tier, summary, intention, caveat). Utilities > Alloy models."""
+    inv = model_inventory()
+    ann_path = _SPECS_DIR / "alloy_models.json"
+    ann_doc = {}
+    if ann_path.exists():
+        try:
+            ann_doc = json.loads(ann_path.read_text(encoding="utf-8"))
+        except Exception:
+            ann_doc = {}
+    anns = ann_doc.get("annotations", {})
+    _tier_order = {"production": 0, "variant": 1, "bugsynth": 2, "legacy": 3, "": 4}
+    rows = []
+    for m in inv.get("models", []):
+        a = anns.get(m["name"], {})
+        m = {**m, "tier": a.get("tier", ""), "summary": a.get("summary", ""),
+             "intention": a.get("intention", ""), "caveat": a.get("caveat", ""),
+             "aliases": a.get("aliases", "")}
+        rows.append(m)
+    rows.sort(key=lambda r: (_tier_order.get(r.get("tier", ""), 4), r["name"]))
+    return {"ok": True, "models": rows, "archived": inv.get("archived", 0),
+            "tiers": ann_doc.get("tiers", {}), "_vscode": vscode_uri(str(ann_path))}
+
+
 @_safe(lambda: {"kind": None, "entries": []})
 def catalog(kind) -> dict:
     """List + inline a canonical source-of-truth set. kind ∈ runconfigs|gem5hooks|findings."""
@@ -828,23 +883,27 @@ def run_hit_stems(name, bucket=None, mode=None, limit=500) -> dict:
     cd = _find_campaign(name)
     if cd is None:
         return {"ok": False, "error": f"no campaign: {name}", "stems": []}
-    stems, src = [], None
+    pairs, src = [], None   # each: {"stem", "mode"} — mode lets the UI fetch the program
     bdir = cd / "diagnostics" / "buckets"
     if bucket and bdir.is_dir():
         for f in bdir.rglob(f"{bucket}.txt"):
             if mode and f.parent.name != mode:
                 continue
             src = str(f)
+            fmode = f.parent.name
             try:
-                stems += [s for s in f.read_text().splitlines() if s.strip()]
+                for s in f.read_text().splitlines():
+                    if s.strip():
+                        pairs.append({"stem": s.strip(), "mode": fmode})
             except OSError:
                 pass
     try:
         limit = max(1, int(limit))
     except (TypeError, ValueError):
         limit = 500
+    pairs.sort(key=lambda p: p["stem"])
     return {"ok": True, "bucket": bucket, "source": src,
-            "total": len(stems), "stems": sorted(stems)[:limit]}
+            "total": len(pairs), "stems": pairs[:limit]}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -880,6 +939,27 @@ def defense_units() -> dict:
         u["results_present"] = present
     d["_vscode"] = vscode_uri(str(_SPECS_DIR / "defense_units.json"))
     return d
+
+
+@_safe(lambda: {"ok": False, "stems": []})
+def xml_instances(model, limit=50) -> dict:
+    """First N XML-instance stems for a model (for the XML-card dropdown inspector)."""
+    try:
+        model = _clean_model(model)
+    except ValueError as e:
+        return {"ok": False, "error": str(e), "stems": []}
+    try:
+        limit = max(1, min(int(limit), 1000))
+    except (TypeError, ValueError):
+        limit = 50
+    xd = TESTSETS / model / "xml"
+    names = []
+    if xd.is_dir():
+        try:
+            names = sorted(e.name[:-4] for e in _os.scandir(xd) if e.name.endswith(".xml"))
+        except OSError:
+            pass
+    return {"ok": True, "model": model, "total": len(names), "stems": names[:limit]}
 
 
 @_safe(lambda: {})

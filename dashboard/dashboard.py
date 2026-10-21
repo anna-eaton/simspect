@@ -320,8 +320,16 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(self._safe(D.model_inventory))
         if path == "/api/model":
             return self._json(self._safe(D.model_source, one("name")))
+        if path == "/api/xml_instances":
+            return self._json(self._safe(D.xml_instances, one("model"), one("limit", "50")))
         if path == "/api/catalog":
             return self._json(self._safe(D.catalog, one("kind")))
+        if path == "/api/gem5_builds":
+            return self._json(self._safe(D.gem5_builds))
+        if path == "/api/gem5_hooks":
+            return self._json(self._safe(D.gem5_hooks_registry))
+        if path == "/api/alloy_models":
+            return self._json(self._safe(D.alloy_models))
         if path == "/api/hit_categories":
             return self._json(self._safe(D.hit_categories))
         if path == "/api/run":

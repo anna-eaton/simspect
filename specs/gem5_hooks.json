@@ -1,0 +1,124 @@
+{
+  "_doc": "Registry of every instrumentation hook SimSpect has ever built into a gem5 build, plus the observation-layer parsers and the config->env bridge. REALIZATION hooks are gem5 *source* changes that manufacture the speculative scenario (the only gem5-source edits we allow — per CLAUDE.md, never touch the defense logic). OBSERVATION hooks are checker-side parsers of gem5's existing debug trace (no source change). Source: wiki/design/METHODS_INSTRUMENTATION.md (the 9 source sites + the parser table) + gem5-hooks/README.md. Viewed in the dashboard Utilities > gem5 hooks (purposes) tab.",
+  "_last_reviewed": "2026-10-21",
+  "categories": {
+    "realization": "gem5 SOURCE hook — manufactures the speculative window / forces the scenario. The porting checklist for a new build.",
+    "observation": "checker-side parser of gem5's existing debug output — no source change (always allowed).",
+    "bridge": "the config -> env -> checker plumbing that makes a run reproducible by hand."
+  },
+  "hooks": [
+    {
+      "id": "branch_btb_force",
+      "name": "Branch BTB override (forced target)",
+      "category": "realization",
+      "site": "pred/BranchPredictor.py (params); pred/bpred_unit.{cc,hh} (override target in predict())",
+      "purpose": "Force a branch to predict TAKEN/NOT-TAKEN to the modeled direction via --branch-ann-file, realizing the mispredict the Alloy model specified. Vanilla builds reject the flag.",
+      "builds": "recon-modded, stt, stt-dbg, gem5-spt, all 4 amulet",
+      "timing": true
+    },
+    {
+      "id": "branch_resolve_stall",
+      "name": "Per-branch resolve stall",
+      "category": "realization",
+      "site": "pred/bpred_unit.{cc,hh} (annotationResolveStallCycles)",
+      "purpose": "Hold a branch unresolved for N cycles after the force, keeping the speculative window open so everything after it stays speculative.",
+      "builds": "same as branch_btb_force",
+      "timing": true
+    },
+    {
+      "id": "fnc_commit_stall",
+      "name": "First-not-committed commit stall",
+      "category": "realization",
+      "site": "o3/{O3CPU,BaseO3CPU}.py (fncCommitStallPC/Cycles params); o3/cpu.{hh,cc}; o3/commit{.hh,_impl.hh/.cc} (fncStallSeqNum/Cycles + stall loop before squash check)",
+      "purpose": "Stall commit of the first-not-committed insn at the ROB head (recon/STT use 150 cyc), widening the speculative window so slow VP/squash cases land in-window. The amulet builds originally LACKED this; ported (7 sites) to InvisiSpec/SpecLFB/CleanupSpec.",
+      "builds": "recon-modded, stt, stt-dbg, gem5-spt, amulet InvisiSpec/SpecLFB/CleanupSpec (NOT confirmed on amulet-STT)",
+      "timing": true
+    },
+    {
+      "id": "cli_flags",
+      "name": "CLI flags",
+      "category": "realization",
+      "site": "configs/common/Options.py",
+      "purpose": "Expose the hooks: --branch-ann-file, --branch-ann-base, --fnc-commit-stall-pc, --fnc-commit-stall-cycles. SpecLFB (newer base) needed a hex-parse fix on --branch-ann-base.",
+      "builds": "all instrumented",
+      "timing": false
+    },
+    {
+      "id": "se_annotation_loader",
+      "name": "se.py annotation loader + wiring",
+      "category": "realization",
+      "site": "configs/example/se.py (load_branch_annotations)",
+      "purpose": "Read each test's .ann.json, resolve each branch PC (absolute branch_addr, else function-relative offset + base — conflating these was a real bug fixed across all amulet builds), push annotationBranchPCs/ForcedTargets/ResolveStallCycles into the BP, and set fncCommitStall PC/Cycles (guarded >0).",
+      "builds": "all instrumented (each amulet build needed the +base fix individually)",
+      "timing": false
+    },
+    {
+      "id": "pcstate_hooks",
+      "name": "pcstate instrumentation (recon-modded)",
+      "category": "realization",
+      "site": "pcstate (arm/generic/x86), o3 lsq_unit, store_set_annot",
+      "purpose": "The recon-modded-specific BTB-override / Recon instrumentation beyond the standard 9 sites (captured in recon-modded_src.diff).",
+      "builds": "recon-modded",
+      "timing": false
+    },
+    {
+      "id": "parse_pipeview",
+      "name": "parse_pipeview",
+      "category": "observation",
+      "site": "gem5_common.py",
+      "purpose": "Read O3PipeView issue/complete/squash ticks per seqNum -> the complete-tick half of the data-obtained leak gate.",
+      "builds": "all",
+      "timing": false
+    },
+    {
+      "id": "parse_lsq",
+      "name": "parse_lsq",
+      "category": "observation",
+      "site": "gem5_common.py",
+      "purpose": "Read LSQ 'Executing load', packet_tick, spec_read_tick, (SpecLFB) memaccess_tick, (InvisiSpec) expose_tick -> the load checker's signal + cache-fate. SpecLFB's newer base needed an additive memaccess_tick (no 'sent out packet' line).",
+      "builds": "all (per-defense tick additions)",
+      "timing": false
+    },
+    {
+      "id": "parse_commit_squashes",
+      "name": "parse_commit_squashes",
+      "category": "observation",
+      "site": "gem5_common.py",
+      "purpose": "Read pc -> squash ticks (the B2 fix): check_br keys on the squash tick, not the resolve tick. Needs the Commit debug flag.",
+      "builds": "all",
+      "timing": false
+    },
+    {
+      "id": "branch_resolution_gate",
+      "name": "collect_unresolved_branches / check_branch_resolutions",
+      "category": "observation",
+      "site": "gem5_common.py",
+      "purpose": "Compare the annotation's branch list vs the trace -> the 'branches still unresolved' window gate.",
+      "builds": "all",
+      "timing": false
+    },
+    {
+      "id": "config_env_bridge",
+      "name": "config -> env bridge",
+      "category": "bridge",
+      "site": "pipeline.py:_build_gem5_env -> SIMSPECT_* env read by gem5_common.py",
+      "purpose": "Translate run_config gem5.* keys into SIMSPECT_GEM5_BIN/SE_CONFIG/GEM5_CPU/GEM5_EXTRA/FNC_COMMIT_STALL_CYCLES/BRANCH_ANN_ENABLE so any checker run that exports the same env reproduces the campaign's exact build/scheme/hook state.",
+      "builds": "all",
+      "timing": false
+    },
+    {
+      "id": "sweep_stall_injection",
+      "name": "sweep stall injection",
+      "category": "bridge",
+      "site": "pipeline.py:_inject_stalls -> SIMSPECT_SWEEP_CFG",
+      "purpose": "sweep.* stalls (unresolved_stall_cycles etc.) are injected into the annotation, NOT env vars; forwarded as SIMSPECT_SWEEP_CFG (the B3 diagnostic bug was forgetting this).",
+      "builds": "all",
+      "timing": true
+    }
+  ],
+  "known_gaps": [
+    "commitToIEWDelay — needed to exercise the VP<->squash race gadget; flagged in claudelog as NOT in the stock pipeline / not wired into _build_gem5_env.",
+    "CleanupSpec post-squash residue correlator — install<->cleanup event watcher not yet fully built.",
+    "fnc_commit_stall on amulet-STT — not confirmed ported; verify before relying on window timing there."
+  ]
+}
