@@ -9,17 +9,21 @@ append-only logs, never from "what the last session remembered."
 
 | area | where | what |
 |---|---|---|
-| **Connect / run** | [`state/INFRA.md`](state/INFRA.md) | How to reach compute & run experiments. `make hold / cafe / status / dash / mini`. Read this to start working. |
+| **Connect / run** | [`state/INFRA.md`](state/INFRA.md) | How to reach compute & run experiments. `make hold / cafe / status / dash / mini`. Read this to start working. Includes container↔GitHub deploy-key auth. |
+| **Repo map** | [`state/REPO_MAP.md`](state/REPO_MAP.md) | Inventory of every non-generated file + status. |
+| **Sync state** | [`state/SYNC_DIVERGENCE.md`](state/SYNC_DIVERGENCE.md) | Mac↔cafe2 reconciliation (resolved) + gem5-hook durability (open). |
 | **What's live now** | `state/RUNNING.md` *(to create)* | Current allocations, campaigns, sweeps. Verify with `make status`. |
-| **Human rollup** | `../STATUS.md` *(migrating → `state/STATUS.md`)* | The one-page "where everything stands" for Anna. |
+| **Human rollup** | [`../STATUS.md`](../STATUS.md) | The one-page "where everything stands" for Anna. **Stays at repo root** (dashboard reads `CODE_ROOT/STATUS.md`). |
 | **Open questions** | `state/OPEN.md` *(to create)* | Decisions awaiting Anna. |
-| **Design / semantics** | `design/` *(migrating)* | `DESIGN.md`, `AUDIT.md`, `METHODS_*`. The stable reference. |
-| **Findings / bugs** | `findings/` *(migrating)* | Per-bug & per-result writeups (`bug/`, `mdsToRead/`). |
-| **Logs** | `logs/` *(migrating)* | `claudelog.md` (durable, append-only) + `claudenotes.md` (right-now). |
+| **Design / semantics** | [`design/`](design/) | `DESIGN.md`, `AUDIT.md`, `METHODS_{CONCRETIZATION,INSTRUMENTATION,LEAKAGE_KNOBS}.md`, `branch_enumeration_notes.md`, `sweep_design_notes.md`. The stable reference. |
+| **Run results** | [`results/`](results/) | Campaign/paper writeups: `results.md`, `reconresults.md`, `PAPER_RESULTS.md`, `PAPER_EXPERIMENTS.md`, `EXPERIMENTS.md`. |
+| **Findings / bugs** | `findings/` *(dirs `bug/`, `mdsToRead/`, `docs/` migrate here next pass)* | Per-bug & per-result writeups. |
+| **Logs** | `logs/` *(claudelog/claudenotes stay at root — code refs; link here)* | `../claudelog.md` (durable, append-only) + `../claudenotes.md` (right-now). |
 | **Repo cleanup** | [`REPO_CLEANUP_BRIEF.md`](REPO_CLEANUP_BRIEF.md) | Brief for the agent auditing/consolidating the repo. |
 
-*Much legacy markdown still lives at the repo root and is being consolidated here per the cleanup
-brief — until each file is migrated (with its references fixed), the root copy stays canonical.*
+**Stays at repo root (do not move — code/CLAUDE.md reference them):** `CLAUDE.md`, `STATUS.md`,
+`claudelog.md`, `claudenotes.md`. Everything else that was loose at the root has been migrated into
+`design/` and `results/` above. The findings dirs (`bug/`, `mdsToRead/`, `docs/`) are the next pass.
 
 ## The three durability mechanisms
 1. **Append-only logs** (`logs/claudelog.md`) — the dated narrative of what happened/changed/was decided.

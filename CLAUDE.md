@@ -79,7 +79,7 @@ Multiple Claude sessions may run concurrently. Two files coordinate them — **r
 - **Every entry is dated** (`## YYYY-MM-DD HH:MM — <session-label> — <title>`), newest at top,
   self-contained, and points to the file/log/line that proves it. Append — don't delete history.
 - See the header of `claudelog.md` itself for the full what-belongs / what-doesn't rules.
-- Don't duplicate things already in `DESIGN.md` / `AUDIT.md` / `results.md`; cross-reference instead.
+- Don't duplicate things already in `wiki/design/DESIGN.md` / `wiki/design/AUDIT.md` / `wiki/results/results.md`; cross-reference instead.
 
 **ALWAYS log — don't wait to be asked.** Every session writes to *both* files as a matter of
 course: a one-line "what I'm doing now" in `claudenotes.md`, and — for anything **big** (a
@@ -326,6 +326,6 @@ verdict (rule above). Per-bucket stem lists land in `diagnostics/buckets/<mode>/
 ## Gotchas
 
 - **Editing `parsexml.py` or a `.als` mid-run contaminates a testset** (some asm uses old logic, some new). Regenerate from the affected stage onward with the relevant stage output wiped.
-- Cross-stage invariants and their rationale (e.g. "xmit branches are always resolved in STT_6", and the dormant NOP-insertion bug that depends on it) live in `DESIGN.md` — read it before changing the Alloy speculation contract or `parsexml.py:pass2_5_specify_branches`.
-- `AUDIT.md` tracks known issues/findings; `results.md` / `reconresults.md` hold run write-ups.
+- Cross-stage invariants and their rationale (e.g. "xmit branches are always resolved in STT_6", and the dormant NOP-insertion bug that depends on it) live in `wiki/design/DESIGN.md` — read it before changing the Alloy speculation contract or `parsexml.py:pass2_5_specify_branches`.
+- `wiki/design/AUDIT.md` tracks known issues/findings; `wiki/results/results.md` / `wiki/results/reconresults.md` hold run write-ups.
 - `testsets/`, `results/`, `generated/` are gitignored — they're large generated artifacts, not source.

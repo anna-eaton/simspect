@@ -1,7 +1,12 @@
 # REPO_MAP — inventory & status audit
 
-*Built by the cleanup-agent session, 2026-10-20. Status column is a **proposal/guess** — nothing
-is moved or deleted. Walk through with Anna; record decisions in `wiki/logs/claudelog.md`.*
+*Built by the cleanup-agent session, 2026-10-20.*
+
+> **UPDATE 2026-10-20:** Root `.md` consolidation DONE. Design docs → `wiki/design/`; run/paper
+> writeups → `wiki/results/`; `RECAP.md` → `old/`. Only `CLAUDE.md`, `STATUS.md`, `claudelog.md`,
+> `claudenotes.md` remain at root (code/CLAUDE.md reference them). Dashboard split → `dashboard/`.
+> Mac/cafe2 git divergence reconciled (see `SYNC_DIVERGENCE.md`). Still open: the findings dirs
+> (`bug/`, `mdsToRead/`, `docs/`) move, the stale `.als` cleanup, and gem5-hook backup.
 
 Skips generated/large dirs: `testsets/`, `results/`, `generated/`, `.git/`, `__pycache__/`,
 `analysis/` (3281 files, hit dumps), `m5out/`.
