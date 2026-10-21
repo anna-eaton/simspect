@@ -329,6 +329,42 @@ def _campaign_dirs() -> dict:
     return {name: d for name, (d, _mt) in out.items()}
 
 
+def _bespoke_campaign_dirs() -> dict:
+    """Non-timestamped result dirs from bespoke launchers (e.g. the AMuLeT
+    InvisiSpec/SpecLFB runs write results/<name>/<mode>/window-results.json with
+    NO __ts suffix, so _campaign_dirs misses them). Keyed by dir name."""
+    out: dict = {}
+    if not RESULTS.is_dir():
+        return out
+    for d in sorted(RESULTS.iterdir()):
+        if (not d.is_dir() or d.is_symlink() or d.name.startswith("_")
+                or "__" in d.name):
+            continue
+        try:
+            has = any((sub / "window-results.json").exists()
+                      for sub in d.iterdir() if sub.is_dir())
+        except OSError:
+            has = False
+        if has:
+            out[d.name] = d
+    return out
+
+
+def _infer_campaign_model(name: str):
+    """Best-effort: the longest testset-model name that prefixes a campaign name
+    (so 'STT_6_invisispec_compound' -> 'STT_6')."""
+    if not TESTSETS.is_dir():
+        return None
+    cands = []
+    try:
+        for d in TESTSETS.iterdir():
+            if d.is_dir() and (name == d.name or name.startswith(d.name)):
+                cands.append(d.name)
+    except OSError:
+        pass
+    return max(cands, key=len) if cands else None
+
+
 def _campaign_modes(cdir: Path) -> list:
     """Per-mode, per-kind totals/hits for one campaign dir.
 
@@ -508,7 +544,12 @@ def _pipeline_graph_compute() -> dict:
     # gem5 campaigns grouped by model (fold in sweep_monitor info: variant + hits)
     gem5_by_model: dict = {}
     gem5_all = []
-    for name, cdir in sorted(_campaign_dirs().items()):
+    # Union of timestamped testrun campaigns + bespoke launcher dirs (AMuLeT
+    # InvisiSpec/SpecLFB write results/<name>/<mode>/window-results.json, no __ts).
+    all_campaigns = dict(_campaign_dirs())
+    for _nm, _d in _bespoke_campaign_dirs().items():
+        all_campaigns.setdefault(_nm, _d)
+    for name, cdir in sorted(all_campaigns.items()):
         man = {}
         mp = cdir / "manifest.json"
         if mp.exists():
@@ -523,7 +564,7 @@ def _pipeline_graph_compute() -> dict:
                 variant = sm.variant_of(_load_cfg(cfgp).get("gem5", {}))
             except Exception:
                 variant = None
-        model = man.get("model")
+        model = man.get("model") or _infer_campaign_model(name)
         node = {
             "id": f"gem5:{name}", "results_name": name, "model": model,
             "campaign": cdir.name, "gem5_binary": man.get("gem5_binary"),
