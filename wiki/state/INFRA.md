@@ -92,3 +92,22 @@ container has no `ss`/`netstat`, so the up-check uses `curl`.) It renders markdo
 natively** (`/api/md`). **Gap vs. the goal:** non-markdown files are viewed inline but there are no
 `vscode://` "open in VSCode" links yet — adding those (local path → `vscode://file/…`; container
 artifacts → `vscode://vscode-remote/ssh-remote+…`) is a tracked work item (see the cleanup brief).
+
+## Container ↔ GitHub auth (deploy key)
+
+The `gem5_dev` container runs as **root** with HOME `/root` (ephemeral — not a mount), while
+`/tests` and `/work` are the **persistent** mounts. So GitHub credentials must live on a
+persistent mount or they die on container rebuild. Set up 2026-10-20:
+
+- **Repo-scoped deploy key** (ed25519) at `/work/.ssh/simspect_deploy` (+ `.pub`), persistent.
+- Repo points at it via `git -C /tests/simspect config core.sshCommand`
+  `"ssh -i /work/.ssh/simspect_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"`
+  (lives in `.git/config` on the persistent `/tests` mount).
+- Public key is registered on GitHub → repo `anna-eaton/simspect` → Settings → **Deploy keys**
+  (write access). Blast radius = this repo only.
+- **If the repo is ever re-cloned fresh in the container**, re-run the `core.sshCommand` config
+  (the key on `/work` survives; only `.git/config` is lost on re-clone).
+- Test read-only: `git -C /tests/simspect ls-remote origin`.
+
+Sync model: the container can now `git fetch`/`push` directly. (Fallback that needs no container
+creds: `git bundle` in/out through the Mac, which has its own GitHub auth.)

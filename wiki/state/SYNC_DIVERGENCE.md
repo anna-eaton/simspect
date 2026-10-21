@@ -1,7 +1,12 @@
 # Mac ↔ cafe2 divergence + gem5-hook durability audit
 
-*Built by the cleanup-agent session, 2026-10-20 (read-only; nothing synced/committed/pushed).
-This is the brief's blocking item. Decisions still needed from Anna before any sync.*
+*Built by the cleanup-agent session, 2026-10-20.*
+
+> **✅ PART 1 (repo divergence) RESOLVED 2026-10-20.** Mac = origin/main = cafe2 container =
+> `e652da1`. cafe2 June work committed (`cafe2-june-work`/`9338bea`), Mac Oct work (`207d75e`),
+> merged (`e652da1`), pushed, container reset. No data lost. Container GitHub auth fixed via a
+> repo-scoped deploy key (see INFRA.md). Verified: dashboard selftest PASS.
+> **PART 2 (gem5 hook durability) still OPEN** — deferred workstream.
 
 ## TL;DR
 

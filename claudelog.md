@@ -15,6 +15,25 @@ future sessions (and the user) need to know. It is the counterpart to `claudenot
 
 
 
+## 2026-10-20 — cleanuprepo — Mac↔cafe2 git divergence RECONCILED + container GitHub auth fixed
+
+Repo was in a dangerous state: Mac and cafe2 container both had uncommitted work
+diverged from `4f3bb1a` (Jun 8) in DIFFERENT directions, and the container was not
+even able to auth to GitHub. Resolved without data loss:
+- Committed cafe2's June work (bugsynth/, bug demos, staged-enum tooling, 5 new
+  mdsToRead, 2 protected .als STT_6_core/STT_6_multisource as-is) on branch
+  `cafe2-june-work` (9338bea); committed Mac's Oct work (dashboard split, sim rig,
+  wiki/) on main (207d75e); merged → `e652da1`. Conflicts: dashboard.py=Mac rewrite
+  (cafe2's monolithic edits superseded, preserved in branch); claudelog.md=union
+  (117 entries). Pushed; container reset to origin/main. Mac=origin=container=e652da1.
+- Container GitHub auth: was failing (no key, root@container, /root ephemeral).
+  Fixed with a repo-scoped **deploy key** at /work/.ssh/simspect_deploy (persistent
+  mount) + repo core.sshCommand. Public key added to GitHub deploy keys (write). See
+  wiki/state/INFRA.md.
+- Verified post-merge: imports OK, `dashboard.py --selftest` PASS.
+- Full divergence analysis: wiki/state/SYNC_DIVERGENCE.md. gem5 /work hooks are NOT
+  tracked (recon builds not even git repos) — separate workstream, deferred.
+
 ## 2026-10-20 16:04 — infra — Connect-or-create session rig + `wiki/` source-of-truth + md-first directive
 
 - **Root cause of the "cafe keeps dropping" pain, nailed:** cafe2 is a Slurm compute node enforcing
