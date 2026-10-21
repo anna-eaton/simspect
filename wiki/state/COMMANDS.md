@@ -19,8 +19,10 @@ These wrap `scripts/sim` (config in `scripts/simspect.env`). Full runbook: [`INF
 | `make launch CMD="…"` | Run `CMD` in a NEW `work` tmux window (survives drops); logs to `run_<win>.log`. |
 | `make peek W=<win>` | Print the tail of the `work` session (or window `W`) — watch without attaching. |
 | `make windows` | List windows in the `work` session. |
-| `make dash` | Start the dashboard in the container (if needed) + forward `:8765` + open the browser. |
+| `make dash` | **Always kills any running dashboard and restarts from current code**, binds the container bridge IP (`172.17.0.2`), forwards `:8765`, opens the browser. (The kill+restart stops a stale old process masking new UI after a pull.) |
+| `make sync [M="note"]` | **Sync git everywhere:** commit (if dirty) + push `main` from local, then **fast-forward-only** pull on cafe2 and the mini. Never force/merge — if a side can't fast-forward it says so and you resolve it. `M=` sets the commit message (default: `sync: <host> <time>`). |
 | `make mini` | Attach the always-on driver tmux (`simspect`) on the Mac mini (creates if missing). |
+| `make mini-clone` | One-time: clone the driver harness onto the mini (`~/simspect`; source-only — heavy dirs are gitignored; `-A` forwards your GitHub key). |
 | `make mini-ssh-help` | Print the one `ssh-copy-id` command *you* run to enable key auth to the mini. |
 | `make mini-bootstrap` | Copy `~/.ssh/config` + sc key to the mini so IT can reach cafe2. |
 

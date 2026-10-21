@@ -22,6 +22,7 @@
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_LOCAL="$(cd "$HERE/.." && pwd)"   # the local clone (this repo)
 # shellcheck disable=SC1091
 source "$HERE/simspect.env"
 
@@ -98,15 +99,23 @@ cmd_peek() {
 
 cmd_dash() {
   ensure_hold
+  # ALWAYS kill any running dashboard and restart from the CURRENT code — otherwise a stale
+  # old process keeps serving an outdated UI (it did: a pre-pull build masked the new one).
+  # The '[d]ashboard' bracket stops pkill -f from matching its own command line.
+  say "stopping any running dashboard in $CONTAINER..."
+  dcsh "pkill -f '[d]ashboard/dashboard.py'; pkill -f '[d]ashboard.py --host'; sleep 1; true" >/dev/null 2>&1
   # The dashboard must bind the container's BRIDGE IP (not loopback) so the ssh -L
-  # forward to $CONTAINER_IP:$DASH_PORT can reach it. Start detached if not already up.
-  if ! dash_listening; then
-    say "starting dashboard in $CONTAINER (bind $CONTAINER_IP:$DASH_PORT)..."
-    # SIMSPECT_VSCODE_REMOTE makes the dashboard's "open in VSCode" links use Remote-SSH
-    # (the files it shows are container paths; open them on cafe2 via VSCode Remote-SSH).
-    dcsh "cd $REPO_IN_CONTAINER && rm -f dashboard.log && SIMSPECT_VSCODE_REMOTE=ssh-remote+$CAFE_HOST nohup python3 dashboard/dashboard.py --host $CONTAINER_IP --port $DASH_PORT > dashboard.log 2>&1 & disown" >/dev/null 2>&1
-    for _ in 1 2 3 4 5 6; do dash_listening && break; sleep 1; done
-  fi
+  # forward to $CONTAINER_IP:$DASH_PORT can reach it.
+  say "starting dashboard in $CONTAINER (bind $CONTAINER_IP:$DASH_PORT)..."
+  # SIMSPECT_VSCODE_REMOTE makes the dashboard's "open in VSCode" links use Remote-SSH
+  # (the files it shows are container paths; open them on cafe2 via VSCode Remote-SSH).
+  # Use `docker exec -d` for a TRUE detach — nohup+disown over `docker exec` (no -d)
+  # does NOT survive the ssh closing (the exec's process group is reaped), so the
+  # dashboard died right after start. -d backgrounds the exec itself. (SIMSPECT_VSCODE_REMOTE
+  # via -e so the "open in VSCode" links use Remote-SSH.)
+  dcsh "rm -f $REPO_IN_CONTAINER/dashboard.log" >/dev/null 2>&1
+  ssh -o BatchMode=yes "$CAFE_HOST" "docker exec -d -e SIMSPECT_VSCODE_REMOTE=ssh-remote+$CAFE_HOST $CONTAINER bash -lc 'cd $REPO_IN_CONTAINER && exec python3 dashboard/dashboard.py --host $CONTAINER_IP --port $DASH_PORT > dashboard.log 2>&1'" >/dev/null 2>&1
+  for _ in 1 2 3 4 5 6; do dash_listening && break; sleep 1; done
   if ! dash_listening; then
     say "dashboard did NOT come up — last log lines:"; dcsh "tail -20 $REPO_IN_CONTAINER/dashboard.log" >&2 || true
     die "dashboard failed to start (see $REPO_IN_CONTAINER/dashboard.log in the container)"
@@ -145,8 +154,55 @@ cmd_mini_bootstrap() {
     && say "done — the mini can now 'ssh $CAFE_HOST' (test: make mini, then run scripts/sim status there)"
 }
 
+# ── git sync everywhere ───────────────────────────────────────────────────────
+cmd_sync() {
+  local msg="${1:-}"
+  # 1. LOCAL: commit if dirty, then push
+  if [ -n "$(git -C "$REPO_LOCAL" status --porcelain)" ]; then
+    [ -n "$msg" ] || msg="sync: $(hostname -s) $(date '+%Y-%m-%d %H:%M')"
+    say "local changes → committing: $msg"
+    git -C "$REPO_LOCAL" add -A || die "git add failed"
+    git -C "$REPO_LOCAL" commit -m "$msg" >&2 || die "commit failed"
+  else
+    say "local clean — nothing to commit"
+  fi
+  say "pushing $GIT_BRANCH → $GIT_REMOTE ..."
+  git -C "$REPO_LOCAL" push "$GIT_REMOTE" "$GIT_BRANCH" >&2 || die "push failed"
+
+  # 2. cafe2 container: fetch + fast-forward only (never force/merge)
+  say "pulling on $CAFE_HOST:$CONTAINER ($REPO_IN_CONTAINER) ..."
+  dcsh "cd $REPO_IN_CONTAINER && git fetch $GIT_REMOTE && git pull --ff-only $GIT_REMOTE $GIT_BRANCH" >&2 \
+    || say "⚠️  cafe2 could not fast-forward (uncommitted changes there?) — resolve on cafe2 manually"
+
+  # 3. mini: pull if a clone exists (agent-forward the laptop's GitHub key with -A)
+  if ssh -o BatchMode=yes -o ConnectTimeout=6 "$MINI_USER@$MINI_HOST" true 2>/dev/null; then
+    if ssh "$MINI_USER@$MINI_HOST" "bash -lc 'test -d $MINI_REPO/.git'" 2>/dev/null; then
+      say "pulling on the mini ($MINI_REPO) ..."
+      ssh -A "$MINI_USER@$MINI_HOST" "bash -lc 'cd $MINI_REPO && git fetch $GIT_REMOTE && git pull --ff-only $GIT_REMOTE $GIT_BRANCH'" >&2 \
+        || say "⚠️  mini could not fast-forward — resolve on the mini manually"
+    else
+      say "mini has no clone at $MINI_REPO — run 'make mini-clone' once (skipping)"
+    fi
+  else
+    say "mini unreachable (skipping) — 'make mini-ssh-help' to set up key auth"
+  fi
+  say "sync complete."
+}
+
+cmd_mini_clone() {
+  ssh -o BatchMode=yes -o ConnectTimeout=8 "$MINI_USER@$MINI_HOST" true 2>/dev/null \
+    || die "key auth to the mini not set up — run: make mini-ssh-help"
+  local url; url="$(git -C "$REPO_LOCAL" remote get-url "$GIT_REMOTE")"
+  say "cloning $url → mini:$MINI_REPO (-A forwards your GitHub key)..."
+  ssh -A "$MINI_USER@$MINI_HOST" "bash -lc 'test -d $MINI_REPO/.git && echo already-cloned || git clone $url $MINI_REPO'" >&2 \
+    || die "clone failed — ensure your ssh agent has the GitHub key loaded (ssh-add -l), or give the mini its own key"
+  say "done — heavy dirs (testsets/results/generated) are gitignored, so this is source-only."
+}
+
 case "${1:-}" in
   hold)           cmd_hold ;;
+  sync)           shift; cmd_sync "$@" ;;
+  mini-clone)     cmd_mini_clone ;;
   status)         cmd_status ;;
   cafe)           cmd_cafe ;;
   run)            shift; cmd_run "$@" ;;

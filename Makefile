@@ -29,7 +29,8 @@ SCRIPT    := pipeline.py
 _FORCE := $(if $(filter 1,$(FORCE)),--force,)
 
 .PHONY: all xml llvm asm gem5 clean help gen run pipeline dashboard \
-        hold cafe sess session status dash peek windows mini mini-ssh-help mini-bootstrap
+        hold cafe sess session status dash peek windows launch sync \
+        mini mini-ssh-help mini-bootstrap mini-clone
 
 # ── Sessions: connect-or-create the whole rig from anywhere (scripts/sim) ──────
 # cafe2 needs a live Slurm allocation to ssh in; these keep one and attach tmux.
@@ -43,6 +44,9 @@ windows:         ; @$(SIM) windows         # list windows in the work session
 mini:            ; @$(SIM) mini            # attach the always-on driver tmux on the Mac mini
 mini-ssh-help:   ; @$(SIM) mini-ssh-help   # how to enable key auth to the mini (you run it)
 mini-bootstrap:  ; @$(SIM) mini-bootstrap  # give the mini ssh access to cafe2
+mini-clone:      ; @$(SIM) mini-clone      # one-time: clone the driver harness onto the mini
+# sync git everywhere: commit+push local, then ff-only pull on cafe2 + mini. Optional msg: make sync M="note"
+sync:            ; @$(SIM) sync "$(M)"
 # drive a run from anywhere:  make launch CMD="python3 pipeline.py all --model ... --config ..."
 launch:          ; @$(SIM) run "$(CMD)"
 
