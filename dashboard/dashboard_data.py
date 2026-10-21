@@ -37,6 +37,13 @@ import traceback
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+# This module lives in dashboard/; shared modules live at the repo root. Ensure the
+# repo root is importable even if dashboard_data is imported directly (not via dashboard.py).
+import os as _os
+_REPO_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 # ── Canonical helpers ─────────────────────────────────────────────────────────
 import simspect_paths as sp
 from simspect_paths import (

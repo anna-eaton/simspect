@@ -60,7 +60,7 @@ pipeline:
 
 # ── Live dashboard (stdlib-only web UI; forward the port over ssh -L) ─────────
 dashboard:
-	$(PY) dashboard.py $(if $(PORT),--port $(PORT),)
+	$(PY) dashboard/dashboard.py $(if $(PORT),--port $(PORT),)
 
 # ── Low-level engine ─────────────────────────────────────────────────────────
 all:

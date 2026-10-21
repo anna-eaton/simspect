@@ -25,8 +25,16 @@ import html
 import json
 import os
 import re
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
+
+# This file lives in dashboard/; the shared modules (simspect_paths, jobs_registry,
+# sweep_monitor, pipeline) live at the repo root. Put the repo root on sys.path so
+# they import whether run as `python3 dashboard/dashboard.py` or from the repo root.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 import simspect_paths as P
 import dashboard_data as D
