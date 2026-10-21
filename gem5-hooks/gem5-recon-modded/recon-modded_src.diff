@@ -1,0 +1,787 @@
+diff -ruN '--exclude=build' gem5-recon/src/arch/arm/pcstate.hh gem5-recon-modded/src/arch/arm/pcstate.hh
+--- gem5-recon/src/arch/arm/pcstate.hh	2025-02-07 22:35:49.000000000 +0000
++++ gem5-recon-modded/src/arch/arm/pcstate.hh	2026-04-24 17:36:35.909451371 +0000
+@@ -98,6 +98,8 @@
+         npc(val + (thumb() ? 2 : 4));
+     }
+ 
++    void setInstAddr(Addr val) override { set(val); }
++
+     PCState(const PCState &other) : Base(other),
+         flags(other.flags), nextFlags(other.nextFlags),
+         _itstate(other._itstate), _nextItstate(other._nextItstate),
+diff -ruN '--exclude=build' gem5-recon/src/arch/generic/pcstate.hh gem5-recon-modded/src/arch/generic/pcstate.hh
+--- gem5-recon/src/arch/generic/pcstate.hh	2025-02-07 22:35:49.000000000 +0000
++++ gem5-recon-modded/src/arch/generic/pcstate.hh	2026-04-24 17:36:22.567201405 +0000
+@@ -110,6 +110,19 @@
+     }
+ 
+     /**
++     * Force-set the instruction address. Derived classes override this to
++     * also reset any dependent state (npc, micro-pc, size, etc.), by
++     * delegating to their existing set(Addr) method. The base implementation
++     * only touches _pc; it is correct for the abstract contract but may
++     * leave dependent fields stale for derived PCStates.
++     */
++    virtual void
++    setInstAddr(Addr val)
++    {
++        _pc = val;
++    }
++
++    /**
+      * Returns the current micropc.
+      *
+      * @return The current micropc.
+@@ -365,6 +378,8 @@
+         this->npc(val + InstWidth);
+     };
+ 
++    void setInstAddr(Addr val) override { set(val); }
++
+     bool
+     branching() const override
+     {
+@@ -409,6 +424,8 @@
+         this->nupc(1);
+     }
+ 
++    void setInstAddr(Addr val) override { set(val); }
++
+     UPCState(const UPCState &other) : Base(other) {}
+     UPCState &operator=(const UPCState &other) = default;
+     UPCState() {}
+@@ -479,6 +496,8 @@
+         nnpc(val + 2 * InstWidth);
+     }
+ 
++    void setInstAddr(Addr val) override { set(val); }
++
+     DelaySlotPCState(const DelaySlotPCState &other) :
+         Base(other), _nnpc(other._nnpc)
+     {}
+@@ -554,6 +573,8 @@
+         this->nupc(1);
+     }
+ 
++    void setInstAddr(Addr val) override { set(val); }
++
+     DelaySlotUPCState(const DelaySlotUPCState &other) : Base(other) {}
+     DelaySlotUPCState &operator=(const DelaySlotUPCState &other) = default;
+     DelaySlotUPCState() {}
+diff -ruN '--exclude=build' gem5-recon/src/arch/x86/pcstate.hh gem5-recon-modded/src/arch/x86/pcstate.hh
+--- gem5-recon/src/arch/x86/pcstate.hh	2025-02-07 22:35:51.000000000 +0000
++++ gem5-recon-modded/src/arch/x86/pcstate.hh	2026-04-24 17:36:27.938704639 +0000
+@@ -72,6 +72,8 @@
+         _size = 0;
+     }
+ 
++    void setInstAddr(Addr val) override { set(val); }
++
+     PCState(const PCState &other) : Base(other), _size(other._size) {}
+     PCState &operator=(const PCState &other) = default;
+     PCState() {}
+diff -ruN '--exclude=build' gem5-recon/src/cpu/o3/BaseO3CPU.py gem5-recon-modded/src/cpu/o3/BaseO3CPU.py
+--- gem5-recon/src/cpu/o3/BaseO3CPU.py	2025-02-07 22:35:51.000000000 +0000
++++ gem5-recon-modded/src/cpu/o3/BaseO3CPU.py	2026-05-21 04:56:47.331635435 +0000
+@@ -181,6 +181,9 @@
+ 
+     allowLeaked = Param.Bool(False, "Whether to allow loads that leaked through non-spec LL-pair")
+ 
++    fncCommitStallPC     = Param.Addr(0, "PC of first-noncommitted insn to stall at ROB head (0 = disabled)")
++    fncCommitStallCycles = Param.Int(0,  "Cycles to hold that insn at ROB head before committing")
++
+     addressPrediction = Param.Bool(False, "Whether to use address prediction")
+ 
+     confidence_increment = \
+diff -ruN '--exclude=build' gem5-recon/src/cpu/o3/commit.cc gem5-recon-modded/src/cpu/o3/commit.cc
+--- gem5-recon/src/cpu/o3/commit.cc	2025-02-07 22:35:51.000000000 +0000
++++ gem5-recon-modded/src/cpu/o3/commit.cc	2026-05-21 05:01:59.467093720 +0000
+@@ -1001,6 +1001,22 @@
+                 "Trying to commit head instruction, [tid:%i] [sn:%llu]\n",
+                 tid, head_inst->seqNum);
+ 
++        // First-noncommitted commit stall: hold the annotated branch at the
++        // ROB head for fncCommitStallCycles cycles before allowing it to
++        // retire.  Squashed instructions are never stalled (they retire free).
++        if (!head_inst->isSquashed()
++                && cpu->fncCommitStallPC != 0
++                && head_inst->pcState().instAddr() == cpu->fncCommitStallPC) {
++            if (head_inst->seqNum != fncStallSeqNum) {
++                fncStallSeqNum = head_inst->seqNum;
++                fncStallCycles = 0;
++            }
++            if (fncStallCycles < cpu->fncCommitStallCycles) {
++                ++fncStallCycles;
++                break;
++            }
++        }
++
+         // If the head instruction is squashed, it is ready to retire
+         // (be removed from the ROB) at any time.
+         if (head_inst->isSquashed()) {
+diff -ruN '--exclude=build' gem5-recon/src/cpu/o3/commit.hh gem5-recon-modded/src/cpu/o3/commit.hh
+--- gem5-recon/src/cpu/o3/commit.hh	2025-02-07 22:35:51.000000000 +0000
++++ gem5-recon-modded/src/cpu/o3/commit.hh	2026-05-21 04:57:54.136942142 +0000
+@@ -458,6 +458,9 @@
+     long long int lastCommit = 0;
+     int stallCycles = 0;
+ 
++    InstSeqNum fncStallSeqNum  = 0;
++    int        fncStallCycles  = 0;
++
+     void updateStall();
+ 
+     /** Updates commit stats based on this instruction. */
+diff -ruN '--exclude=build' gem5-recon/src/cpu/o3/cpu.cc gem5-recon-modded/src/cpu/o3/cpu.cc
+--- gem5-recon/src/cpu/o3/cpu.cc	2025-02-07 22:35:51.000000000 +0000
++++ gem5-recon-modded/src/cpu/o3/cpu.cc	2026-05-21 04:55:59.570125905 +0000
+@@ -106,6 +106,8 @@
+       scheme(static_cast<Scheme>(params.scheme)),
+       sttBypass(params.sttBypass),
+       allowLeaked(params.allowLeaked),
++      fncCommitStallPC(params.fncCommitStallPC),
++      fncCommitStallCycles(params.fncCommitStallCycles),
+       memDebug(params.memDebug),
+       stallDebug(params.stallDebug),
+       delayUnit(this, params),
+diff -ruN '--exclude=build' gem5-recon/src/cpu/o3/cpu.hh gem5-recon-modded/src/cpu/o3/cpu.hh
+--- gem5-recon/src/cpu/o3/cpu.hh	2025-02-07 22:35:51.000000000 +0000
++++ gem5-recon-modded/src/cpu/o3/cpu.hh	2026-05-21 04:54:23.267031553 +0000
+@@ -468,6 +468,9 @@
+ 
+     bool allowLeaked;
+ 
++    Addr fncCommitStallPC;
++    int  fncCommitStallCycles;
++
+     bool memDebug;
+ 
+     bool stallDebug;
+@@ -588,6 +591,14 @@
+         return thread[tid]->getTC();
+     }
+ 
++    /** Accessor for the branch predictor (used by IEW for resolution-stall
++     * lookup on the deferred-broadcast path). */
++    branch_prediction::BPredUnit *
++    getBranchPred()
++    {
++        return fetch.getBranchPred();
++    }
++
+     /** The global sequence number counter. */
+     InstSeqNum globalSeqNum;//[MaxThreads];
+ 
+diff -ruN '--exclude=build' gem5-recon/src/cpu/o3/fetch.hh gem5-recon-modded/src/cpu/o3/fetch.hh
+--- gem5-recon/src/cpu/o3/fetch.hh	2025-02-07 22:35:51.000000000 +0000
++++ gem5-recon-modded/src/cpu/o3/fetch.hh	2026-05-06 08:16:07.287995468 +0000
+@@ -325,6 +325,10 @@
+     FetchStatus updateFetchStatus();
+ 
+   public:
++    /** Accessor for the branch predictor (used by IEW for resolution-stall
++     * lookup). */
++    branch_prediction::BPredUnit *getBranchPred() { return branchPred; }
++
+     /** Squashes a specific thread and resets the PC. Also tells the CPU to
+      * remove any instructions that are not in the ROB. The source of this
+      * squash should be the commit stage.
+diff -ruN '--exclude=build' gem5-recon/src/cpu/o3/iew.cc gem5-recon-modded/src/cpu/o3/iew.cc
+--- gem5-recon/src/cpu/o3/iew.cc	2026-04-08 05:48:43.442879141 +0000
++++ gem5-recon-modded/src/cpu/o3/iew.cc	2026-05-14 23:34:48.719285273 +0000
+@@ -1247,6 +1247,35 @@
+                     // along to commit without the instruction completing.
+                     // Send this instruction to commit, also make sure iew
+                     // stage realizes there is activity.
++
++                    // Resolution-broadcast stall for stores (placeholder —
++                    // not wired to any annotation source yet;
++                    // storeResolveStallCycles is always 0 so this never fires).
++                    Cycles storeResolveStallCycles(0);
++                    if (storeResolveStallCycles > 0) {
++                        ThreadID tid_local = inst->threadNumber;
++                        Tick fire_tick = cpu->clockEdge(storeResolveStallCycles);
++                        DPRINTF(IEW,
++                            "[ResolveStall] store scheduling sn=%llu pc=%#x "
++                            "stall=%llu fire@tick=%llu\n",
++                            inst->seqNum, inst->pcState().instAddr(),
++                            (uint64_t)storeResolveStallCycles,
++                            (uint64_t)fire_tick);
++                        auto *ev = new EventFunctionWrapper(
++                            [this, inst]() {
++                                if (inst->isSquashed())
++                                    return;
++                                inst->setExecuted();
++                                instToCommit(inst);
++                                activityThisCycle();
++                            },
++                            "iew.deferredStoreResolveBroadcast",
++                            true);  // deleteOnFire
++                        cpu->schedule(ev, fire_tick);
++                        updateExeInstStats(inst);
++                        continue;
++                    }
++
+                     inst->setExecuted();
+                     instToCommit(inst);
+                     activityThisCycle();
+@@ -1270,6 +1299,102 @@
+                     inst->forwardOldRegs();
+             }
+ 
++            // Resolution-broadcast stall (--branch-ann-file). For control
++            // insts with a per-PC stall annotation, defer setExecuted +
++            // instToCommit + the mispredict-check + squashDueToBranch by
++            // N cycles via a scheduled event. Until that event fires, the
++            // branch remains "in flight" from the system's perspective:
++            // commit doesn't see it (no doneSeqNum to fetch → BPredUnit::
++            // update doesn't run), no squash is dispatched, speculation
++            // continues down the BTB-forced path.
++            Cycles stallCycles(0);
++            if (inst->isControl() && cpu->getBranchPred()) {
++                stallCycles = cpu->getBranchPred()
++                    ->getResolveStallCyclesFor(inst->pcState().instAddr());
++            }
++            if (inst->isControl()) {
++                DPRINTF(IEW,
++                    "[ResolveStall] tid=%i sn=%llu pc=%#x isControl=1 "
++                    "stallCycles=%llu\n",
++                    inst->threadNumber, inst->seqNum,
++                    inst->pcState().instAddr(),
++                    (uint64_t)stallCycles);
++            }
++
++            if (stallCycles > 0) {
++                ThreadID tid_local = inst->threadNumber;
++                Tick fire_tick = cpu->clockEdge(stallCycles);
++                DPRINTF(IEW,
++                    "[ResolveStall] scheduling sn=%llu pc=%#x stall=%llu "
++                    "fire@tick=%llu\n",
++                    inst->seqNum, inst->pcState().instAddr(),
++                    (uint64_t)stallCycles, (uint64_t)fire_tick);
++                auto *ev = new EventFunctionWrapper(
++                    [this, inst, tid_local]() {
++                        DPRINTF(IEW,
++                            "[ResolveStall] FIRING sn=%llu pc=%#x squashed=%d\n",
++                            inst->seqNum, inst->pcState().instAddr(),
++                            (int)inst->isSquashed());
++                        if (inst->isSquashed()) {
++                            return;
++                        }
++                        inst->setExecuted();
++                        instToCommit(inst);
++
++                        if (!fetchRedirect[tid_local] ||
++                            !toCommit->squash[tid_local] ||
++                            toCommit->squashedSeqNum[tid_local]
++                                > inst->seqNum) {
++                            if (inst->mispredicted()) {
++                                fetchRedirect[tid_local] = true;
++                                DPRINTF(IEW,
++                                    "[tid:%i] [sn:%llu] Deferred broadcast: "
++                                    "branch mispredict.\n",
++                                    tid_local, inst->seqNum);
++                                squashDueToBranch(inst, tid_local);
++                                ppMispredict->notify(inst);
++                                if (inst->readPredTaken()) {
++                                    iewStats.predictedTakenIncorrect++;
++                                } else {
++                                    iewStats.predictedNotTakenIncorrect++;
++                                }
++                            }
++                        }
++                    },
++                    "iew.deferredBranchBroadcast",
++                    true);  // deleteOnFire
++                cpu->schedule(ev, fire_tick);
++
++                updateExeInstStats(inst);
++                continue;  // skip synchronous post-execute path
++            }
++
++            // Commit-signal stall (placeholder — not wired to any annotation
++            // source yet; commitStallCycles is always 0 so this never fires).
++            Cycles commitStallCycles(0);
++            if (commitStallCycles > 0) {
++                ThreadID tid_local = inst->threadNumber;
++                Tick fire_tick = cpu->clockEdge(commitStallCycles);
++                DPRINTF(IEW,
++                    "[CommitStall] scheduling sn=%llu pc=%#x stall=%llu "
++                    "fire@tick=%llu\n",
++                    inst->seqNum, inst->pcState().instAddr(),
++                    (uint64_t)commitStallCycles, (uint64_t)fire_tick);
++                auto *ev = new EventFunctionWrapper(
++                    [this, inst]() {
++                        if (inst->isSquashed())
++                            return;
++                        inst->setExecuted();
++                        instToCommit(inst);
++                    },
++                    "iew.deferredCommitBroadcast",
++                    true);  // deleteOnFire
++                cpu->schedule(ev, fire_tick);
++
++                updateExeInstStats(inst);
++                continue;  // skip synchronous post-execute path
++            }
++
+             inst->setExecuted();
+ 
+             instToCommit(inst);
+diff -ruN '--exclude=build' gem5-recon/src/cpu/o3/lsq_unit.cc gem5-recon-modded/src/cpu/o3/lsq_unit.cc
+--- gem5-recon/src/cpu/o3/lsq_unit.cc	2026-04-08 05:49:09.261263052 +0000
++++ gem5-recon-modded/src/cpu/o3/lsq_unit.cc	2026-05-18 07:07:41.517767177 +0000
+@@ -1882,6 +1882,10 @@
+     }
+ 
+     // Check the SQ for any previous stores that might lead to forwarding
++    DPRINTF(LSQUnit, "STL_CHECK: load PC %#x isTainted=%d isSpeculative=%d\n",
++            load_inst->pcState().instAddr(),
++            cpu->taintTracker.isTaintedInst(load_inst),
++            load_inst->isSpeculative());
+     auto store_it = load_inst->sqIt;
+     assert (store_it >= storeWBIt);
+     // End once we've reached the top of the LSQ
+diff -ruN '--exclude=build' gem5-recon/src/cpu/o3/store_set_annot.cc gem5-recon-modded/src/cpu/o3/store_set_annot.cc
+--- gem5-recon/src/cpu/o3/store_set_annot.cc	1970-01-01 00:00:00.000000000 +0000
++++ gem5-recon-modded/src/cpu/o3/store_set_annot.cc	2026-05-14 23:44:20.031224546 +0000
+@@ -0,0 +1,92 @@
++/*
++ * Copyright (c) 2004-2006 The Regents of The University of Michigan
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met: redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer;
++ * redistributions in binary form must reproduce the above copyright
++ * notice, this list of conditions and the following disclaimer in the
++ * documentation and/or other materials provided with the distribution;
++ * neither the name of the copyright holders nor the names of its
++ * contributors may be used to endorse or promote products derived from
++ * this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#include "cpu/o3/store_set_annot.hh"
++
++#include "base/logging.hh"
++#include "base/trace.hh"
++#include "debug/StoreSet.hh"
++
++namespace gem5
++{
++
++namespace o3
++{
++
++AnnotatedStoreSet::AnnotatedStoreSet(
++        uint64_t clear_period, int SSIT_size, int LFST_size,
++        const std::vector<Addr> &annot_load_pcs,
++        const std::vector<Addr> &annot_store_pcs)
++    : StoreSet(clear_period, SSIT_size, LFST_size)
++{
++    if (annot_load_pcs.size() != annot_store_pcs.size()) {
++        fatal("AnnotatedStoreSet: annotationLoadPCs and "
++              "annotationForcedStorePCs must have the same length "
++              "(got %u vs %u)",
++              annot_load_pcs.size(), annot_store_pcs.size());
++    }
++
++    for (size_t i = 0; i < annot_load_pcs.size(); ++i) {
++        Addr load_pc  = annot_load_pcs[i];
++        Addr store_pc = annot_store_pcs[i];
++        annotForcedStore[load_pc] = store_pc;
++        DPRINTF(StoreSet,
++                "AnnotatedStoreSet: forced dependency annotation: "
++                "load %#x -> store %#x\n",
++                load_pc, store_pc);
++    }
++}
++
++InstSeqNum
++AnnotatedStoreSet::checkInst(Addr PC)
++{
++    // Annotation-driven store-set override.  If this load PC is in the
++    // forced-dependency map, call violation() to place the annotated store PC
++    // into the same store set as this load before performing the normal lookup.
++    // violation() is idempotent once both PCs share a store set, so calling it
++    // on every fetch of an annotated load is safe.  Re-calling it also
++    // re-establishes the relationship transparently after a periodic clear.
++    if (!annotForcedStore.empty()) {
++        auto it = annotForcedStore.find(PC);
++        if (it != annotForcedStore.end()) {
++            Addr forced_store_pc = it->second;
++            DPRINTF(StoreSet,
++                    "AnnotatedStoreSet: annotation override for load %#x: "
++                    "forcing into store set of store %#x\n",
++                    PC, forced_store_pc);
++            // violation(store_PC, load_PC) — same argument order as the base
++            // class method, which learns "store_PC causes load_PC to stall".
++            violation(forced_store_pc, PC);
++        }
++    }
++
++    return StoreSet::checkInst(PC);
++}
++
++} // namespace o3
++} // namespace gem5
+diff -ruN '--exclude=build' gem5-recon/src/cpu/o3/store_set_annot.hh gem5-recon-modded/src/cpu/o3/store_set_annot.hh
+--- gem5-recon/src/cpu/o3/store_set_annot.hh	1970-01-01 00:00:00.000000000 +0000
++++ gem5-recon-modded/src/cpu/o3/store_set_annot.hh	2026-05-14 23:34:53.486718488 +0000
+@@ -0,0 +1,118 @@
++/*
++ * Copyright (c) 2004-2005 The Regents of The University of Michigan
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met: redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer;
++ * redistributions in binary form must reproduce the above copyright
++ * notice, this list of conditions and the following disclaimer in the
++ * documentation and/or other materials provided with the distribution;
++ * neither the name of the copyright holders nor the names of its
++ * contributors may be used to endorse or promote products derived from
++ * this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#ifndef __CPU_O3_STORE_SET_ANNOT_HH__
++#define __CPU_O3_STORE_SET_ANNOT_HH__
++
++#include <unordered_map>
++#include <vector>
++
++#include "base/types.hh"
++#include "cpu/o3/store_set.hh"
++
++namespace gem5
++{
++
++namespace o3
++{
++
++/**
++ * Annotation-driven store set predictor.  Extends the standard StoreSet with
++ * a per-load-PC override table loaded at construction time.  For any load PC
++ * present in the annotation map, checkInst() forces that load into the same
++ * store set as the mapped store PC (via violation()) before performing the
++ * normal lookup, ensuring a dependency stall is generated whenever that store
++ * has been recently fetched.  All other loads follow the unmodified StoreSet
++ * behaviour.
++ *
++ * This class is intentionally NOT wired into MemDepUnit or BaseO3CPU.  To
++ * activate it:
++ *   1. Replace `StoreSet depPred` with `AnnotatedStoreSet depPred` in
++ *      cpu/o3/mem_dep_unit.hh.
++ *   2. Pass annotation vectors through BaseO3CPUParams (add
++ *      annotationLoadPCs / annotationForcedStorePCs VectorParam.Addr fields
++ *      to cpu/o3/BaseO3CPU.py) and forward them in MemDepUnit's constructor.
++ *
++ * Annotation semantics mirror the BTB forced-target annotation in
++ * cpu/pred/bpred_unit.{hh,cc}: each aligned index pair
++ * (annotationLoadPCs[i], annotationForcedStorePCs[i]) declares that load PC i
++ * should always be treated as dependent on store PC i, regardless of whether a
++ * real memory ordering violation has ever been observed between them.
++ */
++class AnnotatedStoreSet : public StoreSet
++{
++  public:
++    /**
++     * Creates an AnnotatedStoreSet with the given table sizes and annotation
++     * vectors.  The two annotation vectors must have the same length; a fatal
++     * error is raised otherwise.
++     *
++     * @param clear_period   Passed through to StoreSet.
++     * @param SSIT_size      Passed through to StoreSet.
++     * @param LFST_size      Passed through to StoreSet.
++     * @param annot_load_pcs Load PCs whose store-set membership is overridden.
++     * @param annot_store_pcs For each load PC at the matching index, the store
++     *                        PC that is unconditionally placed in that load's
++     *                        store set.
++     */
++    AnnotatedStoreSet(uint64_t clear_period, int SSIT_size, int LFST_size,
++                      const std::vector<Addr> &annot_load_pcs,
++                      const std::vector<Addr> &annot_store_pcs);
++
++    /** Default constructor.  init() must be called before use. */
++    AnnotatedStoreSet() {}
++
++    /**
++     * Checks if the instruction at PC is dependent on any store.
++     *
++     * For load PCs present in the annotation map this first calls
++     * violation(forced_store_pc, PC) to guarantee the two instructions share
++     * a store set (re-establishing the relationship after any periodic clear),
++     * then falls through to the standard StoreSet::checkInst() lookup.
++     *
++     * NOTE: because StoreSet::checkInst() is not declared virtual, this method
++     * shadows rather than overrides it.  MemDepUnit must hold an
++     * AnnotatedStoreSet (not a StoreSet pointer) for static dispatch to reach
++     * this implementation.
++     *
++     * @return Sequence number of the store this load must wait for, or 0.
++     */
++    InstSeqNum checkInst(Addr PC);
++
++  private:
++    /**
++     * Annotation-driven override map loaded at construction time.
++     * Maps load_PC -> forced_store_PC.
++     */
++    std::unordered_map<Addr, Addr> annotForcedStore;
++};
++
++} // namespace o3
++} // namespace gem5
++
++#endif // __CPU_O3_STORE_SET_ANNOT_HH__
+diff -ruN '--exclude=build' gem5-recon/src/cpu/pred/BranchPredictor.py gem5-recon-modded/src/cpu/pred/BranchPredictor.py
+--- gem5-recon/src/cpu/pred/BranchPredictor.py	2025-02-07 22:35:52.000000000 +0000
++++ gem5-recon-modded/src/cpu/pred/BranchPredictor.py	2026-05-21 04:52:49.042224409 +0000
+@@ -67,6 +67,22 @@
+     indirectBranchPred = Param.IndirectPredictor(SimpleIndirectPredictor(),
+       "Indirect branch predictor, set to NULL to disable indirect predictions")
+ 
++    # BTB-override annotations. Each matching index in the two vectors forms
++    # a (branch_pc -> forced_target_pc) pair. When the branch predictor is
++    # asked to predict at branch_pc, the BTB lookup is bypassed and the target
++    # is forced to forced_target_pc (with pred_taken=true), which typically
++    # produces a misprediction once the branch actually resolves.
++    annotationBranchPCs = VectorParam.Addr([],
++        "Branch PCs whose BTB output is to be overridden")
++    annotationForcedTargets = VectorParam.Addr([],
++        "Forced BTB target for each annotationBranchPCs entry")
++    # Per-branch resolution-broadcast stall (cycles past natural broadcast
++    # time after execute completes). When non-zero, IEW defers setExecuted +
++    # instToCommit + the mispredict/squash dispatch by N cycles via a
++    # scheduled event. Indices align with annotationBranchPCs.
++    annotationResolveStallCycles = VectorParam.UInt64([],
++        "Resolve-broadcast stall (cycles) per annotationBranchPCs entry")
++
+ class LocalBP(BranchPredictor):
+     type = 'LocalBP'
+     cxx_class = 'gem5::branch_prediction::LocalBP'
+diff -ruN '--exclude=build' gem5-recon/src/cpu/pred/bpred_unit.cc gem5-recon-modded/src/cpu/pred/bpred_unit.cc
+--- gem5-recon/src/cpu/pred/bpred_unit.cc	2025-02-07 22:35:52.000000000 +0000
++++ gem5-recon-modded/src/cpu/pred/bpred_unit.cc	2026-05-06 18:36:36.857732953 +0000
+@@ -71,6 +71,49 @@
+ {
+     for (auto& r : RAS)
+         r.init(params.RASSize);
++
++    if (params.annotationBranchPCs.size() !=
++        params.annotationForcedTargets.size()) {
++        fatal("BPredUnit: annotationBranchPCs and annotationForcedTargets "
++              "must have the same length (got %u vs %u)",
++              params.annotationBranchPCs.size(),
++              params.annotationForcedTargets.size());
++    }
++    if (!params.annotationResolveStallCycles.empty() &&
++        params.annotationResolveStallCycles.size() !=
++        params.annotationBranchPCs.size()) {
++        fatal("BPredUnit: annotationResolveStallCycles, when supplied, must "
++              "match annotationBranchPCs length (got %u vs %u)",
++              params.annotationResolveStallCycles.size(),
++              params.annotationBranchPCs.size());
++    }
++    for (size_t i = 0; i < params.annotationBranchPCs.size(); ++i) {
++        Addr branch_pc = params.annotationBranchPCs[i];
++        Addr target_pc = params.annotationForcedTargets[i];
++        // target_pc == 0 is the "stall-only" sentinel (correctly_not_taken):
++        // populate the stall map but do NOT register a BTB override, since
++        // the natural BTB prediction is already correct for those branches.
++        if (target_pc != 0) {
++            btbForcedTargets[branch_pc] = target_pc;
++            DPRINTF(Branch,
++                    "BTB forced-target annotation: %#x -> %#x\n",
++                    branch_pc, target_pc);
++        } else {
++            DPRINTF(Branch,
++                    "BTB stall-only annotation (no force): %#x\n",
++                    branch_pc);
++        }
++
++        if (i < params.annotationResolveStallCycles.size()) {
++            uint64_t stall = params.annotationResolveStallCycles[i];
++            if (stall > 0) {
++                branchResolveStallCycles[branch_pc] = Cycles(stall);
++                DPRINTF(Branch,
++                        "Branch resolve-stall annotation: %#x -> %llu cycles\n",
++                        branch_pc, stall);
++            }
++        }
++    }
+ }
+ 
+ BPredUnit::BPredUnitStats::BPredUnitStats(statistics::Group *parent)
+@@ -277,6 +320,26 @@
+         }
+         inst->advancePC(*target);
+     }
++
++    // Annotation-driven BTB override. If this branch's PC is in the
++    // forced-target map, bypass whatever the BTB/RAS/iPred said and redirect
++    // fetch to the annotated target. We mark the branch as taken so fetch
++    // follows the forced target; if the real target differs, the normal
++    // mispredict/squash machinery will recover when the branch resolves.
++    if (!btbForcedTargets.empty()) {
++        auto it = btbForcedTargets.find(pc.instAddr());
++        if (it != btbForcedTargets.end()) {
++            Addr forced = it->second;
++            DPRINTF(Branch,
++                    "[tid:%i] [sn:%llu] Annotation override: forcing BTB "
++                    "target at PC %#x to %#x\n",
++                    tid, seqNum, pc.instAddr(), forced);
++            target->setInstAddr(forced);
++            pred_taken = true;
++            predict_record.predTaken = pred_taken;
++        }
++    }
++
+     predict_record.target = target->instAddr();
+ 
+     set(pc, *target);
+diff -ruN '--exclude=build' gem5-recon/src/cpu/pred/bpred_unit.hh gem5-recon-modded/src/cpu/pred/bpred_unit.hh
+--- gem5-recon/src/cpu/pred/bpred_unit.hh	2025-02-07 22:35:52.000000000 +0000
++++ gem5-recon-modded/src/cpu/pred/bpred_unit.hh	2026-05-06 08:14:49.185642237 +0000
+@@ -43,6 +43,7 @@
+ #define __CPU_PRED_BPRED_UNIT_HH__
+ 
+ #include <deque>
++#include <unordered_map>
+ 
+ #include "base/statistics.hh"
+ #include "base/types.hh"
+@@ -296,6 +297,34 @@
+     /** The BTB. */
+     DefaultBTB BTB;
+ 
++    /**
++     * BTB-override map loaded from an annotation file at startup. When
++     * predict() is called with a PC present in this map, the BTB lookup is
++     * bypassed and the target is forced to the mapped address so fetch will
++     * speculatively redirect there; the mispredict is caught later through
++     * the normal squash path.
++     */
++    std::unordered_map<Addr, Addr> btbForcedTargets;
++
++    /**
++     * Resolution-broadcast stall map. For PCs in this map, IEW defers the
++     * post-execute broadcast (setExecuted + instToCommit + mispredict/squash
++     * dispatch) by the mapped number of cycles via a scheduled event.
++     * Populated alongside btbForcedTargets from annotation params.
++     */
++    std::unordered_map<Addr, Cycles> branchResolveStallCycles;
++
++  public:
++    /** Look up the resolve-broadcast stall for a branch PC; 0 if absent. */
++    Cycles getResolveStallCyclesFor(Addr pc) const
++    {
++        auto it = branchResolveStallCycles.find(pc);
++        return (it != branchResolveStallCycles.end()) ? it->second
++                                                       : Cycles(0);
++    }
++
++  private:
++
+     /** The per-thread return address stack. */
+     std::vector<ReturnAddrStack> RAS;
+ 
+Binary files gem5-recon/src/mem/slicc/__pycache__/__init__.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/__pycache__/__init__.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/__pycache__/parser.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/__pycache__/parser.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/__pycache__/parsetab.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/__pycache__/parsetab.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/__pycache__/util.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/__pycache__/util.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/AST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/AST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/ActionDeclAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/ActionDeclAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/AssignStatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/AssignStatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/CheckAllocateStatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/CheckAllocateStatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/CheckNextCycleAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/CheckNextCycleAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/CheckProbeStatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/CheckProbeStatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/DeclAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/DeclAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/DeclListAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/DeclListAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/DeferEnqueueingStatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/DeferEnqueueingStatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/EnqueueStatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/EnqueueStatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/EnumDeclAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/EnumDeclAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/EnumExprAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/EnumExprAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/ExprAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/ExprAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/ExprStatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/ExprStatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/FormalParamAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/FormalParamAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/FuncCallExprAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/FuncCallExprAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/FuncDeclAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/FuncDeclAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/IfStatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/IfStatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/InPortDeclAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/InPortDeclAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/IsValidPtrExprAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/IsValidPtrExprAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/LiteralExprAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/LiteralExprAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/LocalVariableAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/LocalVariableAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/MachineAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/MachineAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/MemberExprAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/MemberExprAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/MethodCallExprAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/MethodCallExprAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/NewExprAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/NewExprAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/ObjDeclAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/ObjDeclAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/OodAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/OodAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/OperatorExprAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/OperatorExprAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/OutPortDeclAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/OutPortDeclAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/PairAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/PairAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/PairListAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/PairListAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/PeekStatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/PeekStatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/ReturnStatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/ReturnStatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/StallAndWaitStatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/StallAndWaitStatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/StateDeclAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/StateDeclAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/StatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/StatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/StatementListAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/StatementListAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/StaticCastAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/StaticCastAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/TransitionDeclAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/TransitionDeclAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/TypeAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/TypeAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/TypeDeclAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/TypeDeclAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/TypeFieldAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/TypeFieldAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/TypeFieldEnumAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/TypeFieldEnumAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/TypeFieldStateAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/TypeFieldStateAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/VarExprAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/VarExprAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/WakeupPortStatementAST.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/WakeupPortStatementAST.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/ast/__pycache__/__init__.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/ast/__pycache__/__init__.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/generate/__pycache__/__init__.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/generate/__pycache__/__init__.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/generate/__pycache__/html.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/generate/__pycache__/html.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/Action.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/Action.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/Event.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/Event.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/Func.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/Func.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/RequestType.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/RequestType.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/State.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/State.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/StateMachine.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/StateMachine.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/Symbol.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/Symbol.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/SymbolTable.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/SymbolTable.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/Transition.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/Transition.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/Type.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/Type.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/Var.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/Var.cpython-38.pyc differ
+Binary files gem5-recon/src/mem/slicc/symbols/__pycache__/__init__.cpython-38.pyc and gem5-recon-modded/src/mem/slicc/symbols/__pycache__/__init__.cpython-38.pyc differ
+Binary files gem5-recon/src/python/m5/__pycache__/__init__.cpython-38.pyc and gem5-recon-modded/src/python/m5/__pycache__/__init__.cpython-38.pyc differ
+Binary files gem5-recon/src/python/m5/util/__pycache__/__init__.cpython-38.pyc and gem5-recon-modded/src/python/m5/util/__pycache__/__init__.cpython-38.pyc differ
+Binary files gem5-recon/src/python/m5/util/__pycache__/attrdict.cpython-38.pyc and gem5-recon-modded/src/python/m5/util/__pycache__/attrdict.cpython-38.pyc differ
+Binary files gem5-recon/src/python/m5/util/__pycache__/convert.cpython-38.pyc and gem5-recon-modded/src/python/m5/util/__pycache__/convert.cpython-38.pyc differ
+Binary files gem5-recon/src/python/m5/util/__pycache__/multidict.cpython-38.pyc and gem5-recon-modded/src/python/m5/util/__pycache__/multidict.cpython-38.pyc differ
+Binary files gem5-recon/src/python/m5/util/__pycache__/terminal.cpython-38.pyc and gem5-recon-modded/src/python/m5/util/__pycache__/terminal.cpython-38.pyc differ

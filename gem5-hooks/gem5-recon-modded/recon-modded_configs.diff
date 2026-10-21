@@ -1,0 +1,211 @@
+diff -ruN '--exclude=build' gem5-recon/configs/common/Options.py gem5-recon-modded/configs/common/Options.py
+--- gem5-recon/configs/common/Options.py	2025-02-07 22:35:44.000000000 +0000
++++ gem5-recon-modded/configs/common/Options.py	2026-05-21 05:03:00.801879766 +0000
+@@ -422,6 +422,11 @@
+     parser.add_argument("--allow_leaked", action="store_true",
+         default=False, help="Whether to allow loads leaked non-spec through LL")
+ 
++    parser.add_argument("--fnc-commit-stall-pc", action="store", type=lambda x: int(x, 0),
++        default=0, help="Absolute PC of first-noncommitted insn to stall at ROB head (0 = disabled)")
++    parser.add_argument("--fnc-commit-stall-cycles", action="store", type=int,
++        default=0, help="Cycles to hold that insn at ROB head before committing")
++
+     parser.add_argument("--address_prediction", action="store_true",
+         default=False, help="Whether to use address prediction")
+ 
+@@ -513,6 +518,20 @@
+     parser.add_argument("--wait-gdb", default=False, action='store_true',
+                         help="Wait for remote GDB to connect.")
+ 
++    # BTB-override annotation file (JSON). See
++    # tests/simspect/generated/STT_3/ann/*.ann.json for the format. Each
++    # annotation entry is interpreted as (branch_pc -> forced_btb_target).
++    # When the branch predictor predicts the instruction at branch_pc, the
++    # BTB lookup is bypassed and fetch is redirected to the forced target.
++    parser.add_argument("--branch-ann-file", default="",
++                        help="Path to a JSON branch-annotation file used "
++                             "to override BTB prediction at specific PCs.")
++    parser.add_argument("--branch-ann-base", default=0, type=lambda x: int(x, 0),
++                        help="Base address added to x86_pc_offset(_hex) fields "
++                             "in the annotation file when resolving relative "
++                             "offsets to absolute PCs. Ignored for annotation "
++                             "entries that already supply absolute addresses.")
++
+ 
+ def addFSOptions(parser):
+     from common.FSConfig import os_types
+diff -ruN '--exclude=build' gem5-recon/configs/common/Simulation.py gem5-recon-modded/configs/common/Simulation.py
+--- gem5-recon/configs/common/Simulation.py	2025-02-07 22:35:44.000000000 +0000
++++ gem5-recon-modded/configs/common/Simulation.py	2026-05-21 05:04:37.953042933 +0000
+@@ -470,6 +470,8 @@
+             testsys.cpu[i].sttBypass = options.stt_bypass
+ #            testsys.cpu[i].fdbenable= options.fdb
+             testsys.cpu[i].allowLeaked = options.allow_leaked
++            testsys.cpu[i].fncCommitStallPC     = options.fnc_commit_stall_pc
++            testsys.cpu[i].fncCommitStallCycles = options.fnc_commit_stall_cycles
+             testsys.cpu[i].addressPrediction = options.address_prediction
+             testsys.cpu[i].confidence_increment = \
+                 options.confidence_increment
+@@ -532,6 +534,8 @@
+                 switch_cpus[i].sttBypass = options.stt_bypass
+ #                switch_cpus[i].fdbenable= options.fdb
+                 switch_cpus[i].allowLeaked = options.allow_leaked
++                switch_cpus[i].fncCommitStallPC     = options.fnc_commit_stall_pc
++                switch_cpus[i].fncCommitStallCycles = options.fnc_commit_stall_cycles
+                 switch_cpus[i].addressPrediction = \
+                     options.address_prediction
+                 switch_cpus[i].confidence_increment = \
+Binary files gem5-recon/configs/common/__pycache__/Benchmarks.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/Benchmarks.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/CacheConfig.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/CacheConfig.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/Caches.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/Caches.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/CpuConfig.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/CpuConfig.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/FileSystemConfig.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/FileSystemConfig.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/HMC.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/HMC.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/MemConfig.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/MemConfig.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/ObjectList.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/ObjectList.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/Options.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/Options.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/Simulation.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/Simulation.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/SysPaths.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/SysPaths.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/__init__.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/__init__.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/__pycache__/cpu2000.cpython-38.pyc and gem5-recon-modded/configs/common/__pycache__/cpu2000.cpython-38.pyc differ
+Binary files gem5-recon/configs/common/cores/__pycache__/__init__.cpython-38.pyc and gem5-recon-modded/configs/common/cores/__pycache__/__init__.cpython-38.pyc differ
+diff -ruN '--exclude=build' gem5-recon/configs/example/se.py gem5-recon-modded/configs/example/se.py
+--- gem5-recon/configs/example/se.py	2025-03-03 09:18:52.000000000 +0000
++++ gem5-recon-modded/configs/example/se.py	2026-05-06 19:45:15.128211351 +0000
+@@ -41,6 +41,7 @@
+ # "m5 test.py"
+ 
+ import argparse
++import json
+ import sys
+ import os
+ 
+@@ -64,6 +65,105 @@
+ from common.Caches import *
+ from common.cpu2000 import *
+ 
++def _ann_to_addr(entry, base, key_candidates):
++    """Resolve a single annotation field to an absolute PC.
++
++    key_candidates is an ordered list of (key, is_relative) tuples. The first
++    key present in `entry` wins; its value is interpreted as hex if it is a
++    string, else as an int. If the key is marked relative, `base` is added.
++    Returns None if no key matched.
++    """
++    for key, is_relative in key_candidates:
++        if key not in entry:
++            continue
++        raw = entry[key]
++        if isinstance(raw, str):
++            val = int(raw, 0)
++        else:
++            val = int(raw)
++        return val + (base if is_relative else 0)
++    return None
++
++
++def load_branch_annotations(path, base):
++    """Parse a JSON annotation file and return
++    (branch_pcs, forced_targets, resolve_stall_cycles).
++
++    Supports both the existing STT_3-style format (relative x86_pc_offset[_hex]
++    plus a user-supplied base) and an absolute-address extension
++    (branch_pc_addr[_hex] / btb_forced_target_addr[_hex]).
++
++    Per-entry "resolve_stall_cycles" (int) defers the broadcast of that
++    branch's resolution by N cycles. Missing values default to 0.
++    """
++    with open(path, 'r') as f:
++        data = json.load(f)
++
++    if not isinstance(data, dict) or 'annotations' not in data:
++        fatal("branch annotation file %s has no 'annotations' array" % path)
++
++    branch_pcs = []
++    forced_targets = []
++    resolve_stall_cycles = []
++
++    branch_keys = [
++        ('branch_pc_addr_hex', False),
++        ('branch_pc_addr', False),
++        ('x86_branch_offset_hex', True),
++        ('x86_branch_offset', True),
++        ('x86_pc_offset_hex', True),
++        ('x86_pc_offset', True),
++    ]
++    target_keys = [
++        ('btb_forced_target_addr_hex', False),
++        ('btb_forced_target_addr', False),
++        ('btb_forced_target_x86_offset_hex', True),
++        ('btb_forced_target_x86_offset', True),
++    ]
++
++    # Stall-only modes (skip BTB-force, keep resolution-broadcast stall):
++    #   - correctly_not_taken:   BTB defaults to fall-through, which IS the
++    #                            architecturally correct prediction.
++    #   - mispredict_not_taken:  BTB defaults to fall-through. The arch
++    #                            outcome is taken — so this is naturally a
++    #                            misprediction, no force needed. Forcing
++    #                            BTB to a non-fall-through target risks
++    #                            decode-stage static-target correction
++    #                            (gem5 catches the mismatch between the
++    #                            forced target and the branch instruction's
++    #                            encoded target, squashing speculation
++    #                            before the deferred-broadcast deadline).
++    # mispredict_taken DOES require a forced target (the taken direction is
++    # not the natural BTB default), but isn't currently exercised.
++    NO_FORCE = 0
++    STALL_ONLY_MODES = {'correctly_not_taken', 'mispredict_not_taken'}
++
++    for entry in data['annotations']:
++        branch_pc = _ann_to_addr(entry, base, branch_keys)
++        target_pc = _ann_to_addr(entry, base, target_keys)
++        if branch_pc is None:
++            warn("annotation missing branch PC, skipping: %r" % entry)
++            continue
++        mode = entry.get('mode', '')
++        if mode in STALL_ONLY_MODES:
++            target_pc = NO_FORCE
++        elif target_pc is None:
++            warn("annotation at %#x missing forced target, skipping" %
++                 branch_pc)
++            continue
++        branch_pcs.append(branch_pc)
++        forced_targets.append(target_pc)
++        stall = entry.get('resolve_stall_cycles', 0)
++        try:
++            resolve_stall_cycles.append(int(stall))
++        except (TypeError, ValueError):
++            warn("annotation at %#x has non-integer resolve_stall_cycles=%r, "
++                 "treating as 0" % (branch_pc, stall))
++            resolve_stall_cycles.append(0)
++
++    return branch_pcs, forced_targets, resolve_stall_cycles
++
++
+ def get_processes(args):
+     """Interprets provided args and returns a list of processes"""
+ 
+@@ -237,6 +337,22 @@
+             ObjectList.indirect_bp_list.get(args.indirect_bp_type)
+         system.cpu[i].branchPred.indirectBranchPred = indirectBPClass()
+ 
++    if args.branch_ann_file:
++        if not hasattr(system.cpu[i], 'branchPred') or \
++                system.cpu[i].branchPred is None:
++            fatal("--branch-ann-file requires a CPU with a branch predictor "
++                  "(use --bp-type or an O3 CPU).")
++        ann_branch_pcs, ann_forced_targets, ann_resolve_stall = \
++            load_branch_annotations(args.branch_ann_file, args.branch_ann_base)
++        system.cpu[i].branchPred.annotationBranchPCs = ann_branch_pcs
++        system.cpu[i].branchPred.annotationForcedTargets = ann_forced_targets
++        system.cpu[i].branchPred.annotationResolveStallCycles = \
++            ann_resolve_stall
++        print("[se.py] loaded %d BTB override annotations from %s "
++              "(%d with resolve stall)" %
++              (len(ann_branch_pcs), args.branch_ann_file,
++               sum(1 for s in ann_resolve_stall if s > 0)))
++
+     system.cpu[i].createThreads()
+ 
+ if args.ruby:

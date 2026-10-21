@@ -1,0 +1,369 @@
+diff --git a/configs/common/Options.py b/configs/common/Options.py
+index 0b9a0a9..7a872a8 100644
+--- a/configs/common/Options.py
++++ b/configs/common/Options.py
+@@ -296,11 +296,17 @@ def addCommonOptions(parser):
+                       choices=["arm", "thumb", "aarch64"],
+                       help="ARM instruction set.")
+     # [SafeSpec] add options to configure needsTSO and scheme
+-    parser.add_option("--scheme", default=None, action="store", type="choice",
+-            choices=["UnsafeBaseline", "FuturisticSafeFence",
+-            "SpectreSafeFence", "FuturisticSafeInvisibleSpec",
+-            "SpectreSafeInvisibleSpec"],
+-            help="choose baseline or defense designs to evaluate")
++    parser.add_option("--scheme", default=None, action="store", type="string",
++            help="choose baseline or defense designs to evaluate "
++                 "(SPT names; pass int '2' for pipeline compat -> SpectreSafeFence)")
++    parser.add_option("--branch-ann-file", default="", action="store", type="string",
++            help="JSON branch-annotation file for BTB override and resolve stalls")
++    parser.add_option("--branch-ann-base", default=0, action="store", type="long",
++            help="Base address added to relative offsets in the annotation file")
++    parser.add_option("--fnc-commit-stall-pc", default=0, action="store", type="long",
++            help="(SPT: ignored, pipeline-compat) Absolute PC of first-noncommitted insn")
++    parser.add_option("--fnc-commit-stall-cycles", default=0, action="store", type="int",
++            help="(SPT: ignored, pipeline-compat) Cycles to hold that insn at ROB head")
+     parser.add_option("--needsTSO", default=None, action="store", type="int",
+                         help="Select TSO or RC. Set unzero to use TSO.")
+     parser.add_option("--allowSpecBufHit", default=None, action="store",
+diff --git a/configs/example/se.py b/configs/example/se.py
+index 0451e15..81ed0dc 100644
+--- a/configs/example/se.py
++++ b/configs/example/se.py
+@@ -45,12 +45,49 @@
+ import optparse
+ import sys
+ import os
++import json
+ 
+ import m5
+ from m5.defines import buildEnv
+ from m5.objects import *
+ from m5.util import addToPath, fatal, warn
+ 
++
++def load_branch_annotations(path, base):
++    with open(path, 'r') as f:
++        data = json.load(f)
++    if 'annotations' not in data:
++        fatal("branch annotation file %s has no 'annotations' key" % path)
++    branch_pcs, forced_targets, stall_cycles = [], [], []
++    for e in data['annotations']:
++        br = e.get('branch_pc_addr_hex') or e.get('branch_pc_addr')
++        if br is None:
++            rel = e.get('x86_pc_offset_hex') or e.get('x86_pc_offset') or \
++                  e.get('x86_branch_offset_hex') or e.get('x86_branch_offset')
++            if rel is None: continue
++            br = int(str(rel), 0) + base
++        else:
++            br = int(str(br), 0)
++        mode = e.get('mode', '')
++        if mode in ('correctly_not_taken', 'mispredict_not_taken'):
++            tgt = 0
++        else:
++            # *_addr fields are absolute PCs; *_x86_offset fields are
++            # function-relative and need `base` added — same convention as
++            # branch PC above.
++            tgt_abs = e.get('btb_forced_target_addr_hex') or e.get('btb_forced_target_addr')
++            if tgt_abs is not None:
++                tgt = int(str(tgt_abs), 0)
++            else:
++                tgt_rel = e.get('btb_forced_target_x86_offset_hex') or e.get('btb_forced_target_x86_offset')
++                if tgt_rel is None: continue
++                tgt = int(str(tgt_rel), 0) + base
++        branch_pcs.append(br)
++        forced_targets.append(tgt)
++        stall_cycles.append(int(e.get('resolve_stall_cycles', 0)))
++    return branch_pcs, forced_targets, stall_cycles
++
++
+ addToPath('../')
+ 
+ from ruby import Ruby
+@@ -247,6 +284,13 @@ for i in xrange(np):
+     if options.checker:
+         system.cpu[i].addCheckerCpu()
+ 
++    if options.branch_ann_file:
++        bpcs, btgts, bstall = load_branch_annotations(
++            options.branch_ann_file, options.branch_ann_base)
++        system.cpu[i].branchPred.annotationBranchPCs = bpcs
++        system.cpu[i].branchPred.annotationForcedTargets = btgts
++        system.cpu[i].branchPred.annotationResolveStallCycles = bstall
++
+     system.cpu[i].createThreads()
+ 
+ if options.ruby:
+@@ -280,8 +324,31 @@ else:
+     MemConfig.config_mem(options, system)
+ 
+ # [SafeSpec] Configure simulation scheme
++# Pipeline-compat: --scheme=2 (from SimSpect gem5_common.py) maps to
++# SpectreSafeInvisibleSpec + applyDDIFT (STT/DDIFT taint tracking) with the
++# conservative-untainting defaults used for the SPT_6 sweep (backward
++# propagation on, forward off, ideal off, shadow-L1 off).
++if options.scheme == "2":
++    # Pipeline-compat: --scheme=2 (SimSpect gem5_common.py) maps to SpectreSafeFence.
++    # All SPT-specific defense knobs (applyDDIFT, bwdUntaint, fwdUntaint,
++    # configImpFlow, etc.) come from the run_config's gem5.extra_args list, not
++    # from this se.py default. Note: SPT cpu.cc:504 ANDs fwdUntaint into
++    # bwdUntaint, so the run_config must set both if it wants backward.
++    options.scheme = "SpectreSafeFence"
++if options.needsTSO is None:
++    options.needsTSO = 0
+ if CPUClass == DerivO3CPU:
+     CpuConfig.config_scheme(CPUClass, system.cpu, options)
++    # Hold the architectural retire of the first non-committed instruction for
++    # N cycles, widening the speculation window so check_ld's
++    # `xmit < fnc_retire` test has time to fire. Requires the gem5-side
++    # cpu.fncCommitStallPC / fncCommitStallCycles params (ported from
++    # /work/stt/src/cpu/o3/). If gem5-spt's CPU doesn't expose these yet, the
++    # assignment will fatal — port the source-side hook first.
++    if options.fnc_commit_stall_cycles > 0:
++        for cpu in system.cpu:
++            cpu.fncCommitStallPC     = options.fnc_commit_stall_pc
++            cpu.fncCommitStallCycles = options.fnc_commit_stall_cycles
+ 
+ root = Root(full_system = False, system = system)
+ Simulation.run(options, root, system, FutureClass)
+diff --git a/src/cpu/o3/O3CPU.py b/src/cpu/o3/O3CPU.py
+index c576117..274e9c6 100644
+--- a/src/cpu/o3/O3CPU.py
++++ b/src/cpu/o3/O3CPU.py
+@@ -190,6 +190,8 @@ class DerivO3CPU(BaseCPU):
+     bottomlessShadowL1 = Param.Bool(False, "Whether the shadow L1 cache is bottomless, i.e. ignores evictions")
+     untaintTier = Param.Int(0, "What tier of untainting to use (see external documentation)")
+     freeParam = Param.Int(1, "A free parameter to be used for whatever")
++    fncCommitStallPC     = Param.Addr(0, "PC of first-noncommitted insn to stall at ROB head (0 = disabled)")
++    fncCommitStallCycles = Param.Int(0,  "Cycles to hold that insn at ROB head before committing")
+ 
+     def addCheckerCpu(self):
+         if buildEnv['TARGET_ISA'] in ['arm']:
+diff --git a/src/cpu/o3/commit.hh b/src/cpu/o3/commit.hh
+index 41d73df..c38b0d6 100644
+--- a/src/cpu/o3/commit.hh
++++ b/src/cpu/o3/commit.hh
+@@ -472,6 +472,11 @@ class DefaultCommit
+     InstSeqNum lastCommitedSeqNum[Impl::MaxThreads];
+     Tick lastCommitTick;
+ 
++    /** [SimSpect] fnc-commit-stall bookkeeping. Tracks the sn currently being
++     ** stalled at ROB head and how many cycles it has already waited. */
++    InstSeqNum fncStallSeqNum  = 0;
++    int        fncStallCycles  = 0;
++
+     /** Records if there is a trap currently in flight. */
+     bool trapInFlight[Impl::MaxThreads];
+ 
+diff --git a/src/cpu/o3/commit_impl.hh b/src/cpu/o3/commit_impl.hh
+index 557ec30..4306071 100644
+--- a/src/cpu/o3/commit_impl.hh
++++ b/src/cpu/o3/commit_impl.hh
+@@ -1215,6 +1215,23 @@ DefaultCommit<Impl>::commitInsts()
+         DPRINTF(Commit, "Trying to commit head instruction, [sn:%i] [tid:%i]\n",
+                 head_inst->seqNum, tid);
+ 
++        // [SimSpect] First-noncommitted commit stall: hold the annotated
++        // instruction at ROB head for fncCommitStallCycles before retire,
++        // widening the speculation window. Squashed instructions are never
++        // stalled (they retire free).
++        if (!head_inst->isSquashed()
++                && cpu->fncCommitStallPC != 0
++                && head_inst->pcState().instAddr() == cpu->fncCommitStallPC) {
++            if (head_inst->seqNum != fncStallSeqNum) {
++                fncStallSeqNum = head_inst->seqNum;
++                fncStallCycles = 0;
++            }
++            if (fncStallCycles < cpu->fncCommitStallCycles) {
++                ++fncStallCycles;
++                break;
++            }
++        }
++
+         // If the head instruction is squashed, it is ready to retire
+         // (be removed from the ROB) at any time.
+         if (head_inst->isSquashed()) {
+diff --git a/src/cpu/o3/cpu.cc b/src/cpu/o3/cpu.cc
+index ba1f1a4..f8d839e 100644
+--- a/src/cpu/o3/cpu.cc
++++ b/src/cpu/o3/cpu.cc
+@@ -189,7 +189,9 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
+ 
+       globalSeqNum(1),
+       system(params->system),
+-      lastRunningCycle(curCycle())
++      lastRunningCycle(curCycle()),
++      fncCommitStallPC(params->fncCommitStallPC),
++      fncCommitStallCycles(params->fncCommitStallCycles)
+ {
+     if (!params->switched_out) {
+         _status = Running;
+diff --git a/src/cpu/o3/cpu.hh b/src/cpu/o3/cpu.hh
+index 107cbab..fff5804 100644
+--- a/src/cpu/o3/cpu.hh
++++ b/src/cpu/o3/cpu.hh
+@@ -707,6 +707,8 @@ class FullO3CPU : public BaseO3CPU
+     DcachePort dcachePort;
+ 
+   public:
++    BPredUnit *getBranchPred() { return fetch.getBranchPred(); }
++
+     /** Enum to give each stage a specific index, so when calling
+      *  activateStage() or deactivateStage(), they can specify which stage
+      *  is being activated/deactivated.
+@@ -989,6 +991,14 @@ class FullO3CPU : public BaseO3CPU
+      ** the byte is tainted
+      **/
+     std::unordered_map<Addr, bool> shadowL1;
++
++    /** [SimSpect] First-noncommitted commit stall: hold the annotated
++     ** instruction at ROB head for N cycles before retire, widening the
++     ** speculation window so transmitter loads can complete in cache before
++     ** the post-misprediction squash arrives. Configured via --fnc-commit-
++     ** stall-pc / --fnc-commit-stall-cycles in se.py. 0 = disabled. */
++    Addr fncCommitStallPC;
++    int  fncCommitStallCycles;
+ };
+ 
+ #endif // __CPU_O3_CPU_HH__
+diff --git a/src/cpu/o3/fetch.hh b/src/cpu/o3/fetch.hh
+index dadc2f5..b16941f 100644
+--- a/src/cpu/o3/fetch.hh
++++ b/src/cpu/o3/fetch.hh
+@@ -414,6 +414,10 @@ class DefaultFetch
+     /** BPredUnit. */
+     BPredUnit *branchPred;
+ 
++  public:
++    BPredUnit *getBranchPred() { return branchPred; }
++
++  private:
+     TheISA::PCState pc[Impl::MaxThreads];
+ 
+     Addr fetchOffset[Impl::MaxThreads];
+diff --git a/src/cpu/o3/iew_impl.hh b/src/cpu/o3/iew_impl.hh
+index aef6c3e..19f790f 100644
+--- a/src/cpu/o3/iew_impl.hh
++++ b/src/cpu/o3/iew_impl.hh
+@@ -64,6 +64,7 @@
+ #include "debug/IEW.hh"
+ #include "debug/O3PipeView.hh"
+ #include "debug/JY.hh"
++#include "sim/eventq.hh"
+ #include "params/DerivO3CPU.hh"
+ 
+ using namespace std;
+@@ -1373,6 +1374,32 @@ DefaultIEW<Impl>::executeInsts()
+                        (uint64_t)cpu->numCycles.value(), inst->instAddr(), inst->seqNum);
+             }
+ 
++            // Deferred resolution broadcast for annotated branches.
++            Cycles stall = (inst->isControl() && cpu->getBranchPred())
++                ? cpu->getBranchPred()->getResolveStallCyclesFor(inst->pcState().instAddr())
++                : Cycles(0);
++            if (stall > 0) {
++                ThreadID stall_tid = inst->threadNumber;
++                DynInstPtr stall_inst = inst;
++                cpu->schedule(new EventFunctionWrapper(
++                    [this, stall_inst, stall_tid]() mutable {
++                        if (stall_inst->isSquashed()) return;
++                        stall_inst->setExecuted(); instToCommit(stall_inst);
++                        if (!fetchRedirect[stall_tid] || !toCommit->squash[stall_tid] ||
++                                toCommit->squashedSeqNum[stall_tid] > stall_inst->seqNum) {
++                            if (stall_inst->mispredicted()) {
++                                fetchRedirect[stall_tid] = true;
++                                squashDueToBranch(stall_inst, stall_tid);
++                                ppMispredict->notify(stall_inst);
++                                stall_inst->readPredTaken() ? predictedTakenIncorrect++
++                                                            : predictedNotTakenIncorrect++;
++                            }
++                        }
++                    }, "stallBcast", true), cpu->clockEdge(stall));
++                updateExeInstStats(inst);
++                continue;
++            }
++
+             inst->setExecuted();
+ 
+             instToCommit(inst);
+diff --git a/src/cpu/pred/BranchPredictor.py b/src/cpu/pred/BranchPredictor.py
+index 46112b1..114df2b 100644
+--- a/src/cpu/pred/BranchPredictor.py
++++ b/src/cpu/pred/BranchPredictor.py
+@@ -42,6 +42,10 @@ class BranchPredictor(SimObject):
+     RASSize = Param.Unsigned(16, "RAS size")
+     instShiftAmt = Param.Unsigned(2, "Number of bits to shift instructions by")
+ 
++    annotationBranchPCs         = VectorParam.Addr([], "Branch PCs to annotate")
++    annotationForcedTargets     = VectorParam.Addr([], "Forced BTB target per entry")
++    annotationResolveStallCycles = VectorParam.UInt64([], "Resolve stall cycles per entry")
++
+     useIndirect = Param.Bool(True, "Use indirect branch predictor")
+     indirectHashGHR = Param.Bool(True, "Hash branch predictor GHR")
+     indirectHashTargets = Param.Bool(True, "Hash path history targets")
+diff --git a/src/cpu/pred/bpred_unit.cc b/src/cpu/pred/bpred_unit.cc
+index 05770cb..97636ab 100644
+--- a/src/cpu/pred/bpred_unit.cc
++++ b/src/cpu/pred/bpred_unit.cc
+@@ -75,6 +75,15 @@ BPredUnit::BPredUnit(const Params *params)
+ {
+     for (auto& r : RAS)
+         r.init(params->RASSize);
++
++    for (size_t i = 0; i < params->annotationBranchPCs.size(); ++i) {
++        Addr br = params->annotationBranchPCs[i];
++        Addr tgt = params->annotationForcedTargets[i];
++        if (tgt != 0) btbForcedTargets[br] = tgt;
++        if (i < params->annotationResolveStallCycles.size() &&
++            params->annotationResolveStallCycles[i] > 0)
++            branchResolveStallCycles[br] = Cycles(params->annotationResolveStallCycles[i]);
++    }
+ }
+ 
+ void
+@@ -310,6 +319,16 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
+         TheISA::advancePC(target, inst);
+     }
+ 
++    // BTB annotation override.
++    if (!btbForcedTargets.empty()) {
++        auto it = btbForcedTargets.find(pc.instAddr());
++        if (it != btbForcedTargets.end()) {
++            target.set(it->second);
++            pred_taken = true;
++            predict_record.predTaken = true;
++        }
++    }
++
+     pc = target;
+ 
+     predHist[tid].push_front(predict_record);
+diff --git a/src/cpu/pred/bpred_unit.hh b/src/cpu/pred/bpred_unit.hh
+index b890dc3..e7c0c4e 100644
+--- a/src/cpu/pred/bpred_unit.hh
++++ b/src/cpu/pred/bpred_unit.hh
+@@ -48,6 +48,7 @@
+ #define __CPU_PRED_BPRED_UNIT_HH__
+ 
+ #include <deque>
++#include <unordered_map>
+ 
+ #include "base/statistics.hh"
+ #include "base/types.hh"
+@@ -303,7 +304,17 @@ class BPredUnit : public SimObject
+     /** Stat for the number of indirect target mispredictions.*/
+     Stats::Scalar indirectMispredicted;
+ 
++  public:
++    Cycles getResolveStallCyclesFor(Addr pc) const {
++        auto it = branchResolveStallCycles.find(pc);
++        return it != branchResolveStallCycles.end() ? it->second : Cycles(0);
++    }
++
+   protected:
++    // Annotation hooks: populated from params by the constructor.
++    std::unordered_map<Addr, Addr>   btbForcedTargets;
++    std::unordered_map<Addr, Cycles> branchResolveStallCycles;
++
+     /** Number of bits to shift instructions by for predictor addresses. */
+     const unsigned instShiftAmt;
+ 

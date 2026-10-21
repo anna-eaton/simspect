@@ -15,6 +15,18 @@ future sessions (and the user) need to know. It is the counterpart to `claudenot
 
 
 
+## 2026-10-20 — cleanuprepo — gem5 hooks backed up to gem5-hooks/ (durability fix)
+
+The gem5 instrumentation lived only as uncommitted/untracked changes inside the
+ephemeral gem5_dev container (/work/*) — the two Recon builds (gem5-recon,
+gem5-recon-modded) weren't even git repos. Captured snapshots into repo gem5-hooks/:
+- git builds (stt@e3283b9, stt-dbg@e3283b9, gem5-spt@0d2be0f): git diff patches +
+  untracked se_exp.py/se_slowcomm.py; amulet-repo@c871bdf: untracked gen scripts.
+- Recon (per owner: **gem5-recon = base, gem5-recon-modded = change**): diff of
+  modded-vs-recon src/ + configs/ (BTB-override/store-set/pcstate hooks).
+See gem5-hooks/README.md for base commits + re-apply/re-capture. TODO: a
+`scripts/sim capture-hooks` subcommand to make re-capture one command.
+
 ## 2026-10-20 — cleanuprepo — Mac↔cafe2 git divergence RECONCILED + container GitHub auth fixed
 
 Repo was in a dangerous state: Mac and cafe2 container both had uncommitted work
