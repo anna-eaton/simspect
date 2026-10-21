@@ -15,15 +15,16 @@ append-only logs, never from "what the last session remembered."
 | **What's live now** | `state/RUNNING.md` *(to create)* | Current allocations, campaigns, sweeps. Verify with `make status`. |
 | **Human rollup** | [`../STATUS.md`](../STATUS.md) | The one-page "where everything stands" for Anna. **Stays at repo root** (dashboard reads `CODE_ROOT/STATUS.md`). |
 | **Open questions** | `state/OPEN.md` *(to create)* | Decisions awaiting Anna. |
-| **Design / semantics** | [`design/`](design/) | `DESIGN.md`, `AUDIT.md`, `METHODS_{CONCRETIZATION,INSTRUMENTATION,LEAKAGE_KNOBS}.md`, `branch_enumeration_notes.md`, `sweep_design_notes.md`. The stable reference. |
+| **Design / semantics** | [`design/`](design/) | `DESIGN.md`, `AUDIT.md`, `METHODS_{CONCRETIZATION,INSTRUMENTATION,LEAKAGE_KNOBS}.md`, `branch_enumeration_notes.md`, `sweep_design_notes.md`, `docs/` (scope/criterion). The stable reference. |
 | **Run results** | [`results/`](results/) | Campaign/paper writeups: `results.md`, `reconresults.md`, `PAPER_RESULTS.md`, `PAPER_EXPERIMENTS.md`, `EXPERIMENTS.md`. |
-| **Findings / bugs** | `findings/` *(dirs `bug/`, `mdsToRead/`, `docs/` migrate here next pass)* | Per-bug & per-result writeups. |
+| **Findings / bugs** | [`findings/`](findings/) | `bug/` (per-bug writeups + PoC demos) and `mdsToRead/` (analysis docs). |
 | **Logs** | `logs/` *(claudelog/claudenotes stay at root — code refs; link here)* | `../claudelog.md` (durable, append-only) + `../claudenotes.md` (right-now). |
 | **Repo cleanup** | [`REPO_CLEANUP_BRIEF.md`](REPO_CLEANUP_BRIEF.md) | Brief for the agent auditing/consolidating the repo. |
 
 **Stays at repo root (do not move — code/CLAUDE.md reference them):** `CLAUDE.md`, `STATUS.md`,
 `claudelog.md`, `claudenotes.md`. Everything else that was loose at the root has been migrated into
-`design/` and `results/` above. The findings dirs (`bug/`, `mdsToRead/`, `docs/`) are the next pass.
+`design/`, `results/`, and `findings/` above — including the former root dirs `bug/` + `mdsToRead/`
+(→ `findings/`) and `docs/` (→ `design/docs/`).
 
 ## The three durability mechanisms
 1. **Append-only logs** (`logs/claudelog.md`) — the dated narrative of what happened/changed/was decided.

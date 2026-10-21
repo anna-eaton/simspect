@@ -853,8 +853,8 @@ def _selftest() -> int:
 
     # Exercise annotation + checker parsing against the committed bug examples.
     print("-- annotation/checker parsing (bug examples) --")
-    for bug in ("bug/stt_slowcomm_vp_squash_race/inst-047231.ann.json",
-                "bug/recon_SLF_stlf_bypass/inst-014912.ann.json"):
+    for bug in ("wiki/findings/bug/stt_slowcomm_vp_squash_race/inst-047231.ann.json",
+                "wiki/findings/bug/recon_SLF_stlf_bypass/inst-014912.ann.json"):
         p = ROOT / bug
         if not p.exists():
             print(f"skip {bug} (not present)")
@@ -873,8 +873,8 @@ def _selftest() -> int:
 
     # Exercise exec_graph parsing against the committed bug XML.
     print("-- exec_graph parsing (bug XML) --")
-    for bug in ("bug/stt_slowcomm_vp_squash_race/inst-047231.xml",
-                "bug/recon_SLF_stlf_bypass/inst-014912.xml"):
+    for bug in ("wiki/findings/bug/stt_slowcomm_vp_squash_race/inst-047231.xml",
+                "wiki/findings/bug/recon_SLF_stlf_bypass/inst-014912.xml"):
         p = ROOT / bug
         if not p.exists():
             print(f"skip {bug} (not present)")

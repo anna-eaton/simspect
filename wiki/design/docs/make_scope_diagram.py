@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Slide-ready figure: transmitter-gate (in scope) vs footprint-hiding (out of scope).
-Renders docs/scope_diagram.png. See docs/AMULET_VS_SIMSPECT_SCOPE.md."""
+Renders scope_diagram.png next to this file. See AMULET_VS_SIMSPECT_SCOPE.md."""
+import os
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -69,5 +70,6 @@ box(66, 0.5, 61, 5.2,
     REDF, RED, 8.8, "bold", RED)
 
 fig.tight_layout()
-fig.savefig("/tests/simspect/docs/scope_diagram.png", dpi=150, bbox_inches="tight")
-print("wrote docs/scope_diagram.png")
+_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scope_diagram.png")
+fig.savefig(_OUT, dpi=150, bbox_inches="tight")
+print(f"wrote {_OUT}")

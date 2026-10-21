@@ -29,7 +29,7 @@ To that end, three mechanisms — use them as a matter of course, not on request
      (what's live: allocations/campaigns/sweeps), `INFRA.md` (the connect/session runbook),
      `OPEN.md` (questions awaiting Anna).
    - `wiki/design/` — durable semantics/design (`DESIGN.md`, `AUDIT.md`, `METHODS_*`).
-   - `wiki/findings/` — per-bug / per-result writeups (the `bug/` + `mdsToRead/` material).
+   - `wiki/findings/` — per-bug / per-result writeups: `wiki/findings/bug/` + `wiki/findings/mdsToRead/`.
    - `wiki/logs/` — the append-only logs' permanent home.
    - `wiki/README.md` — the index / "start here". Prefer adding a new md here over leaving
      knowledge in chat. (Scattered legacy md at the repo root is being consolidated here — see
@@ -105,7 +105,7 @@ finding** about a defense, or anything that **changes how results are interprete
 dedicated, self-contained `.md` written *for Anna to read top-to-bottom*: the claim up front, the
 evidence (exact stems/PCs/trace lines/commands so she can re-run), the mechanism, the
 real-bug-vs-artifact verdict, and what's still open. Put it where the result lives (the run's
-`diagnostics/`, or `bug/` for a cross-build bug), and point to it from the `claudelog.md` entry. Do
+`diagnostics/`, or `wiki/findings/bug/` for a cross-build bug), and point to it from the `claudelog.md` entry. Do
 this **even when not explicitly asked** — for big/fundamental things the review `.md` is part of the
 deliverable, not an extra. (Don't make one for routine FP triage or minor cleanups — only things
 genuinely worth Anna's in-depth review.)
@@ -234,7 +234,7 @@ map can assign them the **same physical register → a natural cross-chain data 
 chain "hooks onto" the base ALU's blank argument). That collision is what can build a two-load→ALU→xmit
 merge that no base instance contains. **Important caveat — the OTB shape is absent from the testset, but
 the model CAN generate it (it's a `max_instances` cap/ordering artifact, NOT a model limit; full writeup +
-analysis pitfalls in [`mdsToRead/OTB_GENERATION_GAP.md`](mdsToRead/OTB_GENERATION_GAP.md)):** over all 100k
+analysis pitfalls in [`wiki/findings/mdsToRead/OTB_GENERATION_GAP.md`](wiki/findings/mdsToRead/OTB_GENERATION_GAP.md)):** over all 100k
 base instances every `ld` transmitter's address is fed by an `rf` edge **directly from a single load**
 (66,512/66,512), with **0** routing through an `other`/ALU op — but **forcing** a predicate
 (`otb_shape: other.outreg → xm.inaddr`) is immediately SAT, so the `gen_lit` enumeration just fills the
