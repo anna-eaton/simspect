@@ -89,9 +89,11 @@ natively**. `make dash` starts it detached inside the container bound to the **b
 (`172.17.0.2`, not loopback — so the `ssh -L` forward can reach it), logs to
 `/tests/simspect/dashboard.log`, health-checks it, then forwards `:8765` to your laptop. (The
 container has no `ss`/`netstat`, so the up-check uses `curl`.) It renders markdown
-natively** (`/api/md`). **Gap vs. the goal:** non-markdown files are viewed inline but there are no
-`vscode://` "open in VSCode" links yet — adding those (local path → `vscode://file/…`; container
-artifacts → `vscode://vscode-remote/ssh-remote+…`) is a tracked work item (see the cleanup brief).
+natively** (`/api/md`). **Open-in-VSCode links:** both the markdown viewer (`/api/md`) and the
+corpora file viewer (`/api/file`) show an "open in VSCode" deep link. `make dash` runs the
+dashboard in the container, so it sets `SIMSPECT_VSCODE_REMOTE=ssh-remote+cafe2` → links use
+`vscode://vscode-remote/ssh-remote+cafe2/<path>` (needs VSCode Remote-SSH with a `cafe2` host).
+A local Mac run (`python3 dashboard/dashboard.py`, env unset) emits plain `vscode://file/<path>`.
 
 ## Container ↔ GitHub auth (deploy key)
 

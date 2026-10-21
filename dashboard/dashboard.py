@@ -304,9 +304,11 @@ class Handler(BaseHTTPRequestHandler):
             res = self._safe(D.file_text, one("model"), one("mode"),
                              one("stem"), one("kind"))
             if isinstance(res, dict) and res.get("ok"):
-                return self._send(res.get("text", ""),
-                                  ctype="text/plain; charset=utf-8")
-            return self._send("file not available", ctype="text/plain; charset=utf-8",
+                return self._json({"ok": True, "text": res.get("text", ""),
+                                   "path": res.get("path"),
+                                   "vscode": D.vscode_uri(res.get("path", ""))})
+            err = res.get("error") if isinstance(res, dict) else "file not available"
+            return self._json({"ok": False, "error": err or "file not available"},
                               code=404)
 
         # ── utilities ─────────────────────────────────────────────────
@@ -331,7 +333,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send("<p class='err'>file not allowed or not found</p>",
                                   code=404)
             try:
-                body = ("<h2><code>%s</code></h2>" % html.escape(rp)
+                _vs = html.escape(D.vscode_uri(rp))
+                body = ("<h2><code>%s</code> "
+                        "<a class='vscode-link' href='%s'>open in VSCode</a></h2>"
+                        % (html.escape(rp), _vs)
                         + md_to_html(open(rp, encoding="utf-8").read()))
             except OSError as e:
                 body = "<p class='err'>%s</p>" % html.escape(str(e))

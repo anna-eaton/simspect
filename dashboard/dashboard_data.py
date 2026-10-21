@@ -71,6 +71,26 @@ except Exception:  # pragma: no cover
     _px = None
 
 
+# ── "Open in VSCode" deep links ───────────────────────────────────────────────
+# The dashboard usually runs INSIDE the cafe2 container (make dash), so the files
+# it shows are container paths. Set SIMSPECT_VSCODE_REMOTE to the VSCode remote
+# authority (e.g. "ssh-remote+cafe2") and links open via Remote-SSH; unset (local
+# run on the Mac) falls back to a plain file:// link. scripts/sim sets it for `dash`.
+VSCODE_REMOTE = _os.environ.get("SIMSPECT_VSCODE_REMOTE", "").strip()
+
+
+def vscode_uri(abspath) -> str:
+    """vscode:// deep link to open `abspath` in VSCode (remote if configured)."""
+    p = str(abspath)
+    if not p.startswith("/"):
+        p = "/" + p
+    from urllib.parse import quote
+    q = quote(p)  # keep '/', encode spaces etc.
+    if VSCODE_REMOTE:
+        return f"vscode://vscode-remote/{VSCODE_REMOTE}{q}"
+    return f"vscode://file{q}"
+
+
 # ── Kind -> checker mapping (the research "criterion" per transmitter) ────────
 # Keyed by the transmitter kind stored in an annotation's xmit.kind field.
 CHECKERS: dict = {

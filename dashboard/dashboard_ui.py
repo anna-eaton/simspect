@@ -354,6 +354,17 @@ label {
   margin-bottom: 12px;
 }
 
+.file-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 6px; font-size: 11px;
+}
+.file-bar code { color: var(--pre-text); opacity: 0.8; word-break: break-all; }
+a.vscode-link {
+  display: inline-block; padding: 1px 8px; border: 1px solid var(--border);
+  border-radius: 4px; font-size: 11px; text-decoration: none; white-space: nowrap;
+}
+a.vscode-link::before { content: "↗ "; }
+a.vscode-link:hover { background: var(--pre-bg); }
 pre.file-content {
   background: var(--pre-bg);
   border: 1px solid var(--border);
@@ -790,7 +801,13 @@ async function loadFile(kind) {
   if (data.error) {
     document.getElementById('fileContent').innerHTML = `<p class="err">Error: ${esc(data.error)}</p>`;
   } else {
-    document.getElementById('fileContent').innerHTML = `<pre class="file-content">${esc(data.html || data.content || '')}</pre>`;
+    const txt = data.text !== undefined ? data.text : (data.html || data.content || '');
+    const bar = data.vscode
+      ? `<div class="file-bar"><code>${esc(data.path || '')}</code> `
+        + `<a class="vscode-link" href="${esc(data.vscode)}">open in VSCode</a></div>`
+      : '';
+    document.getElementById('fileContent').innerHTML =
+      bar + `<pre class="file-content">${esc(txt)}</pre>`;
   }
 }
 
