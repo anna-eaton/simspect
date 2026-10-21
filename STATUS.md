@@ -8,7 +8,10 @@ call, what's running, the development front, and what's parked.
 ⚠️ *Run/sweep state below is "as last logged" — always trust `claudenotes.md` for the live
 picture and re-verify a sweep is actually alive before relying on it.*
 
-*Last refreshed: 2026-10-20 by cleanuprepo — **repo cleanup + Mac↔cafe2 git reconciliation.** See below.*
+*Last refreshed: 2026-10-20 19:45 by `system setup` — session rig + dashboard fix + `/session-log`
+routine. 🔴 **GIT CORRUPTED** (disk-full event → empty-tree commit pushed to remotes; files intact on
+disk; GIT WRITE LOCK now in force — recovery is Anna's). Live state → `wiki/state/RUNNING.md`; pickup
+list → `wiki/state/OPEN.md`. Prior: cleanuprepo repo cleanup + Mac↔cafe2 git reconciliation.*
 
 ---
 

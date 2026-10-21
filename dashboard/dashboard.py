@@ -316,6 +316,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(self._safe(D.pipeline_graph))
         if path == "/api/specs":
             return self._json(self._safe(D.specs))
+        if path == "/api/models":
+            return self._json(self._safe(D.model_inventory))
+        if path == "/api/model":
+            return self._json(self._safe(D.model_source, one("name")))
+        if path == "/api/catalog":
+            return self._json(self._safe(D.catalog, one("kind")))
 
         # ── utilities ─────────────────────────────────────────────────
         if path == "/api/tables":

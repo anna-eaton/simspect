@@ -417,6 +417,19 @@ code {
 .pl-box.ok { border-left-color: var(--ok); }
 .pl-box.bad { border-left-color: var(--err); }
 .pl-box.unknown { border-left-color: var(--warn); }
+.pl-box.unenum { opacity: .72; border-style: dashed; border-left-style: dashed; border-left-color: var(--muted); }
+.pl-defense {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.pl-defense.df-stt { background: rgba(90,155,212,.16); color: #5a9bd4; border: 1px solid #5a9bd4; }
+.pl-defense.df-spt { background: rgba(198,120,221,.16); color: #c678dd; border: 1px solid #c678dd; }
+.pl-defense.df-recon { background: rgba(217,181,74,.16); color: #d9b54a; border: 1px solid #d9b54a; }
+.pl-defense.df-unknown { background: rgba(124,129,144,.16); color: var(--muted); border: 1px solid var(--muted); }
 .pl-box-top {
   display: flex;
   align-items: center;
@@ -546,7 +559,14 @@ const UTIL_TABS = [
   { id: 'execgraph', label: 'Execution Graph' },
   { id: 'docs', label: 'Docs' },
   { id: 'specs', label: 'Sources of Truth' },
+  { id: 'runconfigs', label: 'Run configs' },
+  { id: 'gem5hooks', label: 'gem5 hooks' },
+  { id: 'findings', label: 'Findings' },
 ];
+
+// Last /api/models payload (every .als on disk, enumerated or not) — joined
+// with PL_DATA by model name to build the Pipeline grid rows.
+let MODELS_DATA = null;
 
 // ====== Utilities ======
 function esc(str) {
@@ -937,28 +957,68 @@ async function refreshInspectorBody() {
   body.innerHTML = html;
 }
 
-function openXmlInspector(m) {
-  openUModal('XML — ' + m.model);
-  const xml = m.xml || {};
-  const completeTxt = xml.complete === true ? 'yes'
-    : xml.complete === false ? 'no (hit cap)' : 'unknown';
-  const meta = `<div class="card">
+function defenseFamilyClass(fam) {
+  if (!fam) return 'df-unknown';
+  if (fam.indexOf('STT') === 0) return 'df-stt';
+  if (fam.indexOf('SPT') === 0) return 'df-spt';
+  if (fam.indexOf('Recon') === 0) return 'df-recon';
+  return 'df-unknown';
+}
+
+// XML box click → the .als source (name/defense_family/instr_scope/transmitters
+// via /api/model) is the headline; if the model also has a live testset
+// (pl != null) the existing corpus drill-down is appended below it.
+async function openXmlInspector(model, pl, inv) {
+  openUModal('XML — ' + model);
+  const xml = pl ? (pl.xml || {}) : null;
+  const completeTxt = xml && xml.complete === true ? 'yes'
+    : xml && xml.complete === false ? 'no (hit cap)' : 'unknown';
+  const defenseTag = inv && inv.defense_family
+    ? `<span class="pl-defense ${defenseFamilyClass(inv.defense_family)}">${esc(inv.defense_family)}</span>` : '';
+  const isUnenum = !!(inv && !inv.enumerated);
+  let meta = `<div class="card">
+    ${defenseTag ? `<div style="margin-bottom:6px">${defenseTag}</div>` : ''}
     <div class="card-meta">
-      <strong>model:</strong> ${esc(m.model)}<br>
-      <strong>instances:</strong> ${xml.instances || 0}${xml.cap ? ' / ' + xml.cap : ''}<br>
+      <strong>model:</strong> ${esc(model)}<br>
+      ${inv ? `<strong>instr scope:</strong> ${esc(inv.instr_scope || '?')}<br>
+      <strong>transmitters:</strong> <code>${esc(inv.transmitters || '?')}</code><br>
+      <strong>bytes:</strong> ${inv.bytes || 0}<br>
+      ${inv.symlink_target ? `<strong>symlink:</strong> &rarr; ${esc(inv.symlink_target)}<br>` : ''}` : ''}
+      ${xml ? `<strong>instances:</strong> ${xml.instances || 0}${xml.cap ? ' / ' + xml.cap : ''}<br>
       <strong>complete:</strong> ${completeTxt}<br>
       <strong>live:</strong> ${xml.live ? 'yes' + (xml.etime ? ' (' + esc(xml.etime) + ')' : '') : 'no'}<br>
-      <strong>state:</strong> ${esc(xml.state || '')}<br>
-      <strong>mtime:</strong> ${esc(xml.mtime ? String(xml.mtime) : '')}<br>
-      <strong>provenance:</strong> ${xml.has_provenance ? 'yes' : 'no'}
+      <strong>provenance:</strong> ${xml.has_provenance ? 'yes' : 'no'}<br>`
+      : '<strong>enumerated:</strong> no<br>'}
     </div>
-    <div style="margin-top:8px"><button onclick="stubAction('Regen XML — ${esc(m.model)}')">Regen XML (stub)</button></div>
-  </div>`;
-  document.getElementById('uModalBody').innerHTML = meta + `<div id="inspBody"><p class="spin">loading…</p></div>`;
-  state.selectedCorpus = m.model;
-  state.selectedMode = null;
-  state.selectedTest = null;
-  refreshInspectorBody();
+    <div style="margin-top:8px">
+      <button onclick="stubAction('${isUnenum ? 'Enumerate' : 'Regen XML'} — ${esc(model)}')">${isUnenum ? 'Enumerate (stub)' : 'Regen XML (stub)'}</button>
+    </div>
+  </div>
+  <div id="alsSourceBody"><p class="spin">loading .als source…</p></div>`;
+  if (pl) meta += `<div id="inspBody"><p class="spin">loading…</p></div>`;
+  document.getElementById('uModalBody').innerHTML = meta;
+  loadAlsSource(model);
+  if (pl) {
+    state.selectedCorpus = model;
+    state.selectedMode = null;
+    state.selectedTest = null;
+    refreshInspectorBody();
+  }
+}
+
+async function loadAlsSource(model) {
+  const data = await apiCall('/api/model?name=' + encodeURIComponent(model));
+  const target = document.getElementById('alsSourceBody');
+  if (!target) return;
+  if (data.error || !data.ok) {
+    target.innerHTML = `<p class="err">Error: ${esc(data.error || 'not found')}</p>`;
+    return;
+  }
+  const bar = data.vscode
+    ? `<div class="file-bar"><code>${esc(data.path || '')}</code> `
+      + `<a class="vscode-link" href="${esc(data.vscode)}">open in VSCode</a></div>`
+    : '';
+  target.innerHTML = `<h4 style="margin:10px 0 4px">.als source</h4>${bar}<pre class="file-content">${esc(data.text || '')}</pre>`;
 }
 
 function openProgramInspector(m, p) {
@@ -1012,12 +1072,14 @@ function openGem5Inspector(g) {
 }
 
 function openInspector(kind, model, id) {
-  if (!PL_DATA) return;
-  const m = (PL_DATA.models || []).find(x => x.model === model);
   if (kind === 'xml') {
-    if (m) openXmlInspector(m);
+    const pl = PL_DATA && (PL_DATA.models || []).find(x => x.model === model);
+    const inv = MODELS_DATA && (MODELS_DATA.models || []).find(x => x.name === model);
+    if (pl || inv) openXmlInspector(model, pl || null, inv || null);
     return;
   }
+  if (!PL_DATA) return;
+  const m = (PL_DATA.models || []).find(x => x.model === model);
   if (kind === 'program') {
     if (!m) return;
     const p = (m.programs || []).find(x => x.id === id);
@@ -1059,8 +1121,32 @@ function renderJobsStrip(jobs) {
   return `<div class="card" id="jobsStrip">${html}</div>`;
 }
 
-function xmlBoxHtml(model, xml) {
-  xml = xml || {};
+// row = { model, pl (that model's /api/pipeline node, or null), inv (that
+// model's /api/models inventory record, or null) } — see mergeModelRows().
+function xmlBoxHtml(row) {
+  const model = row.model;
+  const inv = row.inv;
+  const pl = row.pl;
+  const defenseTag = inv && inv.defense_family
+    ? `<span class="pl-defense ${defenseFamilyClass(inv.defense_family)}">${esc(inv.defense_family)}</span>` : '';
+  const scopeLine = inv && inv.instr_scope
+    ? `<div class="card-meta">${esc(inv.instr_scope)}</div>` : '';
+  const symlinkLine = inv && inv.symlink_target
+    ? `<div class="card-meta">&rarr; ${esc(inv.symlink_target)}</div>` : '';
+
+  // Never enumerated: no testset on disk at all (xml_count 0 per /api/models).
+  if (inv && !inv.enumerated) {
+    return `<div class="pl-box unknown unenum" onclick="openInspector('xml','${esc(model)}')">
+      <div class="pl-box-top"><strong>${esc(model)}</strong> ${defenseTag}</div>
+      ${scopeLine}${symlinkLine}
+      <div class="card-meta">not enumerated</div>
+      <div class="pl-box-actions">
+        <button onclick="event.stopPropagation(); stubAction('Enumerate — ${esc(model)}')">Enumerate</button>
+      </div>
+    </div>`;
+  }
+
+  const xml = pl ? (pl.xml || {}) : {};
   const cap = xml.cap || 0;
   const pct = cap > 0 ? Math.min(100, Math.round(100 * (xml.instances || 0) / cap)) : 0;
   let cls = 'unknown';
@@ -1069,9 +1155,11 @@ function xmlBoxHtml(model, xml) {
   const liveBadge = xml.live
     ? `<span class="badge running">running${xml.etime ? ' · ' + esc(xml.etime) : ''}</span>` : '';
   const prov = xml.has_provenance ? '<span class="pl-tag">provenance ✓</span>' : '';
+  const instances = xml.instances !== undefined ? xml.instances : (inv ? (inv.xml_count || 0) : 0);
   return `<div class="pl-box ${cls}" onclick="openInspector('xml','${esc(model)}')">
-    <div class="pl-box-top"><strong>${esc(model)}</strong> ${liveBadge}</div>
-    <div class="card-meta">${xml.instances || 0}${cap ? ' / ' + cap : ''} instances ${prov}</div>
+    <div class="pl-box-top"><strong>${esc(model)}</strong> ${defenseTag} ${liveBadge}</div>
+    ${scopeLine}${symlinkLine}
+    <div class="card-meta">${instances}${cap ? ' / ' + cap : ''} instances ${prov}</div>
     ${cap ? `<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>` : ''}
     <div class="pl-box-actions">
       <button onclick="event.stopPropagation(); stubAction('Regen XML — ${esc(model)}')">Regen XML</button>
@@ -1114,21 +1202,40 @@ function gem5BoxHtml(g) {
   </div>`;
 }
 
-function renderPipelineGrid(models) {
-  if (!models || !models.length) {
-    return '<p class="empty">No testsets found under testsets/.</p>';
+// Union of /api/pipeline's models[] (testsets that exist on disk) and
+// /api/models' models[] (every .als source, enumerated or not), keyed by
+// model name, so un-enumerated models are visible too.
+function mergeModelRows(pipelineData, modelsData) {
+  const plByName = {};
+  for (const m of ((pipelineData && pipelineData.models) || [])) plByName[m.model] = m;
+  const invByName = {};
+  for (const m of ((modelsData && modelsData.models) || [])) invByName[m.name] = m;
+  const names = new Set([...Object.keys(plByName), ...Object.keys(invByName)]);
+  const rows = [...names].sort().map(name => ({
+    model: name,
+    pl: plByName[name] || null,
+    inv: invByName[name] || null,
+    programs: (plByName[name] && plByName[name].programs) || [],
+    gem5: (plByName[name] && plByName[name].gem5) || [],
+  }));
+  return rows;
+}
+
+function renderPipelineGrid(rows) {
+  if (!rows || !rows.length) {
+    return '<p class="empty">No Alloy models found.</p>';
   }
   let html = `<div class="pl-grid">`;
   html += `<div class="pl-row pl-head">
     <div>Model</div><div>XML</div><div>PROGRAMS</div><div>GEM5</div>
   </div>`;
-  for (const m of models) {
+  for (const row of rows) {
     html += `<div class="pl-row">`;
-    html += `<div class="pl-rowlabel">${esc(m.model)}</div>`;
-    html += `<div class="pl-col">${xmlBoxHtml(m.model, m.xml)}</div>`;
-    html += `<div class="pl-col">${(m.programs || []).map(p => programBoxHtml(m.model, p)).join('')
+    html += `<div class="pl-rowlabel">${esc(row.model)}</div>`;
+    html += `<div class="pl-col">${xmlBoxHtml(row)}</div>`;
+    html += `<div class="pl-col">${row.programs.map(p => programBoxHtml(row.model, p)).join('')
       || '<p class="empty" style="padding:4px">none</p>'}</div>`;
-    html += `<div class="pl-col">${(m.gem5 || []).map(g => gem5BoxHtml(g)).join('')
+    html += `<div class="pl-col">${row.gem5.map(g => gem5BoxHtml(g)).join('')
       || '<p class="empty" style="padding:4px">none</p>'}</div>`;
     html += `</div>`;
   }
@@ -1145,43 +1252,56 @@ function renderGem5Orphans(orphans) {
   return html;
 }
 
-function buildPipelineHtml(data) {
-  let html = renderJobsStrip(data.jobs || []);
+function buildPipelineHtml(pipelineData, modelsData) {
+  let html = renderJobsStrip(pipelineData.jobs || []);
   html += `<div style="margin:10px 0 16px">
     <button class="primary" onclick="openLaunchModal()">+ New fanout</button>
   </div>`;
   html += `<h2 style="margin-top:0">Pipeline</h2>
-    <p class="card-meta" style="margin-top:-6px">XML (Alloy enumeration) &rarr; PROGRAMS (concretization/fanout) &rarr; GEM5 (campaigns). Click any box for detail.</p>`;
-  html += renderPipelineGrid(data.models || []);
-  html += renderGem5Orphans(data.gem5_orphans || []);
+    <p class="card-meta" style="margin-top:-6px">XML (Alloy enumeration) &rarr; PROGRAMS (concretization/fanout) &rarr; GEM5 (campaigns). Click any box for detail.
+    ${modelsData && modelsData.archived ? ' &middot; ' + modelsData.archived + ' archived model(s) not shown.' : ''}</p>`;
+  const rows = mergeModelRows(pipelineData, modelsData);
+  html += renderPipelineGrid(rows);
+  html += renderGem5Orphans(pipelineData.gem5_orphans || []);
   return html;
+}
+
+async function fetchPipelineAndModels() {
+  const [pipelineData, modelsData] = await Promise.all([
+    apiCall('/api/pipeline'),
+    apiCall('/api/models'),
+  ]);
+  return { pipelineData, modelsData: modelsData.error ? { models: [], archived: 0 } : modelsData };
 }
 
 // Initial / manual load (goes through refreshMainTab's spinner).
 async function renderPipelineTab() {
-  const data = await apiCall('/api/pipeline');
-  if (data.error) {
-    return `<p class="err">Error: ${esc(data.error)}</p>`;
+  const { pipelineData, modelsData } = await fetchPipelineAndModels();
+  if (pipelineData.error) {
+    return `<p class="err">Error: ${esc(pipelineData.error)}</p>`;
   }
-  PL_DATA = data;
-  state.pipelineSig = JSON.stringify(data);
-  return buildPipelineHtml(data);
+  PL_DATA = pipelineData;
+  MODELS_DATA = modelsData;
+  state.pipelineSig = JSON.stringify(pipelineData) + '|' + JSON.stringify(modelsData);
+  return buildPipelineHtml(pipelineData, modelsData);
 }
 
-// Quiet background poll: fetch, and ONLY touch the DOM if the data actually
-// changed. No spinner, no full-tab rebuild → the page doesn't jump to the top.
-// When it does change, we re-render in place and restore the scroll position.
+// Quiet background poll: fetch both /api/pipeline and /api/models, and ONLY
+// touch the DOM if either actually changed. No spinner, no full-tab rebuild →
+// the page doesn't jump to the top. When it does change, we re-render in
+// place and restore the scroll position.
 async function pollPipeline() {
-  const data = await apiCall('/api/pipeline');
-  if (data.error) return;                       // keep the current view on a transient error
-  const sig = JSON.stringify(data);
-  if (sig === state.pipelineSig) return;        // unchanged → do nothing (no jump, no flicker)
+  const { pipelineData, modelsData } = await fetchPipelineAndModels();
+  if (pipelineData.error) return;                // keep the current view on a transient error
+  const sig = JSON.stringify(pipelineData) + '|' + JSON.stringify(modelsData);
+  if (sig === state.pipelineSig) return;         // unchanged → do nothing (no jump, no flicker)
   state.pipelineSig = sig;
-  PL_DATA = data;
+  PL_DATA = pipelineData;
+  MODELS_DATA = modelsData;
   const main = document.getElementById('main');
   if (!main) return;
   const y = window.scrollY;                      // preserve scroll across the re-render
-  main.innerHTML = buildPipelineHtml(data);
+  main.innerHTML = buildPipelineHtml(pipelineData, modelsData);
   window.scrollTo(0, y);
   stamp();
 }
@@ -1573,6 +1693,40 @@ async function renderSpecsSection() {
   return html;
 }
 
+// ====== Generic catalog browser (Run configs / gem5 hooks / Findings) ======
+// Single reusable renderer for /api/catalog?kind=runconfigs|gem5hooks|findings.
+async function renderCatalog(kind, label) {
+  const data = await apiCall('/api/catalog?kind=' + encodeURIComponent(kind));
+  if (data.error) {
+    return `<p class="err">Error: ${esc(data.error)}</p>`;
+  }
+  let html = `<h3 style="margin-top:0">${esc(label)}</h3>`;
+  const entries = data.entries || [];
+  if (!entries.length) {
+    html += `<p class="empty">No files found.</p>`;
+    return html;
+  }
+  for (const e of entries) {
+    html += `<div class="card">
+      <h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px">
+        <code>${esc(e.name)}</code>
+        ${e.vscode ? `<a class="vscode-link" href="${esc(e.vscode)}">open in VSCode</a>` : ''}
+      </h3>`;
+    if (e.text === undefined) {
+      html += `<p class="card-meta">(file too large to inline — open in VSCode)</p>`;
+    } else if (e.is_markdown) {
+      // Reuse the existing markdown renderer (/api/md → md_to_html) when the
+      // path is one it's willing to serve; otherwise fall back to raw text.
+      const md = await apiCall('/api/md?path=' + encodeURIComponent(e.path));
+      html += (md && md.html) ? md.html : `<pre class="file-content">${esc(e.text)}</pre>`;
+    } else {
+      html += `<pre class="file-content">${esc(e.text)}</pre>`;
+    }
+    html += `</div>`;
+  }
+  return html;
+}
+
 // ====== Utilities tab (sub-tab/section selector) ======
 
 function renderUtilSubTabs() {
@@ -1609,6 +1763,15 @@ async function showUtilSection(id) {
       break;
     case 'specs':
       html = await renderSpecsSection();
+      break;
+    case 'runconfigs':
+      html = await renderCatalog('runconfigs', 'Run configs');
+      break;
+    case 'gem5hooks':
+      html = await renderCatalog('gem5hooks', 'gem5 hooks');
+      break;
+    case 'findings':
+      html = await renderCatalog('findings', 'Findings');
       break;
   }
   const bodyEl = document.getElementById('utilSectionBody');

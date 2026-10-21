@@ -15,3 +15,6 @@ results_latest/
 jobs/
 __pycache__/
 *.pyc
+*.class
+analysis/
+m5out/

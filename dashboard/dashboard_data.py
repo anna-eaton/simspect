@@ -630,6 +630,120 @@ def specs() -> dict:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 4d. model_inventory — EVERY .als model (enumerated or not) + source viewer
+# ══════════════════════════════════════════════════════════════════════════════
+_MODELS_DIR = ROOT / "STAGE1_alloy" / "models"
+
+
+def _als_defense_family(text: str) -> str:
+    # STT protects State; SPT protects Operand; Recon takes a perturbation param.
+    if re.search(r"^fun\s+hardware_protection_policy\s*\[", text, re.M):
+        return "Recon (parameterized policy)"
+    if re.search(r"^fun\s+hardware_protection_policy\s*:\s*Operand", text, re.M):
+        return "SPT (operand granularity)"
+    if re.search(r"^fun\s+hardware_protection_policy\s*:\s*State", text, re.M):
+        return "STT (state/memory granularity)"
+    return "?"
+
+
+def _als_meta(path: Path) -> dict:
+    """Parse a .als for scope + transmitters + defense family (best-effort)."""
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {}
+    m_scope = re.search(r"exactly\s+(\d+)\s+Instruction", text)
+    m_leak = re.search(r"^fun\s+leakage_function\s*:\s*Operand\s*\{([^}]*)\}", text, re.M)
+    return {
+        "instr_scope": (f"exactly {m_scope.group(1)} Instruction" if m_scope else "?"),
+        "transmitters": (m_leak.group(1).strip() if m_leak else "?"),
+        "defense_family": _als_defense_family(text),
+    }
+
+
+@_safe(lambda: {"models": [], "archived": 0})
+def model_inventory() -> dict:
+    """Every .als in STAGE1_alloy/models/ — enumerated or not — with metadata and
+    its XML corpus size (0 = never enumerated → invisible in the old view)."""
+    out = []
+    if _MODELS_DIR.is_dir():
+        for f in sorted(_MODELS_DIR.glob("*.als")):
+            name = f.stem
+            is_link = f.is_symlink()
+            rec = {"name": name, "symlink_target": (_os.readlink(f) if is_link else None)}
+            try:
+                rec["bytes"] = f.stat().st_size
+            except OSError:
+                rec["bytes"] = None
+            rec.update(_als_meta(f))
+            xml_dir = TESTSETS / name / "xml"
+            rec["xml_count"] = _count(xml_dir, ".xml")
+            rec["enumerated"] = rec["xml_count"] > 0
+            rec["vscode"] = vscode_uri(str(f))
+            out.append(rec)
+    archived = len(list((_MODELS_DIR / "old_models").glob("*.als"))) if (_MODELS_DIR / "old_models").is_dir() else 0
+    return {"models": out, "archived": archived}
+
+
+@_safe(lambda: {"ok": False, "error": "not found"})
+def model_source(name) -> dict:
+    """The .als source text + metadata for one model (for the inspector)."""
+    try:
+        name = _clean_model(name)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+    f = _MODELS_DIR / f"{name}.als"
+    if not f.exists():
+        return {"ok": False, "error": f"no such model: {name}"}
+    try:
+        text = f.read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        return {"ok": False, "error": str(e)}
+    meta = _als_meta(f)
+    return {"ok": True, "name": name, "text": text, "path": str(f),
+            "vscode": vscode_uri(str(f)), **meta}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 4e. catalog — generic source-of-truth file browser (configs / hooks / findings)
+# ══════════════════════════════════════════════════════════════════════════════
+def _catalog_entry(path: Path, base: Path) -> dict:
+    rel = str(path.relative_to(base)) if base in path.parents or base == path.parent else path.name
+    is_md = path.suffix == ".md"
+    rec = {"name": rel, "path": str(path), "vscode": vscode_uri(str(path)),
+           "is_markdown": is_md}
+    try:
+        if path.stat().st_size <= 300000:
+            rec["text"] = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        pass
+    return rec
+
+
+@_safe(lambda: {"kind": None, "entries": []})
+def catalog(kind) -> dict:
+    """List + inline a canonical source-of-truth set. kind ∈ runconfigs|gem5hooks|findings."""
+    entries = []
+    if kind == "runconfigs":
+        base = RUNCONFIGS
+        files = sorted(base.glob("*.jsonc")) if base.is_dir() else []
+    elif kind == "gem5hooks":
+        base = ROOT / "gem5-hooks"
+        files = sorted(p for p in base.rglob("*") if p.is_file()) if base.is_dir() else []
+    elif kind == "findings":
+        base = ROOT
+        files = []
+        for d in [ROOT / "wiki" / "findings", ROOT / "bugsynth"]:
+            if d.is_dir():
+                files += sorted(d.rglob("*.md"))
+    else:
+        return {"kind": kind, "entries": [], "error": f"unknown kind {kind!r}"}
+    for p in files:
+        entries.append(_catalog_entry(p, base))
+    return {"kind": kind, "entries": entries}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # 5. corpus
 # ══════════════════════════════════════════════════════════════════════════════
 @_safe(lambda: {"model": None, "modes": [], "xml": 0})

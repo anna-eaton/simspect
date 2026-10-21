@@ -46,6 +46,36 @@ even able to auth to GitHub. Resolved without data loss:
 - Full divergence analysis: wiki/state/SYNC_DIVERGENCE.md. gem5 /work hooks are NOT
   tracked (recon builds not even git repos) — separate workstream, deferred.
 
+## 2026-10-20 19:45 — system setup — 🔴 git corruption + write-lock; sync/dash/session-log tooling
+
+- **🔴 GIT CORRUPTION (disk-full event).** A 98%-full-disk event corrupted git objects and an
+  **empty-tree commit was pushed to all remotes**. State: `git ls-files`=0, `HEAD` tree empty,
+  branch "up to date with origin/main" (the bad tree reached origin). **All working-tree files are
+  intact on disk**, just untracked — no local data loss. Recovery is Anna's (careful restore + push).
+  → Imposed a **GIT WRITE LOCK**: Claude may run **read-only git only**; all git writes (`commit`/
+  `add`/`push`/`pull`-merge/`reset`/…) require Anna's explicit per-action OK, handed to her to run.
+  Rule added to `CLAUDE.md` (top), `~/Documents/CLAUDE.md`, and memory (`git-write-lock`). Disk now
+  OK (156 GB free). Full pickup detail in `wiki/state/OPEN.md` (🔴 Critical).
+- **Dashboard "looks months old" — root cause + fix.** The instance serving on cafe2 was the stale
+  **June 9 monolithic** `dashboard.py` process (started earlier via nohup), masking the pulled
+  Oct-13 code (now `dashboard/dashboard.py`, 3-tab redesign + open-in-VSCode links). Killed it +
+  started the new code (verified HTTP 200 + VSCode/Corpora markers). **`make dash` now always
+  kills+restarts from current code** (`[d]ashboard` pkill pattern) so a stale process can't mask new
+  UI again; binds the container **bridge IP 172.17.0.2** (not loopback) so the `ssh -L` forward works;
+  health-checks via `curl` (container has no `ss`/`netstat`). Uses `docker exec -d` for true detach.
+- **New tooling (all filesystem/Makefile; no git writes):**
+  - **`make sync`** (`scripts/sim sync`) — commit-if-dirty + push local, then **ff-only** pull on
+    cafe2 + mini. **Now effectively disabled for Claude** by the git write lock — Anna runs it.
+  - **`/session-log`** routine (`.claude/commands/session-log.md`) — end-of-session durability:
+    appends claudelog, refreshes `STATUS.md` + `wiki/state/RUNNING.md` + `wiki/state/OPEN.md`,
+    updates `claudenotes.md`, raises misfits. Registered in `CLAUDE.md`.
+  - Mac mini: key auth enabled, **tmux 3.8 installed** (brew, arm64), persistent `simspect` tmux +
+    `make mini` (login-shell PATH fix). Added `make mini-clone` (source-only clone; blocked until git
+    recovered). `make dash` kill+restart, `make sync`, `make mini-clone` documented in
+    `wiki/state/COMMANDS.md`.
+- Created `wiki/state/RUNNING.md` (live: holder job 17995019 on cafe2, no experiments, dashboard up)
+  + `wiki/state/OPEN.md` (pickup list). Holder job healthy; no experiments launched this session.
+
 ## 2026-10-20 16:04 — infra — Connect-or-create session rig + `wiki/` source-of-truth + md-first directive
 
 - **Root cause of the "cafe keeps dropping" pain, nailed:** cafe2 is a Slurm compute node enforcing
