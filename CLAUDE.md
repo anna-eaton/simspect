@@ -2,6 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> ## ⛔⛔ GIT WRITE LOCK — HIGHEST PRIORITY, NON-NEGOTIABLE (set 2026-10-20 by Anna)
+> **Claude MAY NOT run git in ANY writing capacity — EVER — unless Anna EXPLICITLY authorizes that
+> specific action in the current message.** This was imposed after a 98%-full-disk event corrupted
+> git objects and a bad commit got pushed to all remotes. Anna will not tolerate any further git
+> corruption.
+> - **FORBIDDEN without explicit per-action authorization:** `commit`, `add`/`rm`/`mv` (staging),
+>   `push` (any form), `pull` that merges, `merge`, `rebase`, `reset` (any mode), `checkout`/`switch`/
+>   `restore` that writes, `branch -d/-D`, `tag`, `stash` (push/pop/apply/drop), `clean`, `update-ref`,
+>   `read-tree`, `gc`, `fetch` that writes refs into a shared repo, editing `.git/`, force-anything,
+>   config writes. If it changes the index, refs, objects, working tree via git, or a remote — STOP.
+> - **ALLOWED (read-only):** `git status`, `git log`, `git diff`, `git show`, `git branch` (list),
+>   `git ls-files`, `git ls-tree`, `git rev-parse`, `git cat-file`, `git fsck`, `git ls-remote`,
+>   comparing versions across checkouts. A bare `git fetch` to update remote-tracking refs is allowed
+>   ONLY for comparison and ONLY when Anna is not relying on that repo's integrity — when in doubt, ask.
+> - **When a git write is needed:** write the exact command(s) and hand them to Anna to run (she runs
+>   them via `!` or a terminal), or ask for explicit authorization. Never run them yourself on a hunch.
+> - **Disk safety:** git writes on a near-full disk corrupt objects. Before ANY authorized git write,
+>   check `df -h /System/Volumes/Data` has comfortable free space; if tight, surface it first.
+> This rule overrides every other instruction in this file and the Documents-level CLAUDE.md.
+
 ## Paper & figures
 
 The paper/writing workspace is a **separate repo at `/tests/SimSpect-S-P-2027/`** (S&P 2027,
@@ -88,6 +108,14 @@ conclusion, a reason to restart a sweep) — a dated, self-contained entry in th
 `claudelog.md`. Big things and changes must **stick around** so future sessions inherit them
 without re-deriving; if in doubt whether it's big, append it. This is a standing requirement,
 not a per-task instruction.
+
+**Session close-out → the `/session-log` routine.** At the end of a session (or before one is
+killed), run **`/session-log`** (`.claude/commands/session-log.md`). It captures the whole session
+into the durable tree so nothing is lost: appends the big items to `claudelog.md`, refreshes the
+living state docs (`STATUS.md`, `wiki/state/RUNNING.md` = what's live + how to resume,
+`wiki/state/OPEN.md` = TODO + questions-for-Anna), updates `claudenotes.md`, **raises anything that
+fits none of those to Anna**, and offers `make sync` so it's durable across machines. Everything of
+value ends in exactly one home — logs / state docs / OPEN — never only in chat.
 
 **Human dashboard for Anna → `STATUS.md`.** `STATUS.md` (repo root) is the human-readable
 rollup *for Anna*, distilled from `claudelog.md` + `claudenotes.md` + the review `.md`s.

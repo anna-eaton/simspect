@@ -1145,12 +1145,7 @@ function renderGem5Orphans(orphans) {
   return html;
 }
 
-async function renderPipelineTab() {
-  const data = await apiCall('/api/pipeline');
-  if (data.error) {
-    return `<p class="err">Error: ${esc(data.error)}</p>`;
-  }
-  PL_DATA = data;
+function buildPipelineHtml(data) {
   let html = renderJobsStrip(data.jobs || []);
   html += `<div style="margin:10px 0 16px">
     <button class="primary" onclick="openLaunchModal()">+ New fanout</button>
@@ -1160,6 +1155,35 @@ async function renderPipelineTab() {
   html += renderPipelineGrid(data.models || []);
   html += renderGem5Orphans(data.gem5_orphans || []);
   return html;
+}
+
+// Initial / manual load (goes through refreshMainTab's spinner).
+async function renderPipelineTab() {
+  const data = await apiCall('/api/pipeline');
+  if (data.error) {
+    return `<p class="err">Error: ${esc(data.error)}</p>`;
+  }
+  PL_DATA = data;
+  state.pipelineSig = JSON.stringify(data);
+  return buildPipelineHtml(data);
+}
+
+// Quiet background poll: fetch, and ONLY touch the DOM if the data actually
+// changed. No spinner, no full-tab rebuild → the page doesn't jump to the top.
+// When it does change, we re-render in place and restore the scroll position.
+async function pollPipeline() {
+  const data = await apiCall('/api/pipeline');
+  if (data.error) return;                       // keep the current view on a transient error
+  const sig = JSON.stringify(data);
+  if (sig === state.pipelineSig) return;        // unchanged → do nothing (no jump, no flicker)
+  state.pipelineSig = sig;
+  PL_DATA = data;
+  const main = document.getElementById('main');
+  if (!main) return;
+  const y = window.scrollY;                      // preserve scroll across the re-render
+  main.innerHTML = buildPipelineHtml(data);
+  window.scrollTo(0, y);
+  stamp();
 }
 
 // ====== Status tab ======
@@ -1657,7 +1681,7 @@ function setAutoRefresh() {
 function ensurePipelineTimer() {
   if (state.pipelineTimer) clearInterval(state.pipelineTimer);
   state.pipelineTimer = setInterval(() => {
-    if (state.activeMainTab === 'pipeline') refreshMainTab();
+    if (state.activeMainTab === 'pipeline') pollPipeline();  // quiet diff-refresh, no jump
   }, 8000);
 }
 

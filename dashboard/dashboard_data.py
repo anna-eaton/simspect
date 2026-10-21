@@ -32,6 +32,7 @@ import json
 import re
 import subprocess
 import sys
+import threading
 import time
 import traceback
 import xml.etree.ElementTree as ET
@@ -53,6 +54,15 @@ from simspect_paths import (
 
 import jobs_registry
 import sweep_monitor as sm
+
+# Load sweep_monitor's persistent on-disk count/json-len cache ONCE at import, so a
+# dashboard (re)start begins WARM instead of re-scanning ~2M corpus files (cold
+# /api/pipeline was ~9s; warm is ~0.01s). pipeline_graph() calls sm.save_caches()
+# after it computes so fresh counts persist for the next start.
+try:
+    sm.load_caches()
+except Exception:
+    pass
 
 # pipeline.load_config for reading run configs (JSONC).
 try:
@@ -457,8 +467,38 @@ def _model_cap(model: str) -> int:
     return 0
 
 
-@_safe(lambda: {"models": [], "gem5": [], "jobs": [], "generated_at": None})
+# TTL + lock so the dashboard's ~8s poll (and a browser's parallel on-load calls)
+# SHARE one computation instead of each kicking off a cold ~9s file-count scan — the
+# pile-up of concurrent cold scans was what wedged the page on "loading…". With this,
+# the first call computes, the rest within TTL return the cached result instantly.
+_PG_LOCK = threading.Lock()
+_PG_CACHE: dict = {"t": 0.0, "val": None}
+_PG_TTL = 5.0
+
+
+@_safe(lambda: {"models": [], "gem5_orphans": [], "jobs": [], "generated_at": None})
 def pipeline_graph() -> dict:
+    """Cached entry point for the one-page stage graph (see _pipeline_graph_compute)."""
+    now = time.time()
+    v = _PG_CACHE["val"]
+    if v is not None and (now - _PG_CACHE["t"]) < _PG_TTL:
+        return v
+    with _PG_LOCK:
+        now = time.time()
+        v = _PG_CACHE["val"]
+        if v is not None and (now - _PG_CACHE["t"]) < _PG_TTL:
+            return v  # another thread computed while we waited
+        val = _pipeline_graph_compute()
+        _PG_CACHE["val"] = val
+        _PG_CACHE["t"] = time.time()
+        try:
+            sm.save_caches()  # persist fresh counts so the next restart is warm
+        except Exception:
+            pass
+        return val
+
+
+def _pipeline_graph_compute() -> dict:
     """The one-page stage graph. Returns per-model lineages + gem5 campaigns + jobs."""
     jobs = jobs_registry.load_jobs()
     gen_by_model: dict = {}
