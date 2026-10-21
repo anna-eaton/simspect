@@ -1,0 +1,22 @@
+{
+  "cwd": "/work/gem5-recon",
+  "gem5_bin": "build/X86/gem5.opt",
+
+  "debug": {
+    "flags": [
+      "O3PipeView" // prints the pipeline
+      // ,"Exec" // I don't know what this does, only arch executed instructions?
+    ],
+    "file": "pipeview.txt"
+  },
+
+  "config": {
+    "script": "configs/example/se.py",
+    "script_args": {
+      "cmd": "/tests/t",
+      "cpu-type": "X86O3CPU",
+      "scheme": 2,
+      "caches": true
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "cwd": "/work/gem5-recon",
+  "gem5_bin": "build/X86/gem5.opt",
+
+  "debug": {
+    "flags": ["O3PipeView"],
+    "file": "pipeview.txt"
+  },
+
+  "config": {
+    "script": "configs/example/se.py",
+    "script_args": {
+      "cmd": "/tests/inst-000003",
+      "cpu-type": "X86O3CPU",
+      "caches": true,
+      "scheme": 2
+    }
+  }
+}

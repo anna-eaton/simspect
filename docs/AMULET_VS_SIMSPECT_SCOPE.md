@@ -4,6 +4,102 @@
 not a transient finding. Companion to `claudelog.md`; lives in `docs/` so it
 survives independently of the running log.*
 
+---
+
+## Why InvisiSpec is out of scope (the definitional argument) — advisor-facing
+
+*(Added 2026-06-10. This is the principled scope boundary, stated as a category
+distinction, not a difficulty plea. Read this section first.)*
+
+**Slide figure:** `docs/scope_diagram.png` (regenerate with `python3 docs/make_scope_diagram.py`).
+
+```
+   secret ─▶ dataflow ─▶ [ TRANSMITTER ] ─▶ µarch channels ─▶ attacker observes
+   operand    (taint)     load / branch       L1 tag · LRU · MSHR/TBE · L2 ·
+                               │               dir · TLB · L1I · undo/cleanup
+                               │                        │              (open-ended)
+              ┌────────────────┘                        └────────────────┐
+        SimSpect ORACLE  ✓ IN SCOPE                  AMuLeT ORACLE  (out of scope for us)
+   "did the transmitter fire in the window?"   whole-µarch, DIFFERENTIAL across runs,
+   channel-agnostic, single-run                per-channel + defense-specific
+
+   transmitter-blocking defenses act at ▲       footprint-hiding defenses act at the channels
+   STT · SPT · Recon · NDA · fence/delay         InvisiSpec · CleanupSpec · SpecLFB · MuonTrap
+   (same security def as our oracle)             (let transmitter FIRE, hide/undo the footprint)
+```
+
+**Thesis.** SimSpect's leakage oracle is defined at the **transmitter level**: track secret
+dataflow to a transmitter, then check whether that transmitter *performed its speculative
+action inside the window*. The oracle is **channel-agnostic on purpose** — and that is exactly
+correct for the class of defense we target.
+
+**Why it's correct for our class.** The comprehensive Spectre defenses we evaluate — STT, SPT,
+Recon, NDA, taint-tracking / delay / fence families — all define security at the **transmitter
+gate**: *no instruction may execute on a secret-derived (speculatively-tainted) operand while it
+is unsafe, regardless of which microarchitectural channel it would have used.* They kill the leak
+at its source. So the matching oracle is "did the transmitter fire in the window?" — binary. Our
+oracle and the defense's security definition are **the same definition**; that alignment is what
+makes our detection sound and general.
+
+**Why InvisiSpec is a different animal.** InvisiSpec does **not** stop the transmitter. By design
+it *lets the speculative load execute* and instead tries to make its microarchitectural
+**footprint** invisible (speculative buffer; no coherence-visible install until the visibility
+point). Its security property is therefore **not** "the transmitter didn't occur" — *the
+transmitter occurs, intentionally* — it is "the speculative access leaves no observable
+secret-dependent state in any µarch structure." So our oracle is **type-mismatched, not merely
+under-powered**: applied to InvisiSpec it would report "the transmitter occurred" on essentially
+every test — which is **true and intended**, not a bug. The distinction between a *working* and a
+*broken* InvisiSpec lives entirely in the channel/footprint, which our oracle deliberately
+abstracts away. A transmitter-occurrence oracle structurally cannot judge a footprint-hiding
+defense.
+
+**Testing InvisiSpec is a different oracle, for three independent reasons.**
+1. **The channel set is open-ended and defense-specific.** A speculative access can perturb L1
+   tags, replacement/LRU metadata, MSHR/TBE occupancy, L2, the coherence directory, the TLB, the
+   L1I, the prefetcher, and the defense's own undo machinery. That set is not fixed — it depends
+   on the microarchitecture and the defense — so there is no single channel-independent observer;
+   you hand-build one per (defense × structure). **Empirically proven here:** every AMuLeT bug we
+   reproduced needed its *own* bespoke watcher — UV1 a Ruby compound-eviction watcher, UV2 a
+   contention/stall watcher, KV1 an I-fetch watcher, UV4/unXpec a cleanup-event correlator. N bugs
+   → N instrumentation efforts, none reusing the general pipeline.
+2. **It is a final-state / differential property, not an in-window occurrence.** Eviction, residue,
+   over-clean, "the cleanup footprint differs by hit/miss" — these are *state left behind* or *what
+   differs between two runs*. SimSpect is single-run, in-window, occurrence-based by construction.
+   (By our own methodology a final-state diff is *confirmation*, not *detection*.)
+3. **Several of the bugs aren't even data transmitters.** We generate load/branch *data*
+   transmitters; KV1 is an instruction fetch, KV3 a store→TLB walk — outside the transmitter
+   vocabulary, independent of the oracle issue.
+
+**There is a right tool for the other side.** Channel/footprint/invisibility violations are
+exactly what AMuLeT (and Revizor-style contract differential testing) is built for: observe the
+full µarch trace, compare against a leakage contract. SimSpect and AMuLeT are **complementary by
+construction** — SimSpect catches transmitter-level violations in *transmitter-blocking* defenses;
+AMuLeT catches footprint violations in *invisible/undo* defenses. Re-instrumenting every InvisiSpec
+channel inside SimSpect would be reimplementing AMuLeT, worse.
+
+**Pre-empting the obvious objection.** *"But you demonstrated UV1/KV1/UV4/unXpec."* That **supports**
+the boundary. Each was a **forced controlled gadget + a bespoke per-channel watcher**, built to
+*characterize* the defenses — not a detection produced by the SimSpect pipeline. The general oracle
+never surfaced any of them; each required stepping outside the methodology with custom
+instrumentation. That is the cost of going out of scope, demonstrated repeatedly.
+
+**One-sentence version.** *SimSpect verifies that the transmitter never fires on protected data;
+InvisiSpec lets the transmitter fire and promises you won't see it — so testing InvisiSpec means
+auditing every microarchitectural surface that firing could mark, which is a whole-µarch,
+differential, defense-specific oracle (AMuLeT's job), not the transmitter-occurrence oracle that
+matches the comprehensive transmitter-blocking defenses we target.*
+
+**Crisp scope statement.**
+- **In scope** — defenses that enforce security at the *transmitter/execution gate*: "no
+  transmitter executes on a secret-derived operand during the speculative window" (STT, SPT, Recon,
+  NDA, delay/fence). Oracle: dataflow-to-transmitter + transmitter-occurrence-in-window.
+  Channel-agnostic *because the defense is*.
+- **Out of scope** — defenses that *permit* the transmitter and instead hide/undo its µarch
+  footprint (InvisiSpec, CleanupSpec, SpecLFB-style invisibility, MuonTrap-style). Correctness = a
+  per-channel final-state property → AMuLeT's domain.
+
+---
+
 ## TL;DR
 
 SimSpect and AMuLeT test secure-speculation defenses in **different leakage

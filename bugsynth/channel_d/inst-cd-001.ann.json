@@ -1,0 +1,90 @@
+{
+ "branch_mode": "mispredict_not_taken",
+ "annotations": [
+  {
+   "branch_pc": 0,
+   "btb_forced_target_pc": 1,
+   "mode": "mispredict_not_taken",
+   "pendsquash_tainted": false,
+   "branch_addr": 4198473,
+   "branch_addr_hex": "0x401049",
+   "branch_pc_addr": 4198473,
+   "branch_pc_addr_hex": "0x401049",
+   "x86_branch_offset": 41,
+   "x86_branch_offset_hex": "0x29",
+   "btb_forced_target_addr": 4198480,
+   "btb_forced_target_addr_hex": "0x401050"
+  },
+  {
+   "branch_pc": 2,
+   "btb_forced_target_pc": 3,
+   "mode": "correctly_not_taken",
+   "pendsquash_tainted": false,
+   "branch_addr": 4198489,
+   "branch_addr_hex": "0x401059",
+   "branch_pc_addr": 4198489,
+   "branch_pc_addr_hex": "0x401059",
+   "x86_branch_offset": 57,
+   "x86_branch_offset_hex": "0x39",
+   "btb_forced_target_addr": 4198491,
+   "btb_forced_target_addr_hex": "0x40105b"
+  },
+  {
+   "branch_pc": 3,
+   "btb_forced_target_pc": 4,
+   "mode": "correctly_not_taken",
+   "pendsquash_tainted": false,
+   "branch_addr": 4198497,
+   "branch_addr_hex": "0x401061",
+   "branch_pc_addr": 4198497,
+   "branch_pc_addr_hex": "0x401061",
+   "x86_branch_offset": 65,
+   "x86_branch_offset_hex": "0x41",
+   "btb_forced_target_addr": 4198499,
+   "btb_forced_target_addr_hex": "0x401063"
+  },
+  {
+   "branch_pc": 4,
+   "btb_forced_target_pc": 5,
+   "mode": "correctly_not_taken",
+   "pendsquash_tainted": false,
+   "branch_addr": 4198505,
+   "branch_addr_hex": "0x401069",
+   "branch_pc_addr": 4198505,
+   "branch_pc_addr_hex": "0x401069",
+   "x86_branch_offset": 73,
+   "x86_branch_offset_hex": "0x49",
+   "btb_forced_target_addr": 4198507,
+   "btb_forced_target_addr_hex": "0x40106b"
+  },
+  {
+   "branch_pc": 5,
+   "btb_forced_target_pc": 6,
+   "mode": "mispredict_not_taken",
+   "pendsquash_tainted": false,
+   "branch_addr": 4198513,
+   "branch_addr_hex": "0x401071",
+   "branch_pc_addr": 4198513,
+   "branch_pc_addr_hex": "0x401071",
+   "x86_branch_offset": 81,
+   "x86_branch_offset_hex": "0x51",
+   "btb_forced_target_addr": 4198515,
+   "btb_forced_target_addr_hex": "0x401073"
+  }
+ ],
+ "xmit": {
+  "pc": 5,
+  "kind": "br_x",
+  "addr": 4198513,
+  "addr_hex": "0x401071"
+ },
+ "commit_boundary": {
+  "first_noncommitted": {
+   "pc": 0,
+   "addr": 4198473,
+   "addr_hex": "0x401049"
+  }
+ },
+ "func_base_addr": 4198432,
+ "func_base_addr_hex": "0x401020"
+}

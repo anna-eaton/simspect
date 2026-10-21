@@ -1,0 +1,29 @@
+{
+ "branch_mode": "mispredict_taken",
+ "annotations": [
+  {
+   "branch_pc": 0,
+   "mode": "mispredict_taken",
+   "branch_addr": 4198478,
+   "branch_addr_hex": "0x40104e",
+   "btb_forced_target_addr": 4202624,
+   "btb_forced_target_addr_hex": "0x402080",
+   "resolve_stall_cycles": 2000
+  }
+ ],
+ "xmit": {
+  "pc": 1,
+  "kind": "br_x",
+  "addr": 4198478,
+  "addr_hex": "0x40104e"
+ },
+ "commit_boundary": {
+  "first_noncommitted": {
+   "pc": 0,
+   "addr": 4198478,
+   "addr_hex": "0x40104e"
+  }
+ },
+ "func_base_addr": 4198464,
+ "func_base_addr_hex": "0x401040"
+}

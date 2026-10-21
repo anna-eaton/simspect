@@ -1,0 +1,50 @@
+// bugsynth pending-squash campaign — nmosier two-branch coincidence on /work/stt (scheme2, STT).
+// Model STT_6_pendsquash_ut.als (older-tainted + younger-untainted unresolved branches). No interleave.
+// Differential checker (check_br_pendsquash) decides the leak: does the younger UNTAINTED branch's
+// redirect tick depend on the older TAINTED branch's direction? Timing: coincidence band + commitToIEWDelay.
+{
+  "paths": {
+    "alloy_stage":        "../STAGE1_alloy",
+    "models_dir":         "models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "testset_dir":        "testsets",
+    "results_dir":        "results",
+    "results_name":       "STT_6_pendsquash_ut"
+  },
+
+  "alloy": {
+    "max_instances": 120,
+    "batch_size":    120
+  },
+
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_not_taken"]
+  },
+
+  "gem5": {
+    "binary":            "/work/stt/build/X86/gem5.opt",
+    "config_script":     "/work/stt/configs/example/se.py",
+    "branch_ann_enable": true,
+    "cpu_type":          "DerivO3CPU",
+    "scheme":            2,
+    "caches":            true,
+    "jobs":              8,
+    "debug_flags":       ["O3PipeView", "LSQUnit", "Commit"],
+    "debug_file":        "pipeview.txt"
+  },
+
+  "sweep": {
+    "enabled":                 true,
+    "points":                  [0, 500, 2500],
+    "unresolved_stall_cycles": 5000
+  },
+
+  "pipeline": {
+    "check":    "per_type",
+    "keep_tmp": false
+  }
+}
