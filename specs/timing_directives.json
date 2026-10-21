@@ -1,0 +1,34 @@
+{
+  "_doc": "Canonical gem5 timing knobs (the 'timing config' a run uses). Each entry: the run_config key, the SIMSPECT_* env var it maps to (via pipeline._build_gem5_env), and what it does to the speculative window / branch resolution. SCAFFOLD — confirm values/semantics with Anna. Viewed in the dashboard Utilities tab.",
+  "_status": "stub — fill in with Anna",
+  "directives": {
+    "fnc_commit_stall_cycles": {
+      "env": "SIMSPECT_FNC_COMMIT_STALL_CYCLES",
+      "config_key": "gem5.fnc_commit_stall_cycles",
+      "effect": "stalls commit of the fnc (first-not-committed) instruction, widening the speculative window",
+      "applies_to": "all builds"
+    },
+    "unresolved_stall_cycles": {
+      "config_key": "sweep.unresolved_stall_cycles",
+      "effect": "holds branches unresolved longer (keeps the window open)",
+      "applies_to": "sweep configs"
+    },
+    "branch_resolve_stall": {
+      "config_key": "TODO",
+      "effect": "delays branch resolution",
+      "applies_to": "TODO"
+    },
+    "commitToIEWDelay": {
+      "config_key": "TODO (not yet wired into _build_gem5_env)",
+      "effect": "needed to exercise the VP↔squash race gadget",
+      "applies_to": "STT/SPT",
+      "notes": "flagged in claudelog as not in stock pipeline"
+    },
+    "branch_ann_enable": {
+      "env": "SIMSPECT_BRANCH_ANN_ENABLE",
+      "config_key": "gem5.branch_ann_enable",
+      "effect": "turns on the --branch-ann-file BTB override (force branch directions)",
+      "applies_to": "-modded / SPT builds ONLY (vanilla rejects the flag)"
+    }
+  }
+}

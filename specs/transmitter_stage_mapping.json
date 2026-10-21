@@ -1,0 +1,27 @@
+{
+  "_doc": "Transmitter → pipeline-stage mapping. For each transmitter KIND: which stage its leak is DECIDED at (the checker) and OBSERVED at (the gem5 signal). SCAFFOLD — refine the signals/criteria with Anna. Viewed in the dashboard Utilities tab.",
+  "_status": "stub — fill in with Anna",
+  "kinds": {
+    "ld": {
+      "checker": "STAGE3_gem5/check_ld.py",
+      "decided_at_stage": "gem5",
+      "observed_signal": "LSQ 'Executing load' tick inside the speculative window (lc_retire < signal < fnc_retire)",
+      "leak_gate": "data-obtained: reached_cache OR store_forward (complete>0); spec_read_only / never_completed / never_executed = not a leak",
+      "notes": "canonical gate = check_ld._xmit_cache_fate + pipeview complete tick"
+    },
+    "br_x": {
+      "checker": "STAGE3_gem5/check_br.py",
+      "decided_at_stage": "gem5",
+      "observed_signal": "branch-redirect detection",
+      "leak_gate": "redirect observed (does NOT currently enforce the lc/fnc window — known gap)",
+      "notes": "weakest checker; principled rewrite is the standing need"
+    },
+    "other_x": {
+      "checker": "STAGE3_gem5/check_other.py",
+      "decided_at_stage": "gem5",
+      "observed_signal": "TODO",
+      "leak_gate": "TODO",
+      "notes": "fill in"
+    }
+  }
+}

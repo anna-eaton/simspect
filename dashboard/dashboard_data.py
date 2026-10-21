@@ -438,6 +438,158 @@ def corpora() -> dict:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 4b. pipeline_graph — the unified stage view (XML → PROGRAMS → GEM5)
+# ══════════════════════════════════════════════════════════════════════════════
+# One row per model (lineage); three stage columns. Folds in everything the old
+# sweep_monitor CLI showed (stage progress, defense variant, hits by mode×kind).
+# NOTE (stub): progress bars are derived from on-disk file counts polled by the
+# dashboard. Granular per-process progress (hooking into a running Alloy/parsexml/
+# gem5 job) is future work — see wiki/state/DASHBOARD_PLAN.md.
+
+def _model_cap(model: str) -> int:
+    """Best-effort Alloy max_instances for a model (its run config)."""
+    cand = RUNCONFIGS / f"run_config_{model}.jsonc"
+    if cand.exists():
+        try:
+            return int(_load_cfg(cand).get("alloy", {}).get("max_instances", 0) or 0)
+        except Exception:
+            pass
+    return 0
+
+
+@_safe(lambda: {"models": [], "gem5": [], "jobs": [], "generated_at": None})
+def pipeline_graph() -> dict:
+    """The one-page stage graph. Returns per-model lineages + gem5 campaigns + jobs."""
+    jobs = jobs_registry.load_jobs()
+    gen_by_model: dict = {}
+    for it in generation().get("items", []):
+        gen_by_model.setdefault(it.get("model"), it)
+
+    # gem5 campaigns grouped by model (fold in sweep_monitor info: variant + hits)
+    gem5_by_model: dict = {}
+    gem5_all = []
+    for name, cdir in sorted(_campaign_dirs().items()):
+        man = {}
+        mp = cdir / "manifest.json"
+        if mp.exists():
+            try:
+                man = json.loads(mp.read_text())
+            except Exception:
+                man = {}
+        variant = None
+        cfgp = cdir / "run_config.jsonc"
+        if cfgp.exists():
+            try:
+                variant = sm.variant_of(_load_cfg(cfgp).get("gem5", {}))
+            except Exception:
+                variant = None
+        model = man.get("model")
+        node = {
+            "id": f"gem5:{name}", "results_name": name, "model": model,
+            "campaign": cdir.name, "gem5_binary": man.get("gem5_binary"),
+            "variant": variant, "started_at": man.get("started_at"),
+            "modes": _campaign_modes(cdir),
+        }
+        gem5_all.append(node)
+        gem5_by_model.setdefault(model, []).append(node)
+
+    models = []
+    if TESTSETS.is_dir():
+        for d in sorted(TESTSETS.iterdir()):
+            if not d.is_dir():
+                continue
+            model = d.name
+            xml_dir = d / "xml"
+            xcount = _count(xml_dir, ".xml")
+            cap = _model_cap(model) or int(gen_by_model.get(model, {}).get("xml_total") or 0)
+            try:
+                xmtime = xml_dir.stat().st_mtime if xml_dir.exists() else None
+            except OSError:
+                xmtime = None
+            g = gen_by_model.get(model, {})
+            # completeness: <cap ⇒ exhausted (complete); ≥cap ⇒ hit cap (incomplete); unknown cap ⇒ None
+            complete = (xcount < cap) if (cap and xcount) else None
+
+            # PROGRAMS: future per-fanout dir (testsets/<model>/programs/<id>/), else per-mode
+            progs = []
+            prog_dir = d / "programs"
+            fdirs = [p for p in sorted(prog_dir.iterdir()) if p.is_dir()] if prog_dir.is_dir() else []
+            if fdirs:
+                for fp in fdirs:
+                    try:
+                        amtime = (fp / "asm").stat().st_mtime if (fp / "asm").exists() else None
+                    except OSError:
+                        amtime = None
+                    progs.append({
+                        "id": f"prog:{model}:{fp.name}", "model": model, "fanout": fp.name,
+                        "llvm": _count(fp / "llvm", ".ll"), "asm": _count(fp / "asm", ".s"),
+                        "ann": _count(fp / "ann", ".ann.json"),
+                        "expected": xcount or cap,
+                        "dirty": bool(xmtime and amtime and amtime < xmtime),
+                    })
+            else:
+                for mode in _list_modes(d):
+                    mc = _mode_counts(d, mode)
+                    try:
+                        amtime = (d / mode / "asm").stat().st_mtime if (d / mode / "asm").exists() else None
+                    except OSError:
+                        amtime = None
+                    progs.append({
+                        "id": f"prog:{model}:{mode}", "model": model, "mode": mode,
+                        "llvm": mc["llvm"], "asm": mc["asm"], "ann": mc["ann"],
+                        "expected": xcount or cap,
+                        "dirty": bool(xmtime and amtime and amtime < xmtime),
+                    })
+
+            models.append({
+                "model": model,
+                "xml": {"id": f"xml:{model}", "instances": xcount, "cap": cap,
+                        "complete": complete, "mtime": xmtime, "live": bool(g.get("live")),
+                        "state": g.get("state"), "etime": g.get("etime"),
+                        "has_provenance": (d / "provenance.tar.gz").exists()},
+                "programs": progs,
+                "gem5": gem5_by_model.get(model, []),
+            })
+
+    # gem5 campaigns whose model dir no longer exists (orphans) still shown
+    known = {m["model"] for m in models}
+    orphans = [n for n in gem5_all if n.get("model") not in known]
+
+    return {"models": models, "gem5_orphans": orphans, "jobs": jobs,
+            "generated_at": time.strftime("%Y-%m-%d %H:%M:%S")}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 4c. specs — sources of truth (JSON) for the Utilities tab
+# ══════════════════════════════════════════════════════════════════════════════
+_SPECS_DIR = ROOT / "specs"
+
+
+@_safe(lambda: {"specs": []})
+def specs() -> dict:
+    """List the canonical JSON/JSONC sources of truth + their contents."""
+    out = []
+    catalog = [
+        ("transmitter_stage_mapping", _SPECS_DIR / "transmitter_stage_mapping.json",
+         "Which pipeline stage each transmitter kind is decided/observed at."),
+        ("timing_directives", _SPECS_DIR / "timing_directives.json",
+         "Canonical gem5 timing knobs (stalls, delays) and what they mean."),
+        ("instruction_table", sp.STAGE2_DIR / "instruction_tables" / "instructions.jsonc",
+         "The fanout/decoding table: kinds → concrete instructions + operand slots."),
+    ]
+    for name, path, desc in catalog:
+        rec = {"name": name, "path": str(path), "desc": desc,
+               "exists": path.exists(), "vscode": vscode_uri(str(path))}
+        if path.exists():
+            try:
+                rec["text"] = path.read_text(encoding="utf-8")[:200000]
+            except Exception as e:
+                rec["text"] = f"(error reading: {e})"
+        out.append(rec)
+    return {"specs": out}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # 5. corpus
 # ══════════════════════════════════════════════════════════════════════════════
 @_safe(lambda: {"model": None, "modes": [], "xml": 0})

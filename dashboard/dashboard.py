@@ -311,6 +311,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "error": err or "file not available"},
                               code=404)
 
+        # ── unified pipeline stage graph + sources-of-truth specs ──────
+        if path == "/api/pipeline":
+            return self._json(self._safe(D.pipeline_graph))
+        if path == "/api/specs":
+            return self._json(self._safe(D.specs))
+
         # ── utilities ─────────────────────────────────────────────────
         if path == "/api/tables":
             return self._json(self._safe(D.instruction_tables))
