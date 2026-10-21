@@ -6,6 +6,40 @@ future sessions (and the user) need to know. It is the counterpart to `claudenot
 - `claudenotes.md` = *ephemeral* "what I'm doing right now" scratchpad. Cleared/overwritten freely.
 - `claudelog.md` (this file) = *durable* "what we learned / changed and why". **Append, don't delete.**
 
+## 2026-10-20 16:04 — infra — Connect-or-create session rig + `wiki/` source-of-truth + md-first directive
+
+- **Root cause of the "cafe keeps dropping" pain, nailed:** cafe2 is a Slurm compute node enforcing
+  `pam_slurm_adopt` — SSH/VSCode only works **while you hold a job there**. The old `srun --pty bash`
+  flow ties the job to the terminal, so a VSCode drop → SIGHUP → job ends → node released → all
+  sessions kicked + runs killed. **Fix = detached holder job** (`sbatch … sleep infinity`) owning the
+  node + all work in **tmux inside the `gem5_dev` container**; drops now cost nothing.
+- **Built the rig (all idempotent, Makefile-driven):** `scripts/simspect.env` (hosts/sizes) +
+  `scripts/sim` dispatcher + Makefile targets `make hold|cafe|status|dash|peek|windows|launch|mini`.
+  `make status` shows holder job + container + tmux + live runs. Verified end-to-end against the live
+  allocation (job 17995019 on cafe2, repo `/tests/simspect`, tmux `work`). **No experiments currently
+  running** (June sweeps all ended). Full runbook → `wiki/state/INFRA.md`.
+- **Topology / ownership:** laptop (ephemeral) + **Mac mini `annas-mac-mini` (Tailscale) = always-on
+  driver** → sc (jump) → cafe2 → docker `gem5_dev` → tmux. **Code source of truth = local Mac**, cafe2
+  pulls via git. **Mac mini now set up:** key auth enabled (`ssh-copy-id`), Homebrew present
+  (`/opt/homebrew`, arm64), **tmux 3.8 installed**, persistent `simspect` tmux created + `make mini`
+  verified (uses `bash -lc` so brew's PATH loads tmux). Mini can be the always-on driver;
+  `make mini-bootstrap` (not yet run) gives it ssh→cafe2.
+- **Command reference written → `wiki/state/COMMANDS.md`** (every `make` target: sessions + pipeline
+  + engine). Added a **"Documentation is proactive"** rule to `CLAUDE.md`: any new command/target/
+  script/build updates the relevant wiki doc in the same change, unasked.
+- **⚠️ Mac↔cafe2 git divergence, UNRESOLVED (blocking a clean sync):** the container has untracked
+  June work NOT on the Mac, incl. **`.als` files** (`STT_6_core.als`, `STT_6_multisource.als`) +
+  `a6DiverseModels.java` + `stage_pipeline.py`. Declaring Mac source-of-truth and force-syncing would
+  destroy it. Must reconcile per-file (treat `.als` as approval-only) before any sync. See
+  `wiki/REPO_CLEANUP_BRIEF.md`.
+- **Added governing directive to `CLAUDE.md` ("Write everything down — minimize fragile session
+  state"):** everything of value → durable files (append-only logs + `wiki/` living docs + build/result
+  provenance), never only in session/chat/tmux. Created the `wiki/` scaffold (`README.md`,
+  `state/INFRA.md`, `REPO_CLEANUP_BRIEF.md`; `state/`,`design/`,`findings/`,`logs/` dirs). Scattered
+  root md consolidation is the cleanup agent's job (brief written).
+- **Dashboard (Oct 13, modularized) already renders markdown natively** (`/api/md`); **gap:** no
+  `vscode://` open-in-VSCode links yet — tracked work item in the cleanup brief.
+
 ## 2026-06-06 — figures — Added `dashboard.py`: web view of both STATUS dashboards + sweep monitor
 
 - **What:** `/tests/simspect/dashboard.py` — a single-file, **stdlib-only** (no flask/markdown;

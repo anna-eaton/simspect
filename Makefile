@@ -20,15 +20,31 @@
 # ── Low-level engine (single build, sequential; used by the watchers) ────────
 #   make xml/llvm/asm/gem5/all/clean MODEL=... CONFIG=...   (see pipeline.py)
 
-MODEL     ?= STT_4
-CONFIG    ?= run_config.jsonc
+MODEL     ?= STT_6
+CONFIG    ?= runconfigs/run_config_STT_6.jsonc
 RUNCONFIG ?= $(CONFIG)
 PY        := python3
 SCRIPT    := pipeline.py
 
 _FORCE := $(if $(filter 1,$(FORCE)),--force,)
 
-.PHONY: all xml llvm asm gem5 clean help gen run pipeline
+.PHONY: all xml llvm asm gem5 clean help gen run pipeline dashboard \
+        hold cafe sess session status dash peek windows mini mini-ssh-help mini-bootstrap
+
+# ── Sessions: connect-or-create the whole rig from anywhere (scripts/sim) ──────
+# cafe2 needs a live Slurm allocation to ssh in; these keep one and attach tmux.
+SIM := scripts/sim
+hold:            ; @$(SIM) hold            # ensure the detached Slurm holder job owns cafe2
+cafe sess session: ; @$(SIM) cafe          # attach the persistent work tmux in the container
+status:          ; @$(SIM) status          # show holder job + container + tmux + live runs
+dash:            ; @$(SIM) dash            # run dashboard in container + forward :8765 + open
+peek:            ; @$(SIM) peek $(W)       # tail the work session (make peek W=<window>)
+windows:         ; @$(SIM) windows         # list windows in the work session
+mini:            ; @$(SIM) mini            # attach the always-on driver tmux on the Mac mini
+mini-ssh-help:   ; @$(SIM) mini-ssh-help   # how to enable key auth to the mini (you run it)
+mini-bootstrap:  ; @$(SIM) mini-bootstrap  # give the mini ssh access to cafe2
+# drive a run from anywhere:  make launch CMD="python3 pipeline.py all --model ... --config ..."
+launch:          ; @$(SIM) run "$(CMD)"
 
 # ── Pipelined producer / consumer ────────────────────────────────────────────
 gen:
@@ -41,6 +57,10 @@ pipeline:
 	$(PY) testsetgen.py --model $(MODEL) --config $(CONFIG) $(_FORCE) \
 	    > pipeline_gen_$(MODEL).log 2>&1 &
 	$(PY) testrun.py --model $(MODEL) --config $(RUNCONFIG)
+
+# ── Live dashboard (stdlib-only web UI; forward the port over ssh -L) ─────────
+dashboard:
+	$(PY) dashboard.py $(if $(PORT),--port $(PORT),)
 
 # ── Low-level engine ─────────────────────────────────────────────────────────
 all:
@@ -74,6 +94,9 @@ help:
 	@echo ""
 	@echo "Engine (single build, sequential):"
 	@echo "  make xml | llvm | asm | gem5 | all | clean   MODEL=<stem> CONFIG=<cfg>"
+	@echo ""
+	@echo "Dashboard (live web UI; forward the port with ssh -L):"
+	@echo "  make dashboard [PORT=8765]"
 	@echo ""
 	@echo "Vars: MODEL, CONFIG, RUNCONFIG (default=CONFIG), FORCE=1"
 	@echo ""

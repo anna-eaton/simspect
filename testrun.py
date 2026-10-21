@@ -38,15 +38,19 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path("/tests/simspect")
+from simspect_paths import ROOT, RESULTS, resolve  # canonical paths (single source of truth)
 sys.path.insert(0, str(ROOT / "STAGE3_gem5"))
 from gem5_common import sample_keep
+import jobs_registry
 
 KIND_FALLBACK = "other_x"   # bucket for missing/unreadable xmit.kind
 
 
 def load_jsonc(p: Path) -> dict:
-    return json.loads(re.sub(r"//.*", "", p.read_text()))
+    """Strip /* block */ and // line comments (matches pipeline.load_config)."""
+    txt = re.sub(r"/\*.*?\*/", "", p.read_text(), flags=re.S)
+    txt = re.sub(r"//[^\n]*", "", txt)
+    return json.loads(txt)
 
 
 def ready_stems(testset_model: Path, mode: str, sample_frac: float = 1.0) -> set:
@@ -108,7 +112,7 @@ def run_pass(cfg: dict, model: str, mode: str, results_base: Path,
     """One mode, one batch. Returns number of NEW tests processed."""
     testset_dir   = cfg["paths"]["testset_dir"]
     campaign      = results_base.name                      # <name>__<ts>
-    testset_model = ROOT / testset_dir / model
+    testset_model = resolve(testset_dir) / model
     src_asm = testset_model / mode / "asm"
     src_ann = testset_model / mode / "ann"
     mode_dir = results_base / mode
@@ -203,16 +207,16 @@ def main() -> None:
     cfg = load_jsonc(cfg_path)
     modes = cfg["speculation"]["branch_modes"]
     expected = int(cfg.get("alloy", {}).get("max_instances", 0))
-    testset_model = ROOT / cfg["paths"]["testset_dir"] / a.model
+    testset_model = resolve(cfg["paths"]["testset_dir"]) / a.model
     results_name = cfg["paths"]["results_name"]
 
-    latest = ROOT / "results" / f"{results_name}__latest"
+    latest = RESULTS / f"{results_name}__latest"
     if a.resume and latest.exists():
         results_base = latest.resolve()
         print(f"[testrun] resuming campaign {results_base}", flush=True)
     else:
         ts = time.strftime("%Y%m%d_%H%M%S")
-        results_base = ROOT / "results" / f"{results_name}__{ts}"
+        results_base = RESULTS / f"{results_name}__{ts}"
         results_base.mkdir(parents=True, exist_ok=True)
         if latest.is_symlink() or latest.exists():
             latest.unlink()
@@ -227,20 +231,29 @@ def main() -> None:
         }, indent=2))
         print(f"[testrun] campaign {results_base}", flush=True)
 
-    while True:
-        progressed = 0
-        for m in modes:
-            progressed += run_pass(cfg, a.model, m, results_base, a.max_new)
-        if a.once:
-            break
-        complete = expected > 0 and all(
-            len(list((testset_model / m / "asm").glob("inst-*.s"))) >= expected
-            for m in modes)
-        if complete and progressed == 0:
-            print(f"[testrun {time.strftime('%H:%M:%S')}] testset complete and "
-                  f"no new tests — done.", flush=True)
-            break
-        time.sleep(a.interval)
+    job_id = jobs_registry.record_start(
+        "sweep", a.model, a.config, results_name=results_name,
+        extra={"campaign": results_base.name,
+               "gem5_binary": cfg.get("gem5", {}).get("binary")})
+    try:
+        while True:
+            progressed = 0
+            for m in modes:
+                progressed += run_pass(cfg, a.model, m, results_base, a.max_new)
+            if a.once:
+                break
+            complete = expected > 0 and all(
+                len(list((testset_model / m / "asm").glob("inst-*.s"))) >= expected
+                for m in modes)
+            if complete and progressed == 0:
+                print(f"[testrun {time.strftime('%H:%M:%S')}] testset complete and "
+                      f"no new tests — done.", flush=True)
+                break
+            time.sleep(a.interval)
+    except BaseException as e:
+        jobs_registry.record_end(job_id, "failed", extra={"error": str(e)})
+        raise
+    jobs_registry.record_end(job_id, "done")
 
 
 if __name__ == "__main__":

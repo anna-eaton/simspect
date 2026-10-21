@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+# sim — one idempotent "connect-or-create" driver for the whole SimSpect rig.
+#
+# The chain is:  laptop/mini --ssh--> cafe2 (Slurm node) --docker exec--> gem5_dev
+#                --tmux--> persistent session where gem5/pipeline runs.
+#
+# cafe2 enforces pam_slurm_adopt: you can only ssh in while you hold a Slurm job
+# there. So EVERY cafe command first ensures a detached holder job owns the node;
+# a dropped VSCode/SSH then costs nothing — the job, the tmux, and the runs survive.
+#
+# Usage:  scripts/sim <cmd>     (or via the Makefile: make hold|cafe|dash|mini|...)
+#   hold            ensure the detached Slurm holder job is RUNNING on the node
+#   status          show holder job + container + tmux sessions + dashboard
+#   cafe            attach the persistent work tmux inside the container (create if none)
+#   run "<cmd>"     launch <cmd> in a NEW tmux window in the work session (survives drops)
+#   peek [window]   print the tail of the work session (or a specific window)
+#   windows         list windows in the work session
+#   dash            start the dashboard in the container (if needed), forward it, open browser
+#   mini            attach the persistent driver tmux on the Mac mini (create if none)
+#   mini-ssh-help   print the one command YOU run to enable key auth to the mini
+#   mini-bootstrap  copy ssh config/keys to the mini so IT can reach cafe2 (after mini-ssh-help)
+set -uo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$HERE/simspect.env"
+
+say() { printf '\033[1;36m[sim]\033[0m %s\n' "$*" >&2; }
+die() { printf '\033[1;31m[sim] %s\033[0m\n' "$*" >&2; exit 1; }
+
+# ── Slurm holder job ─────────────────────────────────────────────────────────
+hold_state() { ssh -o BatchMode=yes "$SC_HOST" "squeue --me -h -n '$HOLD_JOBNAME' -o '%T' 2>/dev/null" | head -1; }
+
+ensure_hold() {
+  local st; st="$(hold_state)"
+  if [ "$st" = "RUNNING" ]; then say "holder job already RUNNING on $CAFE_HOST"; return 0; fi
+  if [ "$st" = "PENDING" ]; then say "holder job PENDING — waiting..."; else
+    say "no holder job — allocating $CAFE_HOST ($SLURM_MEM, $SLURM_TIME)..."
+    ssh -o BatchMode=yes "$SC_HOST" \
+      "sbatch --account=$SLURM_ACCOUNT --nodelist=$CAFE_HOST -p $SLURM_PART \
+       --mem=$SLURM_MEM --time=$SLURM_TIME --job-name=$HOLD_JOBNAME \
+       --wrap 'sleep infinity'" >&2 || die "sbatch failed (partition may refuse batch; try salloc --no-shell)"
+  fi
+  for _ in $(seq 1 20); do
+    [ "$(hold_state)" = "RUNNING" ] && { say "holder job RUNNING"; return 0; }
+    sleep 3
+  done
+  die "holder job did not reach RUNNING — check: ssh $SC_HOST squeue --me"
+}
+
+# ── container tmux helpers ───────────────────────────────────────────────────
+dex()  { ssh -o BatchMode=yes "$CAFE_HOST" "docker exec $CONTAINER $*"; }       # non-interactive
+dexit(){ ssh -t "$CAFE_HOST" "docker exec -it $CONTAINER $*"; }                 # interactive (tty)
+dcsh() { ssh -o BatchMode=yes "$CAFE_HOST" "docker exec $CONTAINER bash -lc '$*'"; }  # run a shell line IN the container
+
+ensure_tmux() { dcsh "tmux has-session -t $1 2>/dev/null || tmux new -d -s $1" >/dev/null 2>&1; }
+
+# container lacks ss/netstat; probe the port directly (curl, then bash /dev/tcp)
+dash_listening() { dcsh "curl -sf -o /dev/null http://$CONTAINER_IP:$DASH_PORT/ 2>/dev/null || (exec 3<>/dev/tcp/$CONTAINER_IP/$DASH_PORT) 2>/dev/null"; }
+
+# ── commands ─────────────────────────────────────────────────────────────────
+cmd_hold() { ensure_hold; }
+
+cmd_status() {
+  say "Slurm holder job (@ $SC_HOST):"
+  ssh -o BatchMode=yes "$SC_HOST" "squeue --me 2>/dev/null" || true
+  local st; st="$(hold_state)"
+  [ "$st" = "RUNNING" ] || { say "node not held — run 'make hold' first (rest needs the allocation)"; return 0; }
+  say "Docker on $CAFE_HOST:"; dex "ps 2>/dev/null" || true
+  say "tmux sessions in $CONTAINER:"; dex "tmux ls 2>/dev/null" || echo "  (none)"
+  say "running experiments (pipeline/gem5/sweep):"
+  dex "bash -lc \"ps -eo etime,pcpu,args | grep -iE 'pipeline.py|testsetgen|testrun|sweep_watcher|gem5|check_' | grep -v grep || echo '  (none running)'\"" 2>/dev/null || true
+}
+
+cmd_cafe() {
+  ensure_hold
+  ensure_tmux "$TMUX_WORK"
+  say "attaching $CONTAINER:tmux:$TMUX_WORK  (Ctrl-b d to detach; runs keep going)"
+  dexit "tmux new -A -s $TMUX_WORK"
+}
+
+cmd_run() {
+  [ $# -ge 1 ] || die "usage: sim run \"<command>\""
+  ensure_hold; ensure_tmux "$TMUX_WORK"
+  local win="run_$(date +%H%M%S)"
+  dex "tmux new-window -t $TMUX_WORK -n $win -c $REPO_IN_CONTAINER \"$* 2>&1 | tee -a $REPO_IN_CONTAINER/run_$win.log\"" >/dev/null
+  say "launched in $TMUX_WORK:$win  (log: $REPO_IN_CONTAINER/run_$win.log)"
+  say "watch it:  scripts/sim peek $win"
+}
+
+cmd_windows() { ensure_hold; dex "tmux list-windows -t $TMUX_WORK 2>/dev/null" || echo "(no work session)"; }
+
+cmd_peek() {
+  ensure_hold
+  local target="$TMUX_WORK"; [ $# -ge 1 ] && target="$TMUX_WORK:$1"
+  dex "tmux capture-pane -p -t $target -S -60 2>/dev/null" || echo "(nothing to show)"
+}
+
+cmd_dash() {
+  ensure_hold
+  # The dashboard must bind the container's BRIDGE IP (not loopback) so the ssh -L
+  # forward to $CONTAINER_IP:$DASH_PORT can reach it. Start detached if not already up.
+  if ! dash_listening; then
+    say "starting dashboard in $CONTAINER (bind $CONTAINER_IP:$DASH_PORT)..."
+    dcsh "cd $REPO_IN_CONTAINER && rm -f dashboard.log && nohup python3 dashboard.py --host $CONTAINER_IP --port $DASH_PORT > dashboard.log 2>&1 & disown" >/dev/null 2>&1
+    for _ in 1 2 3 4 5 6; do dash_listening && break; sleep 1; done
+  fi
+  if ! dash_listening; then
+    say "dashboard did NOT come up — last log lines:"; dcsh "tail -20 $REPO_IN_CONTAINER/dashboard.log" >&2 || true
+    die "dashboard failed to start (see $REPO_IN_CONTAINER/dashboard.log in the container)"
+  fi
+  say "dashboard serving on $CONTAINER_IP:$DASH_PORT — forwarding to localhost:$DASH_PORT"
+  ( sleep 2; command -v open >/dev/null && open "http://127.0.0.1:$DASH_PORT" >/dev/null 2>&1 || true ) &
+  say "open http://127.0.0.1:$DASH_PORT   (Ctrl-C here stops the forward, not the dashboard)"
+  ssh -N -L "$DASH_PORT:$CONTAINER_IP:$DASH_PORT" "$CAFE_HOST"
+}
+
+cmd_mini() {
+  ssh -o BatchMode=yes -o ConnectTimeout=8 "$MINI_USER@$MINI_HOST" true 2>/dev/null \
+    || die "can't key-auth to the mini yet — run: make mini-ssh-help"
+  # login shell so Homebrew's /opt/homebrew/bin (tmux) is on PATH
+  ssh -t "$MINI_USER@$MINI_HOST" "bash -lc 'tmux new -A -s $MINI_TMUX'"
+}
+
+cmd_mini_ssh_help() {
+  cat >&2 <<EOF
+[sim] Enable key auth to the Mac mini (run THIS yourself — it needs the mini's password):
+
+    ssh-copy-id -i ~/.ssh/id_ed25519.pub $MINI_USER@$MINI_HOST
+
+If the mini refuses connections entirely, first enable Remote Login on it:
+    System Settings -> General -> Sharing -> Remote Login = ON
+Then re-run the ssh-copy-id above. After it succeeds:  make mini
+EOF
+}
+
+cmd_mini_bootstrap() {
+  ssh -o BatchMode=yes -o ConnectTimeout=8 "$MINI_USER@$MINI_HOST" true 2>/dev/null \
+    || die "key auth to the mini not set up yet — run: make mini-ssh-help"
+  say "copying ssh config + sc key to the mini so IT can reach $CAFE_HOST..."
+  ssh "$MINI_USER@$MINI_HOST" "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
+  scp ~/.ssh/config ~/.ssh/sc ~/.ssh/sc.pub "$MINI_USER@$MINI_HOST:~/.ssh/" \
+    && say "done — the mini can now 'ssh $CAFE_HOST' (test: make mini, then run scripts/sim status there)"
+}
+
+case "${1:-}" in
+  hold)           cmd_hold ;;
+  status)         cmd_status ;;
+  cafe)           cmd_cafe ;;
+  run)            shift; cmd_run "$@" ;;
+  peek)           shift; cmd_peek "$@" ;;
+  windows)        cmd_windows ;;
+  dash)           cmd_dash ;;
+  mini)           cmd_mini ;;
+  mini-ssh-help)  cmd_mini_ssh_help ;;
+  mini-bootstrap) cmd_mini_bootstrap ;;
+  ""|-h|--help|help)
+    sed -n '2,33p' "$HERE/sim" | sed 's/^# \{0,1\}//' ;;
+  *) die "unknown command: $1   (try: scripts/sim help)" ;;
+esac

@@ -46,7 +46,9 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-ROOT = Path(__file__).parent.resolve()
+# Canonical repo root + path resolver — single source of truth (simspect_paths.py).
+# ROOT self-locates via __file__, identical to the previous local definition.
+from simspect_paths import ROOT, resolve
 
 
 # ── Config helpers ────────────────────────────────────────────────────────────
@@ -57,12 +59,6 @@ def load_config(path: Path) -> dict:
     text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
     text = re.sub(r'//[^\n]*',  '', text)
     return json.loads(text)
-
-
-def resolve(cfg_value: str) -> Path:
-    """Resolve a config path: absolute → as-is; relative → relative to ROOT."""
-    p = Path(cfg_value)
-    return p if p.is_absolute() else (ROOT / p).resolve()
 
 
 # ── Provenance snapshot ───────────────────────────────────────────────────────

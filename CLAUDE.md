@@ -8,6 +8,59 @@ The paper/writing workspace is a **separate repo at `/tests/SimSpect-S-P-2027/`*
 `git@github.com:anna-eaton/SimSpect-S-P-2027.git`) — see its own `CLAUDE.md` for all paper
 conventions (critique style, figure generation, logs). Do paper work there, not here.
 
+## Write everything down — minimize fragile session state (governing principle)
+
+**Default to durability. Anything of value gets written to a file in this repo; as little as
+possible lives only in a session, a chat transcript, a terminal, or a tmux pane that can die.**
+A new session (or Anna, months later) must be able to reconstruct *what is true, what is
+running, and why* from committed files alone — never from "what the last Claude remembered."
+If you learn it, decide it, or build it, record it. When in doubt, write it down.
+
+To that end, three mechanisms — use them as a matter of course, not on request:
+
+1. **Append-only logs for progress & findings.** `claudelog.md` (durable, dated, append-only —
+   never edit history) + `claudenotes.md` (ephemeral "right now"). Full discipline in **Session
+   notes** below. These capture the *narrative*: what happened, what changed, what was decided.
+
+2. **The md wiki = organized source of truth for project state.** `wiki/` holds the *current
+   truth* as clearly-organized, overwrite-in-place living docs (distinct from the append-only
+   logs). Target layout:
+   - `wiki/state/` — always-current living docs: `STATUS.md` (human rollup), `RUNNING.md`
+     (what's live: allocations/campaigns/sweeps), `INFRA.md` (the connect/session runbook),
+     `OPEN.md` (questions awaiting Anna).
+   - `wiki/design/` — durable semantics/design (`DESIGN.md`, `AUDIT.md`, `METHODS_*`).
+   - `wiki/findings/` — per-bug / per-result writeups (the `bug/` + `mdsToRead/` material).
+   - `wiki/logs/` — the append-only logs' permanent home.
+   - `wiki/README.md` — the index / "start here". Prefer adding a new md here over leaving
+     knowledge in chat. (Scattered legacy md at the repo root is being consolidated here — see
+     `wiki/REPO_CLEANUP_BRIEF.md`; until migrated, the root copies remain canonical.)
+
+3. **Md as the source of truth for builds & results.** A result is meaningless without the exact
+   microarchitectural conditions that produced it (see the "reproduce EXACTLY as the config did"
+   rule under *Architecture notes*). Every campaign must carry its full provenance in durable
+   form — the `run_config.jsonc` (gem5 binary/scheme/`extra_args` + the full hook state: branch
+   forces, stalls) **plus** a human-readable md note of what build it is and why — so the run is
+   reproducible from disk, never from session memory. Do not describe a build's behavior only in
+   chat; write it where the build/result lives.
+
+**Documentation is proactive, not on-request.** Whenever you add or change a command, `make`
+target, script, config knob, build, or workflow, **update the relevant wiki doc in the same change
+— automatically, without being asked.** New/changed `make` targets or `scripts/sim` commands →
+`wiki/state/COMMANDS.md`; connection/session changes → `wiki/state/INFRA.md`; new durable concept →
+a wiki page + a link from `wiki/README.md`. Shipping a capability without its doc is an incomplete
+change. If you find yourself explaining how to do something only in chat, that explanation belongs
+in a file instead.
+
+**Sessions & infra are reconstructible, not remembered.** The whole rig (Slurm allocation →
+docker → tmux → dashboard) is connect-or-create from the Makefile (`make hold|cafe|status|dash|
+mini`, via `scripts/sim`) — see `wiki/state/INFRA.md`. Never rely on a hand-built live session
+you can't recreate from the repo; if you do something ad-hoc, fold it back into a script + md.
+
+*If this proves insufficient* (e.g. logs grow unwieldy, or run state needs machine-readable
+tracking), **propose a richer scheme** — a structured per-run `manifest.json`, a
+`wiki/logs/` split by topic, or an indexed build registry — rather than silently letting state
+drift back into session memory.
+
 ## Session notes (inter-session comms)
 
 Multiple Claude sessions may run concurrently. Two files coordinate them — **read both first**:

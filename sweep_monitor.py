@@ -55,7 +55,7 @@ def now_pt() -> str:
     off, name = (-7, "PDT") if is_dst else (-8, "PST")
     return (utc + timedelta(hours=off)).strftime("%Y-%m-%d %H:%M:%S ") + name
 
-ROOT = Path(__file__).parent.resolve()
+from simspect_paths import ROOT  # canonical repo root (single source of truth)
 
 # ── ANSI ──────────────────────────────────────────────────────────────────────
 C = {

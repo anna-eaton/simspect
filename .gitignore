@@ -11,3 +11,7 @@ tmp_taken_results_preregen_20260519_193643/
 archive/
 pipeline_SPT_6*.log
 testsets_latest/
+results_latest/
+jobs/
+__pycache__/
+*.pyc

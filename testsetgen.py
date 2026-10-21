@@ -36,6 +36,7 @@ import time
 from pathlib import Path
 
 from pipeline import ROOT, load_config, resolve, phase_xml, phase_llvm, phase_asm
+import jobs_registry
 
 
 def _count(p: Path, pat: str) -> int:
@@ -172,29 +173,37 @@ def main() -> None:
                     print(f"[gen] asm({m}) skipped this pass: {e}", flush=True)
         return sum(_count(_mode_base(m) / "asm", "inst-*.s") for m in mode_list)
 
+    job_id = jobs_registry.record_start(
+        "gen", a.model, a.config,
+        results_name=cfg.get("paths", {}).get("results_name"))
     prev_asm = -1
-    while True:
-        asm_total = _drain()
-        xml_n = _count(xml_dir, "inst-*.xml")
-        per = "  ".join(
-            f"[{m or 'flat'}] llvm {_count(_mode_base(m) / 'llvm', '*.ll')} "
-            f"asm {_count(_mode_base(m) / 'asm', 'inst-*.s')} "
-            f"ann {_count(_mode_base(m) / 'ann', '*.ann.json')}"
-            for m in mode_list)
-        state = ("following" if a.follow
-                 else "done" if xml_done.is_set() else "enumerating")
-        print(f"[gen {time.strftime('%H:%M:%S')}] xml {xml_n}"
-              f"{'/' + str(cap) if cap else ''} ({state})  |  {per}", flush=True)
+    try:
+        while True:
+            asm_total = _drain()
+            xml_n = _count(xml_dir, "inst-*.xml")
+            per = "  ".join(
+                f"[{m or 'flat'}] llvm {_count(_mode_base(m) / 'llvm', '*.ll')} "
+                f"asm {_count(_mode_base(m) / 'asm', 'inst-*.s')} "
+                f"ann {_count(_mode_base(m) / 'ann', '*.ann.json')}"
+                for m in mode_list)
+            state = ("following" if a.follow
+                     else "done" if xml_done.is_set() else "enumerating")
+            print(f"[gen {time.strftime('%H:%M:%S')}] xml {xml_n}"
+                  f"{'/' + str(cap) if cap else ''} ({state})  |  {per}", flush=True)
 
-        # --follow never auto-terminates (the external producer decides when
-        # xml is done; kill this process manually). Otherwise stop once Alloy
-        # has finished and a full pass produced no new asm.
-        if not a.follow and xml_done.is_set() and asm_total == prev_asm:
-            print("[gen] complete — xml done and no new asm produced. "
-                  "Testset ready for testrun.py.", flush=True)
-            break
-        prev_asm = asm_total
-        time.sleep(a.interval)
+            # --follow never auto-terminates (the external producer decides when
+            # xml is done; kill this process manually). Otherwise stop once Alloy
+            # has finished and a full pass produced no new asm.
+            if not a.follow and xml_done.is_set() and asm_total == prev_asm:
+                print("[gen] complete — xml done and no new asm produced. "
+                      "Testset ready for testrun.py.", flush=True)
+                break
+            prev_asm = asm_total
+            time.sleep(a.interval)
+    except BaseException as e:
+        jobs_registry.record_end(job_id, "failed", extra={"error": str(e)})
+        raise
+    jobs_registry.record_end(job_id, "done")
 
 
 if __name__ == "__main__":
