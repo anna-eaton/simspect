@@ -8,7 +8,25 @@ call, what's running, the development front, and what's parked.
 ⚠️ *Run/sweep state below is "as last logged" — always trust `claudenotes.md` for the live
 picture and re-verify a sweep is actually alive before relying on it.*
 
-*Last refreshed: 2026-06-10 by staged-enum — **NEW staged Alloy enumeration built + verified E2E** (minimal cores → STT_6 flesh-out, capped per-core): `STAGE1_alloy/{models/STT_6_core.als, stage_seed.py, stage_pipeline.py}`, doc `mdsToRead/STAGED_ENUMERATION.md`. Additive (flat pipeline + existing .als untouched); new `STT_6_core.als` awaits owner eyeball. See "Needs your call".*
+*Last refreshed: 2026-10-20 by cleanuprepo — **repo cleanup + Mac↔cafe2 git reconciliation.** See below.*
+
+---
+
+## 🧹 2026-10-20 — repo cleanup & git sync (cleanuprepo session)
+
+The Mac and cafe2 container had **diverged uncommitted** from Jun 8 in different directions and the
+container couldn't even auth to GitHub. All reconciled, nothing lost — **Mac = origin = container**.
+- **Git unified:** cafe2's June work (bugsynth/, bug demos, staged-enum tooling, 2 protected
+  `.als`) + Mac's Oct work (dashboard rewrite, sim rig, wiki/) merged on `main`, pushed.
+- **Container GitHub auth fixed** (repo-scoped deploy key on persistent `/work` mount) — it can
+  `git pull`/`push` directly now. See `wiki/state/INFRA.md`.
+- **gem5 hooks backed up** → `gem5-hooks/` (they lived only in the ephemeral container; Recon builds
+  weren't even git repos). `gem5-recon` = base, `gem5-recon-modded` = change. See `gem5-hooks/README.md`.
+- **Layout consolidated:** dashboard → `dashboard/`; root `.md` → `wiki/design/` + `wiki/results/`;
+  `RECAP.md` → `old/`. Only `CLAUDE.md`/`STATUS.md`/`claudelog.md`/`claudenotes.md` stay at root.
+  Inventory: `wiki/state/REPO_MAP.md`. Full divergence writeup: `wiki/state/SYNC_DIVERGENCE.md`.
+- **Still parked:** findings dirs (`bug/`, `mdsToRead/`, `docs/`) → `wiki/findings/` (next pass);
+  a `scripts/sim capture-hooks` subcommand; dashboard `vscode://` open-links.
 
 ---
 
