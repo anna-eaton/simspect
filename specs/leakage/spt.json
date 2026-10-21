@@ -1,0 +1,16 @@
+{
+  "_doc": "SPT leakage: loads + branches + STORE addresses.",
+  "defense": "SPT",
+  "transmitters": [
+    "ld",
+    "br_x",
+    "str"
+  ],
+  "checkers": {
+    "ld": "check_ld.py",
+    "br_x": "check_br.py",
+    "str": "NEEDS: store-transmitter checker"
+  },
+  "alloy_leakage_function": "Loads.inaddr+(Branchxs).inreg+Stores.inaddr",
+  "note": "24 untriaged str store-addr hits \u2014 store checker not yet built"
+}

@@ -1,0 +1,11 @@
+{
+  "_doc": "Standard enumeration.",
+  "max_instances": 150000,
+  "branch_modes": [
+    "mispredict_not_taken",
+    "mispredict_taken"
+  ],
+  "interleave": false,
+  "instruction_choice": "random",
+  "seed": null
+}

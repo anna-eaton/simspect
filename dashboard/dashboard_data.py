@@ -744,6 +744,168 @@ def catalog(kind) -> dict:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 4f. hit categories (source of truth) + per-run detail (the gem5-card viewer)
+# ══════════════════════════════════════════════════════════════════════════════
+@_safe(lambda: {"categories": {}})
+def hit_categories() -> dict:
+    """The central hit-category registry (specs/hit_categories.json)."""
+    p = _SPECS_DIR / "hit_categories.json"
+    if p.exists():
+        try:
+            d = json.loads(p.read_text(encoding="utf-8"))
+            d["_path"] = str(p)
+            d["_vscode"] = vscode_uri(str(p))
+            return d
+        except Exception as e:
+            return {"categories": {}, "error": str(e)}
+    return {"categories": {}}
+
+
+def _find_campaign(name):
+    cd = _campaign_dirs().get(name)
+    if cd is not None:
+        return cd
+    cand = RESULTS / name
+    return cand if cand.is_dir() else None
+
+
+@_safe(lambda: {"ok": False, "error": "not found"})
+def run_detail(name) -> dict:
+    """Everything the old run-monitor showed for one gem5 campaign + the categorized
+    hit buckets (joined to the hit_categories registry). name = results_name."""
+    cd = _find_campaign(name)
+    if cd is None:
+        return {"ok": False, "error": f"no campaign: {name}"}
+    man = {}
+    mp = cd / "manifest.json"
+    if mp.exists():
+        try:
+            man = json.loads(mp.read_text())
+        except Exception:
+            man = {}
+    variant, timing = None, {}
+    cfgp = cd / "run_config.jsonc"
+    if cfgp.exists():
+        try:
+            gem5 = _load_cfg(cfgp).get("gem5", {})
+            variant = sm.variant_of(gem5)
+            timing = {k: v for k, v in gem5.items()
+                      if any(t in k for t in ("stall", "delay", "scheme", "branch_ann", "binary", "config_script"))}
+        except Exception:
+            pass
+    modes = _campaign_modes(cd)   # [{mode, kinds:[{kind,total,hits}]}]
+    tot_hits = sum(k.get("hits", 0) for m in modes for k in m.get("kinds", []))
+    tot_recs = sum(k.get("total", 0) for m in modes for k in m.get("kinds", []))
+
+    reg = hit_categories().get("categories", {})
+    buckets = []
+    bsum = cd / "diagnostics" / "buckets" / "summary.json"
+    if bsum.exists():
+        try:
+            counts = json.loads(bsum.read_text())
+            for cat, n in counts.items():
+                meta = reg.get(cat, {})
+                buckets.append({"category": cat, "count": n,
+                                "label": meta.get("label", cat),
+                                "verdict": meta.get("verdict", "?"),
+                                "description": meta.get("description"),
+                                "bug_md": meta.get("bug_md")})
+            buckets.sort(key=lambda b: (-b["count"]))
+        except Exception:
+            pass
+    return {"ok": True, "results_name": name, "campaign": cd.name,
+            "model": man.get("model"), "gem5_binary": man.get("gem5_binary"),
+            "variant": variant, "timing": timing, "started_at": man.get("started_at"),
+            "total_records": tot_recs, "total_hits": tot_hits,
+            "modes": modes, "buckets": buckets,
+            "has_diagnostics": (cd / "diagnostics").is_dir()}
+
+
+@_safe(lambda: {"ok": False, "stems": []})
+def run_hit_stems(name, bucket=None, mode=None, limit=500) -> dict:
+    """Stems in one bucket for a campaign (drill-in). Reads
+    diagnostics/buckets/<mode>/<bucket>.txt, else <mode>/<kind>/window-hits.txt."""
+    cd = _find_campaign(name)
+    if cd is None:
+        return {"ok": False, "error": f"no campaign: {name}", "stems": []}
+    stems, src = [], None
+    bdir = cd / "diagnostics" / "buckets"
+    if bucket and bdir.is_dir():
+        for f in bdir.rglob(f"{bucket}.txt"):
+            if mode and f.parent.name != mode:
+                continue
+            src = str(f)
+            try:
+                stems += [s for s in f.read_text().splitlines() if s.strip()]
+            except OSError:
+                pass
+    try:
+        limit = max(1, int(limit))
+    except (TypeError, ValueError):
+        limit = 500
+    return {"ok": True, "bucket": bucket, "source": src,
+            "total": len(stems), "stems": sorted(stems)[:limit]}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 4g. defense units (defense × implementation) + transmitter criteria
+# ══════════════════════════════════════════════════════════════════════════════
+def _read_spec(relpath):
+    f = _SPECS_DIR / relpath
+    if f.exists():
+        try:
+            return json.loads(f.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+    return None
+
+
+@_safe(lambda: {"units": []})
+def defense_units() -> dict:
+    """The defense_units.json registry, each unit enriched with its criteria specs
+    (leakage/timing/fanout contents) + whether its results campaigns exist on disk."""
+    d = _read_spec("defense_units.json")
+    if d is None:
+        return {"units": []}
+    camp = set(_campaign_dirs().keys())
+    for u in d.get("units", []):
+        u["leakage_spec"] = _read_spec(f"leakage/{u.get('leakage')}") if u.get("leakage") and not str(u.get("leakage")).startswith("NEEDS") else None
+        u["timing_spec"] = _read_spec(f"timing/{u.get('timing')}") if u.get("timing") and not str(u.get("timing")).startswith("NEEDS") else None
+        u["fanout_spec"] = _read_spec(f"fanout/{u.get('fanout')}") if u.get("fanout") and not str(u.get("fanout")).startswith("NEEDS") else None
+        present = []
+        for r in u.get("results", []):
+            base = r.replace("__latest", "")
+            if base in camp or (RESULTS / r).exists():
+                present.append(r)
+        u["results_present"] = present
+    d["_vscode"] = vscode_uri(str(_SPECS_DIR / "defense_units.json"))
+    return d
+
+
+@_safe(lambda: {})
+def transmitter_criteria() -> dict:
+    """All the transmitter/leakage criteria work, bundled for the Annotation/Check
+    utility: the per-kind leak gate + the stage mapping + per-defense transmitter sets."""
+    out = {}
+    tc = _read_spec("transmitter_criteria.json")
+    if tc is not None:
+        out["criteria"] = tc
+    sm_map = _read_spec("transmitter_stage_mapping.json")
+    if sm_map is not None:
+        out["stage_mapping"] = sm_map
+    leak = {}
+    ld = _SPECS_DIR / "leakage"
+    if ld.is_dir():
+        for f in sorted(ld.glob("*.json")):
+            v = _read_spec(f"leakage/{f.name}")
+            if v is not None:
+                leak[f.stem] = v
+    out["leakage"] = leak
+    out["_vscode"] = vscode_uri(str(_SPECS_DIR / "transmitter_criteria.json"))
+    return out
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # 5. corpus
 # ══════════════════════════════════════════════════════════════════════════════
 @_safe(lambda: {"model": None, "modes": [], "xml": 0})

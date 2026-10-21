@@ -1,0 +1,8 @@
+{
+  "_doc": "Slow-commit timing that EXPOSES the VP<->squash race.",
+  "scheme": 2,
+  "fnc_commit_stall_cycles": 30,
+  "unresolved_stall_cycles": 0,
+  "commitToIEWDelay": 3,
+  "note": "widens the resolution->squash gap so the wrong-path transmitter reaches cache"
+}

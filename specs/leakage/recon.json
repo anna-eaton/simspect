@@ -1,0 +1,13 @@
+{
+  "_doc": "Recon leakage: loads + branches.",
+  "defense": "Recon",
+  "transmitters": [
+    "ld",
+    "br_x"
+  ],
+  "checkers": {
+    "ld": "check_ld.py",
+    "br_x": "check_br.py"
+  },
+  "alloy_leakage_function": "Loads.inaddr+(Branchxs).inreg"
+}

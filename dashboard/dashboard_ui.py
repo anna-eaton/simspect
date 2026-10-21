@@ -382,10 +382,10 @@ code {
 .jobs-table { margin-top: 10px; }
 
 /* ---------- Pipeline tab: the XML | PROGRAMS | GEM5 grid ---------- */
-.pl-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.pl-grid { display: flex; flex-direction: column; gap: 18px; margin-top: 10px; }
 .pl-row {
   display: grid;
-  grid-template-columns: 160px 1fr 1fr 1fr;
+  grid-template-columns: 160px 1fr;
   gap: 12px;
   align-items: start;
 }
@@ -402,6 +402,61 @@ code {
   color: var(--heading);
   padding-top: 8px;
   word-break: break-word;
+}
+/* The "rest of the row" — a nested 3-col grid (XML/PROGRAMS/GEM5) so a
+   defense-unit box can be drawn around just these three cells. */
+.pl-rowbody {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  position: relative;
+}
+.pl-rowbody.unit-box {
+  border: 2px solid var(--muted);
+  border-radius: 10px;
+  padding: 16px 10px 14px;
+}
+.pl-rowbody.unit-done { border-color: var(--ok); }
+.pl-rowbody.unit-inprogress { border-color: var(--warn); }
+.unit-badges {
+  position: absolute;
+  top: -12px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+.unit-badge {
+  background: var(--panel);
+  border: 2px solid var(--ok);
+  color: var(--heading);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.unit-badge:hover { background: var(--hover); }
+.unit-badge.unit-badge-static { cursor: default; border-color: var(--warn); margin-right: 6px; }
+.unit-badge.unit-badge-inprogress { border-color: var(--warn); }
+.pl-rowbody.unit-inprogress .unit-badge:not(.unit-badge-static) { border-color: var(--warn); }
+.unit-status-corner {
+  position: absolute;
+  bottom: -10px;
+  left: 12px;
+  background: var(--panel);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 0 7px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 4px;
+  z-index: 2;
 }
 .pl-col { display: flex; flex-direction: column; gap: 8px; }
 .pl-box {
@@ -430,6 +485,35 @@ code {
 .pl-defense.df-spt { background: rgba(198,120,221,.16); color: #c678dd; border: 1px solid #c678dd; }
 .pl-defense.df-recon { background: rgba(217,181,74,.16); color: #d9b54a; border: 1px solid #d9b54a; }
 .pl-defense.df-unknown { background: rgba(124,129,144,.16); color: var(--muted); border: 1px solid var(--muted); }
+
+/* ---------- gem5 run-detail inspector + hit-categories verdict badges ---------- */
+.vb {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.vb-checker { background: rgba(217,181,74,.18); color: #d9b54a; border: 1px solid #d9b54a; }
+.vb-artifact { background: rgba(124,129,144,.18); color: #7c8190; border: 1px solid #7c8190; }
+.vb-real_bug { background: rgba(224,108,90,.18); color: #e06c5a; border: 1px solid #e06c5a; }
+.vb-new { background: #e0493a; color: #fff; border: 1px solid #e0493a; font-weight: 800; }
+.hitcats-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.run-timing {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 2px 14px;
+  font-size: 11px;
+  margin-top: 4px;
+}
+.run-totals { font-size: 14px; }
+.run-totals .run-tot-hit { color: var(--err); font-weight: 800; font-size: 18px; }
+.run-bucket { cursor: pointer; }
+.run-bucket:hover { background: var(--hover); }
+.run-bucket-new { border: 2px solid var(--err); }
 .pl-box-top {
   display: flex;
   align-items: center;
@@ -464,6 +548,27 @@ code {
   max-width: 460px;
 }
 
+/* ---------- To-run panel (defense units with status=="to_run") ---------- */
+.to-run-panel {
+  border: 2px solid var(--warn);
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+.to-run-card {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.to-run-card:last-child { margin-bottom: 0; }
+.to-run-checklist {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  font-size: 12px;
+}
+.to-run-checklist li { list-style: "\2610  "; padding: 1px 0; }
+
 /* ---------- Status tab ---------- */
 .status-cols { display: flex; gap: 20px; flex-wrap: wrap; }
 .status-col { flex: 1 1 420px; min-width: 320px; font-size: 12px; }
@@ -490,14 +595,41 @@ code {
   border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px;
 }
 
+/* ---------- Execution-graph overlay + legend (used by both the modal and the
+   Utilities "XML graph" inline viewer — kept global so both render correctly
+   even if the modal has never been opened). ---------- */
+.eg-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 60;
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.eg-modal-inner {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  width: 1100px; max-width: 96vw; max-height: 92vh;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.eg-modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+}
+.eg-modal-head strong { font-size: 13px; color: var(--heading); }
+.eg-modal-body { overflow: auto; padding: 14px; }
+.eg-close {
+  cursor: pointer; background: var(--tab-bg); color: var(--tab-text);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px;
+}
+.eg-legend { display: flex; flex-wrap: wrap; gap: 12px 16px; margin-bottom: 10px; font-size: 11px; color: var(--muted); align-items: center; }
+.eg-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.eg-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: 0 0 auto; }
+
 @media (max-width: 900px) {
-  .pl-row { grid-template-columns: 110px 1fr 1fr 1fr; }
+  .pl-row { grid-template-columns: 110px 1fr; }
 }
 
 @media (max-width: 700px) {
   .main-tabs { gap: 3px; }
   .tab { padding: 4px 8px; font-size: 12px; }
   .pl-row { grid-template-columns: 1fr; }
+  .pl-rowbody { grid-template-columns: 1fr; }
   .pl-row.pl-head { display: none; }
   .status-cols { flex-direction: column; }
 }
@@ -546,6 +678,10 @@ let state = {
 // model/id rather than serializing JSON into HTML attributes.
 let PL_DATA = null;
 
+// Default model/stem so the graph utils are click-to-visualize (and auto-render).
+const DEFAULT_MODEL = 'STT_6';
+const DEFAULT_STEM = 'inst-000001';
+
 const MAIN_TABS = [
   { id: 'pipeline', label: 'Pipeline' },
   { id: 'status', label: 'Status' },
@@ -562,11 +698,18 @@ const UTIL_TABS = [
   { id: 'runconfigs', label: 'Run configs' },
   { id: 'gem5hooks', label: 'gem5 hooks' },
   { id: 'findings', label: 'Findings' },
+  { id: 'hitcats', label: 'Hit categories' },
+  { id: 'xmlviz', label: 'XML graph' },
 ];
 
 // Last /api/models payload (every .als on disk, enumerated or not) — joined
 // with PL_DATA by model name to build the Pipeline grid rows.
 let MODELS_DATA = null;
+
+// Last /api/defense_units payload — the (leakage-defense × gem5-implementation)
+// registry. Drives the outlined unit-boxes on the Pipeline grid, the to-run
+// panel, and the Status-tab rollup.
+let DEFENSE_UNITS_DATA = null;
 
 // ====== Utilities ======
 function esc(str) {
@@ -1045,8 +1188,11 @@ function openProgramInspector(m, p) {
   }
 }
 
-function openGem5Inspector(g) {
-  openUModal('gem5 — ' + (g.variant || g.results_name || ''));
+// Minimal fallback when /api/run has no data for this campaign (e.g. running
+// on a checkout with no results/ — the rich viewer only has data once deployed
+// on the box that ran the sweep). Falls back to the summary pipeline_graph()
+// already gave us for this gem5 node.
+function renderGem5FallbackHtml(g, errMsg) {
   let rows = '';
   for (const mo of (g.modes || [])) {
     for (const k of (mo.kinds || [])) {
@@ -1055,7 +1201,8 @@ function openGem5Inspector(g) {
       rows += `<tr><td>${esc(mo.mode)}</td><td>${esc(k.kind || '-')}</td><td>${k.total || 0}</td><td>${hitsHtml}</td></tr>`;
     }
   }
-  const html = `<div class="card">
+  return `<p class="card-meta" style="margin-top:0">Run detail unavailable${errMsg ? ': ' + esc(errMsg) : ''} — showing the summary from the Pipeline grid instead.</p>
+    <div class="card">
       <div class="card-meta">
         <strong>results_name:</strong> ${esc(g.results_name || '')}<br>
         <strong>model:</strong> ${esc(g.model || '')}<br>
@@ -1066,9 +1213,125 @@ function openGem5Inspector(g) {
       </div>
     </div>
     <table><thead><tr><th>Mode</th><th>Kind</th><th>Total</th><th>Hits</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="4" class="empty">no results yet</td></tr>'}</tbody></table>
-    <p style="font-size:11px;color:var(--muted);margin-top:10px">Detailed result viewer: coming soon.</p>`;
-  document.getElementById('uModalBody').innerHTML = html;
+      <tbody>${rows || '<tr><td colspan="4" class="empty">no results yet</td></tr>'}</tbody></table>`;
+}
+
+// The rich run-monitor-equivalent view: header/timing provenance, totals,
+// hits-by-mode×kind, and the categorized-hit buckets (joined to the
+// hit_categories registry) with click-to-drill-in stem lists.
+function buildRunDetailHtml(data) {
+  const timingEntries = Object.entries(data.timing || {});
+  const timingHtml = timingEntries.length
+    ? `<div class="run-timing">${timingEntries.map(([k, v]) =>
+        `<div><strong>${esc(k)}:</strong> <code>${esc(String(v))}</code></div>`).join('')}</div>`
+    : '<p class="card-meta" style="margin:4px 0 0">(no timing config recorded)</p>';
+
+  let html = `<div class="card">
+    <div class="card-meta">
+      <strong>results_name:</strong> ${esc(data.results_name || '')}<br>
+      <strong>model:</strong> ${esc(data.model || '')}<br>
+      <strong>variant:</strong> ${esc(data.variant || '')}<br>
+      <strong>gem5_binary:</strong> ${esc(data.gem5_binary || '')}<br>
+      <strong>campaign:</strong> ${esc(data.campaign || '')}<br>
+      <strong>started_at:</strong> ${esc(data.started_at || '')}
+    </div>
+    <h4 style="margin:10px 0 2px">Timing config</h4>
+    ${timingHtml}
+  </div>`;
+
+  const totHits = data.total_hits || 0;
+  html += `<div class="card run-totals">
+    <span class="${totHits > 0 ? 'run-tot-hit' : ''}">${totHits} hits</span> / ${data.total_records || 0} records
+  </div>`;
+
+  // Hits by mode × kind — the old run-monitor table.
+  const modes = data.modes || [];
+  const kindsSet = new Set();
+  for (const m of modes) for (const k of (m.kinds || [])) kindsSet.add(k.kind || '-');
+  const kindsList = [...kindsSet];
+  html += `<h4 style="margin:16px 0 4px">Hits by mode &times; kind</h4>`;
+  if (!modes.length || !kindsList.length) {
+    html += `<p class="empty">No per-mode data.</p>`;
+  } else {
+    html += `<table><thead><tr><th>Mode</th>${kindsList.map(k => `<th>${esc(k)}</th>`).join('')}</tr></thead><tbody>`;
+    for (const m of modes) {
+      const byKind = {};
+      for (const k of (m.kinds || [])) byKind[k.kind || '-'] = k;
+      html += `<tr><td>${esc(m.mode)}</td>`;
+      for (const k of kindsList) {
+        const rec = byKind[k];
+        const hits = rec ? (rec.hits || 0) : 0;
+        const total = rec ? (rec.total || 0) : 0;
+        const cell = `${hits}/${total}`;
+        html += `<td>${hits > 0 ? `<strong style="color:var(--err)">${cell}</strong>` : cell}</td>`;
+      }
+      html += `</tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+
+  // Categorized hits (diagnostics/buckets joined to the hit_categories registry).
+  html += `<h4 style="margin:18px 0 4px">Categorized hits</h4>`;
+  if (!data.has_diagnostics) {
+    html += `<p class="empty">no diagnostics bucketing for this run yet.</p>`;
+  } else if (!data.buckets || !data.buckets.length) {
+    html += `<p class="empty">No buckets recorded.</p>`;
+  } else {
+    html += `<div id="runBucketsBody">`;
+    for (const b of data.buckets) {
+      const emphasize = b.category === 'NEW_candidate_pure_bug' || b.verdict === 'new';
+      const vb = `<span class="vb vb-${esc(b.verdict || '')}">${esc(b.verdict || '?')}</span>`;
+      let writeup = '';
+      if (b.bug_md) {
+        writeup = String(b.bug_md).endsWith('.md')
+          ? `<a onclick="event.stopPropagation(); loadRunBucketWriteup('${esc(b.bug_md)}')" style="color:var(--link);cursor:pointer">open writeup</a>`
+          : `<code>${esc(b.bug_md)}</code>`;
+      }
+      html += `<div class="card run-bucket${emphasize ? ' run-bucket-new' : ''}" onclick="loadRunHits('${esc(data.results_name)}','${esc(b.category)}')">
+        <div class="pl-box-top"><strong>${b.count}</strong>&nbsp;<span>${esc(b.label || b.category)}</span>${vb}</div>
+        <div class="card-meta">${esc(b.description || '')}${writeup ? ' &middot; ' + writeup : ''}</div>
+      </div>`;
+    }
+    html += `</div><div id="runHitsBody" style="margin-top:10px"></div>`;
+  }
+  return html;
+}
+
+async function loadRunHits(name, bucket) {
+  const target = document.getElementById('runHitsBody');
+  if (!target) return;
+  target.innerHTML = '<p class="spin">loading…</p>';
+  const data = await apiCall('/api/run_hits?name=' + encodeURIComponent(name)
+    + '&bucket=' + encodeURIComponent(bucket) + '&limit=500');
+  if (data.error || !data.ok) {
+    target.innerHTML = `<p class="err">Error: ${esc(data.error || 'unavailable')}</p>`;
+    return;
+  }
+  const stems = data.stems || [];
+  const note = (data.total || 0) > stems.length
+    ? `total ${data.total}, showing first ${stems.length}` : `${data.total || 0} stem(s)`;
+  target.innerHTML = `<h4 style="margin:6px 0 4px">${esc(bucket)} &mdash; ${esc(note)}</h4>
+    <pre class="file-content">${esc(stems.join('\n'))}</pre>`;
+}
+
+async function loadRunBucketWriteup(path) {
+  const target = document.getElementById('runHitsBody');
+  if (!target) return;
+  target.innerHTML = '<p class="spin">loading…</p>';
+  const data = await apiCall('/api/md?path=' + encodeURIComponent(path));
+  target.innerHTML = (data && data.html) ? data.html : `<p class="err">Could not load ${esc(path)}</p>`;
+}
+
+async function openGem5Inspector(g) {
+  openUModal('gem5 — ' + (g.variant || g.results_name || ''));
+  document.getElementById('uModalBody').innerHTML = '<p class="spin">loading…</p>';
+  const data = await apiCall('/api/run?name=' + encodeURIComponent(g.results_name || ''));
+  if (!data || data.error || !data.ok) {
+    document.getElementById('uModalBody').innerHTML =
+      renderGem5FallbackHtml(g, (data && data.error) || 'no run detail found');
+    return;
+  }
+  document.getElementById('uModalBody').innerHTML = buildRunDetailHtml(data);
 }
 
 function openInspector(kind, model, id) {
@@ -1221,23 +1484,163 @@ function mergeModelRows(pipelineData, modelsData) {
   return rows;
 }
 
-function renderPipelineGrid(rows) {
+// Groups defense_units[] by alloy_model, so a model row can draw a box for
+// each of the (possibly several) units it backs.
+function unitsByModel(units) {
+  const map = {};
+  for (const u of (units || [])) {
+    if (!u.alloy_model) continue;
+    (map[u.alloy_model] = map[u.alloy_model] || []).push(u);
+  }
+  return map;
+}
+
+function renderPipelineGrid(rows, unitsMap) {
   if (!rows || !rows.length) {
     return '<p class="empty">No Alloy models found.</p>';
   }
+  unitsMap = unitsMap || {};
   let html = `<div class="pl-grid">`;
   html += `<div class="pl-row pl-head">
-    <div>Model</div><div>XML</div><div>PROGRAMS</div><div>GEM5</div>
+    <div>Model</div>
+    <div class="pl-rowbody"><div>XML</div><div>PROGRAMS</div><div>GEM5</div></div>
   </div>`;
   for (const row of rows) {
+    const units = unitsMap[row.model] || [];
+    // Only done/in_progress units get the visible row box — to_run units live
+    // in the to-run panel above the grid instead.
+    const boxUnits = units.filter(u => u.status === 'done' || u.status === 'in_progress').sort((a, b) => a.number - b.number);
+    let bodyCls = 'pl-rowbody';
+    let cornerHtml = '';
+    if (boxUnits.length) {
+      const anyInProgress = boxUnits.some(u => u.status === 'in_progress');
+      bodyCls += anyInProgress ? ' unit-box unit-inprogress' : ' unit-box unit-done';
+      const badges = boxUnits.map(u =>
+        `<span class="unit-badge" title="unit ${u.number}: ${esc(u.defense || '')} — ${esc(u.status)}" onclick="openUnitInspector(${u.number})">${u.number}</span>`
+      ).join('');
+      const statusTxt = [...new Set(boxUnits.map(u => u.status))].join(' / ');
+      cornerHtml = `<div class="unit-badges">${badges}</div>
+        <div class="unit-status-corner">${esc(statusTxt)}</div>`;
+    }
     html += `<div class="pl-row">`;
     html += `<div class="pl-rowlabel">${esc(row.model)}</div>`;
-    html += `<div class="pl-col">${xmlBoxHtml(row)}</div>`;
-    html += `<div class="pl-col">${row.programs.map(p => programBoxHtml(row.model, p)).join('')
-      || '<p class="empty" style="padding:4px">none</p>'}</div>`;
-    html += `<div class="pl-col">${row.gem5.map(g => gem5BoxHtml(g)).join('')
-      || '<p class="empty" style="padding:4px">none</p>'}</div>`;
+    html += `<div class="${bodyCls}">
+      ${cornerHtml}
+      <div class="pl-col">${xmlBoxHtml(row)}</div>
+      <div class="pl-col">${row.programs.map(p => programBoxHtml(row.model, p)).join('')
+        || '<p class="empty" style="padding:4px">none</p>'}</div>
+      <div class="pl-col">${row.gem5.map(g => gem5BoxHtml(g)).join('')
+        || '<p class="empty" style="padding:4px">none</p>'}</div>
+    </div>`;
     html += `</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+// Unit-badge click → full unit detail (the three criteria specs + results).
+function openUnitInspector(number) {
+  const units = (DEFENSE_UNITS_DATA && DEFENSE_UNITS_DATA.units) || [];
+  const u = units.find(x => x.number === number);
+  if (!u) return;
+  openUModal('Unit ' + u.number + ' — ' + (u.defense || ''));
+  const statusBadgeCls = u.status === 'done' ? 'done' : (u.status === 'in_progress' ? 'running' : 'stale');
+  let html = `<div class="card">
+    <div class="pl-box-top" style="margin-bottom:6px">
+      <span class="badge ${statusBadgeCls}">${esc(u.status || '')}</span>
+      <strong>#${u.number}</strong>
+    </div>
+    <div class="card-meta">
+      <strong>defense:</strong> ${esc(u.defense || '')}<br>
+      <strong>implementation:</strong> ${esc(u.implementation || '')}<br>
+      <strong>alloy_model:</strong> ${esc(u.alloy_model || '')}
+      ${u.notes ? `<br><strong>notes:</strong> ${esc(u.notes)}` : ''}
+    </div>
+  </div>`;
+
+  const specBlock = (label, filename, spec) => {
+    if (!filename) return '';
+    const needsTag = String(filename).toUpperCase().startsWith('NEEDS')
+      ? ' <span class="badge failed">NEEDS</span>' : '';
+    return `<div class="card">
+      <strong>${esc(label)}:</strong> <code>${esc(filename)}</code>${needsTag}
+      ${spec ? `<pre class="file-content">${esc(JSON.stringify(spec, null, 2))}</pre>` : ''}
+    </div>`;
+  };
+  html += specBlock('leakage criterion', u.leakage, u.leakage_spec);
+  html += specBlock('timing criterion', u.timing, u.timing_spec);
+  html += specBlock('fanout criterion', u.fanout, u.fanout_spec);
+
+  const all = u.results || [];
+  const present = u.results_present || [];
+  html += `<h4 style="margin:14px 0 4px">Results</h4>`;
+  html += all.length
+    ? `<ul style="margin:0;padding-left:18px;font-size:12px">${all.map(r =>
+        `<li>${present.includes(r)
+          ? '<span style="color:var(--ok)">✓</span>' : '<span style="color:var(--err)">✗</span>'} <code>${esc(r)}</code></li>`).join('')}</ul>`
+    : `<p class="empty">none listed</p>`;
+
+  if (u.needs && u.needs.length) {
+    html += `<h4 style="margin:14px 0 4px">Needs</h4>
+      <ul class="to-run-checklist">${u.needs.map(n => `<li>${esc(n)}</li>`).join('')}</ul>`;
+  }
+  document.getElementById('uModalBody').innerHTML = html;
+}
+
+// To-run panel — pinned above the grid: defense units the paper discusses
+// that have no results on disk yet, each with its checklist of what's needed.
+function renderToRunPanel(units) {
+  const toRun = (units || []).filter(u => u.status === 'to_run').sort((a, b) => a.number - b.number);
+  if (!toRun.length) return '';
+  let html = `<div class="card to-run-panel">
+    <h3 style="margin-top:0;color:var(--warn)">To run (in the paper, no results here yet)</h3>`;
+  for (const u of toRun) {
+    html += `<div class="to-run-card">
+      <div class="pl-box-top">
+        <span class="unit-badge unit-badge-static">${u.number}</span>
+        <strong>${esc(u.defense || '')}</strong>
+        <span class="card-meta">${esc(u.implementation || '')}</span>
+      </div>
+      <div class="card-meta" style="margin-top:2px">alloy_model: <code>${esc(u.alloy_model || '')}</code></div>`;
+    const needs = (u.needs || []).slice();
+    // Also flag any criteria value that itself reads "NEEDS: ..." as a
+    // to-create item, if it isn't already reflected in the needs[] checklist.
+    for (const [label, val] of [['leakage', u.leakage], ['timing', u.timing], ['fanout', u.fanout]]) {
+      if (val && String(val).toUpperCase().startsWith('NEEDS')
+          && !needs.some(n => n.indexOf(val) !== -1)) {
+        needs.push(`${label}: ${val}`);
+      }
+    }
+    if (needs.length) {
+      html += `<ul class="to-run-checklist">${needs.map(n => `<li>${esc(n)}</li>`).join('')}</ul>`;
+    }
+    if (u.notes) html += `<div class="card-meta" style="margin-top:4px">${esc(u.notes)}</div>`;
+    html += `</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+// Prose rollup of defense-units status — used at the top of the Status tab.
+function renderUnitsRollup(units) {
+  if (!units || !units.length) return '';
+  const done = units.filter(u => u.status === 'done');
+  const inProgress = units.filter(u => u.status === 'in_progress');
+  const toRun = units.filter(u => u.status === 'to_run').sort((a, b) => a.number - b.number);
+  const nameList = arr => arr.map(u => `#${u.number} ${u.defense}`).join(', ');
+  let html = `<div class="card">
+    <h3 style="margin-top:0">Defense units</h3>
+    <p style="font-size:13px;margin:0 0 4px">
+      <span style="color:var(--ok);font-weight:700">${done.length} done</span>${done.length ? ' (' + esc(nameList(done)) + ')' : ''}.
+      ${inProgress.length ? `<span style="color:var(--warn);font-weight:700">${inProgress.length} in progress</span> (${esc(nameList(inProgress))}). ` : ''}
+      <span style="color:var(--warn);font-weight:700">${toRun.length} to run</span>${toRun.length ? ' (' + esc(nameList(toRun)) + ')' : ''}.
+    </p>`;
+  if (toRun.length) {
+    for (const u of toRun) {
+      const needs = u.needs || [];
+      html += `<p style="font-size:12px;margin:6px 0 0"><strong>#${u.number} ${esc(u.defense || '')}</strong>
+        (${esc(u.implementation || '')}) &mdash; ${needs.length ? esc(needs.join('; ')) : 'no checklist recorded'}</p>`;
+    }
   }
   html += `</div>`;
   return html;
@@ -1252,56 +1655,65 @@ function renderGem5Orphans(orphans) {
   return html;
 }
 
-function buildPipelineHtml(pipelineData, modelsData) {
-  let html = renderJobsStrip(pipelineData.jobs || []);
+function buildPipelineHtml(pipelineData, modelsData, unitsData) {
+  const units = (unitsData && unitsData.units) || [];
+  let html = renderToRunPanel(units);
+  html += renderJobsStrip(pipelineData.jobs || []);
   html += `<div style="margin:10px 0 16px">
     <button class="primary" onclick="openLaunchModal()">+ New fanout</button>
   </div>`;
   html += `<h2 style="margin-top:0">Pipeline</h2>
-    <p class="card-meta" style="margin-top:-6px">XML (Alloy enumeration) &rarr; PROGRAMS (concretization/fanout) &rarr; GEM5 (campaigns). Click any box for detail.
+    <p class="card-meta" style="margin-top:-6px">XML (Alloy enumeration) &rarr; PROGRAMS (concretization/fanout) &rarr; GEM5 (campaigns). Click any box for detail; numbered badges are defense units (green=done, yellow=in progress) — click a badge for the unit's criteria.
     ${modelsData && modelsData.archived ? ' &middot; ' + modelsData.archived + ' archived model(s) not shown.' : ''}</p>`;
   const rows = mergeModelRows(pipelineData, modelsData);
-  html += renderPipelineGrid(rows);
+  html += renderPipelineGrid(rows, unitsByModel(units));
   html += renderGem5Orphans(pipelineData.gem5_orphans || []);
   return html;
 }
 
 async function fetchPipelineAndModels() {
-  const [pipelineData, modelsData] = await Promise.all([
+  const [pipelineData, modelsData, unitsData] = await Promise.all([
     apiCall('/api/pipeline'),
     apiCall('/api/models'),
+    apiCall('/api/defense_units'),
   ]);
-  return { pipelineData, modelsData: modelsData.error ? { models: [], archived: 0 } : modelsData };
+  return {
+    pipelineData,
+    modelsData: modelsData.error ? { models: [], archived: 0 } : modelsData,
+    unitsData: unitsData.error ? { units: [] } : unitsData,
+  };
 }
 
 // Initial / manual load (goes through refreshMainTab's spinner).
 async function renderPipelineTab() {
-  const { pipelineData, modelsData } = await fetchPipelineAndModels();
+  const { pipelineData, modelsData, unitsData } = await fetchPipelineAndModels();
   if (pipelineData.error) {
     return `<p class="err">Error: ${esc(pipelineData.error)}</p>`;
   }
   PL_DATA = pipelineData;
   MODELS_DATA = modelsData;
-  state.pipelineSig = JSON.stringify(pipelineData) + '|' + JSON.stringify(modelsData);
-  return buildPipelineHtml(pipelineData, modelsData);
+  DEFENSE_UNITS_DATA = unitsData;
+  state.pipelineSig = JSON.stringify(pipelineData) + '|' + JSON.stringify(modelsData) + '|' + JSON.stringify(unitsData);
+  return buildPipelineHtml(pipelineData, modelsData, unitsData);
 }
 
-// Quiet background poll: fetch both /api/pipeline and /api/models, and ONLY
-// touch the DOM if either actually changed. No spinner, no full-tab rebuild →
-// the page doesn't jump to the top. When it does change, we re-render in
-// place and restore the scroll position.
+// Quiet background poll: fetch /api/pipeline + /api/models + /api/defense_units,
+// and ONLY touch the DOM if any of them actually changed. No spinner, no full-tab
+// rebuild → the page doesn't jump to the top. When it does change, we re-render
+// in place and restore the scroll position.
 async function pollPipeline() {
-  const { pipelineData, modelsData } = await fetchPipelineAndModels();
+  const { pipelineData, modelsData, unitsData } = await fetchPipelineAndModels();
   if (pipelineData.error) return;                // keep the current view on a transient error
-  const sig = JSON.stringify(pipelineData) + '|' + JSON.stringify(modelsData);
+  const sig = JSON.stringify(pipelineData) + '|' + JSON.stringify(modelsData) + '|' + JSON.stringify(unitsData);
   if (sig === state.pipelineSig) return;         // unchanged → do nothing (no jump, no flicker)
   state.pipelineSig = sig;
   PL_DATA = pipelineData;
   MODELS_DATA = modelsData;
+  DEFENSE_UNITS_DATA = unitsData;
   const main = document.getElementById('main');
   if (!main) return;
   const y = window.scrollY;                      // preserve scroll across the re-render
-  main.innerHTML = buildPipelineHtml(pipelineData, modelsData);
+  main.innerHTML = buildPipelineHtml(pipelineData, modelsData, unitsData);
   window.scrollTo(0, y);
   stamp();
 }
@@ -1309,11 +1721,13 @@ async function pollPipeline() {
 // ====== Status tab ======
 
 async function renderStatusTab() {
-  const [codeData, paperData] = await Promise.all([
+  const [codeData, paperData, unitsData] = await Promise.all([
     apiCall('/api/status?which=code'),
     apiCall('/api/status?which=paper'),
+    apiCall('/api/defense_units'),
   ]);
-  let html = `<p class="card-meta">Live sweep status now lives on the
+  let html = renderUnitsRollup((unitsData && unitsData.units) || []);
+  html += `<p class="card-meta">Live sweep status now lives on the
     <a onclick="switchMainTab('pipeline')" style="color:var(--link);cursor:pointer">Pipeline</a> tab.</p>`;
   html += `<div class="status-cols">`;
   html += `<div class="status-col"><h3>Code STATUS</h3>${codeData.html
@@ -1328,22 +1742,97 @@ async function renderStatusTab() {
 // ====== Utility renderers ======
 
 async function renderAnnotationChecker() {
-  const data = await apiCall('/api/checkers');
+  const [data, tcData] = await Promise.all([
+    apiCall('/api/checkers'),
+    apiCall('/api/transmitter_criteria'),
+  ]);
+  let html = '';
   if (data.error) {
-    return `<p class="err">Error: ${esc(data.error)}</p>`;
+    html += `<p class="err">Error: ${esc(data.error)}</p>`;
+  } else {
+    html += `<h3 style="margin-top:0">Checkers by Kind</h3>`;
+    for (const kind in data) {
+      const c = data[kind];
+      html += `
+        <div class="card" style="margin-bottom:10px">
+          <strong>${esc(kind)}</strong><br>
+          <span style="font-size:11px">
+            <strong>Checker:</strong> ${esc(c.checker)}<br>
+            <strong>Criterion:</strong> ${esc(c.criterion)}
+          </span>
+        </div>
+      `;
+    }
   }
-  let html = `<h3>Checkers by Kind</h3>`;
-  for (const kind in data) {
-    const c = data[kind];
-    html += `
-      <div class="card" style="margin-bottom:10px">
-        <strong>${esc(kind)}</strong><br>
-        <span style="font-size:11px">
-          <strong>Checker:</strong> ${esc(c.checker)}<br>
-          <strong>Criterion:</strong> ${esc(c.criterion)}
-        </span>
-      </div>
-    `;
+  html += renderTransmitterCriteria(tcData);
+  return html;
+}
+
+// The detailed "did it actually leak" definition per transmitter kind (the
+// CLAUDE.md "Leak criteria" work), plus each defense's transmitter set —
+// surfaced here since it's the natural extension of "checkers by kind" above.
+function renderTransmitterCriteria(data) {
+  if (!data || data.error) {
+    return `<p class="err" style="margin-top:16px">Transmitter criteria unavailable${data && data.error ? ': ' + esc(data.error) : ''}</p>`;
+  }
+  const crit = data.criteria || {};
+  let html = `<h3 style="margin-top:20px">Transmitter Criteria</h3>`;
+  if (data._vscode) {
+    html += `<p class="card-meta"><a class="vscode-link" href="${esc(data._vscode)}">open registry in VSCode</a></p>`;
+  }
+  if (crit.window) {
+    html += `<p class="card-meta"><strong>Window:</strong> ${esc(crit.window)}</p>`;
+  }
+
+  const kinds = crit.kinds || {};
+  for (const kindId of Object.keys(kinds)) {
+    const k = kinds[kindId] || {};
+    const weak = k.status && /weak|pending|needs/i.test(k.status);
+    html += `<div class="card">
+      <h3 style="display:flex;align-items:center;gap:8px;font-size:13px">
+        <code>${esc(kindId)}</code>
+        ${k.status ? `<span class="badge ${weak ? 'stale' : 'done'}" style="text-transform:none">${esc(k.status)}</span>` : ''}
+      </h3>
+      <div class="card-meta">
+        <strong>checker:</strong> <code>${esc(k.checker || '?')}</code><br>
+        <strong>signal:</strong> ${esc(k.signal || '?')}<br>
+        <strong>gate:</strong> ${esc(k.gate || '?')}
+      </div>`;
+    if (k.leak_if && k.leak_if.length) {
+      html += `<div style="margin-top:6px"><strong style="font-size:12px;color:var(--ok)">leak if:</strong>
+        <ul style="margin:4px 0;padding-left:18px;font-size:12px">${k.leak_if.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
+    }
+    if (k.not_leak_if && k.not_leak_if.length) {
+      html += `<div style="margin-top:4px"><strong style="font-size:12px;color:var(--muted)">not leak if:</strong>
+        <ul style="margin:4px 0;padding-left:18px;font-size:12px">${k.not_leak_if.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`;
+    }
+    if (k.notes) html += `<p style="font-size:11px;color:var(--muted);margin-top:6px">${esc(k.notes)}</p>`;
+    html += `</div>`;
+  }
+
+  const leak = data.leakage || {};
+  const leakIds = Object.keys(leak);
+  if (leakIds.length) {
+    html += `<h4 style="margin:16px 0 6px">Per-defense transmitter sets</h4>`;
+    html += `<table><thead><tr><th>defense</th><th>transmitters</th><th>checkers</th><th>note</th></tr></thead><tbody>`;
+    for (const defId of leakIds) {
+      const d = leak[defId] || {};
+      const transmitters = (d.transmitters || []).join(', ');
+      const checkersTxt = d.checkers
+        ? Object.entries(d.checkers).map(([kk, vv]) => `${kk}: ${vv}`).join('; ') : '';
+      html += `<tr>
+        <td><code>${esc(d.defense || defId)}</code></td>
+        <td style="font-size:11px">${esc(transmitters)}</td>
+        <td style="font-size:11px">${esc(checkersTxt)}</td>
+        <td style="font-size:11px">${esc(d.note || '')}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+
+  if (data.stage_mapping) {
+    html += `<h4 style="margin:16px 0 6px">Stage mapping</h4>
+      <pre class="file-content">${esc(JSON.stringify(data.stage_mapping, null, 2))}</pre>`;
   }
   return html;
 }
@@ -1423,11 +1912,11 @@ async function renderExecGraph() {
       reach it from any test in the Pipeline tab's XML/PROGRAMS inspector.</p>
     <div class="form-group">
       <label>Model</label>
-      <input type="text" id="egModel" placeholder="STT_6" style="width:260px">
+      <input type="text" id="egModel" value="${DEFAULT_MODEL}" placeholder="STT_6" style="width:260px">
     </div>
     <div class="form-group">
       <label>Stem</label>
-      <input type="text" id="egStem" placeholder="inst-000123" style="width:260px">
+      <input type="text" id="egStem" value="${DEFAULT_STEM}" placeholder="inst-000123" style="width:260px">
     </div>
     <button onclick="fetchExecGraph()">Open graph</button>
   `;
@@ -1438,6 +1927,53 @@ async function fetchExecGraph() {
   const stem = document.getElementById('egStem').value.trim();
   if (!model || !stem) { alert('Model and stem required'); return; }
   openExecGraph(model, stem);
+}
+
+// ====== XML graph — full inline viewer (Utilities tab) ======
+// Same data (/api/execgraph) + same renderer (buildExecGraphView) as the modal
+// path below, just rendered directly into the section instead of an overlay,
+// with a model dropdown (from /api/models) instead of a free-text field.
+async function renderXmlGraphUtil() {
+  const modelsData = await apiCall('/api/models');
+  const modelNames = (modelsData.models || []).map(m => m.name).sort();
+  const modelsErr = modelsData.error
+    ? `<p class="err" style="font-size:11px">Could not load model list: ${esc(modelsData.error)}</p>` : '';
+  let html = `
+    <h3 style="margin-top:0">XML Graph</h3>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 10px">
+      Visualize one Alloy instance's instruction/operand graph: program order
+      (spo), data-flow (rf — the leak path), and taint dependency (ddi), with
+      the speculative window and the transmitter highlighted. You can also
+      reach this from any test in the Pipeline tab's XML/PROGRAMS inspector.</p>
+    ${modelsErr}
+    <div class="form-group">
+      <label>Model</label>
+      <select id="xvModel" style="width:280px">
+        <option value="">— choose a model —</option>
+        ${modelNames.map(n => `<option value="${esc(n)}"${n === DEFAULT_MODEL ? ' selected' : ''}>${esc(n)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Stem</label>
+      <input type="text" id="xvStem" value="${DEFAULT_STEM}" placeholder="inst-000123" style="width:280px">
+    </div>
+    <button class="primary" onclick="loadXmlGraphUtil()">Render graph</button>
+    <div id="xmlGraphBody" style="margin-top:14px"></div>
+  `;
+  // Auto-render the default (STT_6 / inst-000001) so it's zero-click "for fun".
+  setTimeout(() => { if (document.getElementById('xvStem')) loadXmlGraphUtil(); }, 60);
+  return html;
+}
+
+async function loadXmlGraphUtil() {
+  const model = document.getElementById('xvModel').value.trim();
+  const stem = document.getElementById('xvStem').value.trim();
+  const target = document.getElementById('xmlGraphBody');
+  if (!model || !stem) { alert('Model and stem required'); return; }
+  target.innerHTML = '<p class="spin">loading…</p>';
+  const data = await apiCall('/api/execgraph?model=' + encodeURIComponent(model) + '&stem=' + encodeURIComponent(stem));
+  if (data.error) { target.innerHTML = `<p class="err">Error: ${esc(data.error)}</p>`; return; }
+  target.innerHTML = buildExecGraphView(data);
 }
 
 // ====== Execution-graph node-link diagram (inline SVG, no external libs) ======
@@ -1457,16 +1993,28 @@ function egPalette(theme) {
   return theme === 'light' ? light : dark;
 }
 
+// Small inline-SVG line swatch so the legend actually shows each edge's LINE
+// STYLE (thin/solid vs bold vs dashed), not just a color chip.
+function egLineIcon(stroke, opts) {
+  opts = opts || {};
+  const w = opts.bold ? 3.2 : (opts.thin ? 1.3 : 1.8);
+  const dash = opts.dashed ? ' stroke-dasharray="5 4"' : '';
+  return `<svg width="26" height="12" style="vertical-align:middle;flex:0 0 auto">`
+    + `<line x1="1" y1="6" x2="25" y2="6" stroke="${stroke}" stroke-width="${w}"${dash} stroke-linecap="round"/></svg>`;
+}
+
 function egLegend() {
   const theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
   const P = egPalette(theme);
   const kinds = [['ld','load'],['str','store'],['br_n','branch'],['br_x','branch·xmit'],['other_n','ALU'],['other_x','ALU·xmit']];
   let h = '<div class="eg-legend">';
   for (const [k, lbl] of kinds) h += `<span><i class="eg-swatch" style="background:${P[k]}"></i>${lbl}</span>`;
-  h += `<span><i class="eg-swatch" style="background:${P.spo}"></i>spo (program order)</span>`;
-  h += `<span><i class="eg-swatch" style="background:${P.rf}"></i>rf (data-flow)</span>`;
-  h += `<span><i class="eg-swatch" style="background:${P.ddi}"></i>ddi (taint)</span>`;
-  h += `<span style="color:${P.xm};font-weight:bold">⚡ transmitter</span>`;
+  h += `<span>${egLineIcon(P.spo, { thin: true })} spo (program order)</span>`;
+  h += `<span>${egLineIcon(P.rf, { bold: true })} rf (data-flow — the leak path)</span>`;
+  h += `<span>${egLineIcon(P.ddi, { dashed: true })} ddi (taint dependency)</span>`;
+  h += `<span style="color:${P.xm};font-weight:bold">★ transmitter</span>`;
+  h += `<span><i class="eg-swatch" style="background:${P.xm}22;border:1px solid ${P.xm}"></i>speculative window (uncommitted)</span>`;
+  h += `<span><i class="eg-swatch" style="border:1.6px dashed ${P.muted};background:transparent"></i>unresolved</span>`;
   h += '</div>';
   return h;
 }
@@ -1481,80 +2029,90 @@ function buildExecGraphSVG(data) {
   nodes.forEach((n, i) => { n._i = i; byId[n.id] = n; byPc[n.pc] = n; });
   const look = k => (byId[k] !== undefined ? byId[k] : byPc[k]);
 
-  const boxW = 170, boxH = 48, ROW = 86, top = 52;
+  const boxW = 210, boxH = 52, ROW = 94, top = 62;
   const spo = edges.filter(e => e.type === 'spo');
   const rf  = edges.filter(e => e.type === 'rf');
   const ddi = edges.filter(e => e.type === 'ddi');
-  const bulge = e => { const a = look(e.src), b = look(e.dst); if (!a || !b) return 40;
-    return Math.min(160, 30 + Math.abs(a._i - b._i) * 16); };
-  const maxRf  = rf.reduce((m, e) => Math.max(m, bulge(e)), 40);
-  const maxDdi = ddi.reduce((m, e) => Math.max(m, (look(e.src) === look(e.dst) ? 50 : bulge(e))), 40);
-  const PADL = Math.max(120, maxDdi + 40);
+  const bulge = e => { const a = look(e.src), b = look(e.dst); if (!a || !b) return 42;
+    return Math.min(170, 32 + Math.abs(a._i - b._i) * 17); };
+  const maxRf  = rf.reduce((m, e) => Math.max(m, bulge(e)), 44);
+  const maxDdi = ddi.reduce((m, e) => Math.max(m, (look(e.src) === look(e.dst) ? 54 : bulge(e))), 44);
+  const PADL = Math.max(130, maxDdi + 44);
   const boxLeft = PADL, boxRight = PADL + boxW, centerX = PADL + boxW / 2;
-  const width = Math.ceil(boxRight + maxRf + 44);
+  const width = Math.ceil(boxRight + maxRf + 48);
   const height = top + nodes.length * ROW + 24;
   const cy = n => top + n._i * ROW + boxH / 2;
 
   let s = `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;font-family:ui-monospace,Menlo,Consolas,monospace">`;
   s += `<defs>
-    <marker id="egSpo" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="${P.spo}"/></marker>
-    <marker id="egRf"  markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="${P.rf}"/></marker>
+    <marker id="egSpo" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="${P.spo}"/></marker>
+    <marker id="egRf"  markerWidth="11" markerHeight="11" refX="7" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${P.rf}"/></marker>
     <marker id="egDdi" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="${P.ddi}"/></marker>
   </defs>`;
 
-  // commit boundary (committed is an in-order prefix): divider after last committed pc
+  // Speculative-window shading: committed is an in-order prefix (per DESIGN.md),
+  // so the uncommitted tail IS the speculative window the transmitter must sit
+  // in — shade it and draw a bold boundary so that's obvious at a glance.
   const committed = nodes.filter(n => n.committed);
-  if (committed.length) {
-    const lc = committed.reduce((m, n) => (n.pc > m.pc ? n : m), committed[0]);
-    const fnc = nodes.find(n => n.pc > lc.pc);
-    if (fnc) {
-      const yB = (cy(lc) + cy(fnc)) / 2;
-      s += `<line x1="8" y1="${yB}" x2="${width - 8}" y2="${yB}" stroke="${P.boundary}" stroke-width="1.5" stroke-dasharray="5 4"/>`;
-      s += `<text x="12" y="${yB - 5}" fill="${P.boundary}" font-size="10">commit boundary — above: committed (lc) · below: speculative (fnc)</text>`;
-    }
+  const firstSpec = nodes.find(n => !n.committed);
+  if (firstSpec) {
+    const prevCommitted = committed.length ? committed[committed.length - 1] : null;
+    const yTop = prevCommitted ? (cy(prevCommitted) + cy(firstSpec)) / 2 : (top - 18);
+    const yBottom = height - 8;
+    s += `<rect x="2" y="${yTop}" width="${width - 4}" height="${yBottom - yTop}" fill="${P.xm}14" stroke="none"/>`;
+    s += `<line x1="4" y1="${yTop}" x2="${width - 4}" y2="${yTop}" stroke="${P.xm}" stroke-width="2" stroke-dasharray="7 4"/>`;
+    s += `<text x="10" y="${yTop - 6}" fill="${P.xm}" font-size="10" font-weight="bold">▼ speculative window (uncommitted — the transmitter must sit in here)</text>`;
   }
 
-  // spo backbone (earlier pc → later pc, arrow points down to the successor)
+  // spo backbone — thin, grey, program order (earlier pc → later pc)
   spo.forEach(e => {
     const a = look(e.src), b = look(e.dst); if (!a || !b) return;
     const up = a._i < b._i ? a : b, dn = a._i < b._i ? b : a;
-    s += `<line x1="${centerX}" y1="${cy(up) + boxH / 2}" x2="${centerX}" y2="${cy(dn) - boxH / 2}" stroke="${P.spo}" stroke-width="2" marker-end="url(#egSpo)"><title>spo: pc${up.pc} → pc${dn.pc}</title></line>`;
+    s += `<line x1="${centerX}" y1="${cy(up) + boxH / 2}" x2="${centerX}" y2="${cy(dn) - boxH / 2}" stroke="${P.spo}" stroke-width="1.4" marker-end="url(#egSpo)"><title>spo (program order): pc${up.pc} → pc${dn.pc}</title></line>`;
   });
 
-  // rf (data-flow) arcs on the right
+  // rf (data-flow) arcs on the right — BOLD: this is the taint/leak path
   rf.forEach(e => {
     const a = look(e.src), b = look(e.dst); if (!a || !b) return;
     const bl = bulge(e), y1 = cy(a), y2 = cy(b);
-    s += `<path d="M${boxRight},${y1} Q${boxRight + bl},${(y1 + y2) / 2} ${boxRight},${y2}" fill="none" stroke="${P.rf}" stroke-width="1.6" marker-end="url(#egRf)"><title>rf (data): pc${a.pc} → pc${b.pc}</title></path>`;
+    s += `<path d="M${boxRight},${y1} Q${boxRight + bl},${(y1 + y2) / 2} ${boxRight},${y2}" fill="none" stroke="${P.rf}" stroke-width="3.2" stroke-linecap="round" marker-end="url(#egRf)"><title>rf (data-flow — leak path): pc${a.pc} → pc${b.pc}</title></path>`;
   });
 
-  // ddi (taint) arcs on the left; self-taint drawn as a small loop
+  // ddi (taint dependency) arcs on the left — dashed; self-taint as a small loop
   ddi.forEach(e => {
     const a = look(e.src), b = look(e.dst); if (!a || !b) return;
     if (a === b) {
       const y = cy(a);
-      s += `<path d="M${boxLeft},${y - 10} C${boxLeft - 46},${y - 26} ${boxLeft - 46},${y + 26} ${boxLeft},${y + 10}" fill="none" stroke="${P.ddi}" stroke-width="1.6" marker-end="url(#egDdi)"><title>ddi (self-taint): pc${a.pc}</title></path>`;
+      s += `<path d="M${boxLeft},${y - 10} C${boxLeft - 50},${y - 28} ${boxLeft - 50},${y + 28} ${boxLeft},${y + 10}" fill="none" stroke="${P.ddi}" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#egDdi)"><title>ddi (self-taint): pc${a.pc}</title></path>`;
     } else {
       const bl = bulge(e), y1 = cy(a), y2 = cy(b);
-      s += `<path d="M${boxLeft},${y1} Q${boxLeft - bl},${(y1 + y2) / 2} ${boxLeft},${y2}" fill="none" stroke="${P.ddi}" stroke-width="1.6" marker-end="url(#egDdi)"><title>ddi (taint): pc${a.pc} → pc${b.pc}</title></path>`;
+      s += `<path d="M${boxLeft},${y1} Q${boxLeft - bl},${(y1 + y2) / 2} ${boxLeft},${y2}" fill="none" stroke="${P.ddi}" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#egDdi)"><title>ddi (taint dependency): pc${a.pc} → pc${b.pc}</title></path>`;
     }
   });
 
-  // nodes on top
+  // nodes on top: label = "pc: kind"; transmitter gets a gold halo + star;
+  // unresolved gets a dashed outline; speculative nodes read "hotter" (higher
+  // fill opacity) than committed/retired ones.
   nodes.forEach(n => {
     const y = cy(n) - boxH / 2;
     const col = P[n.kind] || P.unknown;
-    const stroke = n.isxm ? P.xm : col;
-    const sw = n.isxm ? 3 : 1.4;
+    const isXm = !!n.isxm;
+    const stroke = isXm ? P.xm : col;
+    const sw = isXm ? 3.6 : 1.5;
+    const dashAttr = n.resolved ? '' : ' stroke-dasharray="6 3"';
+    const fillAlpha = n.committed ? '12' : '2c';
     const flags = [];
-    flags.push(n.committed ? 'committed' : 'speculative');
-    flags.push(n.resolved ? 'resolved' : 'unresolved');
-    if (n.isxm) flags.unshift('XMIT');
-    s += `<g><title>pc ${n.pc} · ${n.kind}${n.isxm ? ' · TRANSMITTER' : ''} · ${flags.join(' · ')}</title>`;
-    s += `<rect x="${boxLeft}" y="${y}" width="${boxW}" height="${boxH}" rx="7" fill="${col}22" stroke="${stroke}" stroke-width="${sw}"/>`;
+    flags.push(n.committed ? 'committed (retired)' : 'speculative (uncommitted)');
+    flags.push(n.resolved ? 'resolved' : 'UNRESOLVED');
+    if (isXm) flags.unshift('★ TRANSMITTER');
+    s += `<g><title>pc ${n.pc} · ${n.kind}${isXm ? ' · TRANSMITTER' : ''} · ${flags.join(' · ')}</title>`;
+    if (isXm) {
+      s += `<rect x="${boxLeft - 5}" y="${y - 5}" width="${boxW + 10}" height="${boxH + 10}" rx="11" fill="none" stroke="${P.xm}" stroke-width="1.4" opacity="0.55"/>`;
+    }
+    s += `<rect x="${boxLeft}" y="${y}" width="${boxW}" height="${boxH}" rx="7" fill="${col}${fillAlpha}" stroke="${stroke}" stroke-width="${sw}"${dashAttr}/>`;
     s += `<rect x="${boxLeft}" y="${y}" width="5" height="${boxH}" rx="2" fill="${col}"/>`;
-    s += `<text x="${boxLeft + 14}" y="${y + 19}" fill="${P.boxText}" font-size="12" font-weight="bold">pc ${n.pc}  ${esc(n.kind)}${n.isxm ? '  ⚡' : ''}</text>`;
-    s += `<text x="${boxLeft + 14}" y="${y + 35}" fill="${P.muted}" font-size="10">${esc(flags.join(' · '))}</text>`;
+    s += `<text x="${boxLeft + 14}" y="${y + 21}" fill="${P.boxText}" font-size="13" font-weight="bold">${isXm ? '★ ' : ''}${n.pc}: ${esc(n.kind)}</text>`;
+    s += `<text x="${boxLeft + 14}" y="${y + 38}" fill="${P.muted}" font-size="10">${esc(flags.join(' · '))}</text>`;
     s += `</g>`;
   });
 
@@ -1573,18 +2131,9 @@ function buildExecGraphView(data) {
 function ensureEgModal() {
   let m = document.getElementById('egModal');
   if (m) return m;
-  const st = document.createElement('style');
-  st.textContent = `
-    .eg-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:none;align-items:center;justify-content:center;padding:20px}
-    .eg-modal-inner{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:1100px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
-    .eg-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border)}
-    .eg-modal-head strong{font-size:13px;color:var(--heading)}
-    .eg-modal-body{overflow:auto;padding:14px}
-    .eg-close{cursor:pointer;background:var(--tab-bg);color:var(--tab-text);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px}
-    .eg-legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;font-size:11px;color:var(--muted)}
-    .eg-legend span{display:inline-flex;align-items:center;gap:5px}
-    .eg-swatch{width:12px;height:12px;border-radius:3px;display:inline-block;flex:0 0 auto}`;
-  document.head.appendChild(st);
+  // .eg-modal/.eg-legend/etc. live in the page's main <style> now (so the
+  // Utilities "XML graph" inline viewer is styled even if this modal is
+  // never opened); this function just creates the modal element itself.
   m = document.createElement('div');
   m.id = 'egModal';
   m.className = 'eg-modal';
@@ -1727,6 +2276,52 @@ async function renderCatalog(kind, label) {
   return html;
 }
 
+// ====== Hit categories (source-of-truth registry) — Utilities tab ======
+async function renderHitCategories() {
+  const data = await apiCall('/api/hit_categories');
+  if (data.error) {
+    return `<p class="err">Error: ${esc(data.error)}</p>`;
+  }
+  let html = `<h3 style="margin-top:0">Hit Categories</h3>`;
+  if (data._vscode) {
+    html += `<p class="card-meta"><a class="vscode-link" href="${esc(data._vscode)}">open registry in VSCode</a></p>`;
+  }
+
+  const verdicts = data.verdicts || {};
+  html += `<h4 style="margin:10px 0 6px">Verdicts</h4><div class="hitcats-legend">`;
+  for (const [id, v] of Object.entries(verdicts)) {
+    html += `<span class="vb vb-${esc(id)}" title="${esc(v.note || '')}">${esc(v.label || id)}</span>`;
+  }
+  html += `</div>`;
+
+  const categories = data.categories || {};
+  const ids = Object.keys(categories);
+  html += `<h4 style="margin:16px 0 6px">Categories</h4>`;
+  if (!ids.length) {
+    html += `<p class="empty">No categories registered.</p>`;
+  } else {
+    html += `<table><thead><tr><th>id</th><th>label</th><th>verdict</th><th>phase</th><th>scope</th><th>description</th></tr></thead><tbody>`;
+    for (const id of ids) {
+      const c = categories[id] || {};
+      const scope = c.scope || {};
+      const scopeParts = [];
+      if (scope.testsets && scope.testsets.length) scopeParts.push('testsets: ' + scope.testsets.join(', '));
+      if (scope.builds && scope.builds.length) scopeParts.push('builds: ' + scope.builds.join(', '));
+      const scopeTxt = scopeParts.length ? esc(scopeParts.join(' · ')) : '<span class="muted">(global)</span>';
+      html += `<tr>
+        <td><code>${esc(id)}</code></td>
+        <td>${esc(c.label || '')}</td>
+        <td><span class="vb vb-${esc(c.verdict || '')}">${esc(c.verdict || '?')}</span></td>
+        <td>${esc(c.phase || '')}</td>
+        <td style="font-size:11px">${scopeTxt}</td>
+        <td style="font-size:11px">${esc(c.description || '')}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+  return html;
+}
+
 // ====== Utilities tab (sub-tab/section selector) ======
 
 function renderUtilSubTabs() {
@@ -1772,6 +2367,12 @@ async function showUtilSection(id) {
       break;
     case 'findings':
       html = await renderCatalog('findings', 'Findings');
+      break;
+    case 'hitcats':
+      html = await renderHitCategories();
+      break;
+    case 'xmlviz':
+      html = await renderXmlGraphUtil();
       break;
   }
   const bodyEl = document.getElementById('utilSectionBody');

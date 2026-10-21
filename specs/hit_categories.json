@@ -1,0 +1,64 @@
+{
+  "_doc": "CENTRAL REGISTRY of known hit categories — the source of truth for sorting/bucketing gem5 hits and viewing them in the dashboard. As we triage hits (writing a diag_*.py + bug .md in a run's diagnostics/), we REGISTER the category here. Each category links to the testsets/builds it SCOPES to (per CLAUDE.md propagation rules: a model/concretization artifact scopes to its testset only; a build behavior scopes to all runs on that build). The per-run diagnostics/buckets/summary.json gives the COUNTS; the dashboard joins those to this registry for labels, verdicts, and colors. Anything not matching a category stays NEW_candidate_pure_bug = the research signal.",
+  "verdicts": {
+    "checker":  {"label": "checker false positive", "color": "yellow", "real_leak": false, "note": "the checker over-counted; not a real gem5 leak"},
+    "artifact": {"label": "model/concretization artifact", "color": "grey", "real_leak": false, "note": "Alloy over-approximation or codegen artifact; not a real leak"},
+    "real_bug": {"label": "confirmed real bug", "color": "red", "real_leak": true, "note": "a genuine gem5/defense leak, confirmed"},
+    "new":      {"label": "NEW — unexplained", "color": "bright-red", "real_leak": null, "note": "cleared all disqualifiers, not yet explained — THE research signal"}
+  },
+  "phases": {"disqualifier": "run first; if matched, the hit is NOT a real leak", "real_bug": "run after disqualifiers; confirmed-bug signatures", "new": "leftover = pure research signal"},
+  "categories": {
+    "check_ld_no_completion": {
+      "label": "check_ld no-completion (over-count)", "verdict": "checker", "phase": "disqualifier",
+      "scope": {"testsets": ["Recon_6", "STT_6", "STT_all"], "builds": []},
+      "diag": "diag_check_ld_no_completion.py", "bug_md": "check_ld_no_completion.md",
+      "description": "check_ld flagged an in-window load that never actually completed/obtained data → not a leak."
+    },
+    "recon_slf": {
+      "label": "Recon STL/SLF store-forward bypass", "verdict": "real_bug", "phase": "real_bug",
+      "scope": {"testsets": ["Recon_6"], "builds": ["gem5-recon-modded"]},
+      "diag": "diag_recon_slf.py", "bug_md": "wiki/findings/bug/recon_SLF_stlf_bypass/NOTE.md",
+      "description": "Store-to-load forwarding bypasses Recon's taint check — a real recon bug (double-gated signature)."
+    },
+    "recon_load_hits": {
+      "label": "Recon load-hit attribution", "verdict": "artifact", "phase": "disqualifier",
+      "scope": {"testsets": ["Recon_6"], "builds": ["gem5-recon-modded"]},
+      "diag": "diag_recon_load_hits.py", "bug_md": null, "description": "Recon-specific load-hit bucketing."
+    },
+    "constaddr_load": {
+      "label": "constant-address load", "verdict": "artifact", "phase": "disqualifier",
+      "scope": {"testsets": ["SPT_6_oneLP"], "builds": []},
+      "diag": "diag_constaddr_load.py", "bug_md": "wiki/findings/mdsToRead/POTENTIAL_MODEL_FIX_constaddr_taint.md",
+      "description": "Load address is a constant operand (zero-index) → data-taint over-approximation; not an STT/SpecLFB disqualifier."
+    },
+    "nonspec_cotransmit": {
+      "label": "SPT non-spec co-transmit (pre-fix model artifact)", "verdict": "artifact", "phase": "disqualifier",
+      "scope": {"testsets": ["SPT_6_oneLP"], "builds": []},
+      "diag": "diag_nonspec_cotransmit.py", "bug_md": null,
+      "description": "SPT model-generation artifact (fixed by the inaddr-cleanup regen); disqualifier, not a real leak."
+    },
+    "rf_clobber": {
+      "label": "rf-clobber (stale reaching-def)", "verdict": "artifact", "phase": "disqualifier",
+      "scope": {"testsets": ["SPT_6_oneLP"], "builds": []},
+      "diag": "diag_rf_clobber.py", "bug_md": null,
+      "description": "A later writer clobbers the rf source between producer and use → not a genuine speculative dependency."
+    },
+    "branch_wrongpath_respec": {
+      "label": "branch wrong-path re-speculation (RAS artifact)", "verdict": "artifact", "phase": "disqualifier",
+      "scope": {"testsets": ["SPT_6_oneLP"], "builds": ["gem5-spt"]},
+      "diag": "diag_branch_wrongpath_respec.py", "bug_md": "branch_wrongpath_respec.md",
+      "description": "gadget retq/loop re-speculation (gem5-spt delays tainted branches to VP) — control-flow/RAS artifact."
+    },
+    "vp_squash_race": {
+      "label": "STT/SPT VP↔squash race", "verdict": "real_bug", "phase": "real_bug",
+      "scope": {"testsets": ["STT_6", "SPT_6_oneLP"], "builds": ["gem5-recon-modded", "stt", "gem5-spt"]},
+      "diag": "diag_stt_vp_squash_race.py", "bug_md": "wiki/findings/bug/stt_slowcomm_vp_squash_race/BUG_EXPLAINER.md",
+      "description": "Untaint on resolved-not-committed vs the squash — the one known STT/SPT speculative-window race."
+    },
+    "NEW_candidate_pure_bug": {
+      "label": "NEW — unexplained (research signal)", "verdict": "new", "phase": "new",
+      "scope": {"testsets": ["*"], "builds": ["*"]}, "diag": null, "bug_md": null,
+      "description": "Hits that cleared ALL disqualifiers and match no known real-bug signature. The set to root-cause."
+    }
+  }
+}

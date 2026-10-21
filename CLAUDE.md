@@ -71,6 +71,19 @@ a wiki page + a link from `wiki/README.md`. Shipping a capability without its do
 change. If you find yourself explaining how to do something only in chat, that explanation belongs
 in a file instead.
 
+**Everything belongs in the dashboard (single pane of truth).** Every piece of information in the
+repo — every corpus, model, gem5 build, run, config, hook, spec, and especially every *result* — must
+be surfaceable from the dashboard, not just on disk. Whenever you produce or discover information,
+give it a **canonical location** (a file/JSON source of truth) AND a **dashboard view** that reads
+that location. Concretely: (1) analysis we write as we triage hits becomes a **JSON source of truth**
+(`specs/hit_categories.json` — the known categories + their verdict + which testsets/builds they
+scope to), which drives the sorting/bucketing *and* is viewable in Utilities; (2) every run's full
+result set (the old run-monitor info: per mode×kind hit counts, leak/no-leak, the categorized
+buckets, the exact build/scheme/timing) is visible in that run's dashboard card/inspector; (3) new
+viewers (gem5-run detail, XML graph viz, catalogs) are the norm, not the exception. If you find
+yourself knowing something that isn't reachable from the dashboard, that's a gap to close — add the
+source-of-truth file + the viewer. Build viewers out with subagents when they're sizable.
+
 **Sessions & infra are reconstructible, not remembered.** The whole rig (Slurm allocation →
 docker → tmux → dashboard) is connect-or-create from the Makefile (`make hold|cafe|status|dash|
 mini`, via `scripts/sim`) — see `wiki/state/INFRA.md`. Never rely on a hand-built live session

@@ -1,0 +1,8 @@
+{
+  "_doc": "Stock timing \u2014 defense holds (baseline).",
+  "scheme": 2,
+  "fnc_commit_stall_cycles": 0,
+  "unresolved_stall_cycles": 0,
+  "commitToIEWDelay": 1,
+  "note": "0 race instances expected at stock"
+}

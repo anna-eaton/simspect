@@ -1,0 +1,11 @@
+{
+  "_doc": "SpecLFB: first speculative load left unprotected (UV6).",
+  "defense": "SpecLFB",
+  "transmitters": [
+    "ld"
+  ],
+  "checkers": {
+    "ld": "check_ld_speclfb.py"
+  },
+  "note": "UV6 = first spec load in LSQ performs its in-window cache access"
+}

@@ -1,0 +1,11 @@
+{
+  "_doc": "Chain-interleave enumeration (cross-chain merges).",
+  "max_instances": 150000,
+  "branch_modes": [
+    "mispredict_not_taken",
+    "mispredict_taken"
+  ],
+  "interleave": true,
+  "variants_per_instance": 2,
+  "instruction_choice": "random"
+}

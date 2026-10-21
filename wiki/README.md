@@ -16,6 +16,7 @@ append-only logs, never from "what the last session remembered."
 | **Human rollup** | [`../STATUS.md`](../STATUS.md) | The one-page "where everything stands" for Anna. **Stays at repo root** (dashboard reads `CODE_ROOT/STATUS.md`). |
 | **Open questions** | `state/OPEN.md` *(to create)* | Decisions awaiting Anna. |
 | **Design / semantics** | [`design/`](design/) | `DESIGN.md`, `AUDIT.md`, `METHODS_{CONCRETIZATION,INSTRUMENTATION,LEAKAGE_KNOBS}.md`, `branch_enumeration_notes.md`, `sweep_design_notes.md`, `docs/` (scope/criterion). The stable reference. |
+| **Models & builds** | [`design/MODELS_AND_BUILDS.md`](design/MODELS_AND_BUILDS.md) | What every Alloy model encodes (defense + leakage + driver, latest models first) and every gem5 build + its intention. |
 | **Run results** | [`results/`](results/) | Campaign/paper writeups: `results.md`, `reconresults.md`, `PAPER_RESULTS.md`, `PAPER_EXPERIMENTS.md`, `EXPERIMENTS.md`. |
 | **Findings / bugs** | [`findings/`](findings/) | `bug/` (per-bug writeups + PoC demos) and `mdsToRead/` (analysis docs). |
 | **Logs** | `logs/` *(claudelog/claudenotes stay at root — code refs; link here)* | `../claudelog.md` (durable, append-only) + `../claudenotes.md` (right-now). |

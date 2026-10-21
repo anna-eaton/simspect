@@ -1,0 +1,14 @@
+{
+  "_doc": "STT leakage contract: load + branch transmitters (no stores).",
+  "defense": "STT",
+  "transmitters": [
+    "ld",
+    "br_x"
+  ],
+  "checkers": {
+    "ld": "check_ld.py",
+    "br_x": "check_br.py"
+  },
+  "alloy_leakage_function": "Loads.inaddr+(Branchxs).inreg",
+  "note": "matches STT's own contract"
+}

@@ -1,0 +1,7 @@
+{
+  "_doc": "DoM (Delay-on-Miss) \u2014 scheme 3",
+  "scheme": 3,
+  "fnc_commit_stall_cycles": 30,
+  "commitToIEWDelay": 3,
+  "note": "recon/stt build scheme 3; STT leakage contract, different enforcement"
+}

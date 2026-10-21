@@ -160,6 +160,15 @@ dropdown. Stub: the deep per-instance visualizers and the fancier source-of-trut
 - [ ] **Run-on-build launcher** (pick gem5 build + scheme + transmitter-criteria + timing json).
 - [ ] **Fill the spec stubs** — `specs/transmitter_stage_mapping.json`, `specs/timing_directives.json`.
 - [ ] **Regen XML button** → launches an Alloy job + marks children dirty.
+- [ ] **Collapse asm / llvm / results / sweep into ONE corpus at the end granularity** (Anna, 2026-10-21).
+      Right now they read as separate categories; they shouldn't be. `llvm` is an internal build artifact,
+      `asm`+`ann` ARE the PROGRAMS corpus (the terminal generation granularity), and `results`/`sweep` are
+      just the gem5 output *of* that corpus. Unify the data model + the view so each stage is ONE corpus at
+      its end granularity (XML → PROGRAMS → GEM5), no llvm/asm/results/sweep sub-category sprawl.
+- [ ] **Unstub the run buttons** (Anna, 2026-10-21). [Enumerate] (xml), the fanout launcher (xml→programs),
+      and [Run on build] (programs→gem5) currently just `alert("coming soon")`. Wire them to actually
+      launch the real jobs (write the jobs manifest; testsetgen for enumerate/fanout, testrun for run-on-build)
+      so the dashboard can drive runs, not just view them.
 
 ## Open questions for Anna (answer these, then I build)
 1. **Drop LLVM as a tracked stage → 3 columns (XML | PROGRAMS | GEM5)?** (Recommended; matches the

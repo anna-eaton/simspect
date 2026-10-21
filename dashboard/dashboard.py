@@ -322,6 +322,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(self._safe(D.model_source, one("name")))
         if path == "/api/catalog":
             return self._json(self._safe(D.catalog, one("kind")))
+        if path == "/api/hit_categories":
+            return self._json(self._safe(D.hit_categories))
+        if path == "/api/run":
+            return self._json(self._safe(D.run_detail, one("name")))
+        if path == "/api/run_hits":
+            return self._json(self._safe(D.run_hit_stems, one("name"),
+                                         one("bucket"), one("mode"), one("limit", "500")))
+        if path == "/api/defense_units":
+            return self._json(self._safe(D.defense_units))
+        if path == "/api/transmitter_criteria":
+            return self._json(self._safe(D.transmitter_criteria))
 
         # ── utilities ─────────────────────────────────────────────────
         if path == "/api/tables":

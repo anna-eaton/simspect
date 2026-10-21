@@ -1,0 +1,7 @@
+{
+  "_doc": "Delay (eager delay-on-use) \u2014 scheme 1",
+  "scheme": 1,
+  "fnc_commit_stall_cycles": 30,
+  "commitToIEWDelay": 3,
+  "note": "recon/stt build scheme 1; STT leakage contract, different enforcement"
+}

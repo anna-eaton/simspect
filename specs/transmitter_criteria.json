@@ -1,0 +1,47 @@
+{
+  "_doc": "TRANSMITTER CRITERIA — the detailed 'did it actually leak' definition per transmitter kind, as worked out across the project (CLAUDE.md Leak criteria + the checkers). This is the source of truth viewed in the dashboard Utilities → Annotation/Check. Each kind: the checker, the observable signal, the speculative window, and the exact leak GATE (what counts as a leak vs a checker false positive). Pairs with specs/leakage/*.json (which transmitters each defense's contract includes) and specs/transmitter_stage_mapping.json.",
+  "window": "A transmitter leaks only if its observable action happens inside the speculative window lc_retire < signal < fnc_retire while branches are still unresolved.",
+  "kinds": {
+    "ld": {
+      "checker": "STAGE3_gem5/check_ld.py",
+      "signal": "LSQ 'Executing load' tick (cache touch; visible even for squashed speculative loads).",
+      "gate": "data-obtained gate = _xmit_cache_fate(lsq_by_pc, xmit_pc) + pipeview complete tick",
+      "leak_if": [
+        "reached_cache — a real read packet went to cache",
+        "store_forward — executed_no_packet BUT reached pipeview complete>0 (value forwarded from a store in the LSQ; an SLF leak that never touches cache — the 'complete caveat')"
+      ],
+      "not_leak_if": [
+        "spec_read_only — invisible speculative read",
+        "executed_no_packet & never completed — delay_unit bounce (defense held)",
+        "never_executed"
+      ],
+      "notes": "Cache-reach is NOT the bar (SLF leaks without a packet). Squash timing NEVER gates (a load that obtained data then got squashed still leaked). No LSQ record → left ungated (never hide a possible leak). Every re-decision MUST reuse this exact gate, not a trace-only reached_cache check.",
+      "verdict_classes_ref": "specs/hit_categories.json (check_ld_no_completion = checker FP class)"
+    },
+    "br_x": {
+      "checker": "STAGE3_gem5/check_br.py",
+      "signal": "branch-redirect / squash-broadcast tick",
+      "gate": "redirect detected",
+      "leak_if": ["a wrong-path redirect/squash attributable to the speculative branch"],
+      "not_leak_if": ["check_br does NOT currently enforce the lc/fnc window (known gap) → inflated branch hit rates; historical STT br_x 'leaks' were FALSE POSITIVES"],
+      "notes": "THE #1 checker debt. A principled rewrite must: enforce the window; gate on whether the branch condition is secret/tainted; key on the real fetch-redirect/squash event; handle differential secret-dependent-timing channels. See bugsynth/BRANCH_CHANNEL_CHECK_DESIGN.md + check_br_differential.py prototype.",
+      "status": "WEAK — rewrite pending"
+    },
+    "str": {
+      "checker": "NEEDS: store-transmitter checker (does not exist yet)",
+      "signal": "store address resolution / cache or TLB access by the store address",
+      "gate": "TODO",
+      "leak_if": ["TODO — store address reaches cache/TLB in-window"],
+      "not_leak_if": ["TODO"],
+      "notes": "SPT_6_oneLP generates str transmitters (Stores.inaddr). 24 untriaged str store-addr hits await this checker. KV3 (spec store→TLB) is out of STT's contract ('not a bug' per the paper) but a store-transmitter checker is needed to triage SPT's str hits."
+    },
+    "other_x": {
+      "checker": "STAGE3_gem5/check_other.py",
+      "signal": "TODO (ALU/reg transmitter observable)",
+      "gate": "TODO",
+      "leak_if": ["TODO"],
+      "not_leak_if": ["TODO"],
+      "notes": "ALU/reg→reg transmitter. leakage_function includes (Otherxs).inreg only in older models (STT_2/4/5); current STT_6/SPT/Recon drop Otherxs."
+    }
+  }
+}

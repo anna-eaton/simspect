@@ -1,0 +1,11 @@
+{
+  "_doc": "OTB enumeration: force the two-load->ALU->xmit merge.",
+  "max_instances": 50000,
+  "branch_modes": [
+    "mispredict_not_taken"
+  ],
+  "interleave": true,
+  "variants_per_instance": 2,
+  "otb_shape": "other.outreg -> xm.inaddr",
+  "note": "requires STT_6_multisource + the otb_shape forcing predicate"
+}
