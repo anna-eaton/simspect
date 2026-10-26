@@ -1,0 +1,77 @@
+From: Nicholas Hunter Mosier <nmosier@stanford.edu>
+Subject: Fwd: ReCon gem5 implementation
+Date: April 20, 2026 at 11:42:30 AM PDT
+To: Anna Eaton <acbeaton@stanford.edu>
+
+
+
+Begin forwarded message:
+From: Pavlos Aimoniotis <pavlos.aimoniotis@it.uu.se>
+Subject: Re: ReCon gem5 implementation
+Date: November 25, 2023 at 12:22:54 AM PST
+To: Nicholas Hunter Mosier <nmosier@stanford.edu>
+
+Nick, 
+you can find the gem5 repo here: https://drive.google.com/file/d/1TWawzRXjXL3YHaUhTIT03tA5sdFbvYtm/view?usp=sharing. 
+The code is a kind of a mess (there is also some dead code in there since the repo is running for quite a long time now), so in case you really want to look at the code, I would suggest emailing me and not waste your time trying to figure out what happens in there :)
+Quick info that you may need for your evaluation: the current repo supports shadows occurring from control and store instructions -- you can find them in the decode file in o3 folder -- in case you want to test only the spectre theat model (disable the store shadows -- just comment out line 690).  
+To run different schemes you just add a parameter to gem5 command line: --scheme. --scheme 0 corresponds to the unsafe baseline, --scheme 1 to NDA, --scheme 2 to STT (the one you will need) and --scheme 3 to DoM 
+Let me start with doppelganger which is super trivial to run (even if you may not even need it), you just run your normal command lines with simple memory (no --ruby cause it will crash), and in the command line you just add --address_prediction. This will run the predictor with the default parameters as it was in the paper). So if you want to run STT + Doppelganger all you do is add to your command line --scheme 2 --address_prediction.
+Now for ReCon, since it modifies SLICC and its not trivial to pass parameters from the CPU in there (and I am too lazy for that), you will find two ruby folders. One being the default/clear ruby and the other one being ReCon (a folder in the gem5 directory named ruby-versions -- ruby-default is the default -- ruby-singlecore is ReCon). I have not included parallel since I assume you will not run it, and it gets more complicated to run, so if you need it let me know. Now to run recon you need to add --allow_leaked, in the command line. That is, for STT+ReCon you just add --scheme 2 --allow_leaked.
+What I usually do is compile one of the random gem5 opts (e.g., X86_MI_example) with the baseline (ruby-default), and then compile another opt (e.g., X86) for ReCon (ruby-singlecore), so that I have a compiled version of baseline and do not really need to recompile again. To compile obviously you need to enable the MESI_Three_Level protocol. (scons build/X86/gem5.fast -j 20 PROTOCOL=MESI_Three_Level).
+So to summarize, remove the ruby folder (src/mem/ruby). Use the ruby-default as ruby (in the same path), and run your command line with --scheme 0 (unsafe baseline), and --scheme 2 (STT). Use the ruby-singlecore as ruby, and run your command line with --scheme 2 --allow_leaked (STT+ReCon). Then normalize to unsafe baseline STT and STT+ReCon and vuala! 
+One of my command lines for example would look like this: ./build/X86/gem5.fast --outdir=...    --redirect-stdout --redirect-stderr ./configs/example/fs.py    --restore-simpoint-checkpoint    --checkpoint-dir=...     -r ...     --kernel=...    --disk-image=...     --script=...    --caches --cpu-type=DerivO3CPU     --l0d_size=65536 --l0i_assoc=8    --l0d_assoc=8 --l0i_size=65536    --l1d_size=2MB --l1d_assoc=16    --l2_size=16MB --l2_assoc=32    --ruby    --enable-prefetch     --mem-size=8GB --cpu-clock=3GHz    --cacheline_size=64    --scheme 2    --allow_leaked 
+If I dont forget anything essential, thats more that enough to run it. Let me know how it goes, and of course if you encounter any problems, just email me, do not waste too much of your time as the deadline is approaching!
+
+Pavlos.
+
+
+On 11/24/2023 5:23 PM, Nicholas Hunter Mosier wrote:
+Hi Pavlos,
+
+Sounds great, thank you! We’re only planning on evaluating ReCon for now, but I did read your Doppelganger Loads paper—very interesting work! We’re aiming for the ASPLOS deadline (Thursday, Nov. 30), so by the end of this weekend or early next week would be ideal. I’m quite familiar with compiling gem5 and running gem5 simulations at this point, so the instructions can be abbreviated, if that helps.
+
+Thank you,
+Nick
+
+On Nov 24, 2023, at 2:10 AM, Pavlos Aimoniotis <pavlos.aimoniotis@it.uu.se> wrote:
+Dear Nick (and Caroline!),
+I hope this email finds you both well!
+You are correct; the gem5 repository is not publicly available, but I'm more than happy to share it with you. Within this repository, you'll find not only ReCon but also Doppelganger Loads (ISCA'23) — they were parallel works. While ReCon is implemented in Ruby (and SLICC), Doppelganger Loads is implemented in the simple gem5 memory system. I'm uncertain which one suits you best, but with both options available, I guess you are more flexible.
+I'll send a direct email to Nick, containing the repo and detailed instructions on compilation and execution. It is kind of a crazy period with deadlines, teaching etc., so excuse me in advance for any small delay :)
+(if its an urgent and you are chasing a deadline let me know (do not hesitate!) so i can prioritize it, and get it done within the weekend) 
+Best,
+Pavlos
+On 11/22/2023 11:05 PM, Nicholas Hunter Mosier wrote:
+Hi Pavlos,
+
+I am trying to evaluate a new secure speculation scheme against the state-of-the-art, STT+ReCon. However, I haven’t been able to find your gem5 implementation of ReCon on GitHub. I was wondering if your gem5 implementation of ReCon is publicly available, or would you be able to share the code with us to run as a secure baseline in our evaluation?
+
+Best,
+Nick Mosier
+PhD Candidate, Computer Science
+Stanford University
+ 
+VARNING: Klicka inte på länkar och öppna inte bilagor om du inte känner igen avsändaren och vet att innehållet är säkert.
+CAUTION: Do not click on links or open attachments unless you recognise the sender and know the content is safe.
+-- 
+Pavlos Aimoniotis
+PhD Student, Division of Computer Systems
+Department of Information Technology
+Uppsala University
+
+
+
+
+
+
+
+
+När du har kontakt med oss på Uppsala universitet med e-post så innebär det att vi behandlar dina personuppgifter. För att läsa mer om hur vi gör det kan du läsa här: http://www.uu.se/om-uu/dataskydd-personuppgifter/ 
+
+E-mailing Uppsala University means that we will process your personal data. For more information on how this is performed, please read here: http://www.uu.se/en/about-uu/data-protection-policy 
+
+ 
+VARNING: Klicka inte på länkar och öppna inte bilagor om du inte känner igen avsändaren och vet att innehållet är säkert.
+CAUTION: Do not click on links or open attachments unless you recognise the sender and know the content is safe.
+

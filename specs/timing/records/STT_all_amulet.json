@@ -1,0 +1,20 @@
+{
+  "_campaign": "STT_all_amulet",
+  "_source": "results/STT_all_amulet/run_config.jsonc",
+  "build": "amulet",
+  "gem5_binary": "/work/amulet/amulet-gem5-STT_AE-v1.1/build/X86/gem5.opt",
+  "scheme": 2,
+  "fnc_commit_stall_cycles": 150,
+  "branch_ann_enable": true,
+  "cpu_type": "DerivO3CPU",
+  "sweep": {
+    "enabled": true,
+    "resolve_stall_points": [
+      0,
+      500,
+      2500
+    ],
+    "unresolved_stall": 5000
+  },
+  "_note": "Actual timing config this campaign ran, extracted from its run_config.jsonc. Shares format with specs/timing/*.json candidates + new-launch configs."
+}

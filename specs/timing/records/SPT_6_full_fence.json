@@ -1,0 +1,28 @@
+{
+  "_campaign": "SPT_6_full_fence",
+  "_source": "results/SPT_6_full_fence/run_config.jsonc",
+  "build": "gem5-spt",
+  "gem5_binary": "/work/gem5-spt/build/X86_MESI_Two_Level/gem5.opt",
+  "scheme": 2,
+  "scheme_name": "SpectreSafeFence",
+  "fnc_commit_stall_cycles": 150,
+  "branch_ann_enable": true,
+  "cpu_type": "DerivO3CPU",
+  "extra_args": [
+    "--applyDDIFT=1",
+    "--fwdUntaint=1",
+    "--bwdUntaint=1",
+    "--configImpFlow=Ignore",
+    "--scheme=SpectreSafeFence"
+  ],
+  "sweep": {
+    "enabled": true,
+    "resolve_stall_points": [
+      0,
+      500,
+      2500
+    ],
+    "unresolved_stall": 5000
+  },
+  "_note": "Actual timing config this campaign ran, extracted from its run_config.jsonc. Shares format with specs/timing/*.json candidates + new-launch configs."
+}

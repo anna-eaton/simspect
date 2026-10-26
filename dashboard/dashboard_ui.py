@@ -720,6 +720,7 @@ const UTIL_TABS = [
   { id: 'findings', label: 'Findings' },
   { id: 'hitcats', label: 'Hit categories' },
   { id: 'xmlviz', label: 'XML graph' },
+  { id: 'program', label: 'Program' },
 ];
 
 // Last /api/models payload (every .als on disk, enumerated or not) — joined
@@ -772,6 +773,123 @@ async function apiCall(path, opts = {}) {
 // ====== stub action (Regen XML / Run on build — not implemented yet) ======
 function stubAction(label) {
   alert(label + ': coming soon (stub).');
+}
+
+async function apiPost(path, body) {
+  try {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body || {}),
+    });
+    let data = null;
+    try { data = await res.json(); } catch (e) { data = null; }
+    if (!res.ok) return { ok: false, error: (data && data.error) || `HTTP ${res.status}` };
+    return data || { ok: false, error: 'empty response' };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ====== Real launches (generate = testsetgen, run = testrun) ======
+// kind: 'gen' -> POST /api/launch ; 'run' -> POST /api/launch_run
+async function openLaunchJobModal(kind, model, regen) {
+  const isGen = kind === 'gen';
+  openUModal((isGen ? (regen ? 'Regen XML — ' : 'Enumerate — ') : 'Run on build — ') + model);
+  document.getElementById('uModalBody').innerHTML = '<p class="spin">loading run configs…</p>';
+  const cat = await apiCall('/api/catalog?kind=runconfigs');
+  const entries = (cat && cat.entries) || [];
+  const want = 'run_config_' + model + '.jsonc';
+  const opts = entries.map(e => `<option value="${esc(e.name)}"${e.name === want ? ' selected' : ''}>${esc(e.name)}</option>`).join('');
+  document.getElementById('uModalBody').innerHTML = `<div class="card">
+    <div class="card-meta">
+      ${isGen
+        ? 'Launches <code>testsetgen</code> (Alloy enumerate + llvm + asm).' + (regen ? ' testsetgen resumes / skips stems that are already done.' : '')
+        : 'Launches <code>testrun</code> (gem5 run of this testset on the build in the run-config).'}
+    </div>
+    <div style="margin-top:8px">
+      <label>model <input type="text" id="ljModel" value="${esc(model)}" style="width:260px"></label>
+    </div>
+    <div style="margin-top:6px">
+      <label>run-config <select id="ljConfig">${opts || '<option value="">(no run-configs found)</option>'}</select></label>
+      ${entries.some(e => e.name === want) ? '' : `<span class="card-meta"> no <code>${esc(want)}</code> — pick one</span>`}
+    </div>
+    <div style="margin-top:10px"><button onclick="submitLaunchJob('${kind}')">${isGen ? 'Launch generate' : 'Launch run'}</button></div>
+    <div id="ljResult" style="margin-top:10px"></div>
+  </div>`;
+}
+
+async function submitLaunchJob(kind) {
+  const model = (document.getElementById('ljModel').value || '').trim();
+  const config = document.getElementById('ljConfig').value;
+  const out = document.getElementById('ljResult');
+  if (!model || !config) { out.innerHTML = '<p class="err">model and run-config are required.</p>'; return; }
+  const isGen = kind === 'gen';
+  if (!confirm((isGen ? 'Launch GENERATE (testsetgen)' : 'Launch RUN (testrun)') + ' for ' + model + ' with ' + config + '?\nThis spawns a real job.')) return;
+  out.innerHTML = '<p class="spin">launching…</p>';
+  const data = await apiPost(isGen ? '/api/launch' : '/api/launch_run', {model: model, config: config});
+  if (data && data.ok) {
+    out.innerHTML = `<p style="color:var(--ok)"><strong>launched</strong></p>
+      <div class="card-meta">log: <code>${esc(data.log || '')}</code></div>`;
+  } else {
+    out.innerHTML = `<p class="err">Launch failed: ${esc((data && data.error) || 'unknown error')}</p>`;
+  }
+}
+
+// ====== Pipeline timeline (per-hit, from saved ticks) ======
+async function showHitTimeline(name, mode, stem, targetId) {
+  const target = document.getElementById(targetId || 'runTimelineBody');
+  if (!target) return;
+  target.innerHTML = '<p class="spin">loading timeline…</p>';
+  const data = await apiCall('/api/hit_timeline?name=' + encodeURIComponent(name)
+    + '&mode=' + encodeURIComponent(mode) + '&stem=' + encodeURIComponent(stem));
+  if (!data || data.error || data.ok === false) {
+    target.innerHTML = `<p class="err">Error: ${esc((data && data.error) || 'unavailable')}</p>`;
+    return;
+  }
+  target.innerHTML = renderPipelineTimelineSvg(data);
+}
+
+function renderPipelineTimelineSvg(d) {
+  const events = (d.events || []).filter(e => e && typeof e.tick === 'number');
+  const win = d.window || {};
+  const caption = `<div class="card-meta" style="margin:0 0 4px"><strong>outcome:</strong> ${esc(String(d.outcome || '?'))}
+    &middot; <strong>xmit:</strong> <code>${esc(String(d.xmit_kind || '?'))}</code> @ pc <code>${esc(String(d.xmit_pc !== undefined && d.xmit_pc !== null ? d.xmit_pc : '?'))}</code></div>`;
+  if (!events.length) return caption + '<p class="empty">no saved timing ticks for this hit.</p>';
+  const lc = (typeof win.lc_retire === 'number') ? win.lc_retire : null;
+  const fnc = (typeof win.fnc_retire === 'number') ? win.fnc_retire : null;
+  const ticks = events.map(e => e.tick);
+  if (lc !== null) ticks.push(lc);
+  if (fnc !== null) ticks.push(fnc);
+  const tmin = Math.min.apply(null, ticks), tmax = Math.max.apply(null, ticks);
+  const span = Math.max(1, tmax - tmin);
+  const W = 900, padL = 30, padR = 30, axisY = 120, H = 190;
+  const X = t => padL + (W - padL - padR) * (t - tmin) / span;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto;background:var(--panel2);border:1px solid var(--border);border-radius:4px" role="img" aria-label="pipeline timeline">`;
+  if (lc !== null && fnc !== null) {
+    const x1 = X(lc), x2 = X(fnc);
+    svg += `<rect x="${x1}" y="20" width="${Math.max(1, x2 - x1)}" height="${axisY - 20}" fill="var(--accent)" opacity="0.25"/>`;
+    svg += `<text x="${x1}" y="14" font-size="10" fill="var(--text)" text-anchor="start">lc_retire ${lc}</text>`;
+    svg += `<text x="${x2}" y="14" font-size="10" fill="var(--text)" text-anchor="end">fnc_retire ${fnc}</text>`;
+    svg += `<line x1="${x1}" y1="20" x2="${x1}" y2="${axisY}" stroke="var(--accent)" stroke-width="1"/>`;
+    svg += `<line x1="${x2}" y1="20" x2="${x2}" y2="${axisY}" stroke="var(--accent)" stroke-width="1"/>`;
+  }
+  svg += `<line x1="${padL}" y1="${axisY}" x2="${W - padR}" y2="${axisY}" stroke="var(--muted)" stroke-width="1.5"/>`;
+  svg += `<text x="${padL}" y="${axisY + 14}" font-size="10" fill="var(--muted)">${tmin}</text>`;
+  svg += `<text x="${W - padR}" y="${axisY + 14}" font-size="10" fill="var(--muted)" text-anchor="end">${tmax}</text>`;
+  // stagger labels over 4 rows (alternating above/below the axis) to limit overlap
+  events.forEach((e, i) => {
+    const x = X(e.tick), hit = !!e.in_window;
+    const col = hit ? 'var(--err)' : 'var(--muted)';
+    const row = i % 4;
+    const above = row % 2 === 0;
+    const ly = above ? (axisY - 14 - 14 * Math.floor(row / 2)) : (axisY + 30 + 14 * Math.floor(row / 2));
+    svg += `<line x1="${x}" y1="${axisY - (hit ? 12 : 7)}" x2="${x}" y2="${axisY + (hit ? 12 : 7)}" stroke="${col}" stroke-width="${hit ? 3 : 1.5}"/>`;
+    svg += `<text x="${x}" y="${ly}" font-size="10" fill="${col}" ${hit ? 'font-weight="bold"' : ''} text-anchor="middle">${esc(String(e.label || ''))} (${e.tick})</text>`;
+  });
+  svg += '</svg>';
+  const legend = `<div class="card-meta" style="margin-top:4px">shaded = speculative window; red = event inside the window = the leak; grey = outside the window.</div>`;
+  return caption + svg + legend;
 }
 
 // ====== Legacy main-tab renderers (superseded by the Pipeline tab, kept for reuse) ======
@@ -1055,6 +1173,14 @@ async function renderTestView() {
 }
 
 async function loadFile(kind) {
+  // The assembly view defaults to the clean concretized BODY (prologue/
+  // epilogue/stack-zero-init stripped) with a toggle to the raw full .s —
+  // shared with the gem5-hit program view and the Utilities "Program" tab.
+  if (kind === 's') {
+    document.getElementById('fileContent').innerHTML = '<p class="spin">loading…</p>';
+    renderProgramView('fileContent', state.selectedCorpus, state.selectedMode, state.selectedTest, 'clean');
+    return;
+  }
   const params = `model=${encodeURIComponent(state.selectedCorpus)}&mode=${encodeURIComponent(state.selectedMode)}&stem=${encodeURIComponent(state.selectedTest)}&kind=${kind}`;
   const data = await apiCall('/api/file?' + params);
   if (data.error) {
@@ -1067,6 +1193,46 @@ async function loadFile(kind) {
       : '';
     document.getElementById('fileContent').innerHTML =
       bar + `<pre class="file-content">${esc(txt)}</pre>`;
+  }
+}
+
+// Generic program viewer: defaults to /api/program_clean (the concretized
+// BODY with boilerplate stripped) with a toggle to the raw full /api/file
+// .s. Reused by the corpus file viewer (loadFile kind=='s'), the gem5-hit
+// program panel (loadRunStemProgram), and the Utilities "Program" tab.
+async function renderProgramView(targetId, model, mode, stem, view) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  target.innerHTML = '<p class="spin">loading…</p>';
+  if (view === 'full') {
+    const data = await apiCall('/api/file?model=' + encodeURIComponent(model)
+      + '&mode=' + encodeURIComponent(mode) + '&stem=' + encodeURIComponent(stem) + '&kind=s');
+    if (data.error) { target.innerHTML = `<p class="err">Error: ${esc(data.error)}</p>`; return; }
+    const txt = data.text !== undefined ? data.text : (data.html || data.content || '');
+    const bar = data.vscode
+      ? `<div class="file-bar"><code>${esc(data.path || '')}</code> `
+        + `<a class="vscode-link" href="${esc(data.vscode)}">open in VSCode</a></div>` : '';
+    target.innerHTML = `<div class="card-meta" style="margin-bottom:4px">full assembly (.s)</div>
+      ${bar}<pre class="file-content">${esc(txt)}</pre>
+      <div style="margin-top:6px">
+        <button onclick="renderProgramView('${targetId}','${esc(model)}','${esc(mode)}','${esc(stem)}','clean')">show body</button>
+      </div>`;
+  } else {
+    const data = await apiCall('/api/program_clean?model=' + encodeURIComponent(model)
+      + '&mode=' + encodeURIComponent(mode) + '&stem=' + encodeURIComponent(stem));
+    if (data.error || data.ok === false) {
+      target.innerHTML = `<p class="err">Error: ${esc(data.error || 'not available')}</p>`;
+      return;
+    }
+    const txt = data.text !== undefined ? data.text : '';
+    const bar = data.vscode
+      ? `<div class="file-bar"><code>${esc(data.path || '')}</code> `
+        + `<a class="vscode-link" href="${esc(data.vscode)}">open in VSCode</a></div>` : '';
+    target.innerHTML = `<div class="card-meta" style="margin-bottom:4px">program body &mdash; ${data.lines || 0} lines (${data.stripped || 0} boilerplate hidden)</div>
+      ${bar}<pre class="file-content">${esc(txt)}</pre>
+      <div style="margin-top:6px">
+        <button onclick="renderProgramView('${targetId}','${esc(model)}','${esc(mode)}','${esc(stem)}','full')">show full .s</button>
+      </div>`;
   }
 }
 
@@ -1154,7 +1320,7 @@ async function openXmlInspector(model, pl, inv) {
       : '<strong>enumerated:</strong> no<br>'}
     </div>
     <div style="margin-top:8px">
-      <button onclick="stubAction('${isUnenum ? 'Enumerate' : 'Regen XML'} — ${esc(model)}')">${isUnenum ? 'Enumerate (stub)' : 'Regen XML (stub)'}</button>
+      <button onclick="openLaunchJobModal('gen','${esc(model)}',${isUnenum ? 'false' : 'true'})">${isUnenum ? 'Enumerate' : 'Regen XML'}</button>
     </div>
   </div>
   <div class="card" id="xmlInstancesBody"><p class="spin">loading instances…</p></div>
@@ -1216,7 +1382,7 @@ async function loadXmlInstance(model, stem) {
     : '';
   target.innerHTML = `${bar}<pre class="file-content">${esc(txt)}</pre>
     <div style="margin-top:6px">
-      <button onclick="stubAction('graph for ${esc(stem)}')">View as graph</button>
+      <button onclick="openExecGraph('${esc(model)}','${esc(stem)}')">View as graph</button>
     </div>`;
 }
 
@@ -1244,7 +1410,7 @@ function openProgramInspector(m, p) {
       <strong>ann:</strong> ${p.ann || 0} &nbsp; <strong>expected:</strong> ${p.expected || 0}<br>
       ${p.dirty ? '<span class="badge stale">stale — parent XML changed since this was built</span>' : ''}
     </div>
-    <div style="margin-top:8px"><button onclick="stubAction('Run on build — ${esc(label)}')">Run on build (stub)</button></div>
+    <div style="margin-top:8px"><button onclick="openLaunchJobModal('run','${esc(m.model)}')">Run on build</button></div>
   </div>`;
   document.getElementById('uModalBody').innerHTML = meta + `<div id="inspBody"><p class="spin">loading…</p></div>`;
   if (p.mode) {
@@ -1358,7 +1524,7 @@ function buildRunDetailHtml(data) {
           ? `<a onclick="event.stopPropagation(); loadRunBucketWriteup('${esc(b.bug_md)}')" style="color:var(--link);cursor:pointer">open writeup</a>`
           : `<code>${esc(b.bug_md)}</code>`;
       }
-      html += `<div class="card run-bucket${emphasize ? ' run-bucket-new' : ''}" onclick="loadRunHits('${esc(data.results_name)}','${esc(b.category)}','${esc(data.model || '')}')">
+      html += `<div class="card run-bucket${emphasize ? ' run-bucket-new' : ''}" onclick="loadRunHits('${esc(data.results_name)}','${esc(b.category)}','${esc(data.model || '')}','${esc(b.verdict || '')}')">
         <div class="pl-box-top"><strong>${b.count}</strong>&nbsp;<span>${esc(b.label || b.category)}</span>${vb}</div>
         <div class="card-meta">${esc(b.description || '')}${writeup ? ' &middot; ' + writeup : ''}</div>
       </div>`;
@@ -1370,7 +1536,9 @@ function buildRunDetailHtml(data) {
 
 // bucket drill-in: /api/run_hits now returns stems as {stem, mode} objects
 // (not bare strings) — each row is clickable and shows that test's program.
-async function loadRunHits(name, bucket, model) {
+// verdict is threaded through so the program panel knows whether to surface
+// "which transmitter check fired" (real_bug / NEW — the ones Anna cares about).
+async function loadRunHits(name, bucket, model, verdict) {
   const target = document.getElementById('runHitsBody');
   if (!target) return;
   target.innerHTML = '<p class="spin">loading…</p>';
@@ -1386,37 +1554,65 @@ async function loadRunHits(name, bucket, model) {
   const rows = stems.map(s => {
     const stem = (s && typeof s === 'object') ? (s.stem || '') : (s || '');
     const mode = (s && typeof s === 'object') ? (s.mode || '') : '';
-    return `<div class="run-stem-row" onclick="loadRunStemProgram('${esc(model || '')}','${esc(mode)}','${esc(stem)}')">
+    return `<div class="run-stem-row" onclick="loadRunStemProgram('${esc(model || '')}','${esc(mode)}','${esc(stem)}','${esc(verdict || '')}','${esc(name || '')}')">
       <code>${esc(stem)}</code>${mode ? ` <span class="card-meta">(${esc(mode)})</span>` : ''}
     </div>`;
   }).join('');
   target.innerHTML = `<h4 style="margin:6px 0 4px">${esc(bucket)} &mdash; ${esc(note)}</h4>
     <div class="run-stem-list">${rows || '<p class="empty">no stems</p>'}</div>
     <div id="runProgramBody" style="margin-top:10px"></div>`;
+  target.scrollIntoView({behavior: 'smooth', block: 'nearest'});
 }
 
-// Stem click → the PROGRAM (assembly) for that test, reusing the same
-// /api/file + file-bar/vscode-link rendering as the corpus file viewer.
-async function loadRunStemProgram(model, mode, stem) {
+// Stem click → the PROGRAM (clean body by default, toggle to full .s), the
+// REAL execution-graph overlay (no longer a stub), and — for real_bug / NEW
+// buckets only — which transmitter check this hit fired against.
+async function loadRunStemProgram(model, mode, stem, verdict, resultsName) {
   const target = document.getElementById('runProgramBody');
   if (!target) return;
-  target.innerHTML = '<p class="spin">loading…</p>';
-  const data = await apiCall('/api/file?model=' + encodeURIComponent(model)
-    + '&mode=' + encodeURIComponent(mode) + '&stem=' + encodeURIComponent(stem) + '&kind=s');
-  if (data.error) {
-    target.innerHTML = `<p class="err">Error: ${esc(data.error)}</p>`;
-    return;
-  }
-  const txt = data.text !== undefined ? data.text : (data.html || data.content || '');
-  const bar = data.vscode
-    ? `<div class="file-bar"><code>${esc(data.path || '')}</code> `
-      + `<a class="vscode-link" href="${esc(data.vscode)}">open in VSCode</a></div>`
-    : '';
   target.innerHTML = `<h4 style="margin:6px 0 4px">${esc(stem)} &mdash; program</h4>
-    ${bar}<pre class="file-content">${esc(txt)}</pre>
+    <div id="runStemCheckerBody"></div>
+    <div id="runProgramInner"><p class="spin">loading…</p></div>
     <div style="margin-top:6px">
-      <button onclick="stubAction('exec graph for ${esc(stem)}')">View execution graph</button>
-    </div>`;
+      <button onclick="openExecGraph('${esc(model)}','${esc(stem)}')">View execution graph</button>
+      ${resultsName ? `<button onclick="showHitTimeline('${esc(resultsName)}','${esc(mode)}','${esc(stem)}','runTimelineBody')">Pipeline timeline</button>` : ''}
+    </div>
+    <div id="runTimelineBody" style="margin-top:8px"></div>`;
+  renderProgramView('runProgramInner', model, mode, stem, 'clean');
+  if (verdict === 'real_bug' || verdict === 'new') {
+    loadStemTransmitterCheck('runStemCheckerBody', model, mode, stem);
+  }
+  target.scrollIntoView({behavior: 'smooth', block: 'nearest'});  // program renders below the fold
+}
+
+// ---- which transmitter check fired (kind → checker), for real_bug/NEW hits ----
+let TC_CACHE = null;
+async function getTransmitterCriteria() {
+  if (TC_CACHE) return TC_CACHE;
+  const data = await apiCall('/api/transmitter_criteria');
+  TC_CACHE = (data && !data.error) ? data : { criteria: { kinds: {} } };
+  return TC_CACHE;
+}
+
+function checkerForKind(tc, kind) {
+  const kinds = (tc && tc.criteria && tc.criteria.kinds) || {};
+  const rec = kinds[kind];
+  return rec ? rec.checker : null;
+}
+
+async function loadStemTransmitterCheck(targetId, model, mode, stem) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  const [testData, tc] = await Promise.all([
+    apiCall('/api/test?model=' + encodeURIComponent(model) + '&mode=' + encodeURIComponent(mode) + '&stem=' + encodeURIComponent(stem)),
+    getTransmitterCriteria(),
+  ]);
+  if (!target.isConnected) return;  // the panel may have been replaced while this was in flight
+  const kind = (testData && !testData.error) ? testData.kind : null;
+  if (!kind) return;
+  const checker = checkerForKind(tc, kind) || '?';
+  target.innerHTML = `<p class="card-meta" style="margin:0 0 6px">
+    <strong>transmitter:</strong> <code>${esc(kind)}</code> &rarr; <code>${esc(checker)}</code></p>`;
 }
 
 async function loadRunBucketWriteup(path) {
@@ -1509,7 +1705,7 @@ function xmlBoxHtml(row) {
       ${scopeLine}${symlinkLine}
       <div class="card-meta">not enumerated</div>
       <div class="pl-box-actions">
-        <button onclick="event.stopPropagation(); stubAction('Enumerate — ${esc(model)}')">Enumerate</button>
+        <button onclick="event.stopPropagation(); openLaunchJobModal('gen','${esc(model)}',false)">Enumerate</button>
       </div>
     </div>`;
   }
@@ -1530,7 +1726,7 @@ function xmlBoxHtml(row) {
     <div class="card-meta">${instances}${cap ? ' / ' + cap : ''} instances ${prov}</div>
     ${cap ? `<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>` : ''}
     <div class="pl-box-actions">
-      <button onclick="event.stopPropagation(); stubAction('Regen XML — ${esc(model)}')">Regen XML</button>
+      <button onclick="event.stopPropagation(); openLaunchJobModal('gen','${esc(model)}',true)">Regen XML</button>
     </div>
   </div>`;
 }
@@ -1546,7 +1742,7 @@ function programBoxHtml(model, p) {
     <div class="card-meta">llvm ${p.llvm || 0} &middot; asm ${p.asm || 0} &middot; ann ${p.ann || 0}${expected ? ' / ' + expected : ''}</div>
     ${expected ? `<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>` : ''}
     <div class="pl-box-actions">
-      <button onclick="event.stopPropagation(); stubAction('Run on build — ${esc(label)}')">Run on build</button>
+      <button onclick="event.stopPropagation(); openLaunchJobModal('run','${esc(model)}')">Run on build</button>
     </div>
   </div>`;
 }
@@ -2081,6 +2277,55 @@ async function loadXmlGraphUtil() {
   target.innerHTML = buildExecGraphView(data);
 }
 
+// ====== Program viewer (Utilities tab) ======
+// Same clean-body/full-.s toggle (renderProgramView) used by the corpus file
+// viewer and the gem5-hit program panel, picked by model/mode/stem.
+async function renderProgramUtil() {
+  const modelsData = await apiCall('/api/models');
+  const modelNames = (modelsData.models || []).map(m => m.name).sort();
+  const modelsErr = modelsData.error
+    ? `<p class="err" style="font-size:11px">Could not load model list: ${esc(modelsData.error)}</p>` : '';
+  let html = `
+    <h3 style="margin-top:0">Program</h3>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 10px">
+      View one test's concretized program. Defaults to the clean BODY
+      (prologue/epilogue/stack-zero-init stripped); toggle to the full .s.</p>
+    ${modelsErr}
+    <div class="form-group">
+      <label>Model</label>
+      <select id="pgModel" style="width:280px">
+        <option value="">— choose a model —</option>
+        ${modelNames.map(n => `<option value="${esc(n)}"${n === DEFAULT_MODEL ? ' selected' : ''}>${esc(n)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Mode</label>
+      <select id="pgMode" style="width:280px">
+        <option value="mispredict_not_taken" selected>mispredict_not_taken</option>
+        <option value="mispredict_taken">mispredict_taken</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Stem</label>
+      <input type="text" id="pgStem" value="${DEFAULT_STEM}" placeholder="inst-000123" style="width:280px">
+    </div>
+    <button class="primary" onclick="loadProgramUtil()">Show program</button>
+    <div id="programUtilBody" style="margin-top:14px"></div>
+  `;
+  // Auto-render the default (STT_6 / mispredict_not_taken / inst-000001), same
+  // zero-click convenience as the XML-graph util.
+  setTimeout(() => { if (document.getElementById('pgStem')) loadProgramUtil(); }, 60);
+  return html;
+}
+
+async function loadProgramUtil() {
+  const model = document.getElementById('pgModel').value.trim();
+  const mode = document.getElementById('pgMode').value.trim();
+  const stem = document.getElementById('pgStem').value.trim();
+  if (!model || !mode || !stem) { alert('Model, mode, and stem required'); return; }
+  renderProgramView('programUtilBody', model, mode, stem, 'clean');
+}
+
 // ====== Execution-graph node-link diagram (inline SVG, no external libs) ======
 function egPalette(theme) {
   const dark = {
@@ -2598,6 +2843,9 @@ async function showUtilSection(id) {
       break;
     case 'xmlviz':
       html = await renderXmlGraphUtil();
+      break;
+    case 'program':
+      html = await renderProgramUtil();
       break;
   }
   const bodyEl = document.getElementById('utilSectionBody');

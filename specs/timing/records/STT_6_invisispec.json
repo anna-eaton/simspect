@@ -1,0 +1,23 @@
+{
+  "_campaign": "STT_6_invisispec",
+  "_source": "results/STT_6_invisispec/run_config.jsonc",
+  "build": "amulet",
+  "gem5_binary": "/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1/build/X86_MESI_Two_Level/gem5.opt",
+  "scheme": 2,
+  "fnc_commit_stall_cycles": 0,
+  "branch_ann_enable": true,
+  "cpu_type": "DerivO3CPU",
+  "extra_args": [
+    "--scheme=SpectreSafeInvisibleSpec",
+    "--needsTSO=1",
+    "--allowSpecBuffHit=1"
+  ],
+  "sweep": {
+    "enabled": false,
+    "resolve_stall_points": [
+      0
+    ],
+    "unresolved_stall": 5000
+  },
+  "_note": "Actual timing config this campaign ran, extracted from its run_config.jsonc. Shares format with specs/timing/*.json candidates + new-launch configs."
+}

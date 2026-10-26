@@ -343,6 +343,11 @@ def _bespoke_campaign_dirs() -> dict:
         try:
             has = any((sub / "window-results.json").exists()
                       for sub in d.iterdir() if sub.is_dir())
+            if not has:
+                # bespoke flat layout (e.g. CleanupSpec writes window-results_on.json
+                # at the campaign root, no per-mode dirs)
+                has = any(f.name.startswith("window-results") and f.suffix == ".json"
+                          for f in d.iterdir() if f.is_file())
         except OSError:
             has = False
         if has:
@@ -890,6 +895,26 @@ def run_detail(name) -> dict:
         except Exception:
             pass
     modes = _campaign_modes(cd)   # [{mode, kinds:[{kind,total,hits}]}]
+    # Bespoke flat layouts (e.g. CleanupSpec residue): no per-mode dirs, just
+    # window-results*.json at the root — surface each as a pseudo-mode so the box
+    # isn't empty. Hit = outcome mentioning RESIDUE/forbidden/leak/issued_in_window.
+    if not modes:
+        for f in sorted(cd.glob("window-results*.json")):
+            try:
+                recs = json.loads(f.read_text())
+                recs = recs if isinstance(recs, list) else list(recs.values())
+            except Exception:
+                continue
+            from collections import Counter as _C
+            oc = _C((r.get("outcome") or r.get("status") or "?")
+                    for r in recs if isinstance(r, dict))
+            hits = sum(n for o, n in oc.items()
+                       if any(t in str(o).lower() for t in
+                              ("residue", "forbidden", "leak", "issued_in_window")))
+            modes.append({"mode": f.stem, "kinds": [
+                {"kind": o, "total": n, "hits": (n if any(t in str(o).lower() for t in
+                 ("residue", "forbidden", "leak", "issued_in_window")) else 0)}
+                for o, n in sorted(oc.items())]})
     tot_hits = sum(k.get("hits", 0) for m in modes for k in m.get("kinds", []))
     tot_recs = sum(k.get("total", 0) for m in modes for k in m.get("kinds", []))
 
@@ -947,6 +972,62 @@ def run_hit_stems(name, bucket=None, mode=None, limit=500) -> dict:
             "total": len(pairs), "stems": pairs[:limit]}
 
 
+_TIMELINE_TICKS = ["lc_retire", "xmit_issue", "xmit_signal", "xmit_execute",
+                   "memaccess_tick", "cache_fill_tick", "xmit_complete",
+                   "load_squash_tick", "xmit_retire", "fnc_retire"]
+
+
+@_safe(lambda: {"ok": False, "events": []})
+def hit_timeline(name, mode, stem) -> dict:
+    """The saved pipeline-timing ticks for one hit → a timeline of events, each
+    flagged in/out of the speculative window (lc_retire, fnc_retire). Feeds the
+    'pipeline timeline' viz (the violating event is the in-window one). No re-run:
+    these ticks are what the checker persisted in window-results.json."""
+    cd = _find_campaign(name)
+    if cd is None:
+        return {"ok": False, "error": f"no campaign: {name}", "events": []}
+    rec = None
+    cands = []
+    if mode:
+        cands += list(cd.glob(f"{mode}/window-results.json")) + list(cd.glob(f"{mode}/*/window-results.json"))
+    cands += (list(cd.glob("*/window-results.json")) + list(cd.glob("*/*/window-results.json"))
+              + list(cd.glob("window-results*.json")))
+    for f in cands:
+        try:
+            recs = json.loads(f.read_text())
+            recs = recs if isinstance(recs, list) else list(recs.values())
+        except Exception:
+            continue
+        for r in recs:
+            if isinstance(r, dict) and r.get("name") == stem:
+                rec = r
+                break
+        if rec:
+            break
+    if rec is None:
+        return {"ok": False, "error": f"no record for {stem}", "events": []}
+    lc, fnc = rec.get("lc_retire"), rec.get("fnc_retire")
+
+    def _inwin(t):
+        return (isinstance(lc, (int, float)) and isinstance(fnc, (int, float))
+                and isinstance(t, (int, float)) and lc < t < fnc)
+
+    events = []
+    for k in _TIMELINE_TICKS:
+        v = rec.get(k)
+        if isinstance(v, (int, float)):
+            events.append({"label": k, "tick": v, "in_window": _inwin(v)})
+    for k in ("l1_eviction_ticks", "l2_eviction_ticks"):
+        for t in (rec.get(k) or []):
+            if isinstance(t, (int, float)):
+                events.append({"label": k.replace("_ticks", ""), "tick": t, "in_window": _inwin(t)})
+    events.sort(key=lambda e: e["tick"])
+    return {"ok": True, "name": stem, "mode": mode, "outcome": rec.get("outcome"),
+            "xmit_kind": rec.get("xmit_kind"), "xmit_pc": rec.get("xmit_pc"),
+            "window": {"lc_retire": lc, "fnc_retire": fnc},
+            "events": events, "record": rec}
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 4g. defense units (defense × implementation) + transmitter criteria
 # ══════════════════════════════════════════════════════════════════════════════
@@ -980,6 +1061,51 @@ def defense_units() -> dict:
         u["results_present"] = present
     d["_vscode"] = vscode_uri(str(_SPECS_DIR / "defense_units.json"))
     return d
+
+
+def _strip_asm_boilerplate(text: str):
+    """Return (body_lines, n_stripped). Strips the CONTIGUOUS prologue (assembler
+    directives, function label, frame setup pushq/movq-rbp/andq/subq, and the
+    stack zero-init `movq $0, N(%rsp)` run) from the top and the CONTIGUOUS
+    epilogue (frame teardown popq/leave/ret + trailing directives) from the
+    bottom — leaving only the concretized litmus body. Contiguous-only so a real
+    body instruction is never removed."""
+    import re as _re
+    lines = text.splitlines()
+    pro = (_re.compile(r'^\s*(\.|#|"[^"]+":)')                        # directive / comment / label
+           , _re.compile(r'^\s*(pushq\b|movq\s+%rsp,\s*%rbp|movq\s+%rbp,\s*%rsp'
+                         r'|andq\s+\$-?\d+,\s*%rsp|subq\s+\$\d+,\s*%rsp'
+                         r'|movq\s+\$0,\s*\d+\(%rsp\))'))
+    epi = (_re.compile(r'^\s*(\.|#)')                                 # trailing directives/comments
+           , _re.compile(r'^\s*(popq|leaveq|leave|retq|ret|addq\s+\$\d+,\s*%rsp|movq\s+%rbp,\s*%rsp)\b'))
+    i, n = 0, len(lines)
+    while i < n:
+        s = lines[i].strip()
+        if s == "" or pro[0].match(lines[i]) or pro[1].match(lines[i]):
+            i += 1
+        else:
+            break
+    j = n - 1
+    while j >= i:
+        s = lines[j].strip()
+        if s == "" or epi[0].match(lines[j]) or epi[1].match(lines[j]):
+            j -= 1
+        else:
+            break
+    body = [l for l in lines[i:j + 1] if l.strip()]
+    return body, (n - len(body))
+
+
+@_safe(lambda: {"ok": False, "text": ""})
+def program_clean(model, mode, stem) -> dict:
+    """The concretized .s BODY only (prologue/epilogue stripped) for a program."""
+    ft = file_text(model, mode, stem, "s")
+    if not ft.get("ok"):
+        return {"ok": False, "error": ft.get("error", "no program"), "text": ""}
+    body, stripped = _strip_asm_boilerplate(ft.get("text", ""))
+    return {"ok": True, "model": model, "mode": mode, "stem": stem,
+            "text": "\n".join(body), "lines": len(body), "stripped": stripped,
+            "path": ft.get("path"), "vscode": ft.get("vscode")}
 
 
 @_safe(lambda: {"ok": False, "stems": []})
@@ -1394,6 +1520,45 @@ def launch_fanout(model, config) -> dict:
 
     # testsetgen records its own manifest entry; we don't return a job_id.
     return {"ok": True, "job_id": None, "log": str(log_path), "error": None}
+
+
+def launch_run(model, config) -> dict:
+    """Run-on-build: launch testrun.py (the gem5 consumer) detached on a testset
+    against a run config. Same validation as launch_fanout. The config carries the
+    build/scheme/timing (incl. sweep); for a sweep, point at a run config whose
+    `sweep.enabled` is true (a synthesized one is fine)."""
+    if not isinstance(model, str) or not _MODEL_RE.match(model):
+        return {"ok": False, "log": None, "error": f"invalid model name: {model!r}"}
+    model_file = MODELS_DIR / f"{model}.als"
+    if not model_file.exists():
+        return {"ok": False, "log": None, "error": f"model file not found: {model_file}"}
+    if not isinstance(config, str) or not config:
+        return {"ok": False, "log": None, "error": "config is required"}
+    cfg_path = Path(config)
+    if not cfg_path.is_absolute():
+        cfg_path = (RUNCONFIGS / config) if not cfg_path.exists() else cfg_path.resolve()
+    cfg_path = cfg_path.resolve()
+    try:
+        inside = cfg_path.is_relative_to(ROOT.resolve())
+    except AttributeError:
+        inside = str(cfg_path).startswith(str(ROOT.resolve()))
+    if not cfg_path.exists() or not cfg_path.is_file():
+        return {"ok": False, "log": None, "error": f"config not found: {config}"}
+    if not inside:
+        return {"ok": False, "log": None, "error": "config path is outside the repository"}
+
+    JOBS_LOGS.mkdir(parents=True, exist_ok=True)
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    log_path = JOBS_LOGS / f"run-{model}-{ts}.log"
+    try:
+        logf = open(log_path, "w", encoding="utf-8")
+        subprocess.Popen(
+            ["python3", "testrun.py", "--model", model, "--config", str(cfg_path)],
+            cwd=str(ROOT), stdout=logf, stderr=subprocess.STDOUT, start_new_session=True,
+        )
+    except Exception as e:
+        return {"ok": False, "log": str(log_path), "error": str(e)}
+    return {"ok": True, "log": str(log_path), "error": None}
 
 
 # ── Input sanitizers ──────────────────────────────────────────────────────────

@@ -27,6 +27,19 @@ Dated, grouped. Refreshed by `/session-log`. Newest context at top of each group
 - **Container zombie cleanup** (optional): `gem5_dev` accumulates `<defunct>` procs (no reaper).
   Harmless; a `docker restart gem5_dev` (when nothing's running) or adding `tini` would clear it.
 
+## Pending Alloy model edits (owner-gated — Anna's sign-off per change)
+- **Full list → [`ALLOY_MODEL_CHANGES.md`](ALLOY_MODEL_CHANGES.md)** (created 2026-10-26). The `.als`
+  changes to **block out** the known false-positive shapes we triaged on STT/SPT, so re-enumeration
+  stops regenerating artifacts we then re-triage. Highest priority:
+  - **A1 — source-derived taint closure** (fixes const-addr FPs ~99.9% of SPT `ld` + SPT-Fence
+    `no_hold`): seed protset from `Loads.outreg`+memory only, forward closure, union semantics.
+  - **A2 — `rf` most-recent-writer fact** (fixes clobber, ~58.6% of `SPT_6_oneLP`): forbid an
+    intervening same-state writer; Option A validated on a copy (still SAT).
+  - Plus coverage edits (B1–B5: diversity driver, joint minimality, instruction-minimality, var
+    length, extended vocabulary) and the rerun matrix.
+  - **Rerun cost:** each is a Stage-1 change → full STT + SPT regen (`xml --force`) + re-sweep. Batch
+    the edits so we pay the regen once. Nothing applied yet — show Anna the diff and wait.
+
 ## Research (carried forward — pre-dates this session)
 - **24 `str` (store-addr) hits untriaged** (from 2026-06-10 `sptDiscrepancy`): they fall through to
   `check_ld` (wrong criterion) and `bucket_hits.py` is ld-only. Needs a **store-transmitter

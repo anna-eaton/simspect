@@ -1,0 +1,5 @@
+{
+  "_campaign": "SPT_6_oneLP_fence",
+  "_source": "results/SPT_6_oneLP_fence/run_config.jsonc",
+  "_note": "Actual timing config this campaign ran, extracted from its run_config.jsonc. Shares format with specs/timing/*.json candidates + new-launch configs."
+}

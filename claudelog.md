@@ -6,6 +6,44 @@ future sessions (and the user) need to know. It is the counterpart to `claudenot
 - `claudenotes.md` = *ephemeral* "what I'm doing right now" scratchpad. Cleared/overwritten freely.
 - `claudelog.md` (this file) = *durable* "what we learned / changed and why". **Append, don't delete.**
 
+## 2026-10-26 — two-stage-stt — in-use STT_6 == RI-minimal baseline ⊕ interleave, EXACT at exactly-3 (80=80)
+Verified (real Alloy, `exactly 3` = the exhaustible bound): the in-use STT_6 enumeration **==**
+(RI-minimality-only baseline) **⊕** (stage_seed/stage_pipeline interleave flesh-out), **set-identical:
+80 canonical == 80**. So the "layered"/two-stage factorization is EXACT **when the baseline's minimality =
+RI only** ("every instruction contributes"). Parallel per-skeleton confirmed (2 N=3 cores run concurrently,
+union by canonical fingerprint; only driver change = shard+union, not owner-gated).
+KEY SUBTLETY: `STT_6_core.als` as written adds **operand-minimality (RO, clause (e) :301)** on top of RI
+(f :303). RO + `no_extra_inst` jointly PRUNE a whole leak mechanism — a transmitter-capable branch (`br_x`)
+used as a plain speculation gate — so reconstruction from STT_6_core's 2 cores = only **48/80** (gap 32 =
+100% `br_x`-gating; sound `|U−A|=0` but incomplete `|A−U|=32`). ⇒ for an EXACT 1:1 reconstruction, baseline
+must be **RI-only**: drop RO clause (e) at `STT_6_core.als:301`, keep RI (f) :303 (owner-gated; proposed on
+a copy, not applied).
+LIMITS (honest): at N=3, RI is vacuous (removing any instr from a 3-instr leak secures it) → interleave is
+empty, so 80=80 is the clean BASE CASE; RI's pruning + padding first bite at N≥4, which is NOT locally
+exhaustible (in-use@4 ≥ 9085 floor) → reduction real + mechanism sound, but NO exactness verdict yet at a
+bound where interleave is non-trivial. OTB moot at N=3 (needs ≥5 instr); RI-only+flesh structurally
+RECOVERS OTB (a redundant 2nd source = removable padding) ⇒ OTB is an enumeration-REACHABILITY problem
+(→ REACH_UNSAT diversity driver), NOT a set-equality gap — supports treating OTB as an interleave
+phenomenon (`URGENT_TODO.md` #1 option A). Doc: `wiki/findings/mdsToRead/TWO_STAGE_STT_FEASIBILITY.md`.
+No in-use `.als`/parsexml/driver touched (sha256+mtime verified).
+
+## 2026-10-26 — alloy-changes — consolidated the pending `.als` edits into one canonical list
+Created **`wiki/state/ALLOY_MODEL_CHANGES.md`** — the single backlog of owner-gated Alloy changes to
+**block out** the known false-positive shapes we triaged on STT/SPT (so re-enumeration stops
+regenerating artifacts we then re-triage), pulling together proposals that were scattered across
+`findings/mdsToRead/`. Nothing applied (model edits need Anna's per-change sign-off). Highest-priority
+block-out fixes: **A1** source-derived taint closure (seed protset from `Loads.outreg`+memory, forward
+closure, union — kills const-addr FPs ~99.9% of SPT `ld` + the 64 SPT-Fence `no_hold` FPs; same root
+cause) and **A2** `rf` most-recent-writer fact (kills the clobber, ~58.6% of `SPT_6_oneLP`; Option A,
+validated SAT on a copy). Plus coverage edits B1–B5 (diversity driver + joint minimality + instr-
+minimality + var length + extended vocabulary) and a rerun matrix. Each is a Stage-1 change → **full
+STT + SPT regen (`xml --force`) + re-sweep**; batch the edits to pay the regen once. Noted explicitly
+that `check_br` squash-tick (STT br_x FPs) is a **checker fix already applied**, NOT an Alloy edit — so
+it isn't re-opened as a model change. Linked from `wiki/README.md` + `wiki/state/OPEN.md`. Sources:
+`POTENTIAL_MODEL_FIX_constaddr_taint.md`, `ALLOY_RF_LASTWRITER_BUG.md`,
+`SPT_FENCE_NO_HOLD_HITS_NOT_BUGS.md`, `ENUMERATION_OVERSPECIFICATION.md`, `OTB_GENERATION_GAP.md`,
+`STT_BRANCH_LEAK_ROOTCAUSE.md`.
+
 ## 2026-10-21 — models+builds — curated models/builds/hooks registries + 3 new Utilities tables
 - Wrote the **models & builds reference** `wiki/design/MODELS_AND_BUILDS.md` (linked from `wiki/README.md`):
   every Alloy model (latest 3 first — STT_6 / SPT_6_oneLP / Recon_6 — then variants, bugsynth probes,

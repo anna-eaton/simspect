@@ -322,6 +322,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(self._safe(D.model_source, one("name")))
         if path == "/api/xml_instances":
             return self._json(self._safe(D.xml_instances, one("model"), one("limit", "50")))
+        if path == "/api/program_clean":
+            return self._json(self._safe(D.program_clean, one("model"), one("mode"), one("stem")))
         if path == "/api/catalog":
             return self._json(self._safe(D.catalog, one("kind")))
         if path == "/api/gem5_builds":
@@ -337,6 +339,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/run_hits":
             return self._json(self._safe(D.run_hit_stems, one("name"),
                                          one("bucket"), one("mode"), one("limit", "500")))
+        if path == "/api/hit_timeline":
+            return self._json(self._safe(D.hit_timeline, one("name"),
+                                         one("mode"), one("stem")))
         if path == "/api/defense_units":
             return self._json(self._safe(D.defense_units))
         if path == "/api/transmitter_criteria":
@@ -389,6 +394,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": False, "error": "model and config required"},
                                   code=400)
             return self._json(self._safe(D.launch_fanout, model, config))
+        if u.path == "/api/launch_run":
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+                payload = json.loads(self.rfile.read(length) or b"{}")
+            except Exception as e:
+                return self._json({"ok": False, "error": "bad request: %s" % e}, code=400)
+            model = payload.get("model")
+            config = payload.get("config")
+            if not model or not config:
+                return self._json({"ok": False, "error": "model and config required"},
+                                  code=400)
+            return self._json(self._safe(D.launch_run, model, config))
         return self._json({"error": "404"}, code=404)
 
 

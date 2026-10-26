@@ -1,0 +1,21 @@
+{
+  "_campaign": "STT_6_sttbuild",
+  "_source": "results/STT_6_sttbuild/run_config.jsonc",
+  "build": "stt",
+  "gem5_binary": "/work/stt/build/X86/gem5.opt",
+  "scheme": 2,
+  "scheme_name": "STT",
+  "fnc_commit_stall_cycles": 150,
+  "branch_ann_enable": true,
+  "cpu_type": "DerivO3CPU",
+  "sweep": {
+    "enabled": true,
+    "resolve_stall_points": [
+      0,
+      500,
+      2500
+    ],
+    "unresolved_stall": 5000
+  },
+  "_note": "Actual timing config this campaign ran, extracted from its run_config.jsonc. Shares format with specs/timing/*.json candidates + new-launch configs."
+}

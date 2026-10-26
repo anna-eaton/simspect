@@ -22,6 +22,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 >   check `df -h /System/Volumes/Data` has comfortable free space; if tight, surface it first.
 > This rule overrides every other instruction in this file and the Documents-level CLAUDE.md.
 
+## Prompt Anna to `make sync` when things drift out of sync (standing directive)
+
+Because of the GIT WRITE LOCK, **Claude never runs `make sync` (or any commit/push) itself** — but Claude
+**IS responsible for noticing drift and prompting Anna to run it**, handing her the exact command. Surface a
+short one-line prompt (`→ run `make sync`` + a one-line why) whenever any of these is true:
+
+- The working tree has accumulated **meaningful uncommitted changes** — new/edited specs, `wiki/` docs,
+  dashboard code, `STATUS.md`/`TODO.md`/`claudelog.md`, run configs, etc. (not just scratch/generated files).
+- `git status` shows **local `main` ahead of / behind `origin`**, or the Mac / cafe2 container / mini have
+  **diverged** (check with read-only `git status` / `git rev-parse` / `git ls-remote` / `git fetch` for
+  comparison only).
+- Claude has just **produced a batch of durable files** in a session (several writes) — prompt once at that
+  checkpoint rather than after every file.
+- **Before a session ends** or is about to be killed (ties into `/session-log`).
+
+Keep it a *reminder, not a nag*: prompt when there's real divergence or a batch of durable work, not after
+every tiny edit. Before suggesting the sync, do the read-only disk check the lock requires
+(`df -h /System/Volumes/Data`) and mention it if space is tight. Anna runs `make sync` herself (via `!` or a
+terminal); Claude only flags that it's time.
+
 ## Paper & figures
 
 The paper/writing workspace is a **separate repo at `/tests/SimSpect-S-P-2027/`** (S&P 2027,
@@ -70,6 +90,22 @@ target, script, config knob, build, or workflow, **update the relevant wiki doc 
 a wiki page + a link from `wiki/README.md`. Shipping a capability without its doc is an incomplete
 change. If you find yourself explaining how to do something only in chat, that explanation belongs
 in a file instead.
+
+**Provenance only — never invent (ASK when unclear).** Every spec value, config format, number,
+claim, or default must come from **Anna's md notes, this codebase, or a real published paper** —
+never made up or plausibly-guessed. If a needed value/format/semantics is unclear, unattested, or
+you're tempted to "reasonably assume," **STOP and ask Anna** rather than fabricate. A wrong invented
+value silently corrupts results/specs. When you do use something, cite where it came from (file,
+md, or paper).
+
+**Sources of truth must be canonical + current (standing cleanup/reorg priority).** Iteratively
+audit every source of truth — the `specs/*.json` (hit_categories, defense_units, transmitter_criteria,
+leakage/timing/fanout, transmitter_stage_mapping), run configs, and the design/findings mds — to
+ensure: (1) they reflect **what has actually been run**, (2) there is **ONE canonical format per
+type** used consistently across the dashboard, the pipeline, and the codebase, and (3) **no
+deprecated/alternate ways** of setting them up survive (flag and remove them). Going through
+everything this way — making each source of truth canonical, current, and singular — is a **big
+ongoing priority** (cleanup + reorg), not a one-off. Flag any deprecated pattern the moment you see it.
 
 **Everything belongs in the dashboard (single pane of truth).** Every piece of information in the
 repo — every corpus, model, gem5 build, run, config, hook, spec, and especially every *result* — must

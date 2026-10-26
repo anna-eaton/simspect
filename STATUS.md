@@ -8,10 +8,33 @@ call, what's running, the development front, and what's parked.
 ⚠️ *Run/sweep state below is "as last logged" — always trust `claudenotes.md` for the live
 picture and re-verify a sweep is actually alive before relying on it.*
 
-*Last refreshed: 2026-10-20 19:45 by `system setup` — session rig + dashboard fix + `/session-log`
+*Last refreshed: 2026-10-26 by `alloy-minimality` session — Alloy two-stage / minimality / OTB workstream.
+👉 **[`URGENT_TODO.md`](URGENT_TODO.md)** (OTB shape decision — needs your call ASAP) · **[`TODO.md`](TODO.md)**
+(active workstream) · open questions → [`wiki/state/OPEN.md`](wiki/state/OPEN.md). Prior refresh:
+2026-10-20 19:45 by `system setup` — session rig + dashboard fix + `/session-log`
 routine. 🔴 **GIT CORRUPTED** (disk-full event → empty-tree commit pushed to remotes; files intact on
 disk; GIT WRITE LOCK now in force — recovery is Anna's). Live state → `wiki/state/RUNNING.md`; pickup
 list → `wiki/state/OPEN.md`. Prior: cleanuprepo repo cleanup + Mac↔cafe2 git reconciliation.*
+
+---
+
+## 🚨 2026-10-26 — ACTIVE: Alloy two-stage / minimality / OTB  → **[`URGENT_TODO.md`](URGENT_TODO.md)** · **[`TODO.md`](TODO.md)**
+
+Active workstream this session. Goal: factor the in-use model as **true-minimal baseline + interleave**,
+make the baseline **complete (exhaustive to UNSAT)**, keep the net **identical**, **bound-agnostic/scalable**
+(STT first, then SPT). Four max-effort agents produced analysis docs; a build agent is verifying STT now.
+
+- 🔴 **URGENT — OTB shape decision** (`URGENT_TODO.md` #1): the 2-load→ALU→xmit `getOldestTaint` gadget
+  **cannot emerge from minimality** (OR-taint ⇒ minimality drops the 2nd load; measured 0/300). Decide
+  whether OTB is an **interleave** phenomenon (add a 2nd contributing source to a minimal core — recommended)
+  vs a **distinct enumerated core** vs **diversity enumeration**. Blocks the "net == in-use" claim.
+- **New analysis docs** (all PROPOSAL — owner sign-off before any `.als` edit):
+  `wiki/state/ALLOY_MODEL_CHANGES.md` (pending edits A1/A2/B1-5 + rerun matrix) ·
+  `wiki/findings/mdsToRead/REACH_UNSAT_ENUMERATION.md` (never reached UNSAT; staged-bounds + core-quotient) ·
+  `…/MINIMALITY_TAGALONG_FIX.md` (per-element necessity; ≥2 unresolved branches UNSAT at scope 6) ·
+  `…/SPT_MINIMALITY_MCM.md` (leak = PATH not cycle; minimal-leak-witness; relax branches/keep states) ·
+  `…/TWO_STAGE_STT_FEASIBILITY.md` (building) · `wiki/results/TO_WRITEUP_PAPER.md` (MCM count vs ours).
+- Full active list + checkboxes → **[`TODO.md`](TODO.md)**; hot decisions → **[`URGENT_TODO.md`](URGENT_TODO.md)**.
 
 ---
 

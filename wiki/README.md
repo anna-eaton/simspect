@@ -17,7 +17,9 @@ append-only logs, never from "what the last session remembered."
 | **Open questions** | `state/OPEN.md` *(to create)* | Decisions awaiting Anna. |
 | **Design / semantics** | [`design/`](design/) | `DESIGN.md`, `AUDIT.md`, `METHODS_{CONCRETIZATION,INSTRUMENTATION,LEAKAGE_KNOBS}.md`, `branch_enumeration_notes.md`, `sweep_design_notes.md`, `docs/` (scope/criterion). The stable reference. |
 | **Models & builds** | [`design/MODELS_AND_BUILDS.md`](design/MODELS_AND_BUILDS.md) | What every Alloy model encodes (defense + leakage + driver, latest models first) and every gem5 build + its intention. |
+| **Pending `.als` edits** | [`state/ALLOY_MODEL_CHANGES.md`](state/ALLOY_MODEL_CHANGES.md) | Owner-gated Alloy changes to **block out** known false-positive shapes (const-addr / no_hold / rf-clobber) + coverage edits, each grounded in a findings doc, with the STT/SPT rerun cost. |
 | **Run results** | [`results/`](results/) | Campaign/paper writeups: `results.md`, `reconresults.md`, `PAPER_RESULTS.md`, `PAPER_EXPERIMENTS.md`, `EXPERIMENTS.md`. |
+| **To write up (paper)** | [`results/TO_WRITEUP_PAPER.md`](results/TO_WRITEUP_PAPER.md) | Running list of findings/arguments to lift into the S&P 2027 paper. First item: MCM litmus count vs. SimSpect count (cycle- vs path-based minimality). |
 | **Findings / bugs** | [`findings/`](findings/) | `bug/` (per-bug writeups + PoC demos) and `mdsToRead/` (analysis docs). |
 | **Logs** | `logs/` *(claudelog/claudenotes stay at root — code refs; link here)* | `../claudelog.md` (durable, append-only) + `../claudenotes.md` (right-now). |
 | **Repo cleanup** | [`REPO_CLEANUP_BRIEF.md`](REPO_CLEANUP_BRIEF.md) | Brief for the agent auditing/consolidating the repo. |

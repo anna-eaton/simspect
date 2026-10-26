@@ -1,0 +1,28 @@
+site_name: SimSpect Documentation
+site_description: Leakage-inducing litmus test generation and execution pipeline for Spectre defense validation
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - toc.integrate
+  palette:
+    scheme: default # slate
+    primary: indigo
+    accent: indigo
+
+hooks:
+  - hooks/obsidian_tags.py
+
+plugins:
+  - search
+  - roamlinks
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - tables
+  - attr_list
+  - md_in_html

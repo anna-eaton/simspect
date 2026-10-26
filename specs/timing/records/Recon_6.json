@@ -1,0 +1,20 @@
+{
+  "_campaign": "Recon_6",
+  "_source": "results/Recon_6/run_config.jsonc",
+  "build": "gem5-recon-modded",
+  "gem5_binary": "/work/gem5-recon-modded/build/X86/gem5.opt",
+  "scheme": 2,
+  "scheme_name": "STT",
+  "branch_ann_enable": true,
+  "cpu_type": "X86O3CPU",
+  "sweep": {
+    "enabled": true,
+    "resolve_stall_points": [
+      0,
+      500,
+      2500
+    ],
+    "unresolved_stall": 5000
+  },
+  "_note": "Actual timing config this campaign ran, extracted from its run_config.jsonc. Shares format with specs/timing/*.json candidates + new-launch configs."
+}
