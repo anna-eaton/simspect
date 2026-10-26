@@ -332,6 +332,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(self._safe(D.gem5_hooks_registry))
         if path == "/api/alloy_models":
             return self._json(self._safe(D.alloy_models))
+        if path == "/api/alloy_relaxations":
+            return self._json(self._safe(D.alloy_relaxations))
+        if path == "/api/todos":
+            return self._json(self._safe(D.todos))
         if path == "/api/hit_categories":
             return self._json(self._safe(D.hit_categories))
         if path == "/api/run":
@@ -406,6 +410,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": False, "error": "model and config required"},
                                   code=400)
             return self._json(self._safe(D.launch_run, model, config))
+        if u.path in ("/api/add_todo", "/api/toggle_todo"):
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+                payload = json.loads(self.rfile.read(length) or b"{}")
+            except Exception as e:
+                return self._json({"ok": False, "error": "bad request: %s" % e}, code=400)
+            if u.path == "/api/add_todo":
+                if not (payload.get("text") or "").strip():
+                    return self._json({"ok": False, "error": "text required"}, code=400)
+                return self._json(self._safe(D.add_todo, payload.get("text"),
+                                             bool(payload.get("urgent"))))
+            if not payload.get("id"):
+                return self._json({"ok": False, "error": "id required"}, code=400)
+            return self._json(self._safe(D.toggle_todo, payload.get("id")))
         return self._json({"error": "404"}, code=404)
 
 
@@ -418,6 +436,8 @@ def selftest():
         ("corpora", lambda: D.corpora()),
         ("tables", lambda: D.instruction_tables()),
         ("checkers", lambda: D.checkers()),
+        ("todos", lambda: D.todos()),
+        ("alloy_relax", lambda: D.alloy_relaxations()),
         ("docs", lambda: find_md_links(DASHBOARDS["code"]["status"], CODE_ROOT)),
         ("status(code)", lambda: render_status("code")),
     ]

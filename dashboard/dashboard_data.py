@@ -821,6 +821,121 @@ def alloy_models() -> dict:
             "tiers": ann_doc.get("tiers", {}), "_vscode": vscode_uri(str(ann_path))}
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# 4g. TODO panel (URGENT_TODO.md + TODO.md hand-authored; specs/todos.json quick adds)
+# ══════════════════════════════════════════════════════════════════════════════
+_TODOS_PATH = _SPECS_DIR / "todos.json"
+_todo_lock = threading.Lock()
+
+
+def _parse_todo_md(path: Path, urgent: bool) -> list:
+    """Parse a hand-written TODO md into items. A ##/### heading is one item (body =
+    its text); if a heading's section has top-level checkbox lines (`- [ ]`), those
+    become the items instead (grouped under the heading). Read-only."""
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    secs, cur = [], None
+    for i, ln in enumerate(lines, 1):
+        m = re.match(r"^(#{2,3})\s+(.*\S)", ln)
+        if m:
+            cur = {"title": m.group(2), "line": i, "body": []}
+            secs.append(cur)
+        elif cur is not None and ln.strip() != "---":
+            cur["body"].append((i, ln))
+    items = []
+    src = path.name
+    for sec in secs:
+        boxes, last = [], None
+        for i, ln in sec["body"]:
+            mb = re.match(r"^- \[( |x|X)\]\s+(.*)", ln)
+            if mb:
+                last = {"text": mb.group(2), "done": mb.group(1) != " ", "line": i, "body": []}
+                boxes.append(last)
+            elif last is not None and (ln.startswith(" ") or not ln.strip()):
+                last["body"].append(ln.strip())
+            else:
+                last = None
+        if boxes:
+            for b in boxes:
+                items.append({"text": b["text"], "body": "\n".join(x for x in b["body"] if x)[:1500],
+                              "group": sec["title"], "done": b["done"], "urgent": urgent,
+                              "source": src, "line": b["line"], "vscode": vscode_uri(path)})
+        else:
+            body = "\n".join(l for _, l in sec["body"]).strip()
+            items.append({"text": sec["title"], "body": body[:1500], "group": "", "done": False,
+                          "urgent": urgent, "source": src, "line": sec["line"],
+                          "vscode": vscode_uri(path)})
+    return items
+
+
+def _read_todos_json() -> dict:
+    try:
+        d = json.loads(_TODOS_PATH.read_text(encoding="utf-8"))
+        if isinstance(d.get("todos"), list):
+            return d
+    except Exception:
+        pass
+    return {"todos": []}
+
+
+def _write_todos_json(d: dict) -> None:
+    tmp = _TODOS_PATH.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(d, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    tmp.replace(_TODOS_PATH)
+
+
+@_safe(lambda: {"ok": False, "urgent_md": [], "todo_md": [], "quick": []})
+def todos() -> dict:
+    """Merged TODO view: md-parsed URGENT_TODO.md / TODO.md + specs/todos.json quick adds."""
+    return {"ok": True,
+            "urgent_md": _parse_todo_md(ROOT / "URGENT_TODO.md", True),
+            "todo_md": _parse_todo_md(ROOT / "TODO.md", False),
+            "quick": _read_todos_json()["todos"],
+            "vscode": {"urgent": vscode_uri(ROOT / "URGENT_TODO.md"),
+                       "todo": vscode_uri(ROOT / "TODO.md"),
+                       "quick": vscode_uri(_TODOS_PATH)}}
+
+
+@_safe(lambda: {"ok": False, "error": "add_todo failed"})
+def add_todo(text, urgent=False) -> dict:
+    """Append a quick-add to specs/todos.json (never touches the hand-written mds)."""
+    text = (text or "").strip()
+    if not text:
+        return {"ok": False, "error": "text required"}
+    import datetime, uuid
+    with _todo_lock:
+        d = _read_todos_json()
+        item = {"id": uuid.uuid4().hex[:8], "text": text[:2000], "urgent": bool(urgent),
+                "created": datetime.datetime.now().isoformat(timespec="seconds"), "done": False}
+        d["todos"].append(item)
+        _write_todos_json(d)
+    return {"ok": True, "item": item}
+
+
+@_safe(lambda: {"ok": False, "error": "toggle_todo failed"})
+def toggle_todo(todo_id) -> dict:
+    with _todo_lock:
+        d = _read_todos_json()
+        for t in d["todos"]:
+            if t.get("id") == todo_id:
+                t["done"] = not t.get("done", False)
+                _write_todos_json(d)
+                return {"ok": True, "item": t}
+    return {"ok": False, "error": "unknown id"}
+
+
+@_safe(lambda: {"ok": False, "models": []})
+def alloy_relaxations() -> dict:
+    """specs/alloy_relaxations.json: which RR/RC/RS/RI/RO minimality clauses are ON per model."""
+    path = _SPECS_DIR / "alloy_relaxations.json"
+    d = json.loads(path.read_text(encoding="utf-8"))
+    return {"ok": True, "models": d.get("models", []), "ptag_legend": d.get("ptag_legend", {}),
+            "axis_meaning_when_on": d.get("axis_meaning_when_on", {}),
+            "doc": d.get("_doc", ""), "generated": d.get("_generated", ""),
+            "_vscode": vscode_uri(str(path))}
+
+
 @_safe(lambda: {"kind": None, "entries": []})
 def catalog(kind) -> dict:
     """List + inline a canonical source-of-truth set. kind ∈ runconfigs|gem5hooks|findings."""

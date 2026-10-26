@@ -195,6 +195,18 @@ select {
   color: var(--muted);
 }
 
+
+.todo-panel { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; }
+.todo-panel h3 { margin: 4px 0; font-size: 13px; }
+.todo-urgent { border-left: 4px solid #d33; background: rgba(220,80,40,.07); padding: 4px 10px; margin-bottom: 8px; }
+.todo-urgent h3 { color: #d33; }
+.todo-item { margin: 3px 0; font-size: 12px; }
+.todo-item summary { cursor: pointer; }
+.todo-item.done > summary { text-decoration: line-through; opacity: .55; }
+.todo-body { white-space: pre-wrap; font-size: 11px; color: var(--muted, #777); margin: 4px 0 4px 16px; max-height: 260px; overflow: auto; }
+.todo-add { display: flex; gap: 6px; align-items: center; margin: 6px 0; }
+.todo-add input[type=text] { flex: 1; padding: 3px 6px; }
+.rx-on { color: #2a2; } .rx-off { color: #c33; }
 .badge {
   display: inline-block;
   padding: 2px 6px;
@@ -2019,15 +2031,65 @@ async function pollPipeline() {
   stamp();
 }
 
+// ====== TODO panel (top of Status tab) ======
+function todoMd(t) {
+  // escape first, then allow [text](http...) links
+  return esc(t || '').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
+    (m, a, u) => `<a href="${u}" target="_blank" rel="noopener">${a}</a>`)
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+function todoMdItem(it) {
+  const link = it.vscode ? ` <a class="vscode-link" href="${esc(it.vscode)}" title="open ${esc(it.source)} line ${it.line}">${esc(it.source)}:${it.line}</a>` : '';
+  const head = `${it.group ? `<span class="muted">${todoMd(it.group)} ▸</span> ` : ''}${todoMd(it.text)}${link}`;
+  if (!it.body) return `<div class="todo-item${it.done ? ' done' : ''}">• ${head}</div>`;
+  return `<details class="todo-item${it.done ? ' done' : ''}"><summary>${head}</summary><div class="todo-body">${todoMd(it.body)}</div></details>`;
+}
+function todoQuickItem(t) {
+  return `<div class="todo-item${t.done ? ' done' : ''}"><input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTodo('${esc(t.id)}')"> ${todoMd(t.text)}${t.urgent ? ' <span class="badge failed">urgent</span>' : ''} <span class="muted" style="font-size:10px">${esc((t.created || '').slice(0, 16))}</span></div>`;
+}
+function renderTodoPanel(d) {
+  if (!d || d.ok === false) return '';
+  const v = d.vscode || {};
+  const qu = (d.quick || []).filter(t => t.urgent), qn = (d.quick || []).filter(t => !t.urgent);
+  let h = `<div class="todo-panel" id="todoPanel">`;
+  h += `<div class="todo-add"><input type="text" id="todoText" placeholder="Add a TODO…" onkeydown="if(event.key==='Enter')addTodo()">
+    <select id="todoUrgent"><option value="0">Normal</option><option value="1">Urgent</option></select>
+    <button onclick="addTodo()">Add TODO</button><span id="todoMsg" class="muted"></span></div>`;
+  h += `<div class="todo-urgent"><h3>🚨 URGENT ${v.urgent ? `<a class="vscode-link" href="${esc(v.urgent)}">URGENT_TODO.md</a>` : ''}</h3>`;
+  h += qu.map(todoQuickItem).join('') + (d.urgent_md || []).map(todoMdItem).join('');
+  if (!qu.length && !(d.urgent_md || []).length) h += `<p class="empty">none</p>`;
+  h += `</div><h3>TODO ${v.todo ? `<a class="vscode-link" href="${esc(v.todo)}">TODO.md</a>` : ''}</h3>`;
+  h += (d.todo_md || []).map(todoMdItem).join('');
+  h += `<h3>Quick adds ${v.quick ? `<a class="vscode-link" href="${esc(v.quick)}">specs/todos.json</a>` : ''}</h3>`;
+  h += qn.map(todoQuickItem).join('') || `<p class="empty">none</p>`;
+  return h + `</div>`;
+}
+async function addTodo() {
+  const el = document.getElementById('todoText');
+  const text = (el.value || '').trim();
+  if (!text) return;
+  const urgent = document.getElementById('todoUrgent').value === '1';
+  const r = await apiPost('/api/add_todo', {text: text, urgent: urgent});
+  if (r && r.ok) { el.value = ''; refreshMainTab(true); }
+  else document.getElementById('todoMsg').textContent = ' error: ' + ((r && r.error) || 'failed');
+}
+async function toggleTodo(id) {
+  await apiPost('/api/toggle_todo', {id: id});
+  refreshMainTab(true);
+}
+
 // ====== Status tab ======
 
 async function renderStatusTab() {
-  const [codeData, paperData, unitsData] = await Promise.all([
+  const [codeData, paperData, unitsData, todoData] = await Promise.all([
     apiCall('/api/status?which=code'),
     apiCall('/api/status?which=paper'),
     apiCall('/api/defense_units'),
+    apiCall('/api/todos'),
   ]);
-  let html = renderUnitsRollup((unitsData && unitsData.units) || []);
+  let html = renderTodoPanel(todoData);
+  html += renderUnitsRollup((unitsData && unitsData.units) || []);
   html += `<p class="card-meta">Live sweep status now lives on the
     <a onclick="switchMainTab('pipeline')" style="color:var(--link);cursor:pointer">Pipeline</a> tab.</p>`;
   html += `<div class="status-cols">`;
@@ -2707,7 +2769,29 @@ async function renderAlloyModels() {
     </tr>`;
   }
   html += `</tbody></table>`;
+  html += await renderAlloyRelaxations();
   return html;
+}
+
+async function renderAlloyRelaxations() {
+  const d = await apiCall('/api/alloy_relaxations');
+  if (d.error || d.ok === false) return `<p class="err">relaxations: ${esc(d.error || 'failed to load')}</p>`;
+  const ax = ['RR', 'RC', 'RS', 'RI', 'RO'];
+  const leg = d.ptag_legend || {}, mean = d.axis_meaning_when_on || {};
+  const dot = (on) => on ? '<span class="rx-on">●</span>' : '<span class="rx-off">○</span>';
+  let h = `<h3>Minimality relaxations (RR / RC / RS / RI / RO)</h3>`;
+  h += `<p class="card-meta">Which minimality clauses are ON in each model's <code>gen_useful_litmus</code> (● on, ○ off). The <b>final enumerated</b> models have <b>RI/RO OFF</b>; <code>STT_6_core</code> (staged baseline) has them ON. Source: <code>specs/alloy_relaxations.json</code>${d._vscode ? ` <a class="vscode-link" href="${esc(d._vscode)}">edit</a>` : ''}${d.generated ? ` <span class="muted">(${esc(d.generated)})</span>` : ''}.</p>`;
+  h += `<table><thead><tr><th>model</th>${ax.map(a => `<th title="${esc((leg[a] || '') + ' — ON: ' + (mean[a] || ''))}">${a}</th>`).join('')}<th>scope</th><th>final</th></tr></thead><tbody>`;
+  for (const m of d.models || []) {
+    const on = new Set(m.relaxations_on || []);
+    const riro = !on.has('RI') && !on.has('RO');
+    h += `<tr><td><code>${esc(m.name)}</code></td>${ax.map(a => `<td style="text-align:center">${dot(on.has(a))}</td>`).join('')}
+      <td style="font-size:11px">${esc(m.scope || '')}</td>
+      <td>${m.enumerated_final ? '<span class="badge ok">enumerated_final</span>' : '<span class="badge warn">staged</span>'}${m.enumerated_final && riro ? ' <span class="muted" style="font-size:10px">RI/RO off</span>' : ''}${!m.enumerated_final && !riro ? ' <span class="muted" style="font-size:10px">RI/RO on</span>' : ''}</td></tr>`;
+  }
+  h += `</tbody></table><details style="margin-top:6px"><summary>Legend: ptags + meaning when ON</summary><table><tbody>`;
+  for (const a of ax) h += `<tr><td><b>${a}</b></td><td style="font-size:11px">${esc(leg[a] || '')}</td><td style="font-size:11px">${esc(mean[a] || '')}</td></tr>`;
+  return h + `</tbody></table></details>`;
 }
 
 // ====== gem5 builds (annotated table + timing-hook status) — Utilities tab ======
@@ -2879,10 +2963,25 @@ function switchMainTab(tabId) {
   refreshMainTab();
 }
 
-async function refreshMainTab() {
+async function refreshMainTab(force) {
   const main = document.getElementById('main');
   if (state.activeMainTab === 'utilities') {
     await showUtilSection(state.activeUtilTab);
+    return;
+  }
+  if (state.activeMainTab === 'status' && main.querySelector('#todoPanel')) {
+    // quiet refresh: never wipe an in-progress "add" input; skip DOM write if unchanged
+    const ti = document.getElementById('todoText');
+    if (!force && ti && (ti.value || document.activeElement === ti)) return;
+    const ph = await renderStatusTab();
+    if (state.activeMainTab !== 'status') return;
+    if (ph === state.statusHash) return;
+    const keep = ti ? ti.value : '', y = window.scrollY;
+    state.statusHash = ph;
+    main.innerHTML = ph;
+    const t2 = document.getElementById('todoText'); if (t2) t2.value = keep;
+    window.scrollTo(0, y);
+    stamp();
     return;
   }
   main.innerHTML = '<p class="spin">loading…</p>';
@@ -2893,6 +2992,7 @@ async function refreshMainTab() {
       break;
     case 'status':
       html = await renderStatusTab();
+      state.statusHash = html;
       break;
   }
   main.innerHTML = html;
@@ -2948,7 +3048,7 @@ function init() {
 
   // Focus refresh
   window.addEventListener('focus', () => {
-    refreshMainTab();
+    refreshMainTab(false);
   });
 
   // Load initial

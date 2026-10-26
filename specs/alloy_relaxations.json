@@ -1,0 +1,81 @@
+{
+  "_doc": "MANIFEST of which minimality/relaxation clauses are ON in each Alloy model, focused on the FINAL ENUMERATED versions (the models our in-use testsets were generated from). Source of truth for the dashboard. A 'relaxation' here is a perturbation tag (PTag); a clause `all x | secure_speculation_scheme_p[RX->x]` means 'applying perturbation RX to each x individually makes the program secure' = that axis is minimized (every x is individually necessary to the leak). Ground-truthed by reading each .als's gen_useful_litmus block (line numbers cited; verify in the analyzer before editing, they drift).",
+  "_generated": "2026-10-26 by alloy-minimality session; extracted from STAGE1_alloy/models/*.als gen_useful_litmus",
+  "ptag_legend": {
+    "RR": "make instruction resolved when it previously wasn't (resolve a branch)  [STT_6.als:193]",
+    "RS": "remove state  [STT_6.als:195]",
+    "RC": "make instruction committed when it previously wasn't  [STT_6.als:192]",
+    "RI": "remove instruction  [STT_6.als:194]",
+    "RO": "remove operand  [STT_6.als:191]"
+  },
+  "axis_meaning_when_on": {
+    "RR": "per-branch minimality: each unresolved branch (except first_uncommitted) is individually necessary — resolving it alone => secure. (This is the clause that forbids multi-branch leaks; see MINIMALITY_TAGALONG_FIX.md.)",
+    "RC": "first-uncommitted boundary: the first uncommitted instruction's commit/resolve boundary is necessary.",
+    "RS": "per-state minimality: each architectural state (register/mem) is individually necessary — removing it => secure.",
+    "RI": "instruction-minimality: every instruction is individually necessary — removing it => secure. OFF means non-contributing padding instructions are allowed = 'interleave stage 1' (per Anna's two-stage framing).",
+    "RO": "operand-minimality: every operand is individually necessary — removing it => secure. OFF in all final models. NOTE: when ON (as in STT_6_core) it OVER-PRUNES — combined with no_extra_inst it deletes the br_x-as-gate mechanism (a br_x gate's condition operand is leak-irrelevant => RO rejects it; no_extra_inst forbids a 0-operand br_x => no RO-minimal br_x-gate can exist). See TWO_STAGE_STT_FEASIBILITY.md + claudelog 2026-10-26."
+  },
+  "models": [
+    {
+      "name": "STT_6",
+      "enumerated_final": true,
+      "testset": "testsets/STT_6",
+      "scope": "for 9 but exactly 6 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool",
+      "relaxations_on": ["RR", "RC", "RS"],
+      "relaxations_off": ["RI", "RO"],
+      "clauses": [
+        {"tag": "RR", "on": true, "line": 306, "form": "all i: (unresolved - first_uncommitted) | secure_speculation_scheme_p[RR->i]"},
+        {"tag": "RC", "on": true, "line": 308, "form": "secure_speculation_scheme_p[RC->first_uncommitted + RR->first_uncommitted]"},
+        {"tag": "RS", "on": true, "line": 310, "form": "all s: State | secure_speculation_scheme_p[RS->s]"},
+        {"tag": "RI", "on": false},
+        {"tag": "RO", "on": false}
+      ]
+    },
+    {
+      "name": "SPT_6_oneLP",
+      "enumerated_final": true,
+      "testset": "testsets/SPT_6_oneLP",
+      "scope": "for 9 but exactly 6 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool",
+      "relaxations_on": ["RR", "RC", "RS"],
+      "relaxations_off": ["RI", "RO"],
+      "clauses": [
+        {"tag": "RR", "on": true, "line": 318, "form": "all i: (unresolved - first_uncommitted) | secure_speculation_scheme_p[RR->i]"},
+        {"tag": "RC", "on": true, "line": 320, "form": "secure_speculation_scheme_p[RC->first_uncommitted + RR->first_uncommitted]"},
+        {"tag": "RS", "on": true, "line": 322, "form": "all s: State | secure_speculation_scheme_p[RS->s]"},
+        {"tag": "RI", "on": false},
+        {"tag": "RO", "on": false}
+      ]
+    },
+    {
+      "name": "Recon_6",
+      "enumerated_final": true,
+      "testset": "testsets/Recon_6",
+      "scope": "for 9 but exactly 6 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool",
+      "relaxations_on": ["RR", "RC", "RS"],
+      "relaxations_off": ["RI", "RO"],
+      "clauses": [
+        {"tag": "RR", "on": true, "line": 296, "form": "all i: (unresolved - first_uncommitted) | secure_speculation_scheme_p[RR->i]"},
+        {"tag": "RC", "on": true, "line": 298, "form": "secure_speculation_scheme_p[RC->first_uncommitted + RR->first_uncommitted]"},
+        {"tag": "RS", "on": true, "line": 300, "form": "all s: State | secure_speculation_scheme_p[RS->s]"},
+        {"tag": "RI", "on": false},
+        {"tag": "RO", "on": false}
+      ]
+    },
+    {
+      "name": "STT_6_core",
+      "enumerated_final": false,
+      "note": "STAGED true-minimal baseline (NOT a final-enumerated model). Copy of STT_6 with idx/ordering rules removed, `exactly 6`->`but 6` (scalable ceiling), and RO+RI minimality ADDED. RO over-prunes (drops br_x-as-gate); for an exact reconstruction of in-use STT_6, use RI-only (drop RO clause :301). See URGENT_TODO.md #2.",
+      "testset": null,
+      "scope": "for 9 but 6 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool",
+      "relaxations_on": ["RR", "RC", "RS", "RI", "RO"],
+      "relaxations_off": [],
+      "clauses": [
+        {"tag": "RR", "on": true, "line": 294, "form": "all i: (unresolved - first_uncommitted) | secure_speculation_scheme_p[RR->i]"},
+        {"tag": "RC", "on": true, "line": 296, "form": "secure_speculation_scheme_p[RC->first_uncommitted + RR->first_uncommitted]"},
+        {"tag": "RS", "on": true, "line": 298, "form": "all s: State | secure_speculation_scheme_p[RS->s]"},
+        {"tag": "RO", "on": true, "line": 301, "form": "all o: Operand | secure_speculation_scheme_p[RO->o]"},
+        {"tag": "RI", "on": true, "line": 303, "form": "all i: Instruction | secure_speculation_scheme_p[RI->i]"}
+      ]
+    }
+  ]
+}
