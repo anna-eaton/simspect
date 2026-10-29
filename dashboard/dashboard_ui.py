@@ -2837,10 +2837,10 @@ async function renderHookRegistry() {
     return `<p class="err">Error: ${esc(data.error || 'failed to load')}</p>`;
   }
   let html = `<h3 style="margin-top:0">gem5 hooks — purposes</h3>`;
-  html += `<p class="card-meta">Every instrumentation / observation hook we've built + its purpose. <b>realization</b> = gem5 source change (manufactures the scenario); <b>observation</b> = checker-side trace parser (no source change); <b>bridge</b> = config→env plumbing. ⏱ = timing hook. Source: <code>specs/gem5_hooks.json</code>${data._vscode ? ` <a class="vscode-link" href="${esc(data._vscode)}">edit</a>` : ''}.</p>`;
+  html += `<p class="card-meta">Every instrumentation / observation hook we've built + its purpose. <b>realization</b> = gem5 source change (manufactures the scenario); <b>observation</b> = checker-side trace parser (no source change); <b>observation-source</b> = print-only gem5 source hook (adds trace events, no defense/timing change); <b>bridge</b> = config→env plumbing. ⏱ = timing hook. Source: <code>specs/gem5_hooks.json</code>${data._vscode ? ` <a class="vscode-link" href="${esc(data._vscode)}">edit</a>` : ''}.</p>`;
   const hooks = data.hooks || [];
   if (!hooks.length) { html += `<p class="empty">No hooks registered.</p>`; return html; }
-  const catOrder = {realization: 0, observation: 1, bridge: 2};
+  const catOrder = {realization: 0, observation: 1, 'observation-source': 2, bridge: 3};
   hooks.sort((a, b) => (catOrder[a.category] ?? 9) - (catOrder[b.category] ?? 9));
   let curCat = null;
   html += `<table><thead><tr><th>hook</th><th>⏱</th><th>site</th><th>purpose</th><th>builds</th></tr></thead><tbody>`;

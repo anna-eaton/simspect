@@ -300,6 +300,17 @@ _KIND_TO_CHECKER = {
 # (most conservative — checks complete in retirement window).
 _DEFAULT_CHECKER = "check_ld.py"
 
+
+def _checker_for(gem5_cfg: dict, kind: str) -> str:
+    """Checker script for a test. Optional run_config `gem5.checker` (e.g.
+    "check_footprint.py", used with `gem5.criterion` = specs/leakage/<defense>.json)
+    overrides the per-kind table for every test; absent → the kind table,
+    unchanged behavior. See wiki/state/COMMANDS.md."""
+    override = (gem5_cfg or {}).get("checker")
+    if override:
+        return str(override)
+    return _KIND_TO_CHECKER.get(kind, _DEFAULT_CHECKER)
+
 def _read_xmit_kind(ann_dir: Path, stem: str) -> str:
     """Read xmit.kind from an annotation file. Raises if the file is missing,
     unparseable, or lacks xmit.kind — silent fallback misroutes tests to
@@ -574,6 +585,18 @@ def _build_gem5_env(gem5_cfg: dict, spec_cfg: dict) -> dict:
     if gem5_cfg.get("branch_ann_enable"):
         env["SIMSPECT_BRANCH_ANN_ENABLE"] = "1"
 
+    # SimSpect-STL hooks (stl_bypass testsets; gem5-hooks/stl/, needs a build
+    # with those hooks): pass each test's .ann.json as --stl-ann-file, hold every
+    # annotated store's address generation for stl_store_addr_stall_cycles, and
+    # override the memory-dependence prediction for the annotated bypass loads
+    # ("no_alias" = the false-negative primitive, "alias" = negative control,
+    # "off" = unmodified store sets).
+    if gem5_cfg.get("stl_ann_enable"):
+        env["SIMSPECT_STL_ANN_ENABLE"] = "1"
+        env["SIMSPECT_STL_STORE_STALL_CYCLES"] = str(
+            int(gem5_cfg.get("stl_store_addr_stall_cycles", 0)))
+        env["SIMSPECT_STL_ALIAS_PRED"] = str(gem5_cfg.get("stl_alias_pred", "no_alias"))
+
     if gem5_cfg.get("allow_leaked"):
         env["SIMSPECT_ALLOW_LEAKED"] = "1"
 
@@ -584,6 +607,23 @@ def _build_gem5_env(gem5_cfg: dict, spec_cfg: dict) -> dict:
     extra = gem5_cfg.get("extra_args")
     if isinstance(extra, list) and extra:
         env["SIMSPECT_GEM5_EXTRA"] = "\x1f".join(str(a) for a in extra)
+
+    # Optional footprint criterion (check_footprint.py): gem5.criterion is a
+    # specs/leakage/<defense>.json path (repo-relative or absolute);
+    # gem5.criterion_actor overrides the criterion's scheme-selected actor mode.
+    crit = gem5_cfg.get("criterion")
+    if crit:
+        cpath = Path(crit)
+        if not cpath.is_absolute():
+            cpath = Path(__file__).resolve().parent / cpath
+        if not cpath.exists():
+            sys.exit(f"error: gem5.criterion {crit} not found ({cpath})")
+        env["SIMSPECT_CRITERION"] = str(cpath)
+    if gem5_cfg.get("criterion_actor"):
+        env["SIMSPECT_CRITERION_ACTOR"] = str(gem5_cfg["criterion_actor"])
+    if gem5_cfg.get("checker") == "check_footprint.py" and not crit:
+        sys.exit("error: gem5.checker=check_footprint.py needs gem5.criterion "
+                 "(specs/leakage/<defense>.json)")
 
     return env
 
@@ -706,7 +746,7 @@ def _phase_gem5_sweep(cfg: dict, model: str, ts_mode: Path, rs_mode: Path,
         groups: dict = {}
         for vf in run_files:
             kind = _read_xmit_kind(ann_dir, vf.stem)
-            script = _KIND_TO_CHECKER.get(kind, _DEFAULT_CHECKER)
+            script = _checker_for(gem5_cfg, kind)
             groups.setdefault(script, []).append(vf)
 
         grid_raw: list = []
@@ -887,8 +927,8 @@ def phase_asm_gem5_streaming(cfg: dict, model: str, ts_mode: Path,
                                                    unresolved_stall)
                 groups: dict = {}
                 for vf in run_files:
-                    script = _KIND_TO_CHECKER.get(
-                        _read_xmit_kind(ann_dir, vf.stem), _DEFAULT_CHECKER)
+                    script = _checker_for(
+                        gem5_cfg, _read_xmit_kind(ann_dir, vf.stem))
                     groups.setdefault(script, []).append(vf)
 
                 grid_raw: list = []
@@ -919,8 +959,8 @@ def phase_asm_gem5_streaming(cfg: dict, model: str, ts_mode: Path,
             # Non-sweep: per-type dispatch.
             groups: dict = {}
             for sf in to_test:
-                script = _KIND_TO_CHECKER.get(
-                    _read_xmit_kind(ann_dir, sf.stem), _DEFAULT_CHECKER)
+                script = _checker_for(
+                    gem5_cfg, _read_xmit_kind(ann_dir, sf.stem))
                 groups.setdefault(script, []).append(sf)
             for script, files in sorted(groups.items()):
                 gem5_run_n[0] += 1
@@ -1068,7 +1108,7 @@ def phase_gem5(cfg: dict, model: str, ts_mode: Path, rs_mode: Path,
     groups: dict = {}  # checker_script → list of .s paths
     for sf in to_test:
         kind = _read_xmit_kind(ann_dir, sf.stem)
-        script = _KIND_TO_CHECKER.get(kind, _DEFAULT_CHECKER)
+        script = _checker_for(gem5_cfg, kind)
         groups.setdefault(script, []).append(sf)
 
     # Print summary of groups.

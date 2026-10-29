@@ -41,6 +41,7 @@ def _load_parser(kind: bool, instruction_tables: str | None = None):
         mod.pass1_specify_state_a,
         mod.pass2_specify_instructions,
         mod.pass2_5_specify_branches,
+        mod.pass2_6_specify_stl,
         mod.pass_interleave,
         mod.pass3_assign_operands,
         mod.pass4_ssa,
@@ -54,6 +55,7 @@ from parsexml import (
     pass1_specify_state_a,
     pass2_specify_instructions,
     pass2_5_specify_branches,
+    pass2_6_specify_stl,
     pass_interleave,
     pass3_assign_operands,
     pass4_ssa,
@@ -81,7 +83,7 @@ def run_pipeline(xml_text: str, stem: str, out_dir: Path, mode: str,
     emits <stem>_v0.ll … <stem>_v{N-1}.ll (each with a different random seed).
     Otherwise emits <stem>.ll as before.
     """
-    (parse_alloy_xml, pass1, pass2, pass2_5, pass_il,
+    (parse_alloy_xml, pass1, pass2, pass2_5, pass2_6, pass_il,
      pass3, pass4, pass5, emit_ann) = _fns
 
     icfg = interleave_cfg or {}
@@ -100,6 +102,8 @@ def run_pipeline(xml_text: str, stem: str, out_dir: Path, mode: str,
 
         r2  = pass2(r1,  write_out=False)
         r25 = pass2_5(r2, branch_mode=mode, write_out=False)
+        if mode == "stl_bypass":
+            r25 = pass2_6(r25)   # STL pairs; other modes never call it
         rng = random.Random(vseed ^ 0xABCD_1234)
         if enabled and (variant_zero_no_chain or num_chains_choices):
             icfg_v = dict(icfg)
@@ -229,7 +233,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--mode", action="append", dest="modes", default=None,
-        choices=["mispredict_not_taken", "mispredict_taken"],
+        choices=["mispredict_not_taken", "mispredict_taken", "stl_bypass"],
         help="Branch mode to generate. Repeat to enable multiple modes "
              "(each gets its own subdirectory). Default: RUN_MODES at top of file.",
     )

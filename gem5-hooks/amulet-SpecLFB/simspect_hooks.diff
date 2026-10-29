@@ -1,0 +1,585 @@
+diff -ruN pristine/src/cpu/o3/rob.cc hooked/src/cpu/o3/rob.cc
+--- pristine/src/cpu/o3/rob.cc	2025-02-05 21:05:37
++++ hooked/src/cpu/o3/rob.cc	2026-10-28 15:44:06
+@@ -51,6 +51,7 @@
+ #include "debug/Speclfb.hh"
+ #include "debug/Squashed.hh"
+ #include "params/BaseO3CPU.hh"
++#include "sim/simspect_hooks.hh"  // SimSpect hook
+ 
+ namespace gem5
+ {
+@@ -634,6 +635,17 @@
+ void
+ ROB::squash(InstSeqNum squash_num, ThreadID tid)
+ {
++    // SimSpect hook: core squash (seq = squashing seqNum; younger squashed)
++    if (SimSpect::enabled()) {
++        Addr simspect_pc = SimSpect::NONE;
++        for (auto &inst : instList[tid]) {
++            if (inst->seqNum == squash_num) {
++                simspect_pc = inst->pcState().instAddr();
++                break;
++            }
++        }
++        SimSpect::noteSquash(squash_num, simspect_pc);
++    }
+     if (isEmpty(tid)) {
+         DPRINTF(ROB, "Does not need to squash due to being empty "
+                 "[sn:%llu]\n",
+diff -ruN pristine/src/mem/cache/base.cc hooked/src/mem/cache/base.cc
+--- pristine/src/mem/cache/base.cc	2025-02-05 21:05:37
++++ hooked/src/mem/cache/base.cc	2026-10-28 15:44:06
+@@ -65,12 +65,75 @@
+ #include "params/WriteAllocator.hh"
+ #include "sim/cur_tick.hh"
+ #include "base/unsafe_insqueue.hh"
++#include "sim/simspect_hooks.hh"  // SimSpect hook
++#include <deque>
++#include <map>
+ 
+ 
+ 
+ namespace gem5
+ {
+ 
++// SimSpect hook: print-only helpers for the classic-cache event trace.
++namespace
++{
++
++std::string
++simspectStruct(const std::string &n)
++{
++    if (n.find("dcache") != std::string::npos) return "L1D";
++    if (n.find("icache") != std::string::npos) return "L1I";
++    if (n.find("l2") != std::string::npos) return "L2";
++    if (n.find("l3") != std::string::npos) return "LLC";
++    size_t d = n.rfind('.');
++    return d == std::string::npos ? n : n.substr(d + 1);
++}
++
++// The fill being allocated right now (set in allocateBlock): evictions it
++// causes name it (cause=), and invalidateBlock knows it is an eviction.
++struct SimSpectFillCtx
++{
++    bool active = false;
++    std::string st;
++    Addr line = 0;
++    uint64_t seq = SimSpect::NONE;
++    Addr pc = SimSpect::NONE;
++    uint64_t id = SimSpect::NONE;
++};
++SimSpectFillCtx simspect_fill;
++bool simspect_in_evict = false;
++
++// LFB entries (refillBlocks is matched by PC, FIFO): line/seq per entry.
++struct SimSpectLfbEnt { Addr line; uint64_t seq; Addr pc; };
++std::map<std::pair<const void *, uint64_t>, std::deque<SimSpectLfbEnt> >
++    simspect_lfb;
++// While an LFB refill runs handleFill, its attribution (the stored packet
++// must not be dereferenced by the hook).
++bool simspect_refill_active = false;
++SimSpectLfbEnt simspect_refill;
++
++void
++simspectReqAttr(const PacketPtr pkt, uint64_t &seq, Addr &pc)
++{
++    seq = SimSpect::NONE;
++    pc = SimSpect::NONE;
++    if (pkt && pkt->req) {
++        if (pkt->req->hasInstSeqNum())
++            seq = pkt->req->getReqInstSeqNum();
++        if (pkt->req->hasPC())
++            pc = pkt->req->getPC();
++    }
++    if (seq == SimSpect::NONE && pkt) {
++        uint64_t s2; Addr p2;
++        if (SimSpect::getLineAttr(pkt->getAddr(), s2, p2)) {
++            seq = s2;
++            if (pc == SimSpect::NONE) pc = p2;
++        }
++    }
++}
++
++} // anonymous namespace
++
+ BaseCache::CacheResponsePort::CacheResponsePort(const std::string &_name,
+                                           BaseCache *_cache,
+                                           const std::string &_label)
+@@ -570,7 +633,21 @@
+                 pkt->req->getPC());
+ 
+     
++       // SimSpect hook: LFB entry released into the cache (refill)
++       if (SimSpect::enabled()) {
++           auto &sq = simspect_lfb[std::make_pair((const void *)this,
++                                                  pkt->req->getPC())];
++           if (!sq.empty()) {
++               simspect_refill = sq.front();
++               sq.pop_front();
++               simspect_refill_active = true;
++               SimSpect::emit("LFB", "buf_release", simspect_refill.line,
++                              simspect_refill.seq, simspect_refill.pc,
++                              SimSpect::NONE, SimSpect::NONE, SimSpect::NONE);
++           }
++       }
+        refillblk = handleFill(reFillBlockInfo.rpkt,reFillBlockInfo.blk,reFillBlockInfo.writebacks,reFillBlockInfo.allocate);
++       simspect_refill_active = false;  // SimSpect hook
+        assert(refillblk != nullptr);
+ 
+         ppFill->notify(pkt);
+@@ -748,6 +825,16 @@
+ //     pkt->payloadDelay,
+ //     pkt->getConstPtr<uint64_t>()
+ // });
++    // SimSpect hook: unsafe load's line parked in the LFB (not the cache)
++    if (SimSpect::enabled()) {
++        uint64_t sseq; Addr spc;
++        simspectReqAttr(pkt, sseq, spc);
++        Addr sline = SimSpect::lineOf(pkt->getAddr());
++        simspect_lfb[std::make_pair((const void *)this, pkt->req->getPC())]
++            .push_back({sline, sseq, spc});
++        SimSpect::emit("LFB", "buf_fill", sline, sseq, spc, SimSpect::NONE,
++                       SimSpect::NONE, SimSpect::NONE);
++    }
+     refillBlocks.push_back({mshr,
+     writebacks,
+     pkt->req->getPC(),
+@@ -1236,7 +1323,20 @@
+         // Evict valid blocks associated to this victim block
+         for (auto& blk : evict_blks) {
+             if (blk->isValid()) {
++                // SimSpect hook: replacement victim (cause = incoming fill)
++                if (SimSpect::enabled() && simspect_fill.active) {
++                    Addr svictim = regenerateBlkAddr(blk);
++                    SimSpect::emit(simspect_fill.st.c_str(), "evict",
++                                   simspect_fill.line, simspect_fill.seq,
++                                   simspect_fill.pc, svictim,
++                                   simspect_fill.id, SimSpect::NONE);
++                    if (simspect_fill.seq != SimSpect::NONE)
++                        SimSpect::setLineAttr(svictim, simspect_fill.seq,
++                                              simspect_fill.pc);
++                }
++                simspect_in_evict = true;   // SimSpect hook
+                 evictBlock(blk, writebacks);
++                simspect_in_evict = false;  // SimSpect hook
+             }
+         }
+     }
+@@ -2036,14 +2136,38 @@
+     // Print victim block's information
+     DPRINTF(CacheRepl, "Replacement victim: %s\n", victim->print());
+ 
++    // SimSpect hook: context for the evictions this fill causes
++    const bool simspect_on = SimSpect::enabled();
++    if (simspect_on) {
++        simspect_fill.active = true;
++        simspect_fill.st = simspectStruct(name());
++        simspect_fill.line = SimSpect::lineOf(addr);
++        if (simspect_refill_active) {
++            simspect_fill.seq = simspect_refill.seq;
++            simspect_fill.pc = simspect_refill.pc;
++        } else {
++            simspectReqAttr(pkt, simspect_fill.seq, simspect_fill.pc);
++        }
++        simspect_fill.id = SimSpect::newId();
++    }
++
+     // Try to evict blocks; if it fails, give up on allocation
+     if (!handleEvictions(evict_blks, writebacks)) {
++        simspect_fill.active = false;  // SimSpect hook
+         return nullptr;
+     }
+ 
+     // Insert new block at victimized entry
+     tags->insertBlock(pkt, victim);
+ 
++    // SimSpect hook: line allocated into this cache
++    if (simspect_on) {
++        SimSpect::emit(simspect_fill.st.c_str(), "fill", simspect_fill.line,
++                       simspect_fill.seq, simspect_fill.pc, SimSpect::NONE,
++                       SimSpect::NONE, SimSpect::NONE, simspect_fill.id);
++        simspect_fill.active = false;
++    }
++
+     // If using a compressor, set compression data. This must be done after
+     // insertion, as the compression bit may be set.
+     if (compressor) {
+@@ -2119,6 +2243,16 @@
+ void
+ BaseCache::invalidateBlock(CacheBlk *blk)
+ {
++    // SimSpect hook: removal that is not a replacement (snoop/clusivity/
++    // uncacheable flush/...); replacement evictions are printed above
++    if (SimSpect::enabled() && !simspect_in_evict && blk != tempBlock &&
++        blk->isValid()) {
++        Addr sline = regenerateBlkAddr(blk);
++        uint64_t sseq; Addr spc;
++        SimSpect::getLineAttr(sline, sseq, spc);
++        SimSpect::emit(simspectStruct(name()).c_str(), "inv", sline, sseq,
++                       spc, SimSpect::NONE, SimSpect::NONE, SimSpect::NONE);
++    }
+     // If block is still marked as prefetched, then it hasn't been used
+     if (blk->wasPrefetched()) {
+         prefetcher->prefetchUnused();
+diff -ruN pristine/src/mem/cache/mshr_queue.cc hooked/src/mem/cache/mshr_queue.cc
+--- pristine/src/mem/cache/mshr_queue.cc	2026-10-28 15:53:11
++++ hooked/src/mem/cache/mshr_queue.cc	2026-10-28 15:53:10
+@@ -48,10 +48,29 @@
+ 
+ #include "debug/MSHR.hh"
+ #include "mem/cache/mshr.hh"
++#include "sim/simspect_hooks.hh"  // SimSpect hook
+ 
++#include <map>
++#include <tuple>
++
+ namespace gem5
+ {
+ 
++// SimSpect hook: print-only record of live MSHRs (line, seq, pc) per entry.
++namespace
++{
++std::map<const MSHR *, std::tuple<Addr, uint64_t, Addr> > simspect_mshr;
++
++const char *
++simspectMshrStruct(const std::string &n)
++{
++    if (n.find("dcache") != std::string::npos) return "MSHR";
++    if (n.find("icache") != std::string::npos) return "L1IMSHR";
++    if (n.find("l2") != std::string::npos) return "L2MSHR";
++    return "MSHR_OTHER";
++}
++} // anonymous namespace
++
+ MSHRQueue::MSHRQueue(const std::string &_label,
+                      int num_entries, int reserve,
+                      int demand_reserve, std::string cache_name = "")
+@@ -76,6 +95,25 @@
+     mshr->readyIter = addToReadyList(mshr);
+ 
+     allocated += 1;
++    // SimSpect hook: MSHR entry allocated (miss outstanding)
++    if (SimSpect::enabled()) {
++        uint64_t sseq = SimSpect::NONE; Addr spc = SimSpect::NONE;
++        if (pkt && pkt->req && pkt->req->hasInstSeqNum())
++            sseq = pkt->req->getReqInstSeqNum();
++        if (pkt && pkt->req && pkt->req->hasPC())
++            spc = pkt->req->getPC();
++        if (sseq == SimSpect::NONE) {
++            uint64_t s2; Addr p2;
++            if (SimSpect::getLineAttr(blk_addr, s2, p2)) {
++                sseq = s2;
++                if (spc == SimSpect::NONE) spc = p2;
++            }
++        }
++        Addr sline = SimSpect::lineOf(blk_addr);
++        simspect_mshr[mshr] = std::make_tuple(sline, sseq, spc);
++        SimSpect::emit(simspectMshrStruct(name()), "buf_fill", sline, sseq,
++                       spc, SimSpect::NONE, SimSpect::NONE, SimSpect::NONE);
++    }
+     return mshr;
+ }
+ 
+@@ -84,6 +122,17 @@
+ {
+ 
+     DPRINTF(MSHR, "Deallocating all targets: %s", mshr->print());
++    // SimSpect hook: MSHR entry freed
++    if (SimSpect::enabled()) {
++        auto it = simspect_mshr.find(mshr);
++        if (it != simspect_mshr.end()) {
++            SimSpect::emit(simspectMshrStruct(name()), "buf_release",
++                           std::get<0>(it->second), std::get<1>(it->second),
++                           std::get<2>(it->second), SimSpect::NONE,
++                           SimSpect::NONE, SimSpect::NONE);
++            simspect_mshr.erase(it);
++        }
++    }
+     Queue<MSHR>::deallocate(mshr);
+     DPRINTF(MSHR, "MSHR deallocated. Number in use: %lu/%lu\n",
+             allocatedList.size(), numEntries);
+diff -ruN pristine/src/mem/cache/tags/base_set_assoc.hh hooked/src/mem/cache/tags/base_set_assoc.hh
+--- pristine/src/mem/cache/tags/base_set_assoc.hh	2025-02-05 21:05:37
++++ hooked/src/mem/cache/tags/base_set_assoc.hh	2026-10-28 15:44:06
+@@ -63,6 +63,7 @@
+ #include "mem/packet.hh"
+ #include "debug/Speclfb.hh"
+ #include "params/BaseSetAssoc.hh"
++#include "sim/simspect_hooks.hh"  // SimSpect hook
+ 
+ namespace gem5
+ {
+@@ -150,6 +151,22 @@
+ 
+             // Update replacement data of accessed block
+             replacementPolicy->touch(blk->replacementData, pkt);
++            // SimSpect hook: replacement-state update on hit
++            if (SimSpect::enabled()) {
++                const std::string &n = name();
++                const char *sst = n.find("dcache") != std::string::npos ? "L1D"
++                    : n.find("icache") != std::string::npos ? "L1I"
++                    : n.find("l2") != std::string::npos ? "L2" : "LLC";
++                uint64_t sseq = SimSpect::NONE; Addr spc = SimSpect::NONE;
++                if (pkt->req && pkt->req->hasInstSeqNum())
++                    sseq = pkt->req->getReqInstSeqNum();
++                if (pkt->req && pkt->req->hasPC())
++                    spc = pkt->req->getPC();
++                SimSpect::emit(sst, "repl_touch",
++                               SimSpect::lineOf(pkt->getAddr()), sseq, spc,
++                               SimSpect::NONE, SimSpect::NONE,
++                               SimSpect::NONE);
++            }
+             }
+         }
+ 
+diff -ruN pristine/src/sim/SConscript hooked/src/sim/SConscript
+--- pristine/src/sim/SConscript	2025-02-05 21:05:37
++++ hooked/src/sim/SConscript	2026-10-28 15:44:06
+@@ -47,6 +47,7 @@
+ Source('backtrace_%s.cc' % env['BACKTRACE_IMPL'], add_tags='gem5 trace')
+ Source('bufval.cc')
+ Source('core.cc')
++Source('simspect_hooks.cc')  # SimSpect hook: print-only event trace
+ Source('cur_tick.cc', add_tags='gem5 trace')
+ Source('tags.cc')
+ Source('cxx_config.cc')
+diff -ruN pristine/src/sim/simspect_hooks.cc hooked/src/sim/simspect_hooks.cc
+--- pristine/src/sim/simspect_hooks.cc	1969-12-31 16:00:00
++++ hooked/src/sim/simspect_hooks.cc	2026-10-28 15:44:06
+@@ -0,0 +1,168 @@
++/*
++ * SimSpect hook: print-only cache/defense event trace (core emitter).
++ * See simspect_hooks.hh. Print-side bookkeeping only; no simulated state.
++ */
++
++#include "sim/simspect_hooks.hh"
++
++#include <map>
++#include <utility>
++#include <vector>
++
++#include "base/cprintf.hh"
++#include "base/trace.hh"
++#include "debug/O3PipeView.hh"
++#include "sim/cur_tick.hh"
++
++namespace gem5 {
++namespace SimSpect {
++
++namespace {
++
++uint64_t g_nextId = 1;
++uint64_t g_nextSq = 1;
++// (squashing seqNum, squash id), in time order
++std::vector<std::pair<uint64_t, uint64_t> > g_squashes;
++std::map<Addr, std::pair<uint64_t, Addr> > g_lineAttr;
++// (struct, line) -> (reserved fill id, seq of the causing access)
++std::map<std::pair<std::string, Addr>, std::pair<uint64_t, uint64_t> >
++    g_pendingFill;
++uint64_t g_tlbSeq = NONE;
++Addr g_tlbPc = NONE;
++
++std::string
++hexOrDash(uint64_t v)
++{
++    if (v == NONE)
++        return "-";
++    return csprintf("0x%x", v);
++}
++
++std::string
++decOrDash(uint64_t v)
++{
++    if (v == NONE)
++        return "-";
++    return csprintf("%d", v);
++}
++
++} // anonymous namespace
++
++bool
++enabled()
++{
++    return TRACING_ON && ::gem5::debug::O3PipeView;
++}
++
++uint64_t
++newId()
++{
++    return g_nextId++;
++}
++
++uint64_t
++emit(const char *st, const char *kind, Addr line, uint64_t seq, Addr pc,
++     Addr victim, uint64_t cause, uint64_t sq, uint64_t id)
++{
++    if (id == NONE)
++        id = newId();
++    DPRINTFR(O3PipeView,
++             "O3PipeView:simspect:%llu:%s:%s:line=%s:seq=%s:pc=%s:"
++             "victim=%s:cause=%s:sq=%s:id=%llu\n",
++             (unsigned long long)curTick(), st, kind,
++             hexOrDash(line), decOrDash(seq), hexOrDash(pc),
++             hexOrDash(victim), decOrDash(cause), decOrDash(sq),
++             (unsigned long long)id);
++    return id;
++}
++
++uint64_t
++noteSquash(uint64_t squashSeq, Addr pc)
++{
++    uint64_t sq = g_nextSq++;
++    g_squashes.push_back(std::make_pair(squashSeq, sq));
++    emit("ROB", "squash", NONE, squashSeq, pc, NONE, NONE, sq);
++    return sq;
++}
++
++uint64_t
++sqForInst(uint64_t seq)
++{
++    if (seq == NONE)
++        return NONE;
++    for (auto it = g_squashes.rbegin(); it != g_squashes.rend(); ++it)
++        if (it->first < seq)
++            return it->second;
++    return NONE;
++}
++
++uint64_t
++sqForSquashSeq(uint64_t squashSeq)
++{
++    for (auto it = g_squashes.rbegin(); it != g_squashes.rend(); ++it)
++        if (it->first == squashSeq)
++            return it->second;
++    return g_squashes.empty() ? NONE : g_squashes.back().second;
++}
++
++void
++setLineAttr(Addr line, uint64_t seq, Addr pc)
++{
++    g_lineAttr[lineOf(line)] = std::make_pair(seq, pc);
++}
++
++bool
++getLineAttr(Addr line, uint64_t &seq, Addr &pc)
++{
++    auto it = g_lineAttr.find(lineOf(line));
++    if (it == g_lineAttr.end()) {
++        seq = NONE;
++        pc = NONE;
++        return false;
++    }
++    seq = it->second.first;
++    pc = it->second.second;
++    return true;
++}
++
++uint64_t
++reserveFill(const std::string &st, Addr line, uint64_t seq)
++{
++    auto key = std::make_pair(st, lineOf(line));
++    auto it = g_pendingFill.find(key);
++    if (it != g_pendingFill.end() && it->second.second == seq)
++        return it->second.first;
++    uint64_t id = newId();
++    g_pendingFill[key] = std::make_pair(id, seq);
++    return id;
++}
++
++uint64_t
++takeFill(const std::string &st, Addr line, uint64_t seq)
++{
++    auto key = std::make_pair(st, lineOf(line));
++    auto it = g_pendingFill.find(key);
++    if (it == g_pendingFill.end())
++        return newId();
++    uint64_t id = it->second.first;
++    bool match = (it->second.second == seq);
++    g_pendingFill.erase(it);
++    return match ? id : newId();
++}
++
++void
++setTlbCtx(uint64_t seq, Addr pc)
++{
++    g_tlbSeq = seq;
++    g_tlbPc = pc;
++}
++
++void
++getTlbCtx(uint64_t &seq, Addr &pc)
++{
++    seq = g_tlbSeq;
++    pc = g_tlbPc;
++}
++
++} // namespace SimSpect
++} // namespace gem5
+diff -ruN pristine/src/sim/simspect_hooks.hh hooked/src/sim/simspect_hooks.hh
+--- pristine/src/sim/simspect_hooks.hh	1969-12-31 16:00:00
++++ hooked/src/sim/simspect_hooks.hh	2026-10-28 15:44:06
+@@ -0,0 +1,63 @@
++/*
++ * SimSpect hook: print-only cache/defense event trace.
++ *
++ * Every event is printed under the existing O3PipeView debug flag as
++ *   O3PipeView:simspect:<tick>:<struct>:<kind>:line=0x<line>:seq=<sn|->:
++ *     pc=0x<pc|->:victim=0x<line|->:cause=<id|->:sq=<id|->:id=<id>
++ * (one physical line). Nothing here changes simulated behavior or timing:
++ * the only state kept is print-side bookkeeping (event ids, squash ids,
++ * per-line attribution), all consulted only when O3PipeView is enabled.
++ * Documented in the SimSpect repo: wiki/design/SIMSPECT_HOOKS.md.
++ */
++
++#ifndef __SIM_SIMSPECT_HOOKS_HH__
++#define __SIM_SIMSPECT_HOOKS_HH__
++
++#include <cstdint>
++#include <string>
++
++#include "base/types.hh"
++
++namespace gem5 {
++namespace SimSpect {
++
++static const uint64_t NONE = ~0ULL;
++
++/** SimSpect hook: true iff O3PipeView tracing is on (all hooks gate on it). */
++bool enabled();
++
++/** Physical line address (64B lines in every SimSpect build). */
++inline Addr lineOf(Addr a) { return a & ~Addr(63); }
++
++/** Fresh unique event id. */
++uint64_t newId();
++
++/** Print one event line; returns its id. NONE fields print as '-'. */
++uint64_t emit(const char *st, const char *kind, Addr line, uint64_t seq,
++              Addr pc, Addr victim, uint64_t cause, uint64_t sq,
++              uint64_t id = NONE);
++
++/** Core squash: emits ROB:squash and returns the new squash id. */
++uint64_t noteSquash(uint64_t squashSeq, Addr pc);
++/** Latest squash whose squashing seqNum < seq (the squash covering seq). */
++uint64_t sqForInst(uint64_t seq);
++/** Latest squash whose squashing seqNum == squashSeq (else latest). */
++uint64_t sqForSquashSeq(uint64_t squashSeq);
++
++/** Per-line attribution: most recent instruction that caused activity. */
++void setLineAttr(Addr line, uint64_t seq, Addr pc);
++bool getLineAttr(Addr line, uint64_t &seq, Addr &pc);
++
++/** Evict->fill link: reserve the id the incoming fill of `line` in `st`
++ *  will carry (cause= on the evict), and consume it at the fill. */
++uint64_t reserveFill(const std::string &st, Addr line, uint64_t seq);
++uint64_t takeFill(const std::string &st, Addr line, uint64_t seq);
++
++/** TLB attribution context (set by TLB::translate before lookup/insert). */
++void setTlbCtx(uint64_t seq, Addr pc);
++void getTlbCtx(uint64_t &seq, Addr &pc);
++
++} // namespace SimSpect
++} // namespace gem5
++
++#endif // __SIM_SIMSPECT_HOOKS_HH__

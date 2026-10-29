@@ -70,6 +70,15 @@ BRANCH_ANN_ENABLE = os.environ.get("SIMSPECT_BRANCH_ANN_ENABLE", "").lower() in 
 ALLOW_LEAKED = os.environ.get("SIMSPECT_ALLOW_LEAKED", "").lower() in (
     "1", "true", "yes", "on")
 
+# When truthy, run_gem5() injects --stl-ann-file=<test>.ann.json (its
+# "stl_annotations" store/load pairs), --stl-store-stall-cycles and
+# --stl-alias-pred. Requires a gem5 build with the SimSpect-STL hooks
+# (gem5-hooks/stl/). Set from run_config gem5.stl_* by pipeline._build_gem5_env.
+STL_ANN_ENABLE = os.environ.get("SIMSPECT_STL_ANN_ENABLE", "").lower() in (
+    "1", "true", "yes", "on")
+STL_STORE_STALL_CYCLES: int = int(os.environ.get("SIMSPECT_STL_STORE_STALL_CYCLES", "0"))
+STL_ALIAS_PRED = os.environ.get("SIMSPECT_STL_ALIAS_PRED", "no_alias")
+
 FNC_COMMIT_STALL_CYCLES: int = int(os.environ.get("SIMSPECT_FNC_COMMIT_STALL_CYCLES", "0"))
 
 # Disk safety net: litmus runs finish in well under a second of wall time, so a
@@ -177,6 +186,11 @@ def run_gem5(binary: Path, workdir: Path,
         if base is not None:
             cmd.append(f"--branch-ann-base={hex(base)}")
 
+    if STL_ANN_ENABLE and ann_path is not None and ann_path.exists():
+        cmd.append(f"--stl-ann-file={ann_path}")
+        cmd.append(f"--stl-store-stall-cycles={STL_STORE_STALL_CYCLES}")
+        cmd.append(f"--stl-alias-pred={STL_ALIAS_PRED}")
+
     if ALLOW_LEAKED:
         cmd.append("--allow_leaked")
 
@@ -252,6 +266,101 @@ def parse_pipeview(trace_path: Path) -> Dict[int, List[dict]]:
                     by_pc[cur["pc"]].append(cur)
                     cur = None
     return dict(by_pc)
+
+
+# ── SimSpect hook events (O3PipeView:simspect:...) ──────────────────────────
+#
+# Additive (2026-10-28): parsers for the print-only SimSpect cache/defense
+# hooks. Line format is defined in wiki/design/SIMSPECT_HOOKS.md:
+#   O3PipeView:simspect:<tick>:<struct>:<kind>:line=0x..:seq=..:pc=..:victim=..:cause=..:sq=..:id=..
+# `-` means "not applicable / unknown" and parses to None. parse_pipeview()
+# ignores these lines (unknown stage), so existing checkers are unaffected.
+
+SIMSPECT_PREFIX = "O3PipeView:simspect:"
+_SIMSPECT_HEX_FIELDS = ("line", "pc", "victim")
+_SIMSPECT_INT_FIELDS = ("seq", "cause", "sq", "id")
+
+
+def _simspect_val(key: str, val: str):
+    if val in ("-", ""):
+        return None
+    if key in _SIMSPECT_HEX_FIELDS:
+        return int(val, 16)
+    if key in _SIMSPECT_INT_FIELDS:
+        return int(val, 0)
+    return val
+
+
+def parse_simspect_line(line: str) -> Optional[dict]:
+    """Parse one `O3PipeView:simspect:` line -> event dict, or None if the line
+    is not a simspect line. Keys: tick, struct, kind, line, seq, pc, victim,
+    cause, sq, id (ints or None), plus any unknown key=value fields verbatim.
+    Raises ValueError on a malformed simspect line (never silently drops one).
+    """
+    if not line.startswith(SIMSPECT_PREFIX):
+        return None
+    parts = line.rstrip("\n").rstrip("\r").split(":")
+    if len(parts) < 5:
+        raise ValueError(f"malformed simspect line: {line!r}")
+    ev = dict(tick=int(parts[2]), struct=parts[3], kind=parts[4],
+              line=None, seq=None, pc=None, victim=None, cause=None,
+              sq=None, id=None)
+    for field in parts[5:]:
+        if "=" not in field:
+            raise ValueError(f"malformed simspect field {field!r} in {line!r}")
+        k, v = field.split("=", 1)
+        ev[k] = _simspect_val(k, v)
+    return ev
+
+
+def parse_simspect_events(trace_path: Path) -> List[dict]:
+    """All SimSpect hook events in an O3PipeView trace, in trace order, each
+    with an extra `order` (0-based position). Callers that replay state should
+    sort by (tick, id): an `evict` may print before the `fill` that caused it
+    at the same tick (see SIMSPECT_HOOKS.md, CleanupSpec uv5clean)."""
+    events: List[dict] = []
+    with open(trace_path) as f:
+        for raw in f:
+            ev = parse_simspect_line(raw)
+            if ev is not None:
+                ev["order"] = len(events)
+                events.append(ev)
+    return events
+
+
+def parse_pipeview_by_seq(trace_path: Path) -> Dict[int, dict]:
+    """Like parse_pipeview but keyed by the dynamic instruction's seqNum
+    (field 6 of the `O3PipeView:fetch:` line), the number SimSpect events carry
+    in `seq=`. Record: {seq, pc, upc, fetch, decode, rename, dispatch, issue,
+    complete, retire}. retire==0 means the instruction never retired (squashed,
+    or still in flight at sim end). In-flight squashed loads have no record at
+    all (gem5 prints a record only when the instruction is destroyed)."""
+    by_seq: Dict[int, dict] = {}
+    cur = None
+    with open(trace_path) as f:
+        for line in f:
+            if not line.startswith("O3PipeView:") or line.startswith(SIMSPECT_PREFIX):
+                continue
+            parts = line.rstrip().split(":")
+            stage = parts[1]
+            if stage == "fetch":
+                try:
+                    seq = int(parts[5])
+                except (IndexError, ValueError):
+                    cur = None
+                    continue
+                cur = dict(seq=seq, pc=int(parts[3], 16), upc=int(parts[4]),
+                           fetch=int(parts[2]), decode=0, rename=0, dispatch=0,
+                           issue=0, complete=0, retire=0)
+            elif stage in ("decode", "rename", "dispatch", "issue", "complete"):
+                if cur:
+                    cur[stage] = int(parts[2])
+            elif stage == "retire":
+                if cur:
+                    cur["retire"] = int(parts[2])
+                    by_seq[cur["seq"]] = cur
+                    cur = None
+    return by_seq
 
 
 def parse_lsq(trace_path: Path) -> Dict[int, List[dict]]:
@@ -663,9 +772,16 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
             # The xmit PC, if itself an annotated unresolved branch, is the
             # event we're conditioning on — exclude it from the bound check.
             unresolved = [u for u in unresolved if u["pc"] != xmit_pc]
-            check_result = check_fn(by_pc, xmit_pc, lc_pc, fnc_pc,
-                                    unresolved, ticks_per_cycle, lsq_by_pc,
-                                    squash_by_pc)
+            if getattr(check_fn, "wants_trace", False):
+                # Additive (2026-10-28): trace-reading checkers such as
+                # check_footprint.py also get the raw trace path.
+                check_result = check_fn(by_pc, xmit_pc, lc_pc, fnc_pc,
+                                        unresolved, ticks_per_cycle, lsq_by_pc,
+                                        squash_by_pc, trace_path=trace)
+            else:
+                check_result = check_fn(by_pc, xmit_pc, lc_pc, fnc_pc,
+                                        unresolved, ticks_per_cycle, lsq_by_pc,
+                                        squash_by_pc)
             result.update(check_result)
 
     except subprocess.CalledProcessError as e:

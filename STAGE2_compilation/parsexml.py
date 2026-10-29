@@ -690,9 +690,27 @@ def pass2_5_specify_branches(
 
     If the concrete_instruction was "br_uncond" it is upgraded to "br_cond"
     because misprediction scenarios require a resolvable condition.
+
+    "stl_bypass"
+        Store-to-load speculation mode (STT_6_stl-style models). There is no
+        control-flow speculation: every non-xmit branch must be resolved, so
+        each one is emitted as correctly_not_taken exactly as in the other
+        modes, and the xmit branch keeps its override. The speculation primitive
+        is annotated afterwards by pass2_6_specify_stl.
     """
-    if branch_mode not in ("mispredict_not_taken", "mispredict_taken"):
+    if branch_mode not in ("mispredict_not_taken", "mispredict_taken", "stl_bypass"):
         raise ValueError(f"Unknown branch_mode: {branch_mode!r}")
+    if branch_mode == "stl_bypass":
+        unresolved_brs = [
+            rec["pc"] for rec in pass2_result["instructions"]
+            if rec.get("kind") in _BRANCH_KINDS
+            and not rec.get("resolved", False) and not rec.get("xm", False)
+        ]
+        if unresolved_brs:
+            raise ValueError(
+                f"stl_bypass mode needs every branch resolved (no control-flow "
+                f"speculation); unresolved branch pc(s) {unresolved_brs}. "
+                f"Use an *_stl model.")
 
     n = len(pass2_result["instructions"])
     instructions: List[Dict[str, Any]] = [dict(rec) for rec in pass2_result["instructions"]]
@@ -941,6 +959,249 @@ def pass2_5_specify_branches(
             f.write("\n".join(lines) + "\n")
 
     return result
+
+
+# =============================================================================
+# Pass 2.6: store-to-load (STL) speculation annotation  (branch_mode "stl_bypass")
+# =============================================================================
+
+def _specified_physical(rec: Dict[str, Any], role: str) -> Optional[str]:
+    for sr in rec.get("slots", {}).get(role, []):
+        if sr.get("specified"):
+            return sr.get("physical")
+    return None
+
+
+def pass2_6_specify_stl(pass25_result: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Pass 2.6 (stl_bypass mode only): pair every unresolved store with the load
+    that truly aliases it.
+
+    The speculation primitive is a false-negative alias prediction: the store's
+    address is held unresolved (gem5 hook), the memory-dependence predictor says
+    "no alias", the load issues and reads the stale value, and the store's later
+    address resolution raises a memory-order violation that squashes the load
+    and everything younger. For that the load must really alias the store.
+
+    For each unresolved, non-synthetic store S (in PC order) whose outmem is the
+    Mem_s atom m, the bypass load L is the first uncommitted load after S that
+    reads m (inmem physical == m) before any other store writes m. That is the
+    same "most recent writer" rule as STT_6's rf facts, so L is at or before the
+    load the model's stl_alias_pair fact names.
+
+    Pairs are tagged on the instruction records (rec["stl_annotation"], with a
+    shared "pair" id) rather than by PC, because pass_interleave renumbers PCs.
+    emit_branch_annotations turns the tags into ann["stl_annotations"], and
+    pass5_emit_llvm makes S's runtime address equal L's (see
+    _stl_store_retargets).
+
+    Raises ValueError (the test is skipped and logged by batch_generate) if
+    there is no unresolved store, or a store has no specified outmem or no
+    aliasing load.
+    """
+    instructions: List[Dict[str, Any]] = [dict(rec) for rec in pass25_result["instructions"]]
+    n_pairs = 0
+
+    for i, s in enumerate(instructions):
+        if s.get("kind") != "str" or s.get("resolved", False) or s.get("synthetic"):
+            continue
+        m = _specified_physical(s, "outmem")
+        if m is None:
+            raise ValueError(f"stl_bypass: unresolved store pc={s['pc']} has no specified outmem")
+        load = None
+        for t in instructions[i + 1:]:
+            if t.get("kind") == "str" and _specified_physical(t, "outmem") == m:
+                break  # another writer of m comes first
+            if (t.get("kind") == "ld" and not t.get("committed", False)
+                    and _specified_physical(t, "inmem") == m):
+                load = t
+                break
+        if load is None:
+            raise ValueError(f"stl_bypass: unresolved store pc={s['pc']} ({m}) has no aliasing load")
+        s["stl_annotation"] = {"role": "store", "pair": n_pairs, "mem_atom": m}
+        load["stl_annotation"] = {"role": "bypass_load", "pair": n_pairs, "mem_atom": m}
+        n_pairs += 1
+
+    if n_pairs == 0:
+        raise ValueError("stl_bypass: instance has no unresolved store")
+
+    out = dict(pass25_result)
+    out["instructions"] = instructions
+    return out
+
+
+def _stl_pairs(instructions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """[{pair, store_pc, load_pc, mem_atom}] from the pass2_6 tags (current PCs)."""
+    by_pair: Dict[int, Dict[str, Any]] = {}
+    for rec in instructions:
+        tag = rec.get("stl_annotation")
+        if not tag:
+            continue
+        e = by_pair.setdefault(tag["pair"], {"pair": tag["pair"], "mem_atom": tag["mem_atom"]})
+        e["store_pc" if tag["role"] == "store" else "load_pc"] = rec["pc"]
+    return [by_pair[k] for k in sorted(by_pair)]
+
+
+_MASK64 = (1 << 64) - 1
+_PROBE_MEM_BYTES = 256 * 8
+
+
+def _to_signed64(v: int) -> int:
+    v &= _MASK64
+    return v - (1 << 64) if v >> 63 else v
+
+
+def _mem_addr_of(rec: Dict[str, Any], mem_role: str,
+                 vals: Dict[str, int]) -> Tuple[str, int, Optional[str]]:
+    """Runtime address of a load/store exactly as pass5_emit_llvm emits it.
+
+    Returns (space, byte_offset, index_ssa): space "probe" (probe_mem + value of
+    the specified inaddr) or "mem" (mem_base + the inmem/outmem slot offset).
+    """
+    ia = None
+    for sr in rec["slots"].get("inaddr", []):
+        if sr.get("specified") and sr.get("ssa_name") and sr.get("assigned"):
+            ia = sr
+    if ia is not None:
+        # an SSA name never written yet is a version-0 register: zero (ssa_init)
+        return "probe", _to_signed64(vals.get(ia["ssa_name"], 0)), ia["ssa_name"]
+    for sr in rec["slots"].get(mem_role, []):
+        if sr.get("assigned_offset") is not None:
+            return "mem", sr["assigned_offset"], None
+    raise ValueError(f"pc={rec['pc']}: no address for {mem_role}")
+
+
+def _stl_arch_values(instructions: List[Dict[str, Any]], until_pc: int,
+                     alloca_n: int,
+                     store_override: Optional[Dict[int, Optional[Tuple[str, int]]]] = None,
+                     ) -> Dict[str, int]:
+    """Architectural SSA values of the straight-line program before `until_pc`.
+
+    In stl_bypass mode every branch before the bypass load is resolved and falls
+    through, so the architectural path is the instruction list in order. Registers
+    start at 0 (ssa_init) and both arrays are zero-initialised (pass5 prologue).
+    Semantics mirror the asm pass5 emits for each concrete instruction.
+    `store_override` maps a store PC to the (space, offset) it writes after
+    re-targeting, or None to drop its write. Raises ValueError for anything it
+    can't evaluate exactly (unknown op, a taken branch, a fault, an
+    out-of-bounds access), so a test is skipped rather than concretized with a
+    wrong alias.
+    """
+    store_override = store_override or {}
+    vals: Dict[str, int] = {}
+    mem: Dict[Tuple[str, int], int] = {}
+    bounds = {"mem": alloca_n * 8, "probe": _PROBE_MEM_BYTES}
+
+    def val(rec: Dict[str, Any], slot_name: str) -> int:
+        for sl in rec["slots"].values():
+            for sr in sl:
+                if sr["slot"] == slot_name and sr.get("ssa_name"):
+                    return vals.setdefault(sr["ssa_name"], 0)
+        return 0
+
+    def out(rec: Dict[str, Any], v: int) -> None:
+        for sr in rec["slots"].get("outreg", []):
+            if sr.get("ssa_name"):
+                vals[sr["ssa_name"]] = v & _MASK64
+
+    def check(space: str, off: int) -> None:
+        if off < 0 or off + 8 > bounds[space]:
+            raise ValueError(f"stl_bypass: access {space}+{off} out of bounds")
+
+    for rec in instructions:
+        if rec["pc"] >= until_pc:
+            break
+        c = rec.get("concrete_instruction")
+        if c == "load":
+            space, off, _ = _mem_addr_of(rec, "inmem", vals)
+            check(space, off)
+            out(rec, sum(mem.get((space, off + b), 0) << (8 * b) for b in range(8)))
+        elif c == "store":
+            if rec["pc"] in store_override:
+                if store_override[rec["pc"]] is None:
+                    continue
+                space, off = store_override[rec["pc"]]
+            else:
+                space, off, _ = _mem_addr_of(rec, "outmem", vals)
+            check(space, off)
+            v = val(rec, "inreg0") & _MASK64
+            for b in range(8):
+                mem[(space, off + b)] = (v >> (8 * b)) & 0xFF
+        elif c == "bitnot":
+            out(rec, ~val(rec, "inreg0"))
+        elif c == "add":
+            out(rec, val(rec, "inreg0") + val(rec, "inreg1"))
+        elif c == "zsm":
+            out(rec, val(rec, "inreg0") * val(rec, "inreg1"))
+        elif c == "div":
+            a, d = _to_signed64(val(rec, "inreg0")), _to_signed64(val(rec, "inreg1"))
+            if not rec.get("xm", False):
+                d = _to_signed64(d | 1)
+            if d == 0 or (a == -(1 << 63) and d == -1):
+                raise ValueError(f"stl_bypass: div at pc={rec['pc']} faults")
+            q = abs(a) // abs(d)
+            out(rec, q if (a < 0) == (d < 0) else -q)
+        elif c in ("br_cond", "br_uncond", "br_bez"):
+            ba = rec.get("branch_annotations") or {}
+            if ba.get("condition_value") or c == "br_bez":
+                raise ValueError(f"stl_bypass: architecturally taken branch at pc={rec['pc']} before the bypass load")
+        elif c == "nop":
+            pass
+        else:
+            raise ValueError(f"stl_bypass: can't evaluate {c!r} at pc={rec['pc']}")
+    return vals
+
+
+def _stl_store_retargets(pass4_result: Dict[str, Any]) -> Dict[int, Dict[str, Any]]:
+    """For each STL store whose emitted address would differ from its bypass
+    load's, the addressing that makes them equal at runtime.
+
+    When neither S nor L has a specified inaddr they share the Mem_s slot, so the
+    emitted addresses already match and nothing is returned for that pair. When
+    an inaddr is involved, pass5 would address probe_mem + reg for that side, so
+    S is re-emitted relative to L's base (probe_mem or mem_base) with a constant
+    displacement D chosen from the architectural values, keeping S's own index
+    register (and so its address dependence) when it has one:
+        S has inaddr r_S:  movq src, D(base, r_S, 1)   D = addr_L - value(r_S)
+        S has no inaddr:   movq src, D(base)           D = addr_L
+    Returns {store_pc: {"space", "disp", "index_ssa"}}.
+    """
+    instructions = pass4_result["instructions"]
+    alloca_n = pass4_result["alloca_total_slots"]
+    by_pc = {rec["pc"]: rec for rec in instructions}
+    out: Dict[int, Dict[str, Any]] = {}
+    override: Dict[int, Optional[Tuple[str, int]]] = {}  # stores already re-targeted
+    for p in _stl_pairs(instructions):
+        s, l = by_pc[p["store_pc"]], by_pc[p["load_pc"]]
+        s_ia = any(sr.get("specified") and sr.get("ssa_name") for sr in s["slots"].get("inaddr", []))
+        l_ia = any(sr.get("specified") and sr.get("ssa_name") for sr in l["slots"].get("inaddr", []))
+        if not s_ia and not l_ia:
+            s_off = _mem_addr_of(s, "outmem", {})[1]
+            l_off = _mem_addr_of(l, "inmem", {})[1]
+            if s_off != l_off:
+                raise ValueError(f"stl_bypass: store pc={s['pc']} and load pc={l['pc']} "
+                                 f"share {p['mem_atom']} but got slots {s_off} != {l_off}")
+            continue
+        # L's address can depend on memory S writes, and S's target depends on
+        # L's address: evaluate with S's write dropped, re-target, re-evaluate
+        # with S writing there, and require L's address to be unchanged.
+        vals = _stl_arch_values(instructions, l["pc"], alloca_n, {**override, s["pc"]: None})
+        l_space, l_addr, _ = _mem_addr_of(l, "inmem", vals)
+        if l_addr < 0 or l_addr + 8 > (_PROBE_MEM_BYTES if l_space == "probe" else alloca_n * 8):
+            raise ValueError(f"stl_bypass: bypass load pc={l['pc']} address {l_space}+{l_addr} out of bounds")
+        vals2 = _stl_arch_values(instructions, l["pc"], alloca_n, {**override, s["pc"]: (l_space, l_addr)})
+        if _mem_addr_of(l, "inmem", vals2)[:2] != (l_space, l_addr):
+            raise ValueError(f"stl_bypass: bypass load pc={l['pc']} address depends on the re-targeted store")
+        if s_ia:
+            _, s_idx_val, s_idx_ssa = _mem_addr_of(s, "outmem", vals2)
+            disp = l_addr - s_idx_val
+        else:
+            s_idx_ssa, disp = None, l_addr
+        if not -(1 << 31) <= disp < (1 << 31):
+            raise ValueError(f"stl_bypass: store pc={s['pc']} displacement {disp} out of range")
+        override[s["pc"]] = (l_space, l_addr)
+        out[s["pc"]] = {"space": l_space, "disp": disp, "index_ssa": s_idx_ssa}
+    return out
 
 
 # =============================================================================
@@ -1758,6 +2019,13 @@ def pass5_emit_llvm(
     # those are gone, so we drain explicitly here.
     il(f'call void asm sideeffect "mfence", "~{{memory}}"()')
 
+    # ---- stl_bypass: stores re-targeted to their bypass load's address ----
+    # Empty unless pass2_6_specify_stl tagged this program (stl_bypass mode).
+    stl_retarget: Dict[int, Dict[str, Any]] = (
+        _stl_store_retargets(pass4_result)
+        if any(rec.get("stl_annotation") for rec in instructions) else {}
+    )
+
     # ---- Commit boundary PCs ----
     last_committed_pc: Optional[int] = None
     first_noncommitted_pc: Optional[int] = None
@@ -1843,6 +2111,38 @@ def pass5_emit_llvm(
                     il(f'call void asm sideeffect '
                        f'"{mkr}movq {offset}($0), %rax", '
                        f'"{{{_probe_base_phys}}},~{{memory}},~{{rax}}"(ptr %mem_base)')
+
+        elif concrete == "store" and pc in stl_retarget:
+            # stl_bypass: same store, addressed so it truly aliases its bypass
+            # load at runtime (see _stl_store_retargets). Keeps the store's own
+            # index register when it has one.
+            rt = stl_retarget[pc]
+            base_ptr = "%probe_mem" if rt["space"] == "probe" else "%mem_base"
+            disp = rt["disp"]
+            cm(f"stl_bypass store: re-targeted to {rt['space']}+{disp}"
+               + (f" + {rt['index_ssa']}" if rt["index_ssa"] else ""))
+            inaddr_sr = get_slot(rec, "inaddr")
+            inaddr_phys = inaddr_sr.get("assigned") if inaddr_sr else None
+            inreg0_sr = get_slot(rec, "inreg0")
+            has_src = bool(inreg0_sr and inreg0_sr.get("ssa_name"))
+            ops: List[str] = []
+            cons: List[str] = []
+            if has_src:
+                phys_src = inreg0_sr.get("assigned")
+                ops.append(f'i64 %{inreg0_sr["ssa_name"]}')
+                cons.append(f'{{{phys_src}}}' if phys_src else 'r')
+            ops.append(f"ptr {base_ptr}")
+            cons.append(f"{{{_probe_base_phys}}}")
+            if rt["index_ssa"]:
+                ops.append(f'i64 %{rt["index_ssa"]}')
+                cons.append(f"{{{inaddr_phys}}}")
+            n = len(ops)
+            src_txt = "$0" if has_src else "$$0"
+            b = n - (2 if rt["index_ssa"] else 1)
+            addr_txt = (f"{disp}(${b}, ${b + 1}, 1)" if rt["index_ssa"] else f"{disp}(${b})")
+            il(f'call void asm sideeffect '
+               f'"{mkr}movq {src_txt}, {addr_txt}", '
+               f'"{",".join(cons)},~{{memory}}"({", ".join(ops)})')
 
         elif concrete == "store":
             inaddr_sr = get_slot(rec, "inaddr")
@@ -2275,6 +2575,15 @@ def emit_branch_annotations(
             cb_payload["first_noncommitted"] = first_noncommitted
         if cb_payload:
             payload["commit_boundary"] = cb_payload
+        # stl_bypass only: (store, bypass load) pairs for the gem5 STL hooks
+        # (--stl-ann-file). compile_annotate.py adds store_addr / load_addr.
+        stl = _stl_pairs(result["instructions"])
+        if stl:
+            payload["stl_annotations"] = [
+                {"store_pc": p["store_pc"], "load_pc": p["load_pc"],
+                 "mem_atom": p["mem_atom"], "mode": "stl_bypass"}
+                for p in stl
+            ]
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
             f.write("\n")

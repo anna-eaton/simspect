@@ -1,11 +1,190 @@
 {
-  "_doc": "SpecLFB: first speculative load left unprotected (UV6).",
-  "defense": "SpecLFB",
-  "transmitters": [
-    "ld"
-  ],
-  "checkers": {
-    "ld": "check_ld_speclfb.py"
+  "schema": "simspect.transmission_criterion/v1",
+  "_superseded_note": {
+    "replaced": "2026-10-28 by the criteria session",
+    "old_content": {
+      "_doc": "SpecLFB: first speculative load left unprotected (UV6).",
+      "defense": "SpecLFB",
+      "transmitters": [
+        "ld"
+      ],
+      "checkers": {
+        "ld": "check_ld_speclfb.py"
+      },
+      "note": "UV6 = first spec load in LSQ performs its in-window cache access"
+    },
+    "why": "the old file described one bug (UV6), not a criterion; UV6 is now one case the criterion below catches (the implementation's isUnsafe flag is wrong, the paper's definition is used)"
   },
-  "note": "UV6 = first spec load in LSQ performs its in-window cache access"
+  "_doc": "SpecLFB transmission criterion: an unsafe speculative load's miss may not refill (fill, and evict a victim from) L1D or L2; parking in the LFB is allowed. O3PipeView trace only (SimSpect hooks). Evaluated by STAGE3_gem5/check_footprint.py. Scope quotes re-checked against wiki/findings/mdsToRead/FOOTPRINT_DEFENSES_PAPER_AUDIT.md §3, §7 and the PDF text (printed pages = PDF page + 629).",
+  "defense": "SpecLFB",
+  "builds": [
+    "amulet-SpecLFB"
+  ],
+  "status": "v1 2026-10-28 (criteria session).",
+  "requires": {
+    "gem5_args": [
+      "--l2cache"
+    ],
+    "why": "the gem5 implementation protects both cache levels; STT_6_speclfb ran without L2 (audit finding 2), so only L1D was observable there"
+  },
+  "source": {
+    "paper": "~/Documents/quail/sources/papers/cheng-2024-speclfb.pdf (USENIX Security 2024; printed pages)",
+    "audit": "wiki/findings/mdsToRead/FOOTPRINT_DEFENSES_PAPER_AUDIT.md",
+    "claims": [
+      {
+        "section": "§1",
+        "page": "p632",
+        "quote": "[the LFB check prevents] potentially unsafe speculative loads from being reloaded from lower-level cache into adjacent upper-level cache (e.g. from L2 cache into L1 data cache (L1D cache)) … both cache levels of X86 O3 CPU model in Gem5",
+        "supports": "observation.structures (L1D + L2 in gem5)"
+      },
+      {
+        "section": "§7",
+        "page": "p640",
+        "quote": "SpecLFB is applied to both levels of the cache in the O3 CPU model in Gem5.",
+        "supports": "observation.structures includes L2"
+      },
+      {
+        "section": "§4 threat model",
+        "page": "p635",
+        "quote": "eliminating cache side channels in speculative execution established by flush- and conflict-based cache side-channel attacks, which require pre-evicting the cache lines to be leaked.",
+        "supports": "observation.state = presence (fills + the victim evictions they cause)"
+      },
+      {
+        "section": "§5",
+        "page": "p635",
+        "quote": "the speculative loads causing cache misses are considered unsafe and should be protected.",
+        "supports": "actors: misses only; hits leave no fill event"
+      },
+      {
+        "section": "§6.1",
+        "page": "p637",
+        "quote": "Only when the security check mechanism determines that it is safe, can the data be refilled into the L1D cache.",
+        "supports": "observation.allowed_structures LFB"
+      },
+      {
+        "section": "§5",
+        "page": "p635-638",
+        "quote": "MUSL = an unsafe speculative load that causes cache miss; control-flow MUSLs are safe if there are no older control instructions that are unresolved (p638)",
+        "supports": "actors.modes.spec (pinned; the control-flow part equals STT_6)"
+      }
+    ]
+  },
+  "observation": {
+    "structures": [
+      "L1D",
+      "L2"
+    ],
+    "granularity": {
+      "default": "line"
+    },
+    "state": [
+      "presence"
+    ],
+    "allowed_structures": [
+      "LFB"
+    ],
+    "allowed_kinds": [
+      "buf_fill",
+      "buf_release"
+    ],
+    "ignored_structures": [
+      "L1I",
+      "ITLB",
+      "DTLB",
+      "MSHR",
+      "L2MSHR",
+      "ROB"
+    ],
+    "notes": "Classic caches: no coh events exist (SIMSPECT_HOOKS.md), and coherence is not claimed. repl_touch is excluded: replacement metadata is out of scope (below). spec is the paper's definition, not SpecLFB's isUnsafe flag; UV6 is that flag being wrong."
+  },
+  "actors": {
+    "default": "spec",
+    "modes": {
+      "spec": {
+        "text": "squashed(i) ∧ lc_seq < i.seq  (pinned 2026-10-28: what the tests realize; i = the event's seq joined to the O3PipeView fetch seqNum; squashed = never retired and younger than a ROB:squash seq while allocated before that squash)",
+        "impl": "squashed_after_lc",
+        "window": "footprint"
+      }
+    }
+  },
+  "window": {
+    "footprint": {
+      "from": "lc_retire",
+      "to": "fnc_retire",
+      "branches_unresolved": true,
+      "impl": "lc_fnc_unresolved",
+      "text": "lc_retire < e.tick < fnc_retire (fnc_retire==0 → ∞; no lc annotated → no lower bound) ∧ every annotated unresolved branch still unresolved at e.tick (gem5_common.check_branch_resolutions), same window as check_ld.py"
+    }
+  },
+  "terms": {
+    "footprint": {
+      "kinds": [
+        "fill",
+        "evict"
+      ],
+      "structures": "OBS",
+      "key": {
+        "evict": "victim",
+        "default": "line"
+      },
+      "by": "actor",
+      "in": "window"
+    }
+  },
+  "leak": {
+    "form": "exists",
+    "term": "footprint",
+    "text": "leak ⇔ ∃ e ∈ E({fill, evict}, {L1D, L2}) : actor(e.seq) ∧ e ∈ W  (LFB buf_fill/buf_release allowed)"
+  },
+  "not_covered": [
+    {
+      "item": "LFB path never exercised at runtime",
+      "why": "SIMSPECT_HOOKS.md: on every verification gadget SpecLFB classified the spec loads isUnsafe=0, so LFB hooks are compiled but untested; a no-leak verdict via LFB parking is unverified until a gadget exercises it"
+    },
+    {
+      "item": "memory-order / exception MUSLs",
+      "why": "paper's unsafe sources are broader than control flow (§5 p635-638); the pinned actor (STT_6 tests) realizes control-flow speculation only"
+    }
+  ],
+  "out_of_scope": [
+    {
+      "item": "speculative cache hits and replacement (LRU) metadata",
+      "note": "scoping problem of the defense, not an implementation bug we catch",
+      "claim": {
+        "section": "§9",
+        "page": "p643",
+        "quote": "Leakage through speculative loads under cache hits is out of the current defense scope of SpecLFB. … because LFB cannot intercept the data loaded by speculative instructions under cache hits, it does not prevent speculative changes to cache metadata.",
+        "supports": "out_of_scope"
+      }
+    },
+    {
+      "item": "TLB, port contention and other speculative side channels (incl. L1I, not claimed)",
+      "note": "scoping problem of the defense, not an implementation bug we catch",
+      "claim": {
+        "section": "§4",
+        "page": "p635",
+        "quote": "We do not consider other speculative side channels, such as TLB [20], port contention [4,7], etc.",
+        "supports": "out_of_scope"
+      }
+    },
+    {
+      "item": "value-prediction MUSLs",
+      "note": "not implemented in gem5, so not testable here (an implementation gap of the defense, not a bug we catch)",
+      "claim": {
+        "section": "§6 (MUSLs in an Unresolved Value)",
+        "page": "p637",
+        "quote": "Remark: To the best of our knowledge, both Gem5 and SonicBOOM at their current versions where we implement SpecLFB do not support VP.",
+        "supports": "out_of_scope"
+      }
+    }
+  ],
+  "amulet_checks": {
+    "_doc": "informational only, never used by the predicate (audit §3B)",
+    "contract": "CT-SEQ (AMuLeT §4.7 p12)",
+    "trace": "final L1D tags + D-TLB (AMuLeT §3.5 p7); ct-seq.yaml:75 sources ['data_cache','instr_cache','dtlb']",
+    "code": "executor.py:281-286 --bp-type=BiModeBP --scheme=Speclfb; executor.py:220-221 --caches --l2cache; L1D read from system.cpu.dcache (executor.py:473-474)",
+    "never_observed": [
+      "L2 (protected by the gem5 implementation)"
+    ]
+  }
 }

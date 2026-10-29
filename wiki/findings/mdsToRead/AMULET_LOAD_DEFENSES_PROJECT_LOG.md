@@ -12,6 +12,8 @@ This consolidates and supersedes the scattered InvisiSpec/AMuLeT notes. Companio
 `mdsToRead/INVISISPEC_UV1_CONFIRMED.md`, `mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md`,
 `results/STT_6_cleanupspec_residue/CLEANUPSPEC_RESIDUE_REVIEW.md`, `bug/STT_KV3_TLB_REVIEW.md`,
 `docs/COMPOUND_TRANSMISSION_CRITERION.md`, `docs/AMULET_VS_SIMSPECT_SCOPE.md`.
+Plain-language explainer of the three AMuLeT-only defenses (why loads evict, CleanupSpec signal choice, hooking
+cache events into the pipeline): `mdsToRead/AMULET_THREE_DEFENSES_EXPLAINER.md` (2026-10-28).
 
 ---
 

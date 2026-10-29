@@ -22,6 +22,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 >   check `df -h /System/Volumes/Data` has comfortable free space; if tight, surface it first.
 > This rule overrides every other instruction in this file and the Documents-level CLAUDE.md.
 
+## ⛔ Markdown must be ONE LINE PER PARAGRAPH — no hard wrapping (Anna, 2026-10-26, STRICT)
+
+When writing or editing **any** markdown (`.md`) file in this repo — `wiki/` pages, `STATUS.md`, `TODO.md` / `URGENT_TODO.md`, `claudelog.md`, `claudenotes.md`, `README`s, findings docs, bug `.md`s, everything — write each paragraph, bullet / list item, blockquote line, and table row as a **single unbroken physical line**. **Never** insert a newline to wrap prose at 80 / 100 / any column — no "fake returns" mid-paragraph. Let the editor soft-wrap; separate blocks with one blank line and nothing else.
+
+- **Why:** Obsidian (Live Preview + source mode) renders every hard newline as a break, so a paragraph wrapped at a fixed width looks choppy and fragmented. One line per paragraph renders as clean, flowing text.
+- This **overrides** any habit of keeping lines short. A genuine in-paragraph line break (verse, an address) is a rare, deliberate exception — the default is *no* breaks inside a block.
+- **Exempt:** fenced code blocks (keep code / asm / diffs exactly as-is); each table row stays its own single line as usual.
+- When you edit an existing choppy md file, it's fine to unwrap the paragraphs you're already touching; don't reflow unrelated files just to reformat them.
+
 ## Prompt Anna to `make sync` when things drift out of sync (standing directive)
 
 Because of the GIT WRITE LOCK, **Claude never runs `make sync` (or any commit/push) itself** — but Claude
@@ -42,11 +51,20 @@ every tiny edit. Before suggesting the sync, do the read-only disk check the loc
 (`df -h /System/Volumes/Data`) and mention it if space is tight. Anna runs `make sync` herself (via `!` or a
 terminal); Claude only flags that it's time.
 
+## ⛔ Everything important goes in the final block (Anna, 2026-10-28, STRICT)
+
+Anna reads only the last chunk of text after the final tool call; she doesn't scroll up past tool calls. So the final message of every turn must carry **every** finding, result, decision, open question, and step she needs to take, even if it was already said earlier mid-turn. Mid-turn text is just progress updates; it is never the only place something important appears. Lead with the answer, then the evidence (with `file:line` / commands), then anything she has to do or decide.
+
 ## Paper & figures
 
 The paper/writing workspace is a **separate repo at `/tests/SimSpect-S-P-2027/`** (S&P 2027,
 `git@github.com:anna-eaton/SimSpect-S-P-2027.git`) — see its own `CLAUDE.md` for all paper
 conventions (critique style, figure generation, logs). Do paper work there, not here.
+
+**Current paper repo (2026-10-28):** `git@github.com:anna-eaton/test-paper.git` (https://github.com/anna-eaton/test-paper), Overleaf-synced, root `bare_conf_compsoc.tex`, figures in `tikz/` with `_standalone_<name>.tex` + `-1.png` previews. Not cloned on the Mac; clone into a scratch dir to work.
+
+> ## ⛔ Paper text is read-only; new figures are OK (Anna, 2026-10-28, STRICT)
+> Claude has **no permission to edit the paper's text** — not `sections/*.tex`, captions in existing files, the main `.tex`, the preamble, or `.bib`; not even a typo or a `\input` swap. Propose prose in chat or a doc and Anna pastes it. Claude **may upload new figure files** (new `tikz/*.tex`, standalone previews, images) to the paper repo, adding new files only and never overwriting an existing one, and then tells Anna exactly which line to change to use them. Paper repo: `git@github.com:anna-eaton/test-paper.git` (Overleaf-synced; root `bare_conf_compsoc.tex`).
 
 ## Write everything down — minimize fragile session state (governing principle)
 

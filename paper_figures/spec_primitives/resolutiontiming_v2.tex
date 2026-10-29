@@ -1,0 +1,71 @@
+% Resolution timing of each primitive instance relative to the observation window.
+% Requires: tikz with arrows.meta. Preview: _standalone_resolutiontiming_v2.tex
+\begin{figure}[t]
+  \centering
+\definecolor{specpurple}{RGB}{124,52,148}\definecolor{resteal}{RGB}{12,124,128}
+\begin{tikzpicture}[
+    x=0.5cm, y=0.55cm,
+    font=\footnotesize,
+    lbl/.style={anchor=east, align=right},
+    known/.style={circle, fill=black, inner sep=1.2pt},
+    res/.style={draw=black, fill=white, circle, inner sep=1.4pt},
+    alt/.style={draw=black!45, fill=white, circle, inner sep=1.1pt},
+    hold/.style={line width=2.4pt, specpurple},
+    delay/.style={line width=2.4pt, resteal},
+]
+  % observation window: last-committed retires .. first-non-committed retires
+  \fill[black!7] (6.2,0.4) rectangle (8.2,-5.0);
+  \draw[densely dashed] (7.2,0.4) -- (7.2,-5.0);
+  \node[above, align=center, font=\scriptsize] at (7.2,0.4) {$t_o$\\[-1pt](transmit here)};
+  \node[below, font=\scriptsize] at (6.2,-5.0) {lc ret.};
+  \node[below, font=\scriptsize] at (8.2,-5.0) {fnc ret.};
+
+  % (a) two resolved branches: swept delays reorder their resolutions
+  \node[lbl] at (-0.2,0) {(a,b) resolved $B_1$};
+  \draw[black!30] (0,0) -- (10,0);
+  \node[known] at (0.8,0) {};
+  \draw[delay] (0.8,0) -- (2.6,0);
+  \node[alt] at (1.4,0) {}; \node[alt] at (4.0,0) {};
+  \node[res] at (2.6,0) {};
+  \node[above, font=\scriptsize] at (1.7,0.05) {$d_1$};
+
+  \node[lbl] at (-0.2,-1) {(a,b) resolved $B_2$};
+  \draw[black!30] (0,-1) -- (10,-1);
+  \node[known] at (1.6,-1) {};
+  \draw[delay] (1.6,-1) -- (2.0,-1);
+  \node[alt] at (3.4,-1) {}; \node[alt] at (5.2,-1) {};
+  \node[res] at (2.0,-1) {};
+  \node[above, font=\scriptsize] at (1.8,-0.95) {$d_2$};
+
+  % (b)/(c) unresolved branch: held past the window
+  \node[lbl] at (-0.2,-2) {(c--f) unresolved};
+  \draw[black!30] (0,-2) -- (10,-2);
+  \node[known] at (1.2,-2) {};
+  \draw[hold, -{Latex[length=4pt]}] (1.2,-2) -- (10,-2);
+  \node[above, font=\scriptsize] at (4.5,-1.95) {fixed stall $D$};
+
+  % (d) transmitter branch: no stall
+  \node[lbl] at (-0.2,-3) {(g) transmitter br.};
+  \draw[black!30] (0,-3) -- (10,-3);
+  \node[known] at (5.0,-3) {};
+  \node[res] at (5.0,-3) {};
+  \node[above, font=\scriptsize] at (5.0,-2.95) {$d=0$};
+
+  % (e) store address held unresolved
+  \node[lbl] at (-0.2,-4) {(i) store addr.};
+  \draw[black!30] (0,-4) -- (10,-4);
+  \node[known] at (0.6,-4) {};
+  \draw[hold, -{Latex[length=4pt]}] (0.6,-4) -- (10,-4);
+  \node[above, font=\scriptsize] at (4.5,-3.95) {held unresolved};
+
+  % time axis
+  \draw[-{Latex[length=4pt]}] (0,-5.6) -- (10,-5.6) node[right] {cycles};
+
+  % legend
+  \node[known, label={[font=\scriptsize]right:dir./addr.\ known}] at (-4.4,-6.4) {};
+  \node[res,   label={[font=\scriptsize]right:``resolved'' broadcast}] at (1.4,-6.4) {};
+  \node[alt,   label={[font=\scriptsize]right:other sweep points}] at (-4.4,-7.1) {};
+\end{tikzpicture}
+  \caption{When each primitive in Table~\ref{tab:sptable} resolves, relative to the window in which the target transmitter must transmit (between the last committed and first non-committed instruction retiring). Resolved branches hold their ``resolved'' broadcast for a swept delay $d_i$, so their resolutions arrive in every order before $t_o$ (here $B_2$ before $B_1$); unresolved primitives are held past the window.}
+  \label{fig:resolutiontiming}
+\end{figure}

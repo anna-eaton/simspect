@@ -1,0 +1,228 @@
+{
+  "main": {
+    "id": "e80a640d8001daeb",
+    "type": "split",
+    "children": [
+      {
+        "id": "6becf43150944047",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3a0004c1cab800f3",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "sprint/cards-2-wed.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "cards-2-wed"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "12bb70941c4ddb1e",
+    "type": "split",
+    "children": [
+      {
+        "id": "fadc53df9219adf3",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "044b504eff69387a",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "2fd981fbbb2a4986",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "7948e8a1935b250f",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "ade5aaa44fefd40a",
+    "type": "split",
+    "children": [
+      {
+        "id": "aaf145f9f0f95774",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "39ae2627e840687d",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "sprint/cards-2-wed.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "a3063df7ad8c1f65",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "sprint/cards-2-wed.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "87a2ea42666f1e45",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "5b69c9a70eb22ecb",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "624a714bd952073f",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "sprint/cards-2-wed.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "3a0004c1cab800f3",
+  "lastOpenFiles": [
+    "wiki/findings/audits/2026-10-28/check_footprint_review.md",
+    "STAGE3_gem5/tests/__pycache__/test_check_footprint.cpython-314.pyc",
+    "STAGE3_gem5/tests/__pycache__",
+    "wiki/findings/audits/2026-10-28/alloy_STT_6.md",
+    "wiki/findings/audits/2026-10-28/alloy_Recon_6.md",
+    "wiki/findings/audits/2026-10-28/hooks_invisispec.md",
+    "wiki/findings/audits/2026-10-28/alloy_SPT_6_oneLP.md",
+    "wiki/findings/audits/2026-10-28/criteria_provenance.md",
+    "wiki/findings/audits/2026-10-28/hooks_cleanupspec.md",
+    "wiki/findings/audits/2026-10-28/specs_jsons.md",
+    "wiki/findings/audits/2026-10-28/campaign_configs_defense_active.md",
+    "wiki/findings/audits/2026-10-28/testset_reachability.md",
+    "wiki/findings/audits/2026-10-28/full_configs.md",
+    "wiki/findings/audits/2026-10-28/hooks_speclfb_and_uv6.md",
+    "wiki/findings/audits/2026-10-28/README.md",
+    "wiki/findings/audits/2026-10-28/docs_consistency.md",
+    "wiki/findings/audits/2026-10-28/invisispec_flagged_events_triage.md",
+    "wiki/findings/audits/2026-10-28/scope_claims_verification.md",
+    "wiki/findings/audits/2026-10-28",
+    "wiki/findings/audits",
+    "wiki/design/STL_SPECULATION.md",
+    "gem5-hooks/stl/__pycache__/apply_stl_hooks.cpython-314.pyc",
+    "gem5-hooks/stl/__pycache__",
+    "STAGE2_compilation/__pycache__/batch_generate.cpython-314.pyc",
+    "runconfigs/run_config_STT_6_stl.jsonc",
+    "gem5-hooks/stl/stl_hooks_vs_gem5_v22.0.0.2.diff",
+    "gem5-hooks/stl/apply_stl_hooks.py",
+    "wiki/findings/mdsToRead/PROTECTION_SCOPE_TABLE.md",
+    "results/STT_6_cleanupspec_full/README.md",
+    "results/STT_6_speclfb_full/README.md",
+    "results/STT_6_invisispec_full_futuristic/README.md",
+    "results/STT_6_invisispec_full_spectre/README.md",
+    "wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md",
+    "sprint/cards-1-tue-wedam.md"
+  ]
+}

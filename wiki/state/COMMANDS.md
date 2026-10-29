@@ -32,6 +32,8 @@ These wrap `scripts/sim` (config in `scripts/simspect.env`). Full runbook: [`INF
 | `make gen MODEL=<stem> CONFIG=<gen.jsonc>` | Producer: `xml`+`llvm`+`asm` run **concurrently** (all stages stream), resumable, no gem5. Writes `testsets/<MODEL>/`. |
 | `make run MODEL=<stem> RUNCONFIG=<build.jsonc>` | Consumer: gem5 sweep; results split **by transmitter kind** into `results/<name>__<ts>/<mode>/<kind>/`. One per build; run several (different `RUNCONFIG`) against one `MODEL` concurrently. |
 | `make pipeline MODEL=… CONFIG=… RUNCONFIG=…` | Producer (background) + one consumer (foreground). |
+| `make gen MODEL=STT_6_stl CONFIG=runconfigs/run_config_STT_6_stl.jsonc` | Store-to-load speculation testset (branch mode `stl_bypass`, output `testsets/STT_6_stl/stl_bypass/`). The gem5 side needs the SimSpect-STL hooks, which are not built yet. [`design/STL_SPECULATION.md`](../design/STL_SPECULATION.md) |
+| `python3 gem5-hooks/stl/apply_stl_hooks.py <gem5_root> [--dry-run]` | Insert the SimSpect-STL gem5 hooks (store address-generation hold + memory-dependence prediction override; flags `--stl-ann-file`, `--stl-store-stall-cycles`, `--stl-alias-pred`) into a gem5 tree, then rebuild. Idempotent; originals saved as `*.pre-stl`. |
 
 ## Low-level engine — single build, sequential (what the watchers use)
 | command | what it does |
@@ -39,6 +41,17 @@ These wrap `scripts/sim` (config in `scripts/simspect.env`). Full runbook: [`INF
 | `make all MODEL=… CONFIG=… [FORCE=1]` | `pipeline.py all` — phases xml→llvm→asm→gem5 in sequence. |
 | `make xml` / `make llvm` / `make asm` / `make gem5` | Run one phase (`pipeline.py <phase>`). Idempotent/resumable; `FORCE=1` to regenerate. |
 | `make clean MODEL=… CONFIG=…` | `pipeline.py clean` for that model/config. |
+
+## Footprint checker (InvisiSpec / SpecLFB / CleanupSpec) — `check_footprint.py` + a criterion JSON
+The footprint defenses are checked by ONE generic checker, `STAGE3_gem5/check_footprint.py`, which reads only the O3PipeView trace (normal records + the SimSpect hook lines, `wiki/design/SIMSPECT_HOOKS.md`) and a criterion `specs/leakage/{invisispec,speclfb,cleanupspec}.json` (schema and predicates: `wiki/design/TRANSMISSION_CRITERIA_FORMAT.md` "Criterion JSONs + checker"). It needs a hooked build (`amulet-*` after 2026-10-28); on a trace with no simspect lines it returns `status=warn`, `issued_in_window=null`.
+
+| command / key | what it does |
+|---|---|
+| run_config `gem5.checker: "check_footprint.py"` + `gem5.criterion: "specs/leakage/<defense>.json"` | `pipeline.py gem5` (and `make run`/`testrun.py`, which call it) sends **every** test to that checker instead of the per-kind table (`_checker_for`); `criterion` becomes env `SIMSPECT_CRITERION`. Absent → unchanged kind-table behavior. |
+| run_config `gem5.criterion_actor: "spec" \| "futuristic"` | Optional override of the actor mode (env `SIMSPECT_CRITERION_ACTOR`); default = the criterion's `actors.select_by_scheme` on the last `--scheme=<Name>` in `extra_args` (InvisiSpec: `FuturisticSafeInvisibleSpec` → `futuristic`). |
+| `python3 STAGE3_gem5/check_footprint.py <dir> --criterion specs/leakage/<d>.json [--jobs N] [--scheme N] [--out r.json] [--actor M]` | Same CLI shape as `check_ld.py`; builds + runs gem5 via `gem5_common` (mirror the campaign's env as usual). Records carry `issued_in_window` (= `leak`), `terms_fired`, `offending` (struct, line, event ids), and for CleanupSpec `per_line` counts, `skip_drop`, `net_state`, `inconsistent`. |
+| `python3 STAGE3_gem5/check_footprint.py --trace pipeview.txt --meta meta.json --criterion <json> [--out r.json]` | Offline: evaluate an existing trace, no gem5 (meta = `lc_pc`, `fnc_pc`, `unresolved`, `ticks_per_cycle`, `cmd`). |
+| `python3 STAGE3_gem5/tests/test_check_footprint.py` | Unit tests (synthetic traces) + regression on real hooked traces in `STAGE3_gem5/tests/fixtures/` (UV1 leak, UV6 leak, uv5clean no-leak, uv4split leak, InvisiSpec Futuristic). |
 
 ## Dashboard (direct)
 | command | what it does |

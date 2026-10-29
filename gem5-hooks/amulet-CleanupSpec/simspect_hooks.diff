@@ -1,0 +1,1056 @@
+diff -ruN pristine/src/arch/x86/tlb.cc hooked/src/arch/x86/tlb.cc
+--- pristine/src/arch/x86/tlb.cc	2025-02-05 21:05:10
++++ hooked/src/arch/x86/tlb.cc	2026-10-28 15:37:55
+@@ -52,6 +52,7 @@
+ #include "base/trace.hh"
+ #include "cpu/thread_context.hh"
+ #include "debug/TLB.hh"
++#include "sim/simspect_hooks.hh"  // SimSpect hook
+ #include "mem/page_table.hh"
+ #include "mem/request.hh"
+ #include "sim/full_system.hh"
+@@ -59,6 +60,9 @@
+ 
+ namespace X86ISA {
+ 
++// SimSpect hook: print-only; vpn being inserted (for the evict line=)
++static Addr simspectInsertVpn = 0;
++
+ TLB::TLB(const Params *p)
+     : BaseTLB(p), configAddress(0), size(p->size),
+       tlb(size), lruSeq(0)
+@@ -88,6 +92,16 @@
+     }
+ 
+     assert(tlb[lru].trieHandle);
++    // SimSpect hook: TLB replacement (line=incoming page, victim=evicted page)
++    if (SimSpect::enabled()) {
++        uint64_t sseq; Addr spc;
++        SimSpect::getTlbCtx(sseq, spc);
++        std::string sst = name().find("itb") != std::string::npos ? "ITLB"
++                                                                   : "DTLB";
++        uint64_t scause = SimSpect::reserveFill(sst, simspectInsertVpn, sseq);
++        SimSpect::emit(sst.c_str(), "evict", simspectInsertVpn, sseq, spc,
++                       tlb[lru].vaddr, scause, SimSpect::NONE);
++    }
+     trie.remove(tlb[lru].trieHandle);
+     tlb[lru].trieHandle = NULL;
+     freeList.push_back(&tlb[lru]);
+@@ -103,6 +117,7 @@
+         return newEntry;
+     }
+ 
++    simspectInsertVpn = vpn;  // SimSpect hook: print-only (evict line=)
+     if (freeList.empty())
+         evictLRU();
+ 
+@@ -114,6 +129,16 @@
+     newEntry->vaddr = vpn;
+     newEntry->trieHandle =
+     trie.insert(vpn, TlbEntryTrie::MaxBits - entry.logBytes, newEntry);
++    // SimSpect hook: TLB fill (line = virtual page)
++    if (SimSpect::enabled()) {
++        uint64_t sseq; Addr spc;
++        SimSpect::getTlbCtx(sseq, spc);
++        std::string sst = name().find("itb") != std::string::npos ? "ITLB"
++                                                                   : "DTLB";
++        SimSpect::emit(sst.c_str(), "fill", vpn, sseq, spc, SimSpect::NONE,
++                       SimSpect::NONE, SimSpect::NONE,
++                       SimSpect::takeFill(sst, vpn, sseq));
++    }
+     return newEntry;
+ }
+ 
+@@ -121,8 +146,18 @@
+ TLB::lookup(Addr va, bool update_lru)
+ {
+     TlbEntry *entry = trie.lookup(va);
+-    if (entry && update_lru)
++    if (entry && update_lru) {
+         entry->lruSeq = nextSeq();
++        // SimSpect hook: TLB replacement-state update on hit
++        if (SimSpect::enabled()) {
++            uint64_t sseq; Addr spc;
++            SimSpect::getTlbCtx(sseq, spc);
++            SimSpect::emit(name().find("itb") != std::string::npos ? "ITLB"
++                                                                   : "DTLB",
++                           "repl_touch", entry->vaddr, sseq, spc,
++                           SimSpect::NONE, SimSpect::NONE, SimSpect::NONE);
++        }
++    }
+     return entry;
+ }
+ 
+@@ -268,6 +303,12 @@
+ TLB::translate(RequestPtr req, ThreadContext *tc, Translation *translation,
+         Mode mode, bool &delayedResponse, bool timing)
+ {
++    // SimSpect hook: remember which instruction this translation is for
++    if (SimSpect::enabled()) {
++        SimSpect::setTlbCtx(
++            req->hasInstSeqNum() ? req->getReqInstSeqNum() : SimSpect::NONE,
++            req->hasPC() ? req->getPC() : SimSpect::NONE);
++    }
+     Request::Flags flags = req->getFlags();
+     int seg = flags & SegmentFlagMask;
+     bool storeCheck = flags & (StoreCheck << FlagShift);
+diff -ruN pristine/src/cpu/o3/lsq_unit_impl.hh hooked/src/cpu/o3/lsq_unit_impl.hh
+--- pristine/src/cpu/o3/lsq_unit_impl.hh	2025-02-05 21:05:10
++++ hooked/src/cpu/o3/lsq_unit_impl.hh	2026-10-28 15:37:55
+@@ -62,7 +62,26 @@
+ #include "mem/request.hh"
+ #include "sim/backtrace.hh"
+ #include "mem/ruby/common/Address.hh"
++#include "sim/simspect_hooks.hh"  // SimSpect hook
+ 
++// SimSpect hook: LSQ decided a squashed load gets no cache undo
++template <class InstPtr>
++inline void
++simspectCleanupSkip(const InstPtr &ld, bool split)
++{
++    if (!SimSpect::enabled())
++        return;
++    uint64_t sq = SimSpect::sqForInst(ld->seqNum);
++    SimSpect::emit("L1D", "cleanup_skip",
++                   SimSpect::lineOf(ld->physEffAddrLow), ld->seqNum,
++                   ld->instAddr(), SimSpect::NONE, SimSpect::NONE, sq);
++    if (split && SimSpect::lineOf(ld->physEffAddrHigh) !=
++                 SimSpect::lineOf(ld->physEffAddrLow))
++        SimSpect::emit("L1D", "cleanup_skip",
++                       SimSpect::lineOf(ld->physEffAddrHigh), ld->seqNum,
++                       ld->instAddr(), SimSpect::NONE, SimSpect::NONE, sq);
++}
++
+ #define SPEC_WINDOW 200
+ #define BUFFER_CYCLES 20
+ 
+@@ -2441,6 +2460,7 @@
+       if(loadQueue[load_idx]->isSplitReq()){
+         ++lsqSquashedLoadsSplitReq;
+         //TODO: Cleanup For SplitReq
++        simspectCleanupSkip(loadQueue[load_idx], true);  // SimSpect hook
+         loadQueue[load_idx]->setSquashBuffered(false); //Cleanup Done 
+         
+       } else {
+@@ -2485,6 +2505,7 @@
+             if(!loadQueue[load_idx]->isRetStatUpdated())
+               ++lsqSquashedLoadsExec_L1Hits;
+             //No Cleanup
++            simspectCleanupSkip(loadQueue[load_idx], false);  // SimSpect hook
+ 
+             //NoInfo
+           } else if( (!loadQueue[load_idx]->isL1HitCC()) && \
+@@ -2492,6 +2513,7 @@
+                      (!loadQueue[load_idx]->isL2MissCC()) ){
+             if(!loadQueue[load_idx]->isRetStatUpdated())
+               ++lsqSquashedLoadsExec_NoHitWhere;
++            simspectCleanupSkip(loadQueue[load_idx], false);  // SimSpect hook
+             //No Cleanup                            
+           }            
+           else { //L1-Miss
+@@ -2760,6 +2782,12 @@
+   
+   DPRINTF(LSQUnit, "Squashing till [sn:%lli]: Done squash_in_progress:%d, squashbuffer_used:%d\n",squashfrom_seqnum, squash_in_progress,squashbuffer_used);
+ 
++  // SimSpect hook: CleanupSpec finished all undo work for this squash
++  if (SimSpect::enabled())
++    SimSpect::emit("L1D", "cleanup_done", SimSpect::NONE, squashfrom_seqnum,
++                   SimSpect::NONE, SimSpect::NONE, SimSpect::NONE,
++                   SimSpect::sqForSquashSeq(squashfrom_seqnum));
++
+   //Load Queue Finally Cleared.
+   return true;
+ }
+@@ -2807,6 +2835,7 @@
+               updateStats = false;
+             }
+           } else { //No Cleanup needed
++            simspectCleanupSkip(loadQueue[load_idx], false);  // SimSpect hook
+             ++lsqSquashedLoadsExec_Tot;
+           }
+         }
+diff -ruN pristine/src/cpu/o3/rob_impl.hh hooked/src/cpu/o3/rob_impl.hh
+--- pristine/src/cpu/o3/rob_impl.hh	2025-02-05 21:05:10
++++ hooked/src/cpu/o3/rob_impl.hh	2026-10-28 15:37:55
+@@ -50,6 +50,7 @@
+ #include "debug/Fetch.hh"
+ #include "debug/ROB.hh"
+ #include "debug/Squashed.hh"
++#include "sim/simspect_hooks.hh"  // SimSpect hook
+ #include "params/DerivO3CPU.hh"
+ 
+ using namespace std;
+@@ -575,6 +576,17 @@
+ void
+ ROB<Impl>::squash(InstSeqNum squash_num, ThreadID tid)
+ {
++    // SimSpect hook: core squash (seq = squashing seqNum; younger squashed)
++    if (SimSpect::enabled()) {
++        Addr simspect_pc = SimSpect::NONE;
++        for (auto &inst : instList[tid]) {
++            if (inst->seqNum == squash_num) {
++                simspect_pc = inst->instAddr();
++                break;
++            }
++        }
++        SimSpect::noteSquash(squash_num, simspect_pc);
++    }
+     if (isEmpty(tid)) {
+         DPRINTF(ROB, "Does not need to squash due to being empty "
+                 "[sn:%i]\n",
+diff -ruN pristine/src/mem/ruby/slicc_interface/RubySlicc_includes.hh hooked/src/mem/ruby/slicc_interface/RubySlicc_includes.hh
+--- pristine/src/mem/ruby/slicc_interface/RubySlicc_includes.hh	2025-02-05 21:05:10
++++ hooked/src/mem/ruby/slicc_interface/RubySlicc_includes.hh	2026-10-28 15:37:55
+@@ -31,6 +31,7 @@
+ 
+ #include "mem/ruby/slicc_interface/RubySlicc_ComponentMapping.hh"
+ #include "mem/ruby/slicc_interface/RubySlicc_Util.hh"
++#include "mem/ruby/slicc_interface/SimSpectRubyHooks.hh"  // SimSpect hook
+ 
+ #endif // __MEM_RUBY_SLICC_INTERFACE_RUBYSLICC_INCLUDES_HH__
+ 
+diff -ruN pristine/src/mem/ruby/slicc_interface/SConscript hooked/src/mem/ruby/slicc_interface/SConscript
+--- pristine/src/mem/ruby/slicc_interface/SConscript	2025-02-05 21:05:10
++++ hooked/src/mem/ruby/slicc_interface/SConscript	2026-10-28 15:37:55
+@@ -39,3 +39,4 @@
+ Source('AbstractEntry.cc')
+ Source('AbstractCacheEntry.cc')
+ Source('RubyRequest.cc')
++Source('SimSpectRubyHooks.cc')  # SimSpect hook: print-only event trace
+diff -ruN pristine/src/mem/ruby/slicc_interface/SimSpectRubyHooks.cc hooked/src/mem/ruby/slicc_interface/SimSpectRubyHooks.cc
+--- pristine/src/mem/ruby/slicc_interface/SimSpectRubyHooks.cc	1969-12-31 16:00:00
++++ hooked/src/mem/ruby/slicc_interface/SimSpectRubyHooks.cc	2026-10-28 15:53:09
+@@ -0,0 +1,362 @@
++/*
++ * SimSpect hook: Ruby-side helpers for the print-only cache event trace.
++ * See SimSpectRubyHooks.hh. No simulated state is read for decisions or
++ * written; everything here only decides what to PRINT.
++ *
++ * Native event -> SimSpect kind (decided at the CacheMemory call, from the
++ * SLICC event of the enclosing transition):
++ *   CacheMemory::allocate   : *ROLLBACK* event -> cleanup_restore, else fill
++ *   CacheMemory::deallocate : *Replacement* event -> evict;
++ *                             Inv_CLEANUP / Cleanup_Invalidate(_clean)
++ *                               -> cleanup_inv; anything else -> inv
++ *   CacheMemory::setMRU     : repl_touch
++ *   TBETable alloc/free     : MSHR (L1) / L2MSHR / DIRTBE buf_fill/buf_release
++ * Transition-level (endTransition, no tag change in that transition):
++ *   coh  : line's last stable state -> new stable state, both "present"
++ *          (permission Read_Only/Read_Write/Maybe_Stale), no alloc/dealloc
++ *   CleanupSpec decisions (names never occur in other protocols):
++ *     Skip_ROLLBACK, Skip_Inflight_Cleanup            -> cleanup_skip
++ *     Load_ROLLBACK on a present line (no allocate)   -> cleanup_skip
++ *     Inv_CLEANUP on NP/I/M (stable, no deallocate)   -> cleanup_skip
++ *     Inflight_CLEANUP_reqs  NP -> cleanup_drop ; ->NP (from M_I/I) -> skip
++ *     Drop_Load_Cleanup_Inflight                      -> cleanup_drop
++ *     L2 SendAck_Cleanup_Invalidate in NP             -> cleanup_skip
++ */
++
++#include "mem/ruby/slicc_interface/SimSpectRubyHooks.hh"
++
++#include <map>
++#include <tuple>
++#include <vector>
++
++#include "mem/packet.hh"
++#include "mem/protocol/RubyRequestType.hh"
++#include "mem/request.hh"
++#include "mem/ruby/slicc_interface/RubyRequest.hh"
++#include "mem/ruby/structures/CacheMemory.hh"
++
++namespace SimSpect {
++
++MsgCtx g_msg;
++
++namespace {
++
++struct TransCtx
++{
++    std::string machine;
++    int version;
++    std::string event;
++    std::string state;
++    std::string statePerm;
++    Addr addr;
++    bool allocated;
++    bool deallocated;
++};
++
++std::vector<TransCtx> g_trans;
++std::map<const CacheMemory *, std::string> g_structName;
++typedef std::tuple<std::string, int, Addr> LineKey;
++std::map<LineKey, std::string> g_resident;      // which L1 holds the line
++std::map<LineKey, std::pair<std::string, bool> > g_lastStable;
++
++bool
++isPresentPerm(const std::string &p)
++{
++    return p == "Read_Only" || p == "Read_Write" || p == "Maybe_Stale";
++}
++
++bool
++contains(const std::string &s, const char *sub)
++{
++    return s.find(sub) != std::string::npos;
++}
++
++const std::string &
++structOf(const CacheMemory *cm)
++{
++    auto it = g_structName.find(cm);
++    if (it != g_structName.end())
++        return it->second;
++    std::string n = cm->name();
++    std::string s;
++    if (contains(n, "L1Dcache"))
++        s = "L1D";
++    else if (contains(n, "L1Icache"))
++        s = "L1I";
++    else if (contains(n, "L2cache"))
++        s = "L2";
++    else {
++        size_t dot = n.rfind('.');
++        s = (dot == std::string::npos) ? n : n.substr(dot + 1);
++    }
++    return g_structName[cm] = s;
++}
++
++void
++attr(uint64_t &seq, Addr &pc)
++{
++    seq = NONE;
++    pc = NONE;
++    if (!g_msg.valid)
++        return;
++    if (g_msg.isCpu) {
++        seq = g_msg.seq;
++        pc = g_msg.pc;
++    } else {
++        getLineAttr(g_msg.line, seq, pc);
++    }
++}
++
++TransCtx *
++cur()
++{
++    return g_trans.empty() ? nullptr : &g_trans.back();
++}
++
++LineKey
++keyFor(const TransCtx *t, Addr a)
++{
++    return LineKey(t ? t->machine : std::string("?"), t ? t->version : -1,
++                   lineOf(a));
++}
++
++std::string
++machineStruct(const TransCtx *t)
++{
++    if (t->machine == "L1Cache") {
++        auto it = g_resident.find(keyFor(t, t->addr));
++        if (it != g_resident.end())
++            return it->second;
++        return g_msg.valid && g_msg.isIfetch ? "L1I" : "L1D";
++    }
++    if (t->machine == "L2Cache")
++        return "L2";
++    if (t->machine == "Directory")
++        return "DIR";
++    return t->machine;
++}
++
++} // anonymous namespace
++
++void
++noteRubyRequest(const RubyRequest *m)
++{
++    MsgCtx c;
++    c.valid = true;
++    c.isCpu = true;
++    c.line = lineOf(m->m_LineAddress);
++    c.isIfetch = (m->m_Type == RubyRequestType_IFETCH);
++    c.pc = m->m_ProgramCounter ? m->m_ProgramCounter : NONE;
++    if (m->m_pkt && m->m_pkt->req && m->m_pkt->req->hasInstSeqNum())
++        c.seq = m->m_pkt->req->getReqInstSeqNum();
++    g_msg = c;
++}
++
++void
++noteMsgAddr(Addr a)
++{
++    MsgCtx c;
++    c.valid = true;
++    c.line = lineOf(a);
++    g_msg = c;
++}
++
++void
++beginTransition(const char *machine, int version, const std::string &event,
++                const std::string &state, const std::string &statePerm,
++                Addr addr)
++{
++    TransCtx t;
++    t.machine = machine;
++    t.version = version;
++    t.event = event;
++    t.state = state;
++    t.statePerm = statePerm;
++    t.addr = addr;
++    t.allocated = false;
++    t.deallocated = false;
++    g_trans.push_back(t);
++    LineKey k = keyFor(&t, addr);
++    if (statePerm != "Busy" && g_lastStable.find(k) == g_lastStable.end())
++        g_lastStable[k] = std::make_pair(state, isPresentPerm(statePerm));
++}
++
++void
++endTransition(bool valid, const std::string &nextState,
++              const std::string &nextPerm)
++{
++    if (g_trans.empty())
++        return;
++    TransCtx t = g_trans.back();
++    g_trans.pop_back();
++    if (!valid)
++        return;
++
++    uint64_t seq, pc;
++    attr(seq, pc);
++    Addr line = lineOf(t.addr);
++    const std::string &ev = t.event;
++    std::string st = machineStruct(&t);
++    const char *kind = nullptr;
++
++    // CleanupSpec cleanup decisions with no tag change in this transition.
++    if (ev == "Skip_ROLLBACK" || ev == "Skip_Inflight_Cleanup") {
++        kind = "cleanup_skip";
++    } else if (ev == "Load_ROLLBACK" && !t.allocated &&
++               isPresentPerm(t.statePerm)) {
++        kind = "cleanup_skip";
++    } else if (ev == "Inv_CLEANUP" && !t.deallocated &&
++               t.statePerm != "Busy") {
++        kind = "cleanup_skip";
++    } else if (ev == "Inflight_CLEANUP_reqs") {
++        if (t.state == "NP")
++            kind = "cleanup_drop";
++        else if (nextState == "NP")
++            kind = "cleanup_skip";
++    } else if (ev == "Drop_Load_Cleanup_Inflight") {
++        kind = "cleanup_drop";
++    } else if (ev == "SendAck_Cleanup_Invalidate" && t.state == "NP") {
++        kind = "cleanup_skip";
++    }
++    if (kind)
++        emit(st.c_str(), kind, line, seq, pc, NONE, NONE, sqForInst(seq));
++
++    // coh: stable->stable state change of a present line, no tag change.
++    if (nextPerm != "Busy") {
++        LineKey k = keyFor(&t, t.addr);
++        bool nowPresent = isPresentPerm(nextPerm);
++        auto it = g_lastStable.find(k);
++        if (it != g_lastStable.end() && it->second.first != nextState &&
++            it->second.second && nowPresent && !t.allocated &&
++            !t.deallocated) {
++            emit(st.c_str(), "coh", line, seq, pc, NONE, NONE, NONE);
++        }
++        g_lastStable[k] = std::make_pair(nextState, nowPresent);
++    }
++}
++
++void
++onCacheAllocate(const CacheMemory *cm, Addr a)
++{
++    if (!enabled())
++        return;
++    TransCtx *t = cur();
++    const std::string &st = structOf(cm);
++    uint64_t seq, pc;
++    attr(seq, pc);
++    Addr line = lineOf(a);
++    if (t && contains(t->event, "ROLLBACK")) {
++        emit(st.c_str(), "cleanup_restore", line, seq, pc, NONE, NONE,
++             sqForInst(seq));
++    } else {
++        uint64_t id = takeFill(st, line, seq);
++        emit(st.c_str(), "fill", line, seq, pc, NONE, NONE, NONE, id);
++    }
++    if (t) {
++        t->allocated = true;
++        g_resident[keyFor(t, line)] = st;
++    }
++}
++
++void
++onCacheDeallocate(const CacheMemory *cm, Addr a)
++{
++    if (!enabled())
++        return;
++    TransCtx *t = cur();
++    const std::string &st = structOf(cm);
++    uint64_t seq, pc;
++    attr(seq, pc);
++    Addr line = lineOf(a);
++    std::string ev = t ? t->event : std::string();
++    if (contains(ev, "Replacement")) {
++        Addr incoming = (g_msg.valid && g_msg.line != line) ? g_msg.line
++                                                             : line;
++        uint64_t cause = (incoming != line) ? reserveFill(st, incoming, seq)
++                                            : NONE;
++        emit(st.c_str(), "evict", incoming, seq, pc, line, cause, NONE);
++        if (seq != NONE)
++            setLineAttr(line, seq, pc);
++    } else if (ev == "Inv_CLEANUP" || ev == "Cleanup_Invalidate" ||
++               ev == "Cleanup_Invalidate_clean") {
++        emit(st.c_str(), "cleanup_inv", line, seq, pc, NONE, NONE,
++             sqForInst(seq));
++    } else {
++        emit(st.c_str(), "inv", line, seq, pc, NONE, NONE, NONE);
++    }
++    if (t) {
++        t->deallocated = true;
++        g_resident.erase(keyFor(t, line));
++    }
++}
++
++void
++onCacheTouch(const CacheMemory *cm, Addr a)
++{
++    if (!enabled())
++        return;
++    uint64_t seq, pc;
++    attr(seq, pc);
++    emit(structOf(cm).c_str(), "repl_touch", lineOf(a), seq, pc, NONE, NONE,
++         NONE);
++}
++
++namespace {
++
++const char *
++tbeStruct(const TransCtx *t)
++{
++    if (!t) return "TBE";
++    if (t->machine == "L1Cache") return "MSHR";
++    if (t->machine == "L2Cache") return "L2MSHR";
++    if (t->machine == "Directory") return "DIRTBE";
++    return "TBE";
++}
++
++// live TBE entries: (machine, version, line) -> (seq, pc) from allocation
++std::map<LineKey, std::pair<uint64_t, Addr> > g_tbe;
++
++} // anonymous namespace
++
++void
++onTBEAllocate(Addr a)
++{
++    if (!enabled())
++        return;
++    Addr line = lineOf(a);
++    if (g_msg.valid) {
++        if (g_msg.isCpu) {
++            setLineAttr(line, g_msg.seq, g_msg.pc);
++        } else if (g_msg.line != line) {
++            uint64_t seq, pc;
++            if (getLineAttr(g_msg.line, seq, pc))
++                setLineAttr(line, seq, pc);
++        }
++    }
++    TransCtx *t = cur();
++    uint64_t seq, pc;
++    attr(seq, pc);
++    if (seq == NONE)
++        getLineAttr(line, seq, pc);
++    g_tbe[keyFor(t, line)] = std::make_pair(seq, pc);
++    emit(tbeStruct(t), "buf_fill", line, seq, pc, NONE, NONE, NONE);
++}
++
++void
++onTBEDeallocate(Addr a)
++{
++    if (!enabled())
++        return;
++    TransCtx *t = cur();
++    Addr line = lineOf(a);
++    uint64_t seq = NONE, pc = NONE;
++    auto it = g_tbe.find(keyFor(t, line));
++    if (it != g_tbe.end()) {
++        seq = it->second.first;
++        pc = it->second.second;
++        g_tbe.erase(it);
++    }
++    emit(tbeStruct(t), "buf_release", line, seq, pc, NONE, NONE, NONE);
++}
++
++} // namespace SimSpect
+diff -ruN pristine/src/mem/ruby/slicc_interface/SimSpectRubyHooks.hh hooked/src/mem/ruby/slicc_interface/SimSpectRubyHooks.hh
+--- pristine/src/mem/ruby/slicc_interface/SimSpectRubyHooks.hh	1969-12-31 16:00:00
++++ hooked/src/mem/ruby/slicc_interface/SimSpectRubyHooks.hh	2026-10-28 15:53:09
+@@ -0,0 +1,87 @@
++/*
++ * SimSpect hook: Ruby-side helpers for the print-only cache event trace.
++ *
++ * Called from (a) SLICC-generated code (PeekStatementAST: noteMsg on every
++ * peeked in_msg; StateMachine doTransition: begin/endTransition around every
++ * transition), (b) CacheMemory allocate/deallocate/setMRU, (c) TBETable
++ * allocate. Everything is print-side bookkeeping, gated on O3PipeView.
++ * See wiki/design/SIMSPECT_HOOKS.md in the SimSpect repo.
++ */
++
++#ifndef __MEM_RUBY_SLICC_INTERFACE_SIMSPECTRUBYHOOKS_HH__
++#define __MEM_RUBY_SLICC_INTERFACE_SIMSPECTRUBYHOOKS_HH__
++
++#include <string>
++
++#include "base/types.hh"
++#include "sim/simspect_hooks.hh"
++
++class RubyRequest;
++class CacheMemory;
++
++namespace SimSpect {
++
++/** The message the current controller is processing (set at each peek). */
++struct MsgCtx
++{
++    bool valid;
++    Addr line;
++    bool isCpu;     // a RubyRequest from the Sequencer (exact seq/pc)
++    bool isIfetch;
++    uint64_t seq;
++    Addr pc;
++    MsgCtx() : valid(false), line(0), isCpu(false), isIfetch(false),
++               seq(NONE), pc(NONE) {}
++};
++extern MsgCtx g_msg;
++
++void noteRubyRequest(const RubyRequest *m);
++void noteMsgAddr(Addr a);
++
++template <class T>
++auto noteMsgImpl(const T *m, int) -> decltype((void)m->m_addr, void())
++{
++    noteMsgAddr(m->m_addr);
++}
++
++template <class T>
++void noteMsgImpl(const T *, long)
++{
++    g_msg = MsgCtx();
++}
++
++/** SimSpect hook: generic peeked message (protocol msgs carry m_addr). */
++template <class T>
++inline void noteMsg(const T *m)
++{
++    if (enabled())
++        noteMsgImpl(m, 0);
++}
++
++/** SimSpect hook: a Sequencer RubyRequest (carries the inst seqNum). */
++inline void noteMsg(const RubyRequest *m)
++{
++    if (enabled())
++        noteRubyRequest(m);
++}
++
++/** SimSpect hook: wraps every SLICC transition (doTransition). */
++void beginTransition(const char *machine, int version,
++                     const std::string &event, const std::string &state,
++                     const std::string &statePerm, Addr addr);
++void endTransition(bool valid, const std::string &nextState,
++                   const std::string &nextPerm);
++
++/** SimSpect hook: CacheMemory tag changes / replacement-state updates. */
++void onCacheAllocate(const CacheMemory *cm, Addr a);
++void onCacheDeallocate(const CacheMemory *cm, Addr a);
++void onCacheTouch(const CacheMemory *cm, Addr a);
++
++/** SimSpect hook: TBE (Ruby MSHR) alloc/free -> MSHR/L2MSHR/DIRTBE
++ *  buf_fill/buf_release; allocation also records per-line attribution. */
++void onTBEAllocate(Addr a);
++void onTBEDeallocate(Addr a);
++
++} // namespace SimSpect
++
++#endif // __MEM_RUBY_SLICC_INTERFACE_SIMSPECTRUBYHOOKS_HH__
+diff -ruN pristine/src/mem/ruby/structures/CacheMemory.cc hooked/src/mem/ruby/structures/CacheMemory.cc
+--- pristine/src/mem/ruby/structures/CacheMemory.cc	2025-02-05 21:05:10
++++ hooked/src/mem/ruby/structures/CacheMemory.cc	2026-10-28 15:37:55
+@@ -37,6 +37,7 @@
+ #include "mem/protocol/AccessPermission.hh"
+ #include "mem/ruby/system/RubySystem.hh"
+ #include "mem/ruby/system/WeightedLRUPolicy.hh"
++#include "mem/ruby/slicc_interface/SimSpectRubyHooks.hh"  // SimSpect hook
+ #include "sim/backtrace.hh"
+ 
+ using namespace std;
+@@ -414,6 +415,8 @@
+           m_replacementPolicy_ptr->touch(cacheSet, i, curTick());
+         }
+ 
++        // SimSpect hook: line allocated (fill / cleanup_restore)
++        SimSpect::onCacheAllocate(this, address);
+         return entry;
+       }
+     }    
+@@ -429,6 +432,8 @@
+     int64_t cacheSet = addressToCacheSet(address);
+     int loc = findTagInSet(cacheSet, address);
+     if (loc != -1) {
++        // SimSpect hook: line removed (evict / inv / cleanup_inv)
++        SimSpect::onCacheDeallocate(this, address);
+         delete m_cache[cacheSet][loc];
+         m_cache[cacheSet][loc] = NULL;
+         m_tag_index.erase(address);
+@@ -540,8 +545,10 @@
+     int64_t cacheSet = addressToCacheSet(address);
+     int loc = findTagInSet(cacheSet, address);
+ 
+-    if (loc != -1)
++    if (loc != -1) {
+         m_replacementPolicy_ptr->touch(cacheSet, loc, curTick());
++        SimSpect::onCacheTouch(this, address);  // SimSpect hook: repl_touch
++    }
+ }
+ 
+ void
+@@ -550,6 +557,7 @@
+     uint32_t cacheSet = e->getSetIndex();
+     uint32_t loc = e->getWayIndex();
+     m_replacementPolicy_ptr->touch(cacheSet, loc, curTick());
++    SimSpect::onCacheTouch(this, e->m_Address);  // SimSpect hook: repl_touch
+ }
+ 
+ void
+@@ -559,6 +567,7 @@
+     int loc = findTagInSet(cacheSet, address);
+ 
+     if (loc != -1) {
++        SimSpect::onCacheTouch(this, address);  // SimSpect hook: repl_touch
+         if (m_replacementPolicy_ptr->useOccupancy()) {
+             (static_cast<WeightedLRUPolicy*>(m_replacementPolicy_ptr))->
+                 touch(cacheSet, loc, curTick(), occupancy);
+diff -ruN pristine/src/mem/ruby/structures/TBETable.hh hooked/src/mem/ruby/structures/TBETable.hh
+--- pristine/src/mem/ruby/structures/TBETable.hh	2025-02-05 21:05:10
++++ hooked/src/mem/ruby/structures/TBETable.hh	2026-10-28 15:53:09
+@@ -33,6 +33,7 @@
+ #include <unordered_map>
+ 
+ #include "mem/ruby/common/Address.hh"
++#include "mem/ruby/slicc_interface/SimSpectRubyHooks.hh"  // SimSpect hook
+ 
+ template<class ENTRY>
+ class TBETable
+@@ -94,12 +95,14 @@
+     assert(!isPresent(address));
+     assert(m_map.size() < m_number_of_TBEs);
+     m_map[address] = ENTRY();
++    SimSpect::onTBEAllocate(address);  // SimSpect hook: MSHR/TBE alloc + attribution
+ }
+ 
+ template<class ENTRY>
+ inline void
+ TBETable<ENTRY>::deallocate(Addr address)
+ {
++    SimSpect::onTBEDeallocate(address);  // SimSpect hook: MSHR/TBE freed
+     assert(isPresent(address));
+     assert(m_map.size() > 0);
+     m_map.erase(address);
+diff -ruN pristine/src/mem/slicc/ast/PeekStatementAST.py hooked/src/mem/slicc/ast/PeekStatementAST.py
+--- pristine/src/mem/slicc/ast/PeekStatementAST.py	2025-02-05 21:05:10
++++ hooked/src/mem/slicc/ast/PeekStatementAST.py	2026-10-28 15:37:55
+@@ -69,6 +69,8 @@
+         // different inport or punt.
+         throw RejectException();
+     }
++    // SimSpect hook: note the message being processed (print-only attribution)
++    SimSpect::noteMsg(in_msg_ptr);
+ ''')
+ 
+         if self.pairs.has_key("block_on"):
+diff -ruN pristine/src/mem/slicc/symbols/StateMachine.py hooked/src/mem/slicc/symbols/StateMachine.py
+--- pristine/src/mem/slicc/symbols/StateMachine.py	2025-02-05 21:05:10
++++ hooked/src/mem/slicc/symbols/StateMachine.py	2026-10-28 15:37:55
+@@ -1177,6 +1177,7 @@
+ #include "mem/protocol/${ident}_State.hh"
+ #include "mem/protocol/Types.hh"
+ #include "mem/ruby/system/RubySystem.hh"
++#include "mem/ruby/slicc_interface/SimSpectRubyHooks.hh"  // SimSpect hook
+ 
+ #define HASH_FUN(state, event)  ((int(state)*${ident}_Event_NUM)+int(event))
+ 
+@@ -1216,6 +1217,14 @@
+         *this, curCycle(), ${ident}_State_to_string(state),
+         ${ident}_Event_to_string(event), addr);
+ 
++// SimSpect hook: bracket the transition so cache-tag hooks know the event
++const bool simspect_on = SimSpect::enabled();
++if (simspect_on) {
++    SimSpect::beginTransition("${ident}", m_version,
++        ${ident}_Event_to_string(event), ${ident}_State_to_string(state),
++        AccessPermission_to_string(${ident}_State_to_permission(state)), addr);
++}
++
+ TransitionResult result =
+ ''')
+         if self.TBEType != None and self.EntryType != None:
+@@ -1274,6 +1283,12 @@
+              ${ident}_State_to_string(state),
+              ${ident}_State_to_string(next_state),
+              printAddress(addr), "Protocol Stall");
++}
++// SimSpect hook: close the transition bracket (print-only)
++if (simspect_on) {
++    SimSpect::endTransition(result == TransitionResult_Valid,
++        ${ident}_State_to_string(next_state),
++        AccessPermission_to_string(${ident}_State_to_permission(next_state)));
+ }
+ 
+ return result;
+diff -ruN pristine/src/sim/SConscript hooked/src/sim/SConscript
+--- pristine/src/sim/SConscript	2025-02-05 21:05:10
++++ hooked/src/sim/SConscript	2026-10-28 15:37:55
+@@ -43,6 +43,7 @@
+ Source('async.cc')
+ Source('backtrace_%s.cc' % env['BACKTRACE_IMPL'])
+ Source('core.cc')
++Source('simspect_hooks.cc')  # SimSpect hook: print-only event trace
+ Source('tags.cc')
+ Source('cxx_config.cc')
+ Source('cxx_manager.cc')
+diff -ruN pristine/src/sim/simspect_hooks.cc hooked/src/sim/simspect_hooks.cc
+--- pristine/src/sim/simspect_hooks.cc	1969-12-31 16:00:00
++++ hooked/src/sim/simspect_hooks.cc	2026-10-28 15:37:55
+@@ -0,0 +1,166 @@
++/*
++ * SimSpect hook: print-only cache/defense event trace (core emitter).
++ * See simspect_hooks.hh. Print-side bookkeeping only; no simulated state.
++ */
++
++#include "sim/simspect_hooks.hh"
++
++#include <map>
++#include <utility>
++#include <vector>
++
++#include "base/cprintf.hh"
++#include "base/trace.hh"
++#include "debug/O3PipeView.hh"
++#include "sim/core.hh"
++
++namespace SimSpect {
++
++namespace {
++
++uint64_t g_nextId = 1;
++uint64_t g_nextSq = 1;
++// (squashing seqNum, squash id), in time order
++std::vector<std::pair<uint64_t, uint64_t> > g_squashes;
++std::map<Addr, std::pair<uint64_t, Addr> > g_lineAttr;
++// (struct, line) -> (reserved fill id, seq of the causing access)
++std::map<std::pair<std::string, Addr>, std::pair<uint64_t, uint64_t> >
++    g_pendingFill;
++uint64_t g_tlbSeq = NONE;
++Addr g_tlbPc = NONE;
++
++std::string
++hexOrDash(uint64_t v)
++{
++    if (v == NONE)
++        return "-";
++    return csprintf("0x%x", v);
++}
++
++std::string
++decOrDash(uint64_t v)
++{
++    if (v == NONE)
++        return "-";
++    return csprintf("%d", v);
++}
++
++} // anonymous namespace
++
++bool
++enabled()
++{
++    return DTRACE(O3PipeView);
++}
++
++uint64_t
++newId()
++{
++    return g_nextId++;
++}
++
++uint64_t
++emit(const char *st, const char *kind, Addr line, uint64_t seq, Addr pc,
++     Addr victim, uint64_t cause, uint64_t sq, uint64_t id)
++{
++    if (id == NONE)
++        id = newId();
++    DPRINTFR(O3PipeView,
++             "O3PipeView:simspect:%llu:%s:%s:line=%s:seq=%s:pc=%s:"
++             "victim=%s:cause=%s:sq=%s:id=%llu\n",
++             (unsigned long long)curTick(), st, kind,
++             hexOrDash(line), decOrDash(seq), hexOrDash(pc),
++             hexOrDash(victim), decOrDash(cause), decOrDash(sq),
++             (unsigned long long)id);
++    return id;
++}
++
++uint64_t
++noteSquash(uint64_t squashSeq, Addr pc)
++{
++    uint64_t sq = g_nextSq++;
++    g_squashes.push_back(std::make_pair(squashSeq, sq));
++    emit("ROB", "squash", NONE, squashSeq, pc, NONE, NONE, sq);
++    return sq;
++}
++
++uint64_t
++sqForInst(uint64_t seq)
++{
++    if (seq == NONE)
++        return NONE;
++    for (auto it = g_squashes.rbegin(); it != g_squashes.rend(); ++it)
++        if (it->first < seq)
++            return it->second;
++    return NONE;
++}
++
++uint64_t
++sqForSquashSeq(uint64_t squashSeq)
++{
++    for (auto it = g_squashes.rbegin(); it != g_squashes.rend(); ++it)
++        if (it->first == squashSeq)
++            return it->second;
++    return g_squashes.empty() ? NONE : g_squashes.back().second;
++}
++
++void
++setLineAttr(Addr line, uint64_t seq, Addr pc)
++{
++    g_lineAttr[lineOf(line)] = std::make_pair(seq, pc);
++}
++
++bool
++getLineAttr(Addr line, uint64_t &seq, Addr &pc)
++{
++    auto it = g_lineAttr.find(lineOf(line));
++    if (it == g_lineAttr.end()) {
++        seq = NONE;
++        pc = NONE;
++        return false;
++    }
++    seq = it->second.first;
++    pc = it->second.second;
++    return true;
++}
++
++uint64_t
++reserveFill(const std::string &st, Addr line, uint64_t seq)
++{
++    auto key = std::make_pair(st, lineOf(line));
++    auto it = g_pendingFill.find(key);
++    if (it != g_pendingFill.end() && it->second.second == seq)
++        return it->second.first;
++    uint64_t id = newId();
++    g_pendingFill[key] = std::make_pair(id, seq);
++    return id;
++}
++
++uint64_t
++takeFill(const std::string &st, Addr line, uint64_t seq)
++{
++    auto key = std::make_pair(st, lineOf(line));
++    auto it = g_pendingFill.find(key);
++    if (it == g_pendingFill.end())
++        return newId();
++    uint64_t id = it->second.first;
++    bool match = (it->second.second == seq);
++    g_pendingFill.erase(it);
++    return match ? id : newId();
++}
++
++void
++setTlbCtx(uint64_t seq, Addr pc)
++{
++    g_tlbSeq = seq;
++    g_tlbPc = pc;
++}
++
++void
++getTlbCtx(uint64_t &seq, Addr &pc)
++{
++    seq = g_tlbSeq;
++    pc = g_tlbPc;
++}
++
++} // namespace SimSpect
+diff -ruN pristine/src/sim/simspect_hooks.hh hooked/src/sim/simspect_hooks.hh
+--- pristine/src/sim/simspect_hooks.hh	1969-12-31 16:00:00
++++ hooked/src/sim/simspect_hooks.hh	2026-10-28 15:37:55
+@@ -0,0 +1,61 @@
++/*
++ * SimSpect hook: print-only cache/defense event trace.
++ *
++ * Every event is printed under the existing O3PipeView debug flag as
++ *   O3PipeView:simspect:<tick>:<struct>:<kind>:line=0x<line>:seq=<sn|->:
++ *     pc=0x<pc|->:victim=0x<line|->:cause=<id|->:sq=<id|->:id=<id>
++ * (one physical line). Nothing here changes simulated behavior or timing:
++ * the only state kept is print-side bookkeeping (event ids, squash ids,
++ * per-line attribution), all consulted only when O3PipeView is enabled.
++ * Documented in the SimSpect repo: wiki/design/SIMSPECT_HOOKS.md.
++ */
++
++#ifndef __SIM_SIMSPECT_HOOKS_HH__
++#define __SIM_SIMSPECT_HOOKS_HH__
++
++#include <cstdint>
++#include <string>
++
++#include "base/types.hh"
++
++namespace SimSpect {
++
++static const uint64_t NONE = ~0ULL;
++
++/** SimSpect hook: true iff O3PipeView tracing is on (all hooks gate on it). */
++bool enabled();
++
++/** Physical line address (64B lines in every SimSpect build). */
++inline Addr lineOf(Addr a) { return a & ~Addr(63); }
++
++/** Fresh unique event id. */
++uint64_t newId();
++
++/** Print one event line; returns its id. NONE fields print as '-'. */
++uint64_t emit(const char *st, const char *kind, Addr line, uint64_t seq,
++              Addr pc, Addr victim, uint64_t cause, uint64_t sq,
++              uint64_t id = NONE);
++
++/** Core squash: emits ROB:squash and returns the new squash id. */
++uint64_t noteSquash(uint64_t squashSeq, Addr pc);
++/** Latest squash whose squashing seqNum < seq (the squash covering seq). */
++uint64_t sqForInst(uint64_t seq);
++/** Latest squash whose squashing seqNum == squashSeq (else latest). */
++uint64_t sqForSquashSeq(uint64_t squashSeq);
++
++/** Per-line attribution: most recent instruction that caused activity. */
++void setLineAttr(Addr line, uint64_t seq, Addr pc);
++bool getLineAttr(Addr line, uint64_t &seq, Addr &pc);
++
++/** Evict->fill link: reserve the id the incoming fill of `line` in `st`
++ *  will carry (cause= on the evict), and consume it at the fill. */
++uint64_t reserveFill(const std::string &st, Addr line, uint64_t seq);
++uint64_t takeFill(const std::string &st, Addr line, uint64_t seq);
++
++/** TLB attribution context (set by TLB::translate before lookup/insert). */
++void setTlbCtx(uint64_t seq, Addr pc);
++void getTlbCtx(uint64_t &seq, Addr &pc);
++
++} // namespace SimSpect
++
++#endif // __SIM_SIMSPECT_HOOKS_HH__

@@ -1,0 +1,29 @@
+% Every speculation-primitive instance, one row each, grouped by resolve delay.
+% Requires: booktabs, xcolor (both loaded by bare_conf_compsoc.tex). Preview: _standalone_sptable_v2.tex
+% Rows marked "not yet generated" have no generator in simspect parsexml.py (2026-10-28);
+% see simspect wiki/design/SPEC_PRIMITIVE_INSTANCES.md.
+\begin{table*}[t]
+  \centering
+  \small
+  \renewcommand{\arraystretch}{1.15}
+  \begin{tabular}{@{}c l l l l l@{}}
+    \toprule
+    & \textbf{Primitive} & \textbf{Predicted} & \textbf{Actual} & \textbf{Concretized program} & \textbf{Resolve delay} \\
+    \midrule
+    (a) & Resolved branch   & taken     & taken     & jump past inserted noops           & swept $d_i$, \\ % not yet generated
+    (b) & Resolved branch   & not taken & not taken & fall through, target = end block   & resolves before $t_o$ \\
+    \midrule
+    (c) & Unresolved branch & taken     & \textcolor{red}{not taken} & jump past inserted noops & fixed long stall $D$, \\
+    (d) & Unresolved branch & not taken & \textcolor{red}{taken}     & fall through, target = end block & resolves after $t_o$ \\
+    (e) & Unresolved branch & taken     & taken     & jump past inserted noops           & \\ % not yet generated
+    (f) & Unresolved branch & not taken & not taken & fall through, target = end block   & \\ % not yet generated
+    \midrule
+    (g) & Transmitter branch & not taken & \textcolor{red}{taken} & fall through, target = end block & none ($d = 0$) \\
+    \midrule
+    (h) & Load after unresolved store & no alias & \textcolor{red}{aliases} & load and store at the same address & --- \\ % false-negative alias prediction; stl_bypass mode
+    (i) & Unresolved store  & ---       & ---       & store address generation held      & fixed long stall $D$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Every speculation-primitive instance we concretize. \textcolor{red}{Red} marks a misprediction. Branch predictions come from the BTB, overridden where its default would differ; in (h) the memory-dependence predictor is forced to predict no alias while the store's address is held unresolved, so the load bypasses the store until the memory-order squash. The resolve delay is the time between a primitive learning its outcome and broadcasting ``resolved''; $t_o$ is the observation time (Fig.~\ref{fig:resolutiontiming}).}
+  \label{tab:sptable}
+\end{table*}

@@ -1,10 +1,11 @@
 {
   "_doc": "Registry of every instrumentation hook SimSpect has ever built into a gem5 build, plus the observation-layer parsers and the config->env bridge. REALIZATION hooks are gem5 *source* changes that manufacture the speculative scenario (the only gem5-source edits we allow — per CLAUDE.md, never touch the defense logic). OBSERVATION hooks are checker-side parsers of gem5's existing debug trace (no source change). Source: wiki/design/METHODS_INSTRUMENTATION.md (the 9 source sites + the parser table) + gem5-hooks/README.md. Viewed in the dashboard Utilities > gem5 hooks (purposes) tab.",
-  "_last_reviewed": "2026-10-21",
+  "_last_reviewed": "2026-10-28",
   "categories": {
     "realization": "gem5 SOURCE hook — manufactures the speculative window / forces the scenario. The porting checklist for a new build.",
     "observation": "checker-side parser of gem5's existing debug output — no source change (always allowed).",
-    "bridge": "the config -> env -> checker plumbing that makes a run reproducible by hand."
+    "bridge": "the config -> env -> checker plumbing that makes a run reproducible by hand.",
+    "observation-source": "gem5 SOURCE hook that only PRINTS (no defense/timing change): adds trace events gem5 did not print. Allowed under CLAUDE.md (hooks only, never defense logic)."
   },
   "hooks": [
     {
@@ -53,6 +54,33 @@
       "timing": false
     },
     {
+      "id": "stl_store_addr_hold",
+      "name": "STL store address-generation hold",
+      "category": "realization",
+      "site": "o3/BaseO3CPU.py (stlStallStorePCs, stlStoreStallCycles); o3/iew.{hh,cc} (executeInsts store path: rescheduleMemInst + release event)",
+      "purpose": "Hold an annotated store's address generation for N cycles (--stl-ann-file + --stl-store-stall-cycles) so a younger aliasing load issues first and bypasses it (its SQ entry has size 0). When it executes, checkViolations squashes from the load: the window end.",
+      "builds": "none built yet (written 2026-10-28; gem5-hooks/stl/apply_stl_hooks.py, reference diff vs gem5 v22.0.0.2)",
+      "timing": true
+    },
+    {
+      "id": "stl_alias_pred",
+      "name": "STL memory-dependence prediction override",
+      "category": "realization",
+      "site": "o3/BaseO3CPU.py (stlAliasLoadPCs, stlAliasStorePCs, stlAliasPred); o3/mem_dep_unit.{hh,cc} (insert: no-alias zeroes the store-set dep; alias primes the store set before insertStore)",
+      "purpose": "--stl-alias-pred: no_alias = false-negative prediction for the annotated bypass loads (the primitive); alias = false-positive control (the load waits, no window should open); off = unmodified store sets. Replaces the unwired gem5-recon-modded store_set_annot, which primed at the load's checkInst (too late for the first dynamic instance).",
+      "builds": "none built yet (same patch as stl_store_addr_hold)",
+      "timing": true
+    },
+    {
+      "id": "stl_events",
+      "name": "STL trace events",
+      "category": "observation-source",
+      "site": "o3/iew.cc, o3/mem_dep_unit.cc (DPRINTFR under O3PipeView)",
+      "purpose": "Print-only O3PipeView:simspect:<tick>:STL:{stl_hold,stl_release,pred_no_alias,pred_alias,mem_order_squash} lines (SIMSPECT_HOOKS.md format) so the STL window is read from the pipeview trace alone.",
+      "builds": "none built yet (same patch)",
+      "timing": false
+    },
+    {
       "id": "pcstate_hooks",
       "name": "pcstate instrumentation (recon-modded)",
       "category": "realization",
@@ -98,6 +126,82 @@
       "timing": false
     },
     {
+      "id": "simspect_cache_events",
+      "name": "SimSpect cache/defense event trace (O3PipeView:simspect lines)",
+      "category": "observation-source",
+      "doc": "wiki/design/SIMSPECT_HOOKS.md",
+      "line_format": "O3PipeView:simspect:<tick>:<struct>:<kind>:line=0x<line>:seq=<sn|->:pc=0x<pc|->:victim=0x<line|->:cause=<id|->:sq=<id|->:id=<id>",
+      "debug_flag": "O3PipeView (no other flag needed)",
+      "kinds": [
+        "fill",
+        "evict",
+        "inv",
+        "coh",
+        "repl_touch",
+        "buf_fill",
+        "buf_release",
+        "expose",
+        "validate",
+        "cleanup_inv",
+        "cleanup_restore",
+        "cleanup_skip",
+        "cleanup_drop",
+        "cleanup_done",
+        "squash"
+      ],
+      "site": "Ruby: SLICC peek+doTransition codegen, CacheMemory, TBETable, x86 TLB, ROB::squash (+ InvisiSpec Sequencer/AbstractController/LSQ, CleanupSpec LSQ); classic (SpecLFB): BaseCache allocateBlock/handleEvictions/invalidateBlock/refillBlocks, BaseSetAssoc::accessBlock, ROB::squash. Per-build detail in 'sites'.",
+      "sites": {
+        "amulet-InvisiSpec": "src/sim/simspect_hooks.{hh,cc}; src/mem/ruby/slicc_interface/SimSpectRubyHooks.{hh,cc}; mem/slicc/ast/PeekStatementAST.py (noteMsg per peek); mem/slicc/symbols/StateMachine.py (begin/endTransition around doTransition); mem/ruby/structures/CacheMemory.cc (allocate/deallocate/setMRU); mem/ruby/structures/TBETable.hh (MSHR/L2MSHR/DIRTBE alloc/free + attribution); arch/x86/tlb.cc (DTLB/ITLB); cpu/o3/rob_impl.hh (squash); mem/ruby/system/Sequencer.cc (SB buf_fill/buf_release, expose/validate); mem/ruby/slicc_interface/AbstractController.cc (LLCSB); cpu/o3/lsq_unit_impl.hh (SB release on squash)",
+        "amulet-CleanupSpec": "same shared Ruby sites as InvisiSpec (no Sequencer/AbstractController edits) + cpu/o3/lsq_unit_impl.hh (cleanup_skip for split/L1-hit/no-info loads, cleanup_done in clearLoadQueue)",
+        "amulet-SpecLFB": "src/sim/simspect_hooks.{hh,cc}; mem/cache/base.cc (allocateBlock fill, handleEvictions evict, invalidateBlock inv, refillBlocks LFB buf_fill/buf_release); mem/cache/tags/base_set_assoc.hh (repl_touch); cpu/o3/rob.cc (squash); mem/cache/mshr_queue.cc (MSHR buf_fill/buf_release)"
+      },
+      "structures": {
+        "amulet-InvisiSpec": [
+          "L1D",
+          "L1I",
+          "L2",
+          "DIR",
+          "DTLB",
+          "ITLB",
+          "SB",
+          "LLCSB",
+          "ROB",
+          "MSHR",
+          "L2MSHR",
+          "DIRTBE"
+        ],
+        "amulet-CleanupSpec": [
+          "L1D",
+          "L1I",
+          "L2",
+          "DIR",
+          "DTLB",
+          "ITLB",
+          "ROB",
+          "MSHR",
+          "L2MSHR",
+          "DIRTBE"
+        ],
+        "amulet-SpecLFB": [
+          "L1D",
+          "L1I",
+          "L2 (with --l2cache)",
+          "LFB",
+          "ROB",
+          "MSHR",
+          "L1IMSHR",
+          "L2MSHR"
+        ]
+      },
+      "event_mapping": "Ruby: CacheMemory::allocate -> fill (cleanup_restore under a *ROLLBACK* SLICC event); deallocate -> evict (event contains 'Replacement') | cleanup_inv (Inv_CLEANUP, Cleanup_Invalidate[_clean]) | inv (else); setMRU -> repl_touch; doTransition stable->stable present state change with no tag change -> coh. CleanupSpec decision events (Skip_ROLLBACK, Load_ROLLBACK on present line, Inv_CLEANUP on NP/I/M, Inflight_CLEANUP_reqs, Drop_Load_Cleanup_Inflight, L2 SendAck_Cleanup_Invalidate in NP, LSQ split/L1-hit skips, clearLoadQueue) -> cleanup_skip/cleanup_drop/cleanup_done; full table in the doc. Classic: allocateBlock -> fill, handleEvictions victims -> evict, invalidateBlock (not in a replacement) -> inv, accessBlock LRU touch -> repl_touch, refillBlocks push/refill -> LFB buf_fill/buf_release. TBE alloc/free (Ruby) and MSHRQueue allocate/deallocate (classic) -> MSHR/L1IMSHR/L2MSHR/DIRTBE buf_fill/buf_release. Every structure present is exported; criterion JSONs filter. Prefetch fills (no prefetcher configured) would print as fill with seq=-.",
+      "attribution": "seq from the request (the Ruby builds' O3 creates every data Request with the inst seqNum; SpecLFB sets setReqInstSeqNum). Exact for Ruby L1 events processed from a Sequencer RubyRequest and for classic events with a CPU packet; L2/DIR/LLCSB/response-driven events use a per-line most-recent-cause map. seq=- for instruction fetch (no inst exists yet) and lines no instruction requested.",
+      "builds": "amulet InvisiSpec, CleanupSpec, SpecLFB (2026-10-28)",
+      "backups": "pre-hook binaries build/<ISA>/gem5.opt.pre-simspect-hooks-20261028; pristine sources /work/amulet/backups/<build>-pre-simspect-hooks-20261028.tgz; diffs gem5-hooks/amulet-<build>/simspect_hooks.diff",
+      "purpose": "Give the footprint-defense criteria (TRANSMISSION_CRITERIA_FORMAT.md) a per-line, per-instruction event trace in the pipeline output itself, replacing ad-hoc ProtocolTrace/Cache parsing.",
+      "timing": false,
+      "verified": "2026-10-28: identical non-simspect O3PipeView lines, parse_pipeview output and sim ticks vs the pre-hook binary on InvisiSpec inst-002014, CleanupSpec uv4split, SpecLFB uv6x/inst-002014/inst-014986. LFB events compiled but not exercised (no isUnsafe=1 load in the gadgets tried)."
+    },
+    {
       "id": "config_env_bridge",
       "name": "config -> env bridge",
       "category": "bridge",
@@ -119,6 +223,7 @@
   "known_gaps": [
     "commitToIEWDelay — needed to exercise the VP<->squash race gadget; flagged in claudelog as NOT in the stock pipeline / not wired into _build_gem5_env.",
     "CleanupSpec post-squash residue correlator — install<->cleanup event watcher not yet fully built.",
-    "fnc_commit_stall on amulet-STT — not confirmed ported; verify before relying on window timing there."
+    "fnc_commit_stall on amulet-STT — not confirmed ported; verify before relying on window timing there.",
+    "simspect_cache_events: no coh on classic caches (SpecLFB); LFB buf_fill/buf_release not yet exercised at runtime; L1I/ITLB events have seq=- (fetch precedes the instruction)."
   ]
 }

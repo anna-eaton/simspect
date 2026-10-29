@@ -17,6 +17,10 @@ as uncommitted/untracked changes in an **ephemeral container**; this directory c
 | `/work/amulet-repo` | git, sith-lab/amulet @ `c871bdf` | `amulet-repo/{analyze_gadgets,gen_stt_tests}.py` (untracked gen scripts) | SPEC/gadget tooling only |
 | **`/work/gem5-recon-modded`** | **`/work/gem5-recon` (no git — the BASE, per owner)** | `gem5-recon-modded/recon-modded_{src,configs}.diff` (`diff -ruN recon recon-modded`) | **pcstate (arm/generic/x86), o3 commit/cpu/fetch/iew/lsq_unit/store_set_annot, pred bpred_unit + BranchPredictor.py** — the BTB-override / Recon instrumentation |
 | `/work/gem5-recon` | **no git — treated as the BASE** | not captured (it is the reference) | — |
+| `/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1` | no git (AMuLeT AE artifact) | `amulet-InvisiSpec/simspect_hooks.diff` (`diff -ruN` pristine vs hooked, 2026-10-28) | SimSpect cache-event hooks: SLICC peek/doTransition codegen, CacheMemory, TBETable, x86 TLB, ROB squash, Sequencer SB, AbstractController LLC-SB, LSQ squash |
+| `/work/amulet/amulet-gem5-CleanupSpec_AE-v1.1` | no git (AMuLeT AE artifact) | `amulet-CleanupSpec/simspect_hooks.diff` (2026-10-28) | SimSpect cache-event hooks: same Ruby set as InvisiSpec + LSQ cleanup decisions (`cleanup_skip`/`cleanup_done`) |
+| `/work/amulet/amulet-gem5-SpecLFB_AE-v1.1` | no git (AMuLeT AE artifact) | `amulet-SpecLFB/simspect_hooks.diff` (2026-10-28) | SimSpect cache-event hooks: classic BaseCache fill/evict/inv, tags LRU touch, LFB refillBlocks, ROB squash |
+| **SimSpect-STL (not yet in any build)** | gem5 v22.0.0.2 reference | `stl/apply_stl_hooks.py` (anchor-based inserter) + `stl/stl_hooks_vs_gem5_v22.0.0.2.diff` (reference diff) | o3 `iew.{hh,cc}` store address-generation hold, `mem_dep_unit.{hh,cc}` prediction override, `BaseO3CPU.py` params, `Options.py` + `se.py` flags `--stl-ann-file` / `--stl-store-stall-cycles` / `--stl-alias-pred`. Written 2026-10-28, not applied or built anywhere. See `wiki/design/STL_SPECULATION.md`. |
 | `/work/sdo` | git, cwfletcher/sdo @ `5d058fd` | clean (no hooks) | — |
 
 ## Key fact: Recon base vs change (per owner, 2026-10-20)
@@ -40,3 +44,11 @@ baseline, and per the owner it is treated as the base, not re-diffed.
 Run in the container (`make cafe`), then stream the tarball to this dir. The one-shot used on
 2026-10-20 is reproducible from `claudelog.md` (entry: gem5-hook backup). TODO: fold this into a
 `scripts/sim capture-hooks` subcommand so it is a single command, not an ad-hoc pipe.
+
+## SimSpect cache-event hooks (2026-10-28, amulet InvisiSpec / CleanupSpec / SpecLFB)
+
+Print-only hooks that emit `O3PipeView:simspect:...` lines (cache fills, evictions, invalidations, coherence changes, replacement touches, defense-buffer and cleanup events, squashes) under the existing `O3PipeView` flag. Full spec: [`wiki/design/SIMSPECT_HOOKS.md`](../wiki/design/SIMSPECT_HOOKS.md). These three builds have no git, so the capture is a `diff -ruN` of every touched file against its pristine copy (`amulet-<build>/simspect_hooks.diff`). The earlier branch-force + fnc-commit-stall hooks in these builds are NOT in these diffs (they predate them and are still uncaptured; the pristine tarballs below include them as the base).
+
+- Pristine sources: `/work/amulet/backups/<build>-pre-simspect-hooks-20261028.tgz` (cafe2 container). InvisiSpec/CleanupSpec tarballs extract in the build root (paths `src/...`); the SpecLFB one extracts in `src/`. Pre-hook binary: `build/<ISA>/gem5.opt.pre-simspect-hooks-20261028` in each tree.
+- Re-apply: from the build root, `patch -p1 < amulet-<build>/simspect_hooks.diff`, then `gem5-hooks/verify/build_simspect_hooks.sh <build>` (scons -j12; log `/work/amulet/rebuild_<build>_simspect_hooks_20261028.log`).
+- Verify: `gem5-hooks/verify/run_all_verify.sh` (all cases) / `verify_simspect_hooks.py` (one case; see the wiki page, "How to verify"); hand gadgets `verify/uv6x.s`, `verify/uv6dep.s`; annotation maker `verify/mkann.py`.

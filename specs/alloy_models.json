@@ -15,6 +15,12 @@
       "caveat": "The per-branch minimality clause means it STRUCTURALLY CANNOT emit a two-source (in-degree>=2) merge (~99.6% single-source). See OTB_GENERATION_GAP.md; STT_6_multisource/bugsynth exist to work around this.",
       "aliases": "STT_6_interleave, STT_all (symlinks); interleave is a config/parsexml knob, not a separate model"
     },
+    "STT_6_stl": {
+      "tier": "variant",
+      "summary": "STT_6 with the speculation source switched from unresolved branches to unresolved-ADDRESS stores (store-to-load / memory-dependence speculation, STT Futuristic visibility point). Control-flow speculation off (all branches resolved). Requires a true alias: a load at or before the xmit reads the Mem_s an older unresolved store writes (false-negative alias prediction).",
+      "intention": "Generate Spectre-v4-style store-bypass tests. Concretize with branch mode stl_bypass; run with the SimSpect-STL gem5 hooks (gem5-hooks/stl/). See wiki/design/STL_SPECULATION.md.",
+      "caveat": "Added 2026-10-28 (Anna approved as a new file). Contract is a structural mirror of STT_6's branch contract; still to be checked against the STT paper. Under STT's Spectre threat model these loads are not protected, so the gem5 run must use a threat model that covers memory-dependence speculation."
+    },
     "SPT_6_oneLP": {
       "tier": "production",
       "summary": "SPT (Speculative Privacy Tracking), one-leak-point. Operand-granularity protection + untaint flows + STLF de-protection (inaddr too). Transmitters add stores(inaddr). Requires EXACTLY one insecure point.",

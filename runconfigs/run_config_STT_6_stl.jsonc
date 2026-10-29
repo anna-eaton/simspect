@@ -1,0 +1,72 @@
+// STT_6_stl run config — store-to-load (memory-dependence) speculation only.
+// Parallel pipeline to STT_6: model STAGE1_alloy/models/STT_6_stl.als, one mode
+// "stl_bypass" (parsexml pass2_6_specify_stl), output under
+// testsets/STT_6_stl/stl_bypass/ and results/STT_6_stl/stl_bypass/.
+// Design + window check: wiki/design/STL_SPECULATION.md.
+//
+// NOT RUNNABLE ON gem5 YET: the SimSpect-STL hooks (gem5-hooks/stl/) are written
+// but not built into any binary. The xml/llvm/asm phases work today
+// (make gen MODEL=STT_6_stl CONFIG=runconfigs/run_config_STT_6_stl.jsonc).
+{
+  "paths": {
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "testset_dir":        "testsets",
+    "results_dir":        "results",
+    "results_name":       "STT_6_stl"
+  },
+
+  "alloy": {
+    "max_instances": 100000,
+    "batch_size":    1000
+  },
+
+  "speculation": {
+    "control_flow": false,
+    "data_flow":    true,
+    "branch_modes": ["stl_bypass"]
+  },
+
+  "gem5": {
+    // Same build/scheme as runconfigs/run_config_STT_6.jsonc, once the STL hooks
+    // are applied to it (gem5-hooks/stl/apply_stl_hooks.py) and rebuilt.
+    "binary":            "/work/gem5-recon-modded/build/X86/gem5.opt",
+    "config_script":     "/work/gem5-recon-modded/configs/example/se.py",
+    "branch_ann_enable": true,
+    "cpu_type":          "X86O3CPU",
+    "scheme":            2,
+    "caches":            true,
+    "jobs":              40,
+    "debug_flags":       ["O3PipeView", "LSQUnit"],
+    "debug_file":        "pipeview.txt",
+    "fnc_commit_stall_cycles": 150,
+
+    // SimSpect-STL hooks. Store address hold = the same fixed D that STT_6 holds
+    // an unresolved branch for (run_config_STT_6.jsonc sweep.unresolved_stall_cycles).
+    // stl_alias_pred: "no_alias" = false-negative prediction (the primitive),
+    // "alias" = false-positive negative control (no window should open).
+    "stl_ann_enable":              true,
+    "stl_store_addr_stall_cycles": 5000,
+    "stl_alias_pred":              "no_alias"
+  },
+
+  "sweep": {
+    // Resolved-branch stalls, as in STT_6. There are no unresolved branches here,
+    // so unresolved_stall_cycles has nothing to apply to.
+    "enabled":                 true,
+    "points":                  [0, 500, 2500],
+    "unresolved_stall_cycles": 5000
+  },
+
+  "pipeline": {
+    "check":    "per_type",
+    "keep_tmp": false
+  },
+
+  "interleave": {
+    "enabled": false
+  }
+}

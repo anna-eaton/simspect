@@ -1,0 +1,259 @@
+{
+  "schema": "simspect.transmission_criterion/v1",
+  "_doc": "CleanupSpec transmission criterion: per (structure, line), the net footprint of squashed speculative loads minus what cleanup undid must be zero — install invalidated (L1D, L2) and spec-evicted victim restored (L1D only). Intra-window churn cancels (net presence, agreed 2026-10-28). cleanup_skip / cleanup_drop never count as undo. Cross-checked by a net-state replay; disagreement is flagged 'inconsistent'. O3PipeView trace only (SimSpect hooks). Evaluated by STAGE3_gem5/check_footprint.py. Scope quotes re-checked against wiki/findings/mdsToRead/FOOTPRINT_DEFENSES_PAPER_AUDIT.md §4, §7 and the PDF text.",
+  "defense": "CleanupSpec",
+  "builds": [
+    "amulet-CleanupSpec"
+  ],
+  "status": "v1 2026-10-28 (criteria session).",
+  "requires": {
+    "gem5_args": [
+      "--ruby",
+      "--l2cache",
+      "--scheme_cleanupcache=Cleanup_FOR_L1L2"
+    ],
+    "why": "Cleanup_FOR_L1L2 turns on rand-L2, random L1 replacement and L2 invalidate (Scheme.py:76-82, audit §4C)"
+  },
+  "source": {
+    "paper": "~/Documents/quail/sources/papers/saileshwar-2019-cleanupspec.pdf (MICRO 2019 author copy; PDF pages)",
+    "audit": "wiki/findings/mdsToRead/FOOTPRINT_DEFENSES_PAPER_AUDIT.md",
+    "claims": [
+      {
+        "section": "§1",
+        "page": "p2",
+        "quote": "CleanupSpec uses randomization for L2/LLC (and for the directory [61]), and consequently only needs to rollback evictions from L1 data caches … CleanupSpec invalidates the line in the L1 cache if it was installed speculatively and fetches the evicted line from L2 cache to restore the original line. For changes to the L2/LLC, CleanupSpec merely invalidates the copy there if it was installed speculatively (as L2/LLC evictions leak no information).",
+        "supports": "observation.structures (L1D, L2) + undo_obligations"
+      },
+      {
+        "section": "§1",
+        "page": "p2",
+        "quote": "To protect the replacement state, it uses Random Replacement policy for the L1 data cache (any replacement policy can be safely used for a randomized L2 or LLC). For coherence state changes, CleanupSpec delays loads that cause such changes (M/E to S) until they are unsquashable on the correct path.",
+        "supports": "observation.state = presence; replacement + coherence handled by design (by_design)"
+      },
+      {
+        "section": "§2.1",
+        "page": "p3",
+        "quote": "We only consider attacks exploiting the data-cache hierarchy, including private data caches (e.g. L1-D cache) and shared caches (L2/LLC) … The adversary may transiently access the cache and modify its state through installs [63], evictions [34], updates to replacement [26] and coherence [62] state.",
+        "supports": "observation.structures"
+      },
+      {
+        "section": "§2.1",
+        "page": "p3",
+        "quote": "We deem all transient instructions potentially 'unsafe' until they retire",
+        "supports": "actors (undo obligation attaches to squashed loads; pinned spec actor is a subset)"
+      },
+      {
+        "section": "§3.3-3.4",
+        "page": "p6",
+        "quote": "any cache changes like install and victim replacement are made only when a load returns and is for the current EpochID",
+        "supports": "balance counts late (post-squash) installs by squashed loads; cleanup_drop is not an undo"
+      },
+      {
+        "section": "§3.4",
+        "page": "p7",
+        "quote": "Changes made to the cache by older non-squashed loads that execute after squashed loads due to re-ordering, need to be preserved and not reversed … corresponding invalidations / restorations are skipped.",
+        "supports": "leak.over_clean (UV5)"
+      },
+      {
+        "section": "§1",
+        "page": "p2",
+        "quote": "the perceived cache state after these operations is as if the transient loads did not access the cache.",
+        "supports": "cross_check net_state_replay; net presence (churn cancels)"
+      }
+    ]
+  },
+  "observation": {
+    "structures": [
+      "L1D",
+      "L2"
+    ],
+    "granularity": {
+      "default": "line"
+    },
+    "state": [
+      "presence"
+    ],
+    "ignored_structures": [
+      "L1I",
+      "ITLB",
+      "DTLB",
+      "DIR",
+      "MSHR",
+      "L1IMSHR",
+      "L2MSHR",
+      "DIRTBE",
+      "ROB"
+    ],
+    "by_design": [
+      {
+        "item": "L2 victims are not restored (randomized L2)",
+        "claim": "p2 'as L2/LLC evictions leak no information'"
+      },
+      {
+        "item": "replacement state (random L1 replacement; any policy on randomized L2)",
+        "claim": "p2; §3.2 p6 'replacement state updates for both L1 and L2 caches leak no information'"
+      },
+      {
+        "item": "directory randomized; DIR not observed",
+        "claim": "p2 '(and for the directory [61])'; Anna 2026-10-28 scope = L1D + L2"
+      }
+    ]
+  },
+  "undo_obligations": {
+    "L1D": [
+      "install",
+      "victim"
+    ],
+    "L2": [
+      "install"
+    ]
+  },
+  "actors": {
+    "default": "spec",
+    "modes": {
+      "spec": {
+        "text": "squashed(i) ∧ lc_seq < i.seq  (pinned 2026-10-28: what the tests realize; i = the event's seq joined to the O3PipeView fetch seqNum; squashed = never retired and younger than a ROB:squash seq while allocated before that squash)",
+        "impl": "squashed_after_lc",
+        "window": "footprint"
+      }
+    }
+  },
+  "window": {
+    "footprint": {
+      "from": "lc_retire",
+      "to": "fnc_retire",
+      "branches_unresolved": true,
+      "impl": "lc_fnc_unresolved",
+      "text": "lc_retire < e.tick < fnc_retire (fnc_retire==0 → ∞; no lc annotated → no lower bound) ∧ every annotated unresolved branch still unresolved at e.tick (gem5_common.check_branch_resolutions), same window as check_ld.py"
+    },
+    "undo": {
+      "from": "squash(sq)",
+      "to": "cleanup_done(sq) | sim_end",
+      "impl": "per_squash",
+      "text": "cleanup events are matched to squashes by their sq= field"
+    }
+  },
+  "terms": {
+    "installed": {
+      "kinds": [
+        "fill"
+      ],
+      "key": "line",
+      "by": "actor",
+      "structures": "OBS"
+    },
+    "evicted": {
+      "kinds": [
+        "evict"
+      ],
+      "key": "victim",
+      "by": "actor",
+      "structures": "OBS",
+      "note": "actor = the evict's own seq (the request that caused it)"
+    },
+    "invalidated": {
+      "kinds": [
+        "cleanup_inv"
+      ],
+      "key": "line",
+      "in": "undo"
+    },
+    "restored": {
+      "kinds": [
+        "cleanup_restore"
+      ],
+      "key": "line",
+      "in": "undo"
+    },
+    "reported_not_undo": {
+      "kinds": [
+        "cleanup_skip",
+        "cleanup_drop"
+      ],
+      "note": "a skipped or dropped undo leaves the footprint uncleaned; listed per record"
+    },
+    "churn": {
+      "rule": "an actor fill of ℓ followed by an actor evict with victim ℓ (before any cleanup) cancels one install and that evict",
+      "agreed": "Anna 2026-10-28 (format doc Decisions)"
+    },
+    "cleanup_side_effects": {
+      "excluded": [
+        "L2/DIR fill of ℓ after a cleanup_restore of ℓ in the same undo window (the rollback GETS)",
+        "L1D evict inside an undo window whose cause id matches no fill (rollback-space replacement, SIMSPECT_HOOKS.md gaps)"
+      ],
+      "note": "excluded from the count, kept in the net-state replay"
+    }
+  },
+  "balance_scope": "all actor fill/evict events in the run (not only those in W), so cleanup of an actor's out-of-window footprint pairs correctly; under-clean is a leak only if the line has ≥1 footprint event in W",
+  "leak": {
+    "form": "per_line_balance",
+    "text": "for each (s, ℓ) ∈ OBS × lines: d_install = installed − churn − invalidated; d_victim = evicted − churn − restored (L1D only). under_clean ⇔ d > 0 ∧ some contributing footprint event of (s,ℓ) ∈ W; over_clean ⇔ d < 0 ∧ the cleanup's squash is a window squash. leak ⇔ ∃ (s,ℓ) : under_clean ∨ over_clean.",
+    "positive": "too little cleanup (UV4 split, UV3)",
+    "negative": "too much cleanup (UV5)"
+  },
+  "cross_check": {
+    "impl": "net_state_replay",
+    "text": "replay fill/evict/inv/cleanup_inv/cleanup_restore per structure to sim end twice: actual (L2 victim removals by actors skipped, benign by design) vs reference (all actor footprint, cleanup and cleanup side-effect events removed). Each differing (s,ℓ) is a net leak unless all its actor footprint is outside W. If the set of leaking (s,ℓ) differs from the count's, the record is flagged inconsistent (pairing/attribution bug in hook or checker) and issued_in_window = count ∨ net (never hide a possible leak)."
+  },
+  "not_covered": [
+    {
+      "item": "unXpec (cleanup timing)",
+      "why": "Anna 2026-10-28: not in scope for now. The paper claims only that cleanup 'does not practically leak' and leaves constant-time cleanup to future work; a single-run footprint criterion cannot express a timing channel (UNXPEC_MISS.md)",
+      "claim": {
+        "section": "§4(b)",
+        "page": "p8",
+        "quote": "During cleanup operations (t2 to t3), the process of restoration of cache state does not practically leak information. … Future work can explore making the cleanup-operations incur a constant-time stall to make this theoretically impossible to exploit.",
+        "supports": "not_covered"
+      }
+    },
+    {
+      "item": "coherence M/E→S on a remote core",
+      "why": "single-core runs; transient I->E / S-sharer changes are 'allowed and reversed' (§3.5 p7)"
+    },
+    {
+      "item": "speculative stores (UV3)",
+      "why": "STT_6 has no store transmitters; a store footprint would still be counted if one occurred (any squashed seq is an actor)"
+    }
+  ],
+  "out_of_scope": [
+    {
+      "item": "I-cache, TLB, branch predictor",
+      "note": "scoping problem of the defense, not an implementation bug we catch",
+      "claim": {
+        "section": "p1 footnote; §2.1",
+        "page": "p1, p3",
+        "quote": "I-Cache, TLB or Branch Predictor can also be used to leak information, but delaying [40] or buffering [25, 58] transient changes to these structures can prevent this. Port-contention [1] is out-of-scope.",
+        "supports": "out_of_scope"
+      }
+    },
+    {
+      "item": "prefetcher, DRAM row buffer, SMT port / NoC / DRAM contention, AVX, EM/power",
+      "note": "scoping problem of the defense, not an implementation bug we catch",
+      "claim": {
+        "section": "§2.1",
+        "page": "p3",
+        "quote": "speculation-attacks using AVX side-channels … We also assume speculative hardware prefetching is disabled … we assume a close-page row-buffer policy … We further consider out-of-scope side-channels due to SMT port-contention [1], network [49] or DRAM [56] contention, EM radiation or power.",
+        "supports": "out_of_scope"
+      }
+    },
+    {
+      "item": "SMT L1 evictions (delegated to way-partitioning)",
+      "note": "scoping problem of the defense, not an implementation bug we catch",
+      "claim": {
+        "section": "§3.6",
+        "page": "p8",
+        "quote": "that is anyway required for preventing non-speculative L1 cache side-channel attacks",
+        "supports": "out_of_scope"
+      }
+    }
+  ],
+  "amulet_checks": {
+    "_doc": "informational only, never used by the predicate (audit §4B)",
+    "contract": "CT-SEQ (AMuLeT §3.1 p5)",
+    "trace": "final L1D + L1I tags (docker_gem5_v1_final_cache_ipc.yaml:62 ['data_cache','instr_cache']); unXpec (KV2) seen only via L1I (AMuLeT p12)",
+    "code": "executor.py:288-292 --needsTSO=0 --scheme_invisispec=UnsafeBaseline --scheme_cleanupcache=Cleanup_FOR_L1L2; cleanupspec_analysis.py:90-97 diffs L1D/L1I tag sets",
+    "never_observed": [
+      "L2 install invalidation (InvL2_CLEANUP)"
+    ]
+  }
+}

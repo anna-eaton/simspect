@@ -1,0 +1,11 @@
+% Preview only: renders tikz/sptable_v2.tex (the single source) on its own. Compile from tikz/.
+\documentclass[border=8pt]{standalone}
+\usepackage{amsmath,tikz,xcolor,booktabs}
+\usetikzlibrary{arrows.meta,positioning,calc,bending}
+\makeatletter
+\renewenvironment{table*}[1][]{\begin{minipage}{7.1in}\def\@captype{table}}{\end{minipage}}
+\renewenvironment{figure}[1][]{\begin{minipage}{7.1in}\def\@captype{figure}}{\end{minipage}}
+\makeatother
+\begin{document}
+\input{sptable_v2}
+\end{document}

@@ -24,6 +24,7 @@ Narrative + per-figure interpretation: [`../PAPER_RESULTS.md`](../PAPER_RESULTS.
 | **F7** recon bugs | `F7_recon_bugs.png` | OTB (`getOldestTaint`) + STL/SLF gadget schematics |
 | **F8** AMuLeT efficiency | `F8_efficiency_{a,b,c}.png` | MEASURED on the SpecLFB build (UV6): SimSpect #6/23% vs AMuLeT #39/3.3% detection (6.5× targeting); **gem5 sim cost comparable** (0.092 vs 0.057 s/test). **a** = 3-panel · **b** = per-test cost decomposition (only gem5-sim is comparable; rest = pipeview+boot instrumentation) · **c** = AMuLeT profile + targeting |
 | **F9** bug table | `F9_bug_table.png` (+ `figures.tex` Tab.1) | **the big table grouped by defense**: every bug, where first known, found by SimSpect/AMuLeT/both, scope, verdict |
+| **Spec. primitives** | `spec_primitives/{sptable_v2,resolutiontiming_v2}.tex` + `_standalone_*_v2` previews (uploaded to `anna-eaton/test-paper` `tikz/`, `5b6c7fa`) | paper Table `tab:sptable` (every primitive instance, rows a–i) and Fig. `fig:resolutiontiming` (resolve timeline vs. check window). Sources + open questions: [`../wiki/design/SPEC_PRIMITIVE_INSTANCES.md`](../wiki/design/SPEC_PRIMITIVE_INSTANCES.md). Compiled clean at sigplan column width. |
 
 ⚠️ Counts marked SAMPLE (slow-comm 300–600/mode) or candidate/open are not full-corpus settled
 numbers; see the per-figure captions and `PAPER_RESULTS.md` §9 (limitations). Colors match

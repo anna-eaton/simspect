@@ -281,6 +281,16 @@ def update_annotations(ann_path: Path, pc_map: dict[int, int],
             xmit["addr"]     = func_base + pc_offset
             xmit["addr_hex"] = hex(func_base + pc_offset)
 
+    # --- stl_bypass (store, bypass load) pairs ---
+    # The pc marker sits directly on each load/store's movq, so the marker
+    # offset is the instruction's PC.
+    for entry in ann.get("stl_annotations", []):
+        for key in ("store", "load"):
+            alloy_pc = entry.get(f"{key}_pc")
+            if alloy_pc is not None and alloy_pc in pc_map:
+                entry[f"{key}_addr"]     = func_base + pc_map[alloy_pc]
+                entry[f"{key}_addr_hex"] = hex(func_base + pc_map[alloy_pc])
+
     # --- commit boundary annotations ---
     # Boundaries that land on a branch are upgraded to the actual jne PC so
     # retire-tick reflects the branch's resolution, not the xorq prelude.

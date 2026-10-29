@@ -1,0 +1,228 @@
+{
+  "schema": "simspect.transmission_criterion/v1",
+  "_doc": "InvisiSpec transmission criterion: a footprint of an unsafe speculative load in any protected data-cache-hierarchy structure, observed in the O3PipeView trace only (SimSpect hook lines, wiki/design/SIMSPECT_HOOKS.md). Evaluated by STAGE3_gem5/check_footprint.py. Format: wiki/design/TRANSMISSION_CRITERIA_FORMAT.md. Scope quotes re-checked against the audit (wiki/findings/mdsToRead/FOOTPRINT_DEFENSES_PAPER_AUDIT.md §2, §7) and the PDF text.",
+  "defense": "InvisiSpec",
+  "builds": [
+    "amulet-InvisiSpec"
+  ],
+  "status": "v1 2026-10-28 (criteria session); scope = Anna's 2026-10-28 decision (everything the paper protects).",
+  "requires": {
+    "gem5_args": [
+      "--ruby"
+    ],
+    "why": "the InvisiSpec cache defense is Ruby-only; classic --caches runs do not exercise it (audit finding 1)"
+  },
+  "source": {
+    "paper": "~/Documents/quail/sources/papers/yan-2018-invisispec.pdf (authors' corrected version; PDF pages)",
+    "paper_original": "~/Documents/quail/sources/papers/yan-2018-invisispec-original.pdf",
+    "audit": "wiki/findings/mdsToRead/FOOTPRINT_DEFENSES_PAPER_AUDIT.md",
+    "claims": [
+      {
+        "section": "§III-B Channels Protected",
+        "page": "p3",
+        "quote": "InvisiSpec blocks covert and side channels that are constructed by monitoring the state of any level of a multiprocessor data cache hierarchy. This includes cache state such as occupancy (e.g., what lines live in what sets), replacement information, and coherence information (e.g., whether a line is in the Exclusive or Shared state). It also includes data TLB state (e.g., what entries live in the TLB).",
+        "supports": "observation.structures (L1D, L2=LLC, DIR, DTLB) + observation.state (presence, replacement, coherence)"
+      },
+      {
+        "section": "§V-B",
+        "page": "p5",
+        "quote": "USLs do not modify the cache coherence states, cache replacement algorithm states, or any other cache hierarchy state.",
+        "supports": "terms.footprint.kinds includes coh and repl_touch"
+      },
+      {
+        "section": "§VI-E1",
+        "page": "p9",
+        "quote": "a Spec-GetS obtains the line from the directory … without changing any cache or coherence states",
+        "supports": "DIR in observation.structures"
+      },
+      {
+        "section": "§VI-E3",
+        "page": "p9",
+        "quote": "To prevent a USL from observably changing the D-TLB state … on a D-TLB miss, it delays serving it via a page table walk until the USL reaches the point of visibility",
+        "supports": "DTLB in observation.structures (granularity page)"
+      },
+      {
+        "section": "§IV",
+        "page": "p4",
+        "quote": "[the validation/exposure at the visibility point] will make all the side effects of the USL in the memory hierarchy apparent",
+        "supports": "observation.allowed: footprint at/after expose/validate is legal (Futuristic actor)"
+      },
+      {
+        "section": "§IV-A1",
+        "page": "p4",
+        "quote": "In the Spectre attack model, USLs are the speculative loads that follow an unresolved control-flow instruction. As soon as the control-flow instruction resolves, the USLs that follow it in the correct path of the branch transition to safe loads",
+        "supports": "actors.modes.spec (matches the pinned STT_6 window)"
+      },
+      {
+        "section": "§IV-A1",
+        "page": "p4",
+        "quote": "In our Futuristic attack model, USLs are all the speculative loads that can be squashed by an earlier instruction. A USL transitions to a safe load as soon as it becomes either (i) non-speculative because it reaches the head of the ROB or (ii) speculative non-squashable by any earlier instruction",
+        "supports": "actors.modes.futuristic"
+      },
+      {
+        "section": "§V (visibility point)",
+        "page": "p5",
+        "quote": "In our defense against Futuristic attacks, a USL reaches its visibility point only when: (i) it is not speculative anymore because it is at the head of the ROB, or (ii) it is still speculative but cannot be squashed anymore. At that point, the hardware issues a validation or an exposure for the load",
+        "supports": "actors.modes.futuristic.vp = first expose/validate of i, or i reaching the ROB head"
+      }
+    ]
+  },
+  "observation": {
+    "structures": [
+      "L1D",
+      "L2",
+      "DIR",
+      "DTLB"
+    ],
+    "granularity": {
+      "default": "line",
+      "DTLB": "page (TLB events carry the virtual page, SIMSPECT_HOOKS.md)"
+    },
+    "state": [
+      "presence",
+      "replacement",
+      "coherence"
+    ],
+    "allowed_structures": [
+      "SB",
+      "LLCSB"
+    ],
+    "allowed_kinds": [
+      "buf_fill",
+      "buf_release",
+      "expose",
+      "validate"
+    ],
+    "ignored_structures": [
+      "L1I",
+      "ITLB",
+      "MSHR",
+      "L1IMSHR",
+      "L2MSHR",
+      "DIRTBE",
+      "ROB"
+    ],
+    "notes": "L2 is the LLC in our 2-level Ruby runs. SB/LLCSB are InvisiSpec's own buffers (allowed). MSHR/TBE buffers are ignored: MSHR contention is out of scope (below)."
+  },
+  "actors": {
+    "default": "spec",
+    "select_by_scheme": {
+      "SpectreSafeInvisibleSpec": "spec",
+      "FuturisticSafeInvisibleSpec": "futuristic"
+    },
+    "override_env": "SIMSPECT_CRITERION_ACTOR (set from run_config gem5.criterion_actor)",
+    "modes": {
+      "spec": {
+        "text": "squashed(i) ∧ lc_seq < i.seq  (pinned 2026-10-28: what the tests realize; i = the event's seq joined to the O3PipeView fetch seqNum; squashed = never retired and younger than a ROB:squash seq while allocated before that squash)",
+        "impl": "squashed_after_lc",
+        "window": "footprint"
+      },
+      "futuristic": {
+        "text": "footprint e by instruction i (e.seq) with e.tick < vp(i), vp(i) = min(first L1D expose|validate tick with seq=i, rob_head(i)); rob_head(i) = latest retire tick among retired instructions older than i (i retired), else ∞. Any instruction counts (Futuristic USL = every squashable load), committed or squashed.",
+        "impl": "before_visibility_point",
+        "visibility_kinds": [
+          "expose",
+          "validate"
+        ],
+        "window": "visibility",
+        "limit": "condition (ii) 'speculative non-squashable' is visible only through the expose/validate it triggers; a load that became non-squashable before it issued (so issued as a normal load, no expose) would be flagged. Triage via vp_basis in the record."
+      }
+    }
+  },
+  "window": {
+    "footprint": {
+      "from": "lc_retire",
+      "to": "fnc_retire",
+      "branches_unresolved": true,
+      "impl": "lc_fnc_unresolved",
+      "text": "lc_retire < e.tick < fnc_retire (fnc_retire==0 → ∞; no lc annotated → no lower bound) ∧ every annotated unresolved branch still unresolved at e.tick (gem5_common.check_branch_resolutions), same window as check_ld.py"
+    },
+    "visibility": {
+      "from": "i exists",
+      "to": "vp(i)",
+      "impl": "until_visibility_point"
+    }
+  },
+  "terms": {
+    "footprint": {
+      "kinds": [
+        "fill",
+        "evict",
+        "inv",
+        "coh",
+        "repl_touch"
+      ],
+      "structures": "OBS",
+      "key": {
+        "evict": "victim",
+        "default": "line"
+      },
+      "by": "actor",
+      "in": "window"
+    }
+  },
+  "leak": {
+    "form": "exists",
+    "term": "footprint",
+    "text": "leak ⇔ ∃ e ∈ E({fill, evict, inv, coh, repl_touch}, OBS) : actor(e.seq, e) ∧ e ∈ window(actor mode)"
+  },
+  "not_covered": [
+    {
+      "item": "in-flight squashed loads with no O3PipeView fetch record",
+      "why": "their seq still joins (squash status is inferred from ROB:squash + seq order), but pc/stage ticks are unavailable (SIMSPECT_HOOKS.md gaps)"
+    },
+    {
+      "item": "L2/DIR/LLCSB attribution",
+      "why": "seq comes from a per-line most-recent-cause map, not per message (SIMSPECT_HOOKS.md); a footprint attributed this way is reported with its struct so triage can discount it"
+    },
+    {
+      "item": "coherence effects on a remote core (CrossCore setting)",
+      "why": "single-core SE runs; only this core's own DIR/L2 coh transitions are observable"
+    }
+  ],
+  "out_of_scope": [
+    {
+      "item": "L1I / ITLB (KV1)",
+      "note": "scoping problem of the defense, not an implementation bug we catch",
+      "claim": {
+        "section": "footnote 2",
+        "page": "p3",
+        "quote": "For simplicity, we do not describe the protection of the instruction cache or instruction TLB. However, we believe they can be protected with similar or even simpler structures.",
+        "supports": "out_of_scope"
+      }
+    },
+    {
+      "item": "MSHR / TBE contention (UV2)",
+      "note": "scoping problem of the defense, not an implementation bug we catch",
+      "claim": {
+        "section": "§VII",
+        "page": "p10 (original MICRO version)",
+        "quote": "contention on other resources, such as MSHRs or execution units, could slow down the receiver, but such side channels are considered out of scope in this paper (Section III-B).",
+        "supports": "out_of_scope",
+        "paper": "yan-2018-invisispec-original.pdf"
+      }
+    },
+    {
+      "item": "execution units, NoC, DRAM contention, fine-grain SMT structures, physical (power/EM) channels",
+      "note": "scoping problem of the defense, not an implementation bug we catch",
+      "claim": {
+        "section": "§III",
+        "page": "p3",
+        "quote": "We also do not protect microarchitectural channels other than those listed above",
+        "supports": "out_of_scope"
+      }
+    }
+  ],
+  "amulet_checks": {
+    "_doc": "informational only, never used by the predicate (audit §2B)",
+    "contract": "CT-SEQ, InvisiSpec Futuristic (AMuLeT §4.1 p8: 'For InvisiSpec and STT, we run them in their Futuristic mode')",
+    "trace": "final L1D tags + D-TLB, 1-page sandbox 'as the TLB is not protected' (AMuLeT §3.5 p7); L1I only in earlier campaigns (KV1, p10)",
+    "code": "executor.py:471-486 reads system.ruby.l1_cntrl0.L1Dcache; docker_gem5_v1_final_cache_and_tlb.yaml:60 sources ['data_cache','dtlb']",
+    "never_observed": [
+      "L2/LLC",
+      "directory",
+      "coherence state",
+      "replacement state"
+    ]
+  }
+}
