@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import random
+import zlib
 import sys
 import traceback
 from pathlib import Path
@@ -97,7 +98,7 @@ def run_pipeline(xml_text: str, stem: str, out_dir: Path, mode: str,
     num_chains_choices    = icfg.get("num_chains_choices")  # e.g. [1,2] → random per variant
 
     for v in range(n_variants):
-        vseed = hash(f"{stem}_v{v}") & 0xFFFF_FFFF
+        vseed = zlib.crc32(f"{stem}_v{v}".encode())  # stable across runs (str hash() is salted per process)
         random.seed(vseed)
 
         r2  = pass2(r1,  write_out=False)

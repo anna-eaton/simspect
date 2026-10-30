@@ -55,6 +55,29 @@ terminal); Claude only flags that it's time.
 
 Anna reads only the last chunk of text after the final tool call; she doesn't scroll up past tool calls. So the final message of every turn must carry **every** finding, result, decision, open question, and step she needs to take, even if it was already said earlier mid-turn. Mid-turn text is just progress updates; it is never the only place something important appears. Lead with the answer, then the evidence (with `file:line` / commands), then anything she has to do or decide.
 
+## Surface the hardest decisions to Anna; don't quietly make them (Anna, 2026-10-30)
+
+When work reaches a genuinely hard decision, Claude brings it to Anna instead of picking an option and moving on. In SimSpect that includes: what an Alloy model or axiom should mean, how to concretize a test, whether a checker hit is a real leak or an artifact, what a bug's true cause and scope are, which experiment or sweep to run next, how to frame a claim in the paper, and what counts as success.
+
+- **Why:** (a) deciding hard things herself is how Anna learns, and (b) these decisions are the most valuable part of the research, so they should be hers.
+- **How:** state the decision crisply: the question, the 2–3 real options, what each one implies, the evidence for each (with `file:line` / run paths), and Claude's own recommendation, clearly labeled as a recommendation. Then let Anna choose. If it blocks the work, ask now (AskUserQuestion). If it doesn't, add it to `URGENT_TODO.md` as a `- [ ] DECIDE:` checkbox and keep going on independent work.
+- **Don't silently pre-decide:** don't bury a hard call inside a diagnostic bucket, a filter, a config default, a parsexml tweak, or a "fix." If Claude has already made one by accident, say so and offer to revisit it.
+- **Bar:** "would deciding this teach Anna something or shape the research outcome?" Routine or mechanical choices with a conventional default still just get done.
+- The final block of a turn lists any hard decisions that are pending or were surfaced.
+
+## Directives mirrored from `~/Documents/CLAUDE.md` (home of these rules)
+
+These rules live in `~/Documents/CLAUDE.md`. They're copied here so that sessions on cafe2 or the mini, which don't load that file, still follow them. If the two copies ever disagree, the Documents copy wins.
+
+> ## ⛔ NO EXTERNAL ACTIONS WITHOUT AN EXPLICIT ASK (highest-priority rule)
+> Never do anything that reaches outside this machine **unless Anna explicitly asks for that specific action in the current message**. That means: never send a text, iMessage, email, DM, or invite to **anyone**; never post, publish, push, comment, RSVP, create events, buy, sign up, or change any online account or setting. Reading public pages (docs, papers, repos) is OK; anything that *sends, creates, or changes* something outside the machine is not, unless explicitly asked. When in doubt, ask first. A todo like "email X" is a reminder for Anna, never an instruction to do it.
+
+**Alloy models (STRICT: do NOT touch).** Never edit, regenerate, reformat, or "fix" any Alloy model (`*.als`, anything under `STAGE1_alloy/models/`), not even lightly and not even an obviously correct tweak, unless Anna explicitly asks for that specific `.als` change in the current message and signs off on it. The `.als` files are the semantic ground truth of the project; an unreviewed edit silently changes what every downstream testset and result means. Reading them is fine. *Proposing* a change is fine: show Anna the diff and wait. The same spirit applies to the concretization logic (`parsexml.py`) and the gem5 instrumentation/hooks: don't tune the pipeline to hit or avoid specific bug cases, only fix things that are actually wrong, and flag model- or semantics-affecting changes for approval first.
+
+**Careful logs for everything that runs unattended.** Every tool, job, agent, hook, or app that runs in the background or unattended (launchd, `sched`, tmux sessions, sweep watchers, `testsetgen.py` / `testrun.py`, scripts started by other tools) keeps a careful log so a failure can be debugged later. Each run logs when it started and ended, what it did or decided (and why, if it chose not to act), what it changed, and every error with the full traceback or stderr. Logs go to a known, documented place, don't grow without bound, and never contain secrets. A failure must never be silent: log it, and surface it if someone needs to act. When building or changing such a tool, make sure its logging is good enough to diagnose problems without rerunning it; when something didn't work, read its log first.
+
+**Real sources over memory.** As much as possible, factual content (explanations, wiki pages, comparisons, numbers, definitions) comes from a **real source Claude has actually read in this session**, not from training memory. Before explaining a paper, spec, ISA manual, gem5 internals, or an API, get the primary source: find it locally first, otherwise fetch the official copy (arXiv/DOI/vendor docs/the repo file), and cite a page, section, or line. If no source can be obtained, say so up front ("from memory, unverified") and keep it out of anything that's supposed to be factual. When a source contradicts what Claude remembered, the source wins; mention the correction. The same goes for how tools and settings work: check the docs or the actual config/code when the answer matters, may have changed, or Claude isn't sure.
+
 ## Paper & figures
 
 The paper/writing workspace is a **separate repo at `/tests/SimSpect-S-P-2027/`** (S&P 2027,

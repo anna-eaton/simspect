@@ -145,9 +145,24 @@ def check_ld(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle, lsq_by_
     gated = in_window and (xmit_execute > 0) and (data_obtained is not None)
     issued_in_window = (bool(data_obtained) if gated else in_window)
 
+    # Every leak criterion as its own pass/fail, so a near-miss (exactly one
+    # criterion failed) can be read straight out of window-results.json.
+    # issued_in_window == all(criteria.values()), with data_obtained only
+    # counted when the LSQ gate applies (None otherwise).
+    criteria = dict(
+        lc_retired=not disqualified,
+        signal_seen=xmit_signal > 0,
+        after_lc=after_lc,
+        before_fnc=before_fnc,
+        branches_unresolved=branches_unresolved,
+        data_obtained=(bool(data_obtained)
+                       if xmit_execute > 0 and data_obtained is not None else None),
+    )
+
     return dict(
         issued_in_window=issued_in_window,
         in_window=in_window,
+        criteria=criteria,
         data_obtained=data_obtained,
         cache_fate=cache_fate,
         real_access=(fate or {}).get("real_access"),

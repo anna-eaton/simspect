@@ -33,6 +33,7 @@ These wrap `scripts/sim` (config in `scripts/simspect.env`). Full runbook: [`INF
 | `make run MODEL=<stem> RUNCONFIG=<build.jsonc>` | Consumer: gem5 sweep; results split **by transmitter kind** into `results/<name>__<ts>/<mode>/<kind>/`. One per build; run several (different `RUNCONFIG`) against one `MODEL` concurrently. |
 | `make pipeline MODEL=… CONFIG=… RUNCONFIG=…` | Producer (background) + one consumer (foreground). |
 | `make gen MODEL=STT_6_stl CONFIG=runconfigs/run_config_STT_6_stl.jsonc` | Store-to-load speculation testset (branch mode `stl_bypass`, output `testsets/STT_6_stl/stl_bypass/`). The gem5 side needs the SimSpect-STL hooks, which are not built yet. [`design/STL_SPECULATION.md`](../design/STL_SPECULATION.md) |
+| `python3 STAGE2_compilation/audit_commit_boundary.py testsets/<model> [...]` | Check that every test's lc/fnc is an Alloy instruction, not an interleave chain step or synthetic NOP; exit 1 and list offenders if not. Testsets interleaved before 2026-10-29 fail and need regenerating from `llvm`. [`design/COMMIT_BOUNDARY.md`](../design/COMMIT_BOUNDARY.md) |
 | `python3 gem5-hooks/stl/apply_stl_hooks.py <gem5_root> [--dry-run]` | Insert the SimSpect-STL gem5 hooks (store address-generation hold + memory-dependence prediction override; flags `--stl-ann-file`, `--stl-store-stall-cycles`, `--stl-alias-pred`) into a gem5 tree, then rebuild. Idempotent; originals saved as `*.pre-stl`. |
 
 ## Low-level engine — single build, sequential (what the watchers use)

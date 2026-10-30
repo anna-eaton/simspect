@@ -1745,6 +1745,29 @@ def pass4_ssa(
 
 
 # =============================================================================
+# Commit boundary (lc / fnc) — the ONE place it is chosen
+# =============================================================================
+
+def commit_boundary(
+    instructions: List[Dict[str, Any]],
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """
+    Return (last_committed, first_noncommitted) instruction records, pinned to
+    instructions from the Alloy instance (``synthetic`` records skipped).
+    Same rule as the mainline STAGE2_compilation/parsexml.py:commit_boundary;
+    see wiki/design/COMMIT_BOUNDARY.md.
+    """
+    alloy = [rec for rec in instructions if not rec.get("synthetic")]
+    last_committed = None
+    for rec in alloy:
+        if rec.get("committed", False):
+            last_committed = rec
+    first_noncommitted = next(
+        (rec for rec in alloy if not rec.get("committed", False)), None)
+    return last_committed, first_noncommitted
+
+
+# =============================================================================
 # Pass 5: emit LLVM IR
 # =============================================================================
 
@@ -1912,16 +1935,10 @@ def pass5_emit_llvm(
     # those are gone, so we drain explicitly here.
     il(f'call void asm sideeffect "mfence", "~{{memory}}"()')
 
-    # ---- Commit boundary PCs ----
-    last_committed_pc: Optional[int] = None
-    first_noncommitted_pc: Optional[int] = None
-    for rec in instructions:
-        if rec.get("committed", False):
-            last_committed_pc = rec["pc"]
-    for rec in instructions:
-        if not rec.get("committed", False):
-            first_noncommitted_pc = rec["pc"]
-            break
+    # ---- Commit boundary PCs (Alloy instructions only; see commit_boundary) ----
+    lc_rec, fnc_rec = commit_boundary(instructions)
+    last_committed_pc: Optional[int] = lc_rec["pc"] if lc_rec else None
+    first_noncommitted_pc: Optional[int] = fnc_rec["pc"] if fnc_rec else None
 
     # ---- Emit instructions ----
     last_was_terminator = False
@@ -2403,16 +2420,12 @@ def emit_branch_annotations(
             }
             break
 
-    # Collect commit boundary (last committed / first noncommitted instruction).
-    last_committed: Optional[Dict[str, Any]] = None
-    first_noncommitted: Optional[Dict[str, Any]] = None
-    for rec in result["instructions"]:
-        if rec.get("committed", False):
-            last_committed = {"pc": rec["pc"], "atom": rec["instruction"]}
-    for rec in result["instructions"]:
-        if not rec.get("committed", False):
-            first_noncommitted = {"pc": rec["pc"], "atom": rec["instruction"]}
-            break
+    # Commit boundary (Alloy instructions only; see commit_boundary).
+    lc_rec, fnc_rec = commit_boundary(result["instructions"])
+    last_committed: Optional[Dict[str, Any]] = (
+        {"pc": lc_rec["pc"], "atom": lc_rec["instruction"]} if lc_rec else None)
+    first_noncommitted: Optional[Dict[str, Any]] = (
+        {"pc": fnc_rec["pc"], "atom": fnc_rec["instruction"]} if fnc_rec else None)
 
     if write_out:
         if out_path is None:

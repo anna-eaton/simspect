@@ -269,7 +269,6 @@ def update_annotations(ann_path: Path, pc_map: dict[int, int],
     # --- xmit annotation ---
     xmit = ann.get("xmit")
     if xmit is not None:
-        xmit.pop("atom", None)
         alloy_pc = xmit.get("pc")
         if alloy_pc is not None and alloy_pc in pc_map:
             pc_offset = pc_map[alloy_pc]
@@ -300,7 +299,8 @@ def update_annotations(ann_path: Path, pc_map: dict[int, int],
             entry = cb.get(key)
             if entry is None:
                 continue
-            entry.pop("atom", None)
+            # keep "atom": it records which Alloy instruction the boundary is
+            # (audited by audit_commit_boundary.py; wiki/design/COMMIT_BOUNDARY.md)
             alloy_pc = entry.get("pc")
             if alloy_pc in branch_pc_to_jne_abs:
                 entry["addr"]     = branch_pc_to_jne_abs[alloy_pc]

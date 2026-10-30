@@ -8,7 +8,7 @@ call, what's running, the development front, and what's parked.
 ⚠️ *Run/sweep state below is "as last logged" — always trust `claudenotes.md` for the live
 picture and re-verify a sweep is actually alive before relying on it.*
 
-*Last refreshed: 2026-10-26 by `alloy-minimality` session — Alloy two-stage / minimality / OTB workstream.
+*Last refreshed: 2026-10-29 by `commit-boundary-fix` session (see top section). Prior: 2026-10-26 by `alloy-minimality` session — Alloy two-stage / minimality / OTB workstream.
 👉 **[`URGENT_TODO.md`](URGENT_TODO.md)** (OTB shape decision — needs your call ASAP) · **[`TODO.md`](TODO.md)**
 (active workstream) · open questions → [`wiki/state/OPEN.md`](wiki/state/OPEN.md). Prior refresh:
 2026-10-20 19:45 by `system setup` — session rig + dashboard fix + `/session-log`
@@ -17,6 +17,12 @@ disk; GIT WRITE LOCK now in force — recovery is Anna's). Live state → `wiki/
 list → `wiki/state/OPEN.md`. Prior: cleanuprepo repo cleanup + Mac↔cafe2 git reconciliation.*
 
 ---
+
+## 🚨 2026-10-29 — commit boundary + branch-annotation fixes (local, needs `make sync`) → [`wiki/design/COMMIT_BOUNDARY.md`](wiki/design/COMMIT_BOUNDARY.md)
+
+- 🔴 **gem5-spt and gem5-recon-modded never loaded any branch annotation** (no BTB force, no resolve stall) in mainline runs. Their past results need re-running before you interpret them. Fixed in `gem5_common.py`.
+- 🔴 **Interleaved testsets put fnc on a synthetic chain step** in 35-53% of tests. Fixed in `parsexml.py`; regenerate interleaved testsets from `llvm` (audit with `STAGE2_compilation/audit_commit_boundary.py`).
+- **Needs your review:** `STAGE1_alloy/models/STT_6_commitsplit.als` (new copy, C/D/U commit split + each-unresolved-necessary); the print-only resolve-tick hooks for 8 builds (`wiki/design/RESOLUTION_HOOKS_SURVEY.md`, needs rebuild approval).
 
 ## 🚨 2026-10-26 — ACTIVE: Alloy two-stage / minimality / OTB  → **[`URGENT_TODO.md`](URGENT_TODO.md)** · **[`TODO.md`](TODO.md)**
 

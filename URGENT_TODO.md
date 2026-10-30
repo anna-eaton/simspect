@@ -2,11 +2,26 @@
 
 *Shown on the status dashboard (linked from `STATUS.md`). The hot decisions blocking the active
 Alloy two-stage / minimality workstream. Full backlog: [`TODO.md`](TODO.md).*
-**Updated:** 2026-10-26
+**Updated:** 2026-10-30
 
 ---
 
-## 🔴 #1 — OTB shape: how should it be generated? (DECISION NEEDED ASAP)
+## 🟠 Footprint-defense audit decisions (2026-10-30, full detail in [`wiki/findings/audits/2026-10-28/APPROVALS.md`](wiki/findings/audits/2026-10-28/APPROVALS.md))
+
+Section E (hook fixes) was approved 2026-10-30 and is in progress (hooks v2). Still open:
+
+- [ ] DECIDE: R-1: treat Recon_6 results as "STT_6 minus A2" (the reveal at `Recon_6.als:316-318` is a no-op), pending a forcing-predicate SAT check?
+- [ ] DECIDE: STT-1/STT-2/STT-3: add store-address-as-implicit-branch, mispredicted xmit branch, and per-instance untaint to `STT_6.als`?
+- [ ] DECIDE: SPT-1/SPT-2/SPT-3: does the SPT oracle follow the paper's untaint algebra exactly (drop `^op_edges` re-taint, per-instruction backward rules, STLPublic gate)?
+- [ ] DECIDE: B-1..B-5: cold/evict-set/split/second-page concretization for footprint testsets (run B-0 count first)?
+- [ ] DECIDE: C-1..C-5: check_footprint semantics (undecided on `seq=-`, actor-issue window, loads only, missing record → undecided, CleanupSpec late installs)?
+- [ ] DECIDE: D-1..D-4 scope, F-2..F-5 config values (L1D size, TBEs, needsTSO, CleanupSpec stall).
+
+## ✅ #1 — OTB shape — DECIDED (Anna, 2026-10-30): (A) OTB = the interleave stage
+
+**Decision:** Two stages; **OTB comes in the second (interleave) stage** — option (A). The true-minimal baseline stays single-source (OTB is *not* minimal); the interleave stage manufactures OTB by merging a second contributing tainted source into a minimal core's transmitter. Rationale: OTB's second source is redundant under the conservative OR/union taint oracle, so minimality structurally deletes it (0/300 two-load merges when an ALU is forced onto the xmit-address path); interleave is minimality's dual — it adds the redundant source back. Consequence: "net == in-use" carries OTB **only after interleave**, never in the baseline. Original framing + the A/B/C analysis kept below for reference.
+
+## 🔴 #1 (original framing, for reference) — OTB shape: how should it be generated?
 
 **What OTB is (the gadget).** recon's `getOldestTaint` leak. The transmitter's **address** is produced by
 an ALU ("other") op that **merges the outputs of two distinct speculative tainted loads** `la`, `lb`, each

@@ -214,6 +214,30 @@ EDITS: list[tuple[str, str, str, str]] = [
                 inst->seqNum, inst->pcState().instAddr(), dep);
         }
 '''),
+    ("src/cpu/o3/mem_dep_unit.cc",
+     "        producing_stores.insert(std::end(producing_stores),\n"
+     "                                std::begin(loadBarrierSNs),\n"
+     "                                std::end(loadBarrierSNs));\n",
+     "after",
+     '''        // SimSpect-STL: a load barrier (the litmus setup mfence) is in
+        // flight, so gem5 makes this load wait on the barrier and never asks
+        // the predictor. Apply the forced prediction here too: alias mode adds
+        // the store-set dependence the predictor branch would have added;
+        // no_alias has nothing to drop (a barrier wait is not a prediction).
+        if (stlAliasPred != 0 && inst->isLoad() &&
+                stlAliasLoadPCs.count(inst->pcState().instAddr())) {
+            InstSeqNum dep = 0;
+            if (stlAliasPred == 2) {
+                dep = depPred.checkInst(inst->pcState().instAddr());
+                if (dep != 0)
+                    producing_stores.push_back(dep);
+            }
+            DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:STL:%s:line=-:"
+                "seq=%llu:pc=%#x:victim=-:cause=%llu:sq=-:id=-:via=barrier\\n",
+                curTick(), stlAliasPred == 1 ? "pred_no_alias" : "pred_alias",
+                inst->seqNum, inst->pcState().instAddr(), dep);
+        }
+'''),
 
     # ---- configs -------------------------------------------------------------
     ("configs/common/Options.py",

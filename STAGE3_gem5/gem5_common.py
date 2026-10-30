@@ -153,6 +153,27 @@ def resolve_pc(binary: Path, func_name: str, ann_entry: dict) -> Optional[int]:
 
 # ── gem5 simulation ──────────────────────────────────────────────────────────
 
+def _branch_ann_for_se(ann_path: Path, workdir: Path) -> Path:
+    """Write the --branch-ann-file copy that every build's se.py can read.
+
+    compile_annotate.py writes each branch's absolute PC as `branch_addr[_hex]`,
+    which /work/stt's se.py reads. The /work/gem5-spt and /work/gem5-recon-modded
+    se.py loaders only accept `branch_pc_addr[_hex]` (or x86 offsets) and skip
+    every other entry, so no BTB override and no resolve stall were registered
+    on those builds (config.ini annotationBranchPCs empty). The alias is added
+    here, at the one point where an annotation is handed to gem5, so existing
+    testsets need no regeneration. See wiki/design/COMMIT_BOUNDARY.md §3.
+    """
+    ann = json.loads(ann_path.read_text())
+    for entry in ann.get("annotations", []):
+        if "branch_addr" in entry and "branch_pc_addr" not in entry:
+            entry["branch_pc_addr"] = entry["branch_addr"]
+            entry["branch_pc_addr_hex"] = hex(int(entry["branch_addr"]))
+    out = workdir / "branch_ann_se.json"
+    out.write_text(json.dumps(ann, indent=1))
+    return out
+
+
 def run_gem5(binary: Path, workdir: Path,
              ann_path: Optional[Path] = None,
              fnc_pc: Optional[int] = None) -> Path:
@@ -182,7 +203,7 @@ def run_gem5(binary: Path, workdir: Path,
 
     if BRANCH_ANN_ENABLE and ann_path is not None and ann_path.exists():
         base = _func_base_addr(binary, binary.stem)
-        cmd.append(f"--branch-ann-file={ann_path}")
+        cmd.append(f"--branch-ann-file={_branch_ann_for_se(ann_path, workdir)}")
         if base is not None:
             cmd.append(f"--branch-ann-base={hex(base)}")
 

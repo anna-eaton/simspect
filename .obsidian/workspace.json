@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "sprint/cards-2-wed.md",
+                "file": "wiki/findings/audits/2026-10-28/APPROVALS.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "cards-2-wed"
+              "title": "APPROVALS"
             }
           }
         ]
@@ -190,9 +190,24 @@
   },
   "active": "3a0004c1cab800f3",
   "lastOpenFiles": [
+    "gem5-hooks/resolve/rebuild_resolve_hooks.sh",
+    "gem5-hooks/stl/__pycache__/apply_stl_hooks.cpython-314.pyc",
+    "gem5-hooks/stl/__pycache__",
+    "gem5-hooks/resolve/apply_resolve_hooks.py",
+    "gem5-hooks/resolve",
+    "wiki/findings/mdsToRead/RIONLY_BASELINE_PROOF.md",
+    "STAGE3_gem5/hook_audit.py",
+    "wiki/findings/mdsToRead/FNC_RECOMPUTE_ROOT_CAUSE.md",
+    "STAGE1_alloy/models/MANIFEST.md",
+    "wiki/findings/mdsToRead/near_miss_breakdown.json",
+    "wiki/findings/mdsToRead/NEAR_MISS_BREAKDOWN.md",
+    "STAGE2_compilation/__pycache__/audit_commit_boundary.cpython-314.pyc",
+    "wiki/design/COMMIT_BOUNDARY.md",
+    "wiki/design/RESOLUTION_HOOKS_SURVEY.md",
+    "STAGE2_compilation/audit_commit_boundary.py",
+    "STAGE1_alloy/models/STT_6_commitsplit.als",
+    "bugsynth/STAGE2_compilation/__pycache__/batch_generate.cpython-314.pyc",
     "wiki/findings/audits/2026-10-28/check_footprint_review.md",
-    "STAGE3_gem5/tests/__pycache__/test_check_footprint.cpython-314.pyc",
-    "STAGE3_gem5/tests/__pycache__",
     "wiki/findings/audits/2026-10-28/alloy_STT_6.md",
     "wiki/findings/audits/2026-10-28/alloy_Recon_6.md",
     "wiki/findings/audits/2026-10-28/hooks_invisispec.md",
@@ -208,21 +223,8 @@
     "wiki/findings/audits/2026-10-28/docs_consistency.md",
     "wiki/findings/audits/2026-10-28/invisispec_flagged_events_triage.md",
     "wiki/findings/audits/2026-10-28/scope_claims_verification.md",
-    "wiki/findings/audits/2026-10-28",
-    "wiki/findings/audits",
     "wiki/design/STL_SPECULATION.md",
-    "gem5-hooks/stl/__pycache__/apply_stl_hooks.cpython-314.pyc",
-    "gem5-hooks/stl/__pycache__",
-    "STAGE2_compilation/__pycache__/batch_generate.cpython-314.pyc",
-    "runconfigs/run_config_STT_6_stl.jsonc",
-    "gem5-hooks/stl/stl_hooks_vs_gem5_v22.0.0.2.diff",
-    "gem5-hooks/stl/apply_stl_hooks.py",
     "wiki/findings/mdsToRead/PROTECTION_SCOPE_TABLE.md",
-    "results/STT_6_cleanupspec_full/README.md",
-    "results/STT_6_speclfb_full/README.md",
-    "results/STT_6_invisispec_full_futuristic/README.md",
-    "results/STT_6_invisispec_full_spectre/README.md",
-    "wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md",
-    "sprint/cards-1-tue-wedam.md"
+    "results/STT_6_cleanupspec_full/README.md"
   ]
 }

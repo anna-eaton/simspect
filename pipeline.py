@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import zlib
 import os
 import re
 import shutil
@@ -453,7 +454,7 @@ def _enumerate_grid_for_corpus(s_files: list, ann_dir: Path,
             resolved, points,
             unresolved_points=sweep_cfg.get("unresolved_points"),
             max_grid=sweep_cfg.get("max_grid"),
-            seed=(hash(sf.stem) & 0xffffffff))
+            seed=zlib.crc32(sf.stem.encode()))
         manifest[sf.stem] = grid
 
         for idx, stalls in enumerate(grid):
@@ -912,7 +913,7 @@ def phase_asm_gem5_streaming(cfg: dict, model: str, ts_mode: Path,
                     resolved, points,
                     unresolved_points=sweep_cfg.get("unresolved_points"),
                     max_grid=sweep_cfg.get("max_grid"),
-                    seed=(hash(sf.stem) & 0xffffffff))
+                    seed=zlib.crc32(sf.stem.encode()))
                 local_manifest[sf.stem] = grid
                 manifest[sf.stem]       = grid
                 for idx, stalls in enumerate(grid):

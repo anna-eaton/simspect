@@ -1,0 +1,6700 @@
+{
+ "generated": "2026-10-29",
+ "generator": "scratch nearmiss.py (read-only, cafe2 gem5_dev)",
+ "criteria": {
+  "D": "D=disqualified (lc never retired)",
+  "S": "S=no signal",
+  "L": "L=before lc_retire",
+  "F": "F=at/after fnc_retire",
+  "B": "B=branch resolved",
+  "G": "G=data not obtained",
+  "R": "R=no redirect (residual)",
+  "U": "U=SpecLFB-protected"
+ },
+ "campaigns": [
+  {
+   "mode_dir": "Recon_6/results",
+   "kind": "all",
+   "source": "sweep raw: Recon_6/sweep/raw_results (675 files, 0 unreadable)",
+   "summary_total": 100000,
+   "summary_hits": 1120,
+   "summary_status_error": 37227,
+   "total": 100000,
+   "no_record": 0,
+   "error": 37227,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 848,
+   "hit_recomputed": 848,
+   "inconsistent_records": 0,
+   "non_hit": 61925,
+   "near_miss": 14761,
+   "near_miss_by": {
+    "S": 13758,
+    "F": 706,
+    "L": 297
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "A": 32388,
+    "SL": 14776,
+    "S": 13758,
+    "F": 706,
+    "L": 297
+   },
+   "grid_points": 100000,
+   "grid_joint": {
+    "A": 32388,
+    "SL": 14776,
+    "S": 13758,
+    "PASS": 848,
+    "F": 706,
+    "L": 297
+   },
+   "families": {
+    "ld": 48297,
+    "br_v0": 32388,
+    "br": 19315
+   },
+   "gate_eval": {
+    "na": 32388,
+    "absent": 30385
+   },
+   "legacy_br_opaque_nonhit": 32388,
+   "near_miss_raw_incl_legacy_A": 47149,
+   "near_miss_signal_present": 1003,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2, branch_ann_enable",
+   "build_provenance": "Recon_6/run_config.jsonc + Recon_6__20260602_122016/manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "Recon_6__20260602_122016/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "sweep raw: Recon_6__20260602_122016/mispredict_not_taken/_sweep_raw (1244 files, 0 unreadable)",
+   "summary_total": 51703,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 51703,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 51703,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 31198,
+    "SR": 20488,
+    "DSR": 17
+   },
+   "grid_points": 159207,
+   "grid_joint": {
+    "SR": 89706,
+    "SLR": 69482,
+    "DSR": 19
+   },
+   "families": {
+    "br": 159207
+   },
+   "gate_eval": {
+    "residual": 159207
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2, branch_ann_enable",
+   "build_provenance": "Recon_6/run_config.jsonc + Recon_6__20260602_122016/manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "Recon_6__20260602_122016/mispredict_not_taken",
+   "kind": "ld",
+   "source": "sweep raw: Recon_6__20260602_122016/mispredict_not_taken/_sweep_raw (1244 files, 0 unreadable)",
+   "summary_total": 48297,
+   "summary_hits": 184,
+   "summary_status_error": 0,
+   "total": 48297,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 184,
+   "hit_recomputed": 184,
+   "inconsistent_records": 0,
+   "non_hit": 48113,
+   "near_miss": 19974,
+   "near_miss_by": {
+    "S": 19230,
+    "G": 323,
+    "F": 306,
+    "L": 115
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 27257,
+    "S": 19230,
+    "FG": 584,
+    "G": 323,
+    "F": 306,
+    "LG": 297,
+    "L": 115,
+    "DS": 1
+   },
+   "grid_points": 152657,
+   "grid_joint": {
+    "S": 87264,
+    "SL": 60051,
+    "FG": 1296,
+    "F": 1030,
+    "LG": 869,
+    "G": 773,
+    "PASS": 750,
+    "L": 623,
+    "DS": 1
+   },
+   "families": {
+    "ld": 152657
+   },
+   "gate_eval": {
+    "absent": 108539,
+    "direct": 44118
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 19974,
+   "near_miss_signal_present": 744,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2, branch_ann_enable",
+   "build_provenance": "Recon_6/run_config.jsonc + Recon_6__20260602_122016/manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 5000,
+   "summary_hits": 726,
+   "summary_status_error": 0,
+   "total": 5000,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 726,
+   "hit_recomputed": 290,
+   "inconsistent_records": 436,
+   "non_hit": 4274,
+   "near_miss": 914,
+   "near_miss_by": {
+    "S": 912,
+    "L": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "A": 1825,
+    "SL": 1535,
+    "S": 912,
+    "L": 2
+   },
+   "grid_points": 5000,
+   "grid_joint": {
+    "A": 2261,
+    "SL": 1535,
+    "S": 912,
+    "PASS": 290,
+    "L": 2
+   },
+   "families": {
+    "br_v0": 2538,
+    "ld": 2462
+   },
+   "gate_eval": {
+    "na": 2538,
+    "absent": 2462
+   },
+   "legacy_br_opaque_nonhit": 1825,
+   "near_miss_raw_incl_legacy_A": 2739,
+   "near_miss_signal_present": 2,
+   "gem5_binary": "/work/gem5-spt (inferred from name; no run_config in dir)",
+   "gem5_variant": "variant per dir name",
+   "build_provenance": "none in dir",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_FuturisticFence/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 5000,
+   "summary_hits": 697,
+   "summary_status_error": 0,
+   "total": 5000,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 697,
+   "hit_recomputed": 270,
+   "inconsistent_records": 427,
+   "non_hit": 4303,
+   "near_miss": 918,
+   "near_miss_by": {
+    "S": 915,
+    "L": 3
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "A": 1851,
+    "SL": 1534,
+    "S": 915,
+    "L": 3
+   },
+   "grid_points": 5000,
+   "grid_joint": {
+    "A": 2278,
+    "SL": 1534,
+    "S": 915,
+    "PASS": 270,
+    "L": 3
+   },
+   "families": {
+    "br_v0": 2538,
+    "ld": 2462
+   },
+   "gate_eval": {
+    "na": 2538,
+    "absent": 2462
+   },
+   "legacy_br_opaque_nonhit": 1851,
+   "near_miss_raw_incl_legacy_A": 2769,
+   "near_miss_signal_present": 3,
+   "gem5_binary": "/work/gem5-spt (inferred from name; no run_config in dir)",
+   "gem5_variant": "variant per dir name",
+   "build_provenance": "none in dir",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_FuturisticInvisibleSpec/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 5000,
+   "summary_hits": 1088,
+   "summary_status_error": 0,
+   "total": 5000,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 1088,
+   "hit_recomputed": 661,
+   "inconsistent_records": 427,
+   "non_hit": 3912,
+   "near_miss": 900,
+   "near_miss_by": {
+    "S": 761,
+    "L": 139
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "A": 1851,
+    "SL": 1161,
+    "S": 761,
+    "L": 139
+   },
+   "grid_points": 5000,
+   "grid_joint": {
+    "A": 2278,
+    "SL": 1161,
+    "S": 761,
+    "PASS": 661,
+    "L": 139
+   },
+   "families": {
+    "br_v0": 2538,
+    "ld": 2462
+   },
+   "gate_eval": {
+    "na": 2538,
+    "absent": 2462
+   },
+   "legacy_br_opaque_nonhit": 1851,
+   "near_miss_raw_incl_legacy_A": 2751,
+   "near_miss_signal_present": 139,
+   "gem5_binary": "/work/gem5-spt (inferred from name; no run_config in dir)",
+   "gem5_variant": "variant per dir name",
+   "build_provenance": "none in dir",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_SpectreInvisibleSpec/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 5000,
+   "summary_hits": 1088,
+   "summary_status_error": 0,
+   "total": 5000,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 1088,
+   "hit_recomputed": 661,
+   "inconsistent_records": 427,
+   "non_hit": 3912,
+   "near_miss": 900,
+   "near_miss_by": {
+    "S": 761,
+    "L": 139
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "A": 1851,
+    "SL": 1161,
+    "S": 761,
+    "L": 139
+   },
+   "grid_points": 5000,
+   "grid_joint": {
+    "A": 2278,
+    "SL": 1161,
+    "S": 761,
+    "PASS": 661,
+    "L": 139
+   },
+   "families": {
+    "br_v0": 2538,
+    "ld": 2462
+   },
+   "gate_eval": {
+    "na": 2538,
+    "absent": 2462
+   },
+   "legacy_br_opaque_nonhit": 1851,
+   "near_miss_raw_incl_legacy_A": 2751,
+   "near_miss_signal_present": 139,
+   "gem5_binary": "/work/gem5-spt (inferred from name; no run_config in dir)",
+   "gem5_variant": "variant per dir name",
+   "build_provenance": "none in dir",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_disableUntaint/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 5000,
+   "summary_hits": 678,
+   "summary_status_error": 0,
+   "total": 5000,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 678,
+   "hit_recomputed": 266,
+   "inconsistent_records": 412,
+   "non_hit": 4322,
+   "near_miss": 919,
+   "near_miss_by": {
+    "S": 919
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "A": 1860,
+    "SL": 1543,
+    "S": 919
+   },
+   "grid_points": 5000,
+   "grid_joint": {
+    "A": 2272,
+    "SL": 1543,
+    "S": 919,
+    "PASS": 266
+   },
+   "families": {
+    "br_v0": 2538,
+    "ld": 2462
+   },
+   "gate_eval": {
+    "na": 2538,
+    "absent": 2462
+   },
+   "legacy_br_opaque_nonhit": 1860,
+   "near_miss_raw_incl_legacy_A": 2779,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-spt (inferred from name; no run_config in dir)",
+   "gem5_variant": "variant per dir name",
+   "build_provenance": "none in dir",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_full/mispredict_not_taken",
+   "kind": "all",
+   "source": "sweep raw: SPT_6_full/mispredict_not_taken/sweep/raw_results (1651 files, 0 unreadable)",
+   "summary_total": 27000,
+   "summary_hits": 6045,
+   "summary_status_error": 0,
+   "total": 27000,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 6045,
+   "hit_recomputed": 1515,
+   "inconsistent_records": 108273,
+   "non_hit": 20955,
+   "near_miss": 5441,
+   "near_miss_by": {
+    "S": 5429,
+    "L": 12
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "A": 9190,
+    "SL": 6323,
+    "S": 5429,
+    "L": 12,
+    "PASS(recomputed)": 1
+   },
+   "grid_points": 296780,
+   "grid_joint": {
+    "A": 228552,
+    "S": 29827,
+    "SL": 22297,
+    "PASS": 16078,
+    "L": 26
+   },
+   "families": {
+    "br_v0": 244521,
+    "ld": 52259
+   },
+   "gate_eval": {
+    "na": 244521,
+    "absent": 52259
+   },
+   "legacy_br_opaque_nonhit": 9190,
+   "near_miss_raw_incl_legacy_A": 14631,
+   "near_miss_signal_present": 12,
+   "gem5_binary": "/work/gem5-spt (inferred from name; no run_config in dir)",
+   "gem5_variant": "variant per dir name",
+   "build_provenance": "none in dir",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_full_fence/mispredict_not_taken",
+   "kind": "all",
+   "source": "sweep raw: SPT_6_full_fence/mispredict_not_taken/sweep/raw_results (1041 files, 0 unreadable)",
+   "summary_total": 24000,
+   "summary_hits": 4431,
+   "summary_status_error": 0,
+   "total": 24000,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 4431,
+   "hit_recomputed": 1319,
+   "inconsistent_records": 62850,
+   "non_hit": 19569,
+   "near_miss": 4860,
+   "near_miss_by": {
+    "S": 4848,
+    "L": 12
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "A": 8386,
+    "SL": 6323,
+    "S": 4848,
+    "L": 12
+   },
+   "grid_points": 220946,
+   "grid_joint": {
+    "A": 159240,
+    "S": 26194,
+    "SL": 22297,
+    "PASS": 13189,
+    "L": 26
+   },
+   "families": {
+    "br_v0": 172320,
+    "ld": 48626
+   },
+   "gate_eval": {
+    "na": 172320,
+    "absent": 48626
+   },
+   "legacy_br_opaque_nonhit": 8386,
+   "near_miss_raw_incl_legacy_A": 13246,
+   "near_miss_signal_present": 12,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Ignore, fwd/bwdUntaint",
+   "build_provenance": "run_config.jsonc",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_full_invispec/mispredict_not_taken",
+   "kind": "all",
+   "source": "sweep raw: SPT_6_full_invispec/mispredict_not_taken/sweep/raw_results (1020 files, 0 unreadable)",
+   "summary_total": 23000,
+   "summary_hits": 4897,
+   "summary_status_error": 0,
+   "total": 23000,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 4897,
+   "hit_recomputed": 2251,
+   "inconsistent_records": 52842,
+   "non_hit": 18103,
+   "near_miss": 4636,
+   "near_miss_by": {
+    "S": 4346,
+    "L": 290
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "A": 8083,
+    "SL": 5384,
+    "S": 4346,
+    "L": 290
+   },
+   "grid_points": 203180,
+   "grid_joint": {
+    "A": 144561,
+    "S": 23944,
+    "SL": 18030,
+    "PASS": 15359,
+    "L": 1286
+   },
+   "families": {
+    "br_v0": 154554,
+    "ld": 48626
+   },
+   "gate_eval": {
+    "na": 154554,
+    "absent": 48626
+   },
+   "legacy_br_opaque_nonhit": 8083,
+   "near_miss_raw_incl_legacy_A": 12719,
+   "near_miss_signal_present": 290,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeInvisibleSpec, Ignore",
+   "build_provenance": "run_config.jsonc",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence__20260602_013615/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "sweep raw: SPT_6_oneLP_fence__20260602_013615/mispredict_not_taken/_sweep_raw (315 files, 0 unreadable)",
+   "summary_total": 3126,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 3126,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 3126,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 2309,
+    "SR": 763,
+    "DSR": 54
+   },
+   "grid_points": 17148,
+   "grid_joint": {
+    "SLR": 12717,
+    "SR": 4269,
+    "DSR": 162
+   },
+   "families": {
+    "br": 17148
+   },
+   "gate_eval": {
+    "residual": 17148
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence__20260602_013615/mispredict_not_taken",
+   "kind": "ld",
+   "source": "sweep raw: SPT_6_oneLP_fence__20260602_013615/mispredict_not_taken/_sweep_raw (315 files, 0 unreadable)",
+   "summary_total": 14874,
+   "summary_hits": 2994,
+   "summary_status_error": 0,
+   "total": 14874,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 2994,
+   "hit_recomputed": 2994,
+   "inconsistent_records": 0,
+   "non_hit": 11880,
+   "near_miss": 3448,
+   "near_miss_by": {
+    "S": 3035,
+    "L": 358,
+    "D": 55
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 8247,
+    "S": 3035,
+    "L": 358,
+    "DS": 185,
+    "D": 55
+   },
+   "grid_points": 89502,
+   "grid_joint": {
+    "SL": 47811,
+    "PASS": 20208,
+    "S": 18603,
+    "L": 2160,
+    "DS": 555,
+    "D": 165
+   },
+   "families": {
+    "ld": 89502
+   },
+   "gate_eval": {
+    "absent": 89502
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 3448,
+   "near_miss_signal_present": 413,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence__20260602_013615/mispredict_taken",
+   "kind": "br_x",
+   "source": "sweep raw: SPT_6_oneLP_fence__20260602_013615/mispredict_taken/_sweep_raw (315 files, 0 unreadable)",
+   "summary_total": 3126,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 3126,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 3126,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 2309,
+    "SR": 763,
+    "DSR": 54
+   },
+   "grid_points": 17148,
+   "grid_joint": {
+    "SLR": 12717,
+    "SR": 4269,
+    "DSR": 162
+   },
+   "families": {
+    "br": 17148
+   },
+   "gate_eval": {
+    "residual": 17148
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence__20260602_013615/mispredict_taken",
+   "kind": "ld",
+   "source": "sweep raw: SPT_6_oneLP_fence__20260602_013615/mispredict_taken/_sweep_raw (315 files, 0 unreadable)",
+   "summary_total": 14874,
+   "summary_hits": 3124,
+   "summary_status_error": 0,
+   "total": 14874,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 3124,
+   "hit_recomputed": 3124,
+   "inconsistent_records": 0,
+   "non_hit": 11750,
+   "near_miss": 3437,
+   "near_miss_by": {
+    "S": 2986,
+    "L": 375,
+    "D": 76
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 8149,
+    "S": 2986,
+    "L": 375,
+    "DS": 164,
+    "D": 76
+   },
+   "grid_points": 89502,
+   "grid_joint": {
+    "SL": 46665,
+    "PASS": 22044,
+    "S": 18222,
+    "L": 1851,
+    "DS": 492,
+    "D": 228
+   },
+   "families": {
+    "ld": 89502
+   },
+   "gate_eval": {
+    "absent": 89502
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 3437,
+   "near_miss_signal_present": 451,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence__20260610_112453/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "sweep raw: SPT_6_oneLP_fence__20260610_112453/mispredict_not_taken/_sweep_raw (63 files, 0 unreadable)",
+   "summary_total": 146,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 146,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 146,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 111,
+    "SR": 35
+   },
+   "grid_points": 2238,
+   "grid_joint": {
+    "SLR": 1641,
+    "SR": 597
+   },
+   "families": {
+    "br": 2238
+   },
+   "gate_eval": {
+    "residual": 2238
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, freeParam=3",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence__20260610_112453/mispredict_not_taken",
+   "kind": "ld",
+   "source": "sweep raw: SPT_6_oneLP_fence__20260610_112453/mispredict_not_taken/_sweep_raw (63 files, 0 unreadable)",
+   "summary_total": 1354,
+   "summary_hits": 494,
+   "summary_status_error": 0,
+   "total": 1354,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 494,
+   "hit_recomputed": 494,
+   "inconsistent_records": 0,
+   "non_hit": 860,
+   "near_miss": 201,
+   "near_miss_by": {
+    "S": 172,
+    "L": 25,
+    "G": 4
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 659,
+    "S": 172,
+    "L": 25,
+    "G": 4
+   },
+   "grid_points": 16374,
+   "grid_joint": {
+    "SL": 7239,
+    "PASS": 5538,
+    "S": 3162,
+    "L": 423,
+    "G": 12
+   },
+   "families": {
+    "ld": 16374
+   },
+   "gate_eval": {
+    "direct": 16374
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 201,
+   "near_miss_signal_present": 29,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, freeParam=3",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence__20260610_112453/mispredict_taken",
+   "kind": "br_x",
+   "source": "sweep raw: SPT_6_oneLP_fence__20260610_112453/mispredict_taken/_sweep_raw (63 files, 0 unreadable)",
+   "summary_total": 146,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 146,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 146,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 111,
+    "SR": 35
+   },
+   "grid_points": 2238,
+   "grid_joint": {
+    "SLR": 1641,
+    "SR": 597
+   },
+   "families": {
+    "br": 2238
+   },
+   "gate_eval": {
+    "residual": 2238
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, freeParam=3",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence__20260610_112453/mispredict_taken",
+   "kind": "ld",
+   "source": "sweep raw: SPT_6_oneLP_fence__20260610_112453/mispredict_taken/_sweep_raw (63 files, 0 unreadable)",
+   "summary_total": 1354,
+   "summary_hits": 553,
+   "summary_status_error": 0,
+   "total": 1354,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 553,
+   "hit_recomputed": 553,
+   "inconsistent_records": 0,
+   "non_hit": 801,
+   "near_miss": 188,
+   "near_miss_by": {
+    "S": 160,
+    "L": 17,
+    "G": 11
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 613,
+    "S": 160,
+    "L": 17,
+    "G": 11
+   },
+   "grid_points": 16374,
+   "grid_joint": {
+    "PASS": 6855,
+    "SL": 6351,
+    "S": 2862,
+    "L": 273,
+    "G": 33
+   },
+   "families": {
+    "ld": 16374
+   },
+   "gate_eval": {
+    "direct": 16374
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 188,
+   "near_miss_signal_present": 28,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, freeParam=3",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence_newts__20260610_114140/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "sweep raw: SPT_6_oneLP_fence_newts__20260610_114140/mispredict_not_taken/_sweep_raw (54 files, 0 unreadable)",
+   "summary_total": 504,
+   "summary_hits": 8,
+   "summary_status_error": 0,
+   "total": 504,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 8,
+   "hit_recomputed": 8,
+   "inconsistent_records": 0,
+   "non_hit": 496,
+   "near_miss": 4,
+   "near_miss_by": {
+    "L": 4
+   },
+   "near_miss_resid_unknown": {
+    "L": 4
+   },
+   "joint": {
+    "SLR": 472,
+    "DSR": 16,
+    "SR": 4,
+    "L+R?": 4
+   },
+   "grid_points": 3912,
+   "grid_joint": {
+    "SLR": 3576,
+    "PASS": 144,
+    "SR": 108,
+    "DSR": 48,
+    "L+R?": 36
+   },
+   "families": {
+    "br": 3912
+   },
+   "gate_eval": {
+    "residual": 3912
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 4,
+   "near_miss_signal_present": 4,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, freeParam=3",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence_newts__20260610_114140/mispredict_not_taken",
+   "kind": "ld",
+   "source": "sweep raw: SPT_6_oneLP_fence_newts__20260610_114140/mispredict_not_taken/_sweep_raw (54 files, 0 unreadable)",
+   "summary_total": 492,
+   "summary_hits": 11,
+   "summary_status_error": 0,
+   "total": 492,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 11,
+   "hit_recomputed": 11,
+   "inconsistent_records": 0,
+   "non_hit": 481,
+   "near_miss": 10,
+   "near_miss_by": {
+    "S": 8,
+    "L": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 456,
+    "DS": 15,
+    "S": 8,
+    "L": 2
+   },
+   "grid_points": 3786,
+   "grid_joint": {
+    "SL": 3408,
+    "S": 216,
+    "PASS": 99,
+    "DS": 45,
+    "L": 18
+   },
+   "families": {
+    "ld": 3786
+   },
+   "gate_eval": {
+    "direct": 3786
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 10,
+   "near_miss_signal_present": 2,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, freeParam=3",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence_newts__20260610_114140/mispredict_not_taken",
+   "kind": "str",
+   "source": "sweep raw: SPT_6_oneLP_fence_newts__20260610_114140/mispredict_not_taken/_sweep_raw (54 files, 0 unreadable)",
+   "summary_total": 504,
+   "summary_hits": 11,
+   "summary_status_error": 0,
+   "total": 504,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 11,
+   "hit_recomputed": 11,
+   "inconsistent_records": 0,
+   "non_hit": 493,
+   "near_miss": 13,
+   "near_miss_by": {
+    "S": 8,
+    "L": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 464,
+    "DS": 16,
+    "S": 8,
+    "L": 5
+   },
+   "grid_points": 3888,
+   "grid_joint": {
+    "SL": 3474,
+    "S": 216,
+    "PASS": 99,
+    "DS": 54,
+    "L": 45
+   },
+   "families": {
+    "ld": 3888
+   },
+   "gate_eval": {
+    "direct": 3888
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 13,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, freeParam=3",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence_newts__20260610_114140/mispredict_taken",
+   "kind": "br_x",
+   "source": "sweep raw: SPT_6_oneLP_fence_newts__20260610_114140/mispredict_taken/_sweep_raw (54 files, 0 unreadable)",
+   "summary_total": 504,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 504,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 504,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 480,
+    "DSR": 16,
+    "SR": 8
+   },
+   "grid_points": 3912,
+   "grid_joint": {
+    "SLR": 3648,
+    "SR": 216,
+    "DSR": 48
+   },
+   "families": {
+    "br": 3912
+   },
+   "gate_eval": {
+    "residual": 3912
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, freeParam=3",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence_newts__20260610_114140/mispredict_taken",
+   "kind": "ld",
+   "source": "sweep raw: SPT_6_oneLP_fence_newts__20260610_114140/mispredict_taken/_sweep_raw (54 files, 0 unreadable)",
+   "summary_total": 492,
+   "summary_hits": 14,
+   "summary_status_error": 0,
+   "total": 492,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 14,
+   "hit_recomputed": 14,
+   "inconsistent_records": 0,
+   "non_hit": 478,
+   "near_miss": 10,
+   "near_miss_by": {
+    "S": 8,
+    "L": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 453,
+    "DS": 13,
+    "S": 8,
+    "L": 2,
+    "DG": 2
+   },
+   "grid_points": 3786,
+   "grid_joint": {
+    "SL": 3393,
+    "S": 216,
+    "PASS": 120,
+    "DS": 39,
+    "L": 12,
+    "DG": 6
+   },
+   "families": {
+    "ld": 3786
+   },
+   "gate_eval": {
+    "direct": 3786
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 10,
+   "near_miss_signal_present": 2,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, freeParam=3",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "SPT_6_oneLP_fence_newts__20260610_114140/mispredict_taken",
+   "kind": "str",
+   "source": "sweep raw: SPT_6_oneLP_fence_newts__20260610_114140/mispredict_taken/_sweep_raw (54 files, 0 unreadable)",
+   "summary_total": 504,
+   "summary_hits": 13,
+   "summary_status_error": 0,
+   "total": 504,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 13,
+   "hit_recomputed": 13,
+   "inconsistent_records": 0,
+   "non_hit": 491,
+   "near_miss": 12,
+   "near_miss_by": {
+    "S": 8,
+    "L": 4
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 463,
+    "DS": 16,
+    "S": 8,
+    "L": 4
+   },
+   "grid_points": 3888,
+   "grid_joint": {
+    "SL": 3471,
+    "S": 216,
+    "PASS": 111,
+    "DS": 54,
+    "L": 36
+   },
+   "families": {
+    "ld": 3888
+   },
+   "gate_eval": {
+    "direct": 3888
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 12,
+   "near_miss_signal_present": 4,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, freeParam=3",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6/mispredict_not_taken",
+   "kind": "all",
+   "source": "sweep raw: STT_6/mispredict_not_taken/sweep/raw_results (2228 files, 0 unreadable)",
+   "summary_total": 100000,
+   "summary_hits": 825,
+   "summary_status_error": 41500,
+   "total": 100000,
+   "no_record": 0,
+   "error": 41500,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 825,
+   "hit_recomputed": 825,
+   "inconsistent_records": 0,
+   "non_hit": 57675,
+   "near_miss": 15633,
+   "near_miss_by": {
+    "S": 14606,
+    "F": 1025,
+    "multi:F/S": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 23018,
+    "A": 19024,
+    "S": 14606,
+    "F": 1027
+   },
+   "grid_points": 546756,
+   "grid_joint": {
+    "A": 236166,
+    "S": 104471,
+    "SL": 52378,
+    "PASS": 6356,
+    "F": 1029
+   },
+   "families": {
+    "br_v0": 240231,
+    "ld": 218256,
+    "br": 88269
+   },
+   "gate_eval": {
+    "na": 240231,
+    "absent": 160169
+   },
+   "legacy_br_opaque_nonhit": 19024,
+   "near_miss_raw_incl_legacy_A": 34657,
+   "near_miss_signal_present": 1025,
+   "gem5_binary": "recon (per AUDIT.md #20; dir has no run_config)",
+   "gem5_variant": "scheme 2 (assumed)",
+   "build_provenance": "wiki/design/AUDIT.md:96",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6/mispredict_taken",
+   "kind": "all",
+   "source": "sweep raw: STT_6/mispredict_taken/sweep/raw_results (2225 files, 0 unreadable)",
+   "summary_total": 100000,
+   "summary_hits": 884,
+   "summary_status_error": 41854,
+   "total": 100000,
+   "no_record": 0,
+   "error": 41854,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 884,
+   "hit_recomputed": 884,
+   "inconsistent_records": 0,
+   "non_hit": 57262,
+   "near_miss": 16999,
+   "near_miss_by": {
+    "S": 12292,
+    "F": 3960,
+    "multi:F/S": 747
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 21660,
+    "A": 18603,
+    "S": 12292,
+    "F": 4707
+   },
+   "grid_points": 546756,
+   "grid_joint": {
+    "A": 228507,
+    "S": 86054,
+    "SL": 48882,
+    "F": 23851,
+    "PASS": 9762
+   },
+   "families": {
+    "br_v0": 238269,
+    "ld": 218256,
+    "br": 90231
+   },
+   "gate_eval": {
+    "na": 238269,
+    "absent": 158787
+   },
+   "legacy_br_opaque_nonhit": 18603,
+   "near_miss_raw_incl_legacy_A": 35602,
+   "near_miss_signal_present": 3960,
+   "gem5_binary": "recon (per AUDIT.md #20; dir has no run_config)",
+   "gem5_variant": "scheme 2 (assumed)",
+   "build_provenance": "wiki/design/AUDIT.md:96",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6__20260602_015852/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "sweep raw: STT_6__20260602_015852/mispredict_not_taken/_sweep_raw (879 files, 0 unreadable)",
+   "summary_total": 27389,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 27389,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 27389,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 20805,
+    "SR": 6584
+   },
+   "grid_points": 72363,
+   "grid_joint": {
+    "SLR": 39209,
+    "SR": 33154
+   },
+   "families": {
+    "br": 72363
+   },
+   "gate_eval": {
+    "residual": 72363
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "manifest.json (config run_config_STT_6.jsonc)",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6__20260602_015852/mispredict_not_taken",
+   "kind": "ld",
+   "source": "sweep raw: STT_6__20260602_015852/mispredict_not_taken/_sweep_raw (879 files, 0 unreadable)",
+   "summary_total": 66512,
+   "summary_hits": 253,
+   "summary_status_error": 0,
+   "total": 66512,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 253,
+   "hit_recomputed": 253,
+   "inconsistent_records": 0,
+   "non_hit": 66259,
+   "near_miss": 20246,
+   "near_miss_by": {
+    "S": 19773,
+    "G": 459,
+    "L": 14
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 45996,
+    "S": 19773,
+    "G": 459,
+    "LG": 17,
+    "L": 14
+   },
+   "grid_points": 218256,
+   "grid_joint": {
+    "S": 121901,
+    "SL": 94148,
+    "G": 1253,
+    "PASS": 759,
+    "LG": 153,
+    "L": 42
+   },
+   "families": {
+    "ld": 218256
+   },
+   "gate_eval": {
+    "direct": 186821,
+    "absent": 31435
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 20246,
+   "near_miss_signal_present": 473,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "manifest.json (config run_config_STT_6.jsonc)",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6__20260602_015852/mispredict_taken",
+   "kind": "br_x",
+   "source": "sweep raw: STT_6__20260602_015852/mispredict_taken/_sweep_raw (879 files, 0 unreadable)",
+   "summary_total": 27389,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 27389,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 27389,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 20805,
+    "SR": 6584
+   },
+   "grid_points": 72363,
+   "grid_joint": {
+    "SLR": 39209,
+    "SR": 33154
+   },
+   "families": {
+    "br": 72363
+   },
+   "gate_eval": {
+    "residual": 72363
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "manifest.json (config run_config_STT_6.jsonc)",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6__20260602_015852/mispredict_taken",
+   "kind": "ld",
+   "source": "sweep raw: STT_6__20260602_015852/mispredict_taken/_sweep_raw (879 files, 0 unreadable)",
+   "summary_total": 66512,
+   "summary_hits": 717,
+   "summary_status_error": 0,
+   "total": 66512,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 717,
+   "hit_recomputed": 717,
+   "inconsistent_records": 0,
+   "non_hit": 65795,
+   "near_miss": 21832,
+   "near_miss_by": {
+    "S": 19263,
+    "G": 2524,
+    "L": 45
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 43955,
+    "S": 19263,
+    "G": 2524,
+    "L": 45,
+    "LG": 8
+   },
+   "grid_points": 218256,
+   "grid_joint": {
+    "S": 120203,
+    "SL": 90391,
+    "G": 5408,
+    "PASS": 2047,
+    "L": 135,
+    "LG": 72
+   },
+   "families": {
+    "ld": 218256
+   },
+   "gate_eval": {
+    "direct": 186821,
+    "absent": 31435
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 21832,
+   "near_miss_signal_present": 2569,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "manifest.json (config run_config_STT_6.jsonc)",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6_interleave/mispredict_not_taken",
+   "kind": "all",
+   "source": "sweep raw: STT_6_interleave/mispredict_not_taken/sweep/raw_results (5175 files, 0 unreadable)",
+   "summary_total": 237833,
+   "summary_hits": 885,
+   "summary_status_error": 102134,
+   "total": 237833,
+   "no_record": 0,
+   "error": 102134,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 885,
+   "hit_recomputed": 885,
+   "inconsistent_records": 0,
+   "non_hit": 134814,
+   "near_miss": 33730,
+   "near_miss_by": {
+    "S": 31356,
+    "F": 2350,
+    "multi:F/S": 24
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 59696,
+    "A": 41388,
+    "S": 31356,
+    "F": 2374
+   },
+   "grid_points": 1058115,
+   "grid_joint": {
+    "A": 405084,
+    "S": 197954,
+    "SL": 118588,
+    "PASS": 7133,
+    "F": 3570
+   },
+   "families": {
+    "ld": 459432,
+    "br_v0": 409293,
+    "br": 189390
+   },
+   "gate_eval": {
+    "na": 409293,
+    "absent": 323036
+   },
+   "legacy_br_opaque_nonhit": 41388,
+   "near_miss_raw_incl_legacy_A": 75118,
+   "near_miss_signal_present": 2350,
+   "gem5_binary": "recon (per AUDIT.md #20; dir has no run_config)",
+   "gem5_variant": "scheme 2 (assumed)",
+   "build_provenance": "wiki/design/AUDIT.md:98",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6_interleave/mispredict_taken",
+   "kind": "all",
+   "source": "sweep raw: STT_6_interleave/mispredict_taken/sweep/raw_results (11162 files, 0 unreadable)",
+   "summary_total": 236885,
+   "summary_hits": 1221,
+   "summary_status_error": 103692,
+   "total": 236885,
+   "no_record": 3015,
+   "error": 102231,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 1197,
+   "hit_recomputed": 1197,
+   "inconsistent_records": 0,
+   "non_hit": 130442,
+   "near_miss": 43556,
+   "near_miss_by": {
+    "S": 23633,
+    "F": 18189,
+    "multi:F/S": 1734
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 47322,
+    "A": 39564,
+    "S": 23633,
+    "F": 19923
+   },
+   "grid_points": 1036117,
+   "grid_joint": {
+    "A": 388013,
+    "S": 154444,
+    "SL": 94570,
+    "F": 65051,
+    "PASS": 9762
+   },
+   "families": {
+    "ld": 451360,
+    "br_v0": 397739,
+    "br": 187018
+   },
+   "gate_eval": {
+    "na": 397739,
+    "absent": 314101
+   },
+   "legacy_br_opaque_nonhit": 39564,
+   "near_miss_raw_incl_legacy_A": 83120,
+   "near_miss_signal_present": 18189,
+   "gem5_binary": "recon (per AUDIT.md #20; dir has no run_config)",
+   "gem5_variant": "scheme 2 (assumed)",
+   "build_provenance": "wiki/design/AUDIT.md:98",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6_interleave__20260602_015852/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "sweep raw: STT_6_interleave__20260602_015852/mispredict_not_taken/_sweep_raw (2923 files, 0 unreadable)",
+   "summary_total": 133952,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 133952,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 133952,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 93672,
+    "SR": 40280
+   },
+   "grid_points": 438000,
+   "grid_joint": {
+    "SR": 245104,
+    "SLR": 192896
+   },
+   "families": {
+    "br": 438000
+   },
+   "gate_eval": {
+    "residual": 438000
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6_interleave__20260602_015852/mispredict_not_taken",
+   "kind": "ld",
+   "source": "sweep raw: STT_6_interleave__20260602_015852/mispredict_not_taken/_sweep_raw (2923 files, 0 unreadable)",
+   "summary_total": 266048,
+   "summary_hits": 89,
+   "summary_status_error": 0,
+   "total": 266048,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 89,
+   "hit_recomputed": 89,
+   "inconsistent_records": 0,
+   "non_hit": 265959,
+   "near_miss": 80307,
+   "near_miss_by": {
+    "S": 79757,
+    "G": 546,
+    "L": 4
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 185629,
+    "S": 79757,
+    "G": 546,
+    "LG": 23,
+    "L": 4
+   },
+   "grid_points": 873024,
+   "grid_joint": {
+    "S": 490211,
+    "SL": 380965,
+    "G": 1464,
+    "PASS": 267,
+    "LG": 105,
+    "L": 12
+   },
+   "families": {
+    "ld": 873024
+   },
+   "gate_eval": {
+    "direct": 845624,
+    "absent": 27400
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 80307,
+   "near_miss_signal_present": 550,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6_interleave__20260602_015852/mispredict_taken",
+   "kind": "br_x",
+   "source": "sweep raw: STT_6_interleave__20260602_015852/mispredict_taken/_sweep_raw (2566 files, 0 unreadable)",
+   "summary_total": 109592,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 109592,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 109592,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 82804,
+    "SR": 26788
+   },
+   "grid_points": 382960,
+   "grid_joint": {
+    "SR": 204292,
+    "SLR": 178668
+   },
+   "families": {
+    "br": 382960
+   },
+   "gate_eval": {
+    "residual": 382960
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6_interleave__20260602_015852/mispredict_taken",
+   "kind": "ld",
+   "source": "sweep raw: STT_6_interleave__20260602_015852/mispredict_taken/_sweep_raw (2566 files, 0 unreadable)",
+   "summary_total": 217408,
+   "summary_hits": 512,
+   "summary_status_error": 0,
+   "total": 217408,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 512,
+   "hit_recomputed": 512,
+   "inconsistent_records": 0,
+   "non_hit": 216896,
+   "near_miss": 56083,
+   "near_miss_by": {
+    "S": 52994,
+    "G": 3075,
+    "L": 14
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 160773,
+    "S": 52994,
+    "G": 3075,
+    "LG": 40,
+    "L": 14
+   },
+   "grid_points": 765216,
+   "grid_joint": {
+    "S": 409344,
+    "SL": 347771,
+    "G": 6737,
+    "PASS": 1172,
+    "LG": 144,
+    "L": 48
+   },
+   "families": {
+    "ld": 765216
+   },
+   "gate_eval": {
+    "direct": 737816,
+    "absent": 27400
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 56083,
+   "near_miss_signal_present": 3089,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_6_interleave_sttbuild__20260602_013615/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "sweep raw: STT_6_interleave_sttbuild__20260602_013615/mispredict_not_taken/_sweep_raw (159 files, 0 unreadable)",
+   "summary_total": 6044,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 6044,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 6044,
+   "near_miss": 2,
+   "near_miss_by": {
+    "B": 2
+   },
+   "near_miss_resid_unknown": {
+    "B": 2
+   },
+   "joint": {
+    "SR": 3256,
+    "SLR": 2751,
+    "FB+R?": 30,
+    "DSR": 5,
+    "B+R?": 2
+   },
+   "grid_points": 19876,
+   "grid_joint": {
+    "SR": 10753,
+    "SLR": 8253,
+    "FB+R?": 801,
+    "B+R?": 54,
+    "DSR": 15
+   },
+   "families": {
+    "br": 19876
+   },
+   "gate_eval": {
+    "residual": 19876
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 2,
+   "near_miss_signal_present": 2,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "run_config.jsonc + manifest.json",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_interleave_sttbuild__20260602_013615/mispredict_not_taken",
+   "kind": "ld",
+   "source": "sweep raw: STT_6_interleave_sttbuild__20260602_013615/mispredict_not_taken/_sweep_raw (159 files, 0 unreadable)",
+   "summary_total": 11956,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 11956,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 11956,
+   "near_miss": 6496,
+   "near_miss_by": {
+    "S": 6496
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "S": 6496,
+    "SL": 5460
+   },
+   "grid_points": 39340,
+   "grid_joint": {
+    "S": 22864,
+    "SL": 16476
+   },
+   "families": {
+    "ld": 39340
+   },
+   "gate_eval": {
+    "absent": 39340
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 6496,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "run_config.jsonc + manifest.json",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_interleave_sttbuild__20260602_013615/mispredict_taken",
+   "kind": "br_x",
+   "source": "sweep raw: STT_6_interleave_sttbuild__20260602_013615/mispredict_taken/_sweep_raw (149 files, 0 unreadable)",
+   "summary_total": 5368,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 5368,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 5368,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 2707,
+    "SR": 2656,
+    "DSR": 5
+   },
+   "grid_points": 17848,
+   "grid_joint": {
+    "SR": 9712,
+    "SLR": 8125,
+    "DSR": 11
+   },
+   "families": {
+    "br": 17848
+   },
+   "gate_eval": {
+    "residual": 17848
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "run_config.jsonc + manifest.json",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_interleave_sttbuild__20260602_013615/mispredict_taken",
+   "kind": "ld",
+   "source": "sweep raw: STT_6_interleave_sttbuild__20260602_013615/mispredict_taken/_sweep_raw (149 files, 0 unreadable)",
+   "summary_total": 10632,
+   "summary_hits": 0,
+   "summary_status_error": 348,
+   "total": 10632,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 10632,
+   "near_miss": 5284,
+   "near_miss_by": {
+    "S": 5284
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 5348,
+    "S": 5284
+   },
+   "grid_points": 35020,
+   "grid_joint": {
+    "S": 19228,
+    "SL": 15792
+   },
+   "families": {
+    "ld": 35020
+   },
+   "gate_eval": {
+    "absent": 35020
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 5284,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "run_config.jsonc + manifest.json",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_invisispec/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 1500,
+   "summary_hits": 0,
+   "summary_status_error": 20,
+   "total": 1500,
+   "no_record": 0,
+   "error": 20,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 1480,
+   "near_miss": 444,
+   "near_miss_by": {
+    "S": 444
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 1036,
+    "S": 444
+   },
+   "grid_points": 1500,
+   "grid_joint": {
+    "SL": 1036,
+    "S": 444
+   },
+   "families": {
+    "ld_invisispec": 1480,
+    "ld": 20
+   },
+   "gate_eval": {
+    "na": 1480
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 444,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1",
+   "gem5_variant": "SpectreSafeInvisibleSpec, needsTSO, allowSpecBuffHit",
+   "build_provenance": "run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_invisispec/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 1500,
+   "summary_hits": 0,
+   "summary_status_error": 23,
+   "total": 1500,
+   "no_record": 0,
+   "error": 23,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 1477,
+   "near_miss": 442,
+   "near_miss_by": {
+    "S": 442
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 1035,
+    "S": 442
+   },
+   "grid_points": 1500,
+   "grid_joint": {
+    "SL": 1035,
+    "S": 442
+   },
+   "families": {
+    "ld_invisispec": 1477,
+    "ld": 23
+   },
+   "gate_eval": {
+    "na": 1477
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 442,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1",
+   "gem5_variant": "SpectreSafeInvisibleSpec, needsTSO, allowSpecBuffHit",
+   "build_provenance": "run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_invisispec_compound/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 1500,
+   "summary_hits": 192,
+   "summary_status_error": 0,
+   "total": 1500,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 1500,
+   "hit": 192,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 0,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {},
+   "grid_points": 1500,
+   "grid_joint": {},
+   "families": {
+    "ld_invisispec_compound": 1500
+   },
+   "gate_eval": {},
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1",
+   "gem5_variant": "SpectreSafeInvisibleSpec",
+   "build_provenance": "run_invisispec_compound.py:25",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_invisispec_compound/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 1500,
+   "summary_hits": 43,
+   "summary_status_error": 0,
+   "total": 1500,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 1500,
+   "hit": 43,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 0,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {},
+   "grid_points": 1500,
+   "grid_joint": {},
+   "families": {
+    "ld_invisispec_compound": 1500
+   },
+   "gate_eval": {},
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1",
+   "gem5_variant": "SpectreSafeInvisibleSpec",
+   "build_provenance": "run_invisispec_compound.py:25",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_speclfb/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 1500,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 1500,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 1500,
+   "near_miss": 397,
+   "near_miss_by": {
+    "S": 397
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 970,
+    "S": 397,
+    "SLU": 81,
+    "SU": 52
+   },
+   "grid_points": 1500,
+   "grid_joint": {
+    "SL": 970,
+    "S": 397,
+    "SLU": 81,
+    "SU": 52
+   },
+   "families": {
+    "ld_speclfb": 1500
+   },
+   "gate_eval": {
+    "direct": 1500
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 397,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/amulet/amulet-gem5-SpecLFB_AE-v1.1",
+   "gem5_variant": "SpecLFB",
+   "build_provenance": "run_speclfb.py:29",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_speclfb/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 1500,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 1500,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 1500,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLU": 1051,
+    "SU": 449
+   },
+   "grid_points": 1500,
+   "grid_joint": {
+    "SLU": 1051,
+    "SU": 449
+   },
+   "families": {
+    "ld_speclfb": 1500
+   },
+   "gate_eval": {
+    "direct": 1500
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/amulet/amulet-gem5-SpecLFB_AE-v1.1",
+   "gem5_variant": "SpecLFB",
+   "build_provenance": "run_speclfb.py:29",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_sttbuild__20260602_013615/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "sweep raw: STT_6_sttbuild__20260602_013615/mispredict_not_taken/_sweep_raw (222 files, 0 unreadable)",
+   "summary_total": 4348,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 4348,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 4348,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SR": 2363,
+    "SLR": 1985
+   },
+   "grid_points": 15426,
+   "grid_joint": {
+    "SR": 8373,
+    "SLR": 7053
+   },
+   "families": {
+    "br": 15426
+   },
+   "gate_eval": {
+    "residual": 15426
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "run_config.jsonc + manifest.json",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_sttbuild__20260602_013615/mispredict_not_taken",
+   "kind": "ld",
+   "source": "sweep raw: STT_6_sttbuild__20260602_013615/mispredict_not_taken/_sweep_raw (222 files, 0 unreadable)",
+   "summary_total": 11652,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 11652,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 11652,
+   "near_miss": 6447,
+   "near_miss_by": {
+    "S": 6447
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "S": 6447,
+    "SL": 5205
+   },
+   "grid_points": 42910,
+   "grid_joint": {
+    "S": 24127,
+    "SL": 18783
+   },
+   "families": {
+    "ld": 42910
+   },
+   "gate_eval": {
+    "absent": 42910
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 6447,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "run_config.jsonc + manifest.json",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_sttbuild__20260602_013615/mispredict_taken",
+   "kind": "br_x",
+   "source": "sweep raw: STT_6_sttbuild__20260602_013615/mispredict_taken/_sweep_raw (222 files, 0 unreadable)",
+   "summary_total": 4348,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 4348,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 4348,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SR": 2363,
+    "SLR": 1985
+   },
+   "grid_points": 15426,
+   "grid_joint": {
+    "SR": 8373,
+    "SLR": 7053
+   },
+   "families": {
+    "br": 15426
+   },
+   "gate_eval": {
+    "residual": 15426
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "run_config.jsonc + manifest.json",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_6_sttbuild__20260602_013615/mispredict_taken",
+   "kind": "ld",
+   "source": "sweep raw: STT_6_sttbuild__20260602_013615/mispredict_taken/_sweep_raw (222 files, 0 unreadable)",
+   "summary_total": 11652,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 11652,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 11652,
+   "near_miss": 6447,
+   "near_miss_by": {
+    "S": 6447
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "S": 6447,
+    "SL": 5205
+   },
+   "grid_points": 42910,
+   "grid_joint": {
+    "S": 24127,
+    "SL": 18783
+   },
+   "families": {
+    "ld": 42910
+   },
+   "gate_eval": {
+    "absent": 42910
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 6447,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "run_config.jsonc + manifest.json",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_all_amulet/mispredict_not_taken",
+   "kind": "all",
+   "source": "sweep raw: STT_all_amulet/mispredict_not_taken/sweep/raw_results (793 files, 0 unreadable)",
+   "summary_total": 31103,
+   "summary_hits": 9215,
+   "summary_status_error": 1,
+   "total": 31103,
+   "no_record": 0,
+   "error": 1,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 9215,
+   "hit_recomputed": 6827,
+   "inconsistent_records": 20152,
+   "non_hit": 21887,
+   "near_miss": 5970,
+   "near_miss_by": {
+    "S": 5970
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 9292,
+    "A": 6606,
+    "S": 5970,
+    "PASS(recomputed)": 19
+   },
+   "grid_points": 209455,
+   "grid_joint": {
+    "A": 80462,
+    "PASS": 78244,
+    "SL": 26252,
+    "S": 24488
+   },
+   "families": {
+    "br_v0": 158706,
+    "ld": 50740,
+    "br": 9
+   },
+   "gate_eval": {
+    "na": 158706,
+    "absent": 50740
+   },
+   "legacy_br_opaque_nonhit": 6622,
+   "near_miss_raw_incl_legacy_A": 12592,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/amulet/amulet-gem5-STT_AE-v1.1",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "STT_all_recon/mispredict_not_taken",
+   "kind": "all",
+   "source": "sweep raw: STT_all_recon/mispredict_not_taken/sweep/raw_results (5772 files, 0 unreadable)",
+   "summary_total": 47646,
+   "summary_hits": 10346,
+   "summary_status_error": 10842,
+   "total": 47646,
+   "no_record": 0,
+   "error": 10681,
+   "partial_error": 161,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 10346,
+   "hit_recomputed": 9110,
+   "inconsistent_records": 27699,
+   "non_hit": 26619,
+   "near_miss": 6880,
+   "near_miss_by": {
+    "S": 6540,
+    "F": 207,
+    "L": 86,
+    "multi:F/S": 43,
+    "multi:F/L": 4
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "A": 12096,
+    "SL": 7623,
+    "S": 6540,
+    "F": 254,
+    "L": 86,
+    "PASS(recomputed)": 20
+   },
+   "grid_points": 432442,
+   "grid_joint": {
+    "A": 197365,
+    "PASS": 92657,
+    "S": 41969,
+    "SL": 28475,
+    "F": 1111,
+    "L": 949
+   },
+   "families": {
+    "br_v0": 280509,
+    "ld": 98482,
+    "br": 53451
+   },
+   "gate_eval": {
+    "na": 280509,
+    "absent": 82017
+   },
+   "legacy_br_opaque_nonhit": 12116,
+   "near_miss_raw_incl_legacy_A": 18996,
+   "near_miss_signal_present": 297,
+   "gem5_binary": "recon (per AUDIT.md #20; dir has no run_config)",
+   "gem5_variant": "?",
+   "build_provenance": "wiki/design/AUDIT.md:100",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "STT_all_sttbuild/mispredict_not_taken",
+   "kind": "all",
+   "source": "sweep raw: STT_all_sttbuild/mispredict_not_taken/sweep/raw_results (793 files, 0 unreadable)",
+   "summary_total": 31102,
+   "summary_hits": 9211,
+   "summary_status_error": 1,
+   "total": 31102,
+   "no_record": 0,
+   "error": 1,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 9211,
+   "hit_recomputed": 5726,
+   "inconsistent_records": 41994,
+   "non_hit": 21890,
+   "near_miss": 5970,
+   "near_miss_by": {
+    "S": 5970
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 9291,
+    "A": 6618,
+    "S": 5970,
+    "PASS(recomputed)": 11
+   },
+   "grid_points": 209452,
+   "grid_joint": {
+    "A": 102549,
+    "PASS": 56157,
+    "SL": 26249,
+    "S": 24488
+   },
+   "families": {
+    "br_v0": 158706,
+    "ld": 50737,
+    "br": 9
+   },
+   "gate_eval": {
+    "na": 158706,
+    "absent": 50737
+   },
+   "legacy_br_opaque_nonhit": 6626,
+   "near_miss_raw_incl_legacy_A": 12596,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "_verify_ld_taken/mispredict_taken",
+   "kind": "all",
+   "source": "sweep raw: _verify_ld_taken/mispredict_taken/sweep/raw_results (2682 files, 0 unreadable)",
+   "summary_total": 1270,
+   "summary_hits": 1270,
+   "summary_status_error": 0,
+   "total": 1270,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 1270,
+   "hit_recomputed": 1270,
+   "inconsistent_records": 0,
+   "non_hit": 0,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {},
+   "grid_points": 1270,
+   "grid_joint": {
+    "PASS": 1270
+   },
+   "families": {
+    "ld": 1270
+   },
+   "gate_eval": {
+    "absent": 1270
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "? (no config in dir)",
+   "gem5_variant": "?",
+   "build_provenance": "none",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/fence_d1/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 55,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 55,
+   "hit_recomputed": 55,
+   "inconsistent_records": 0,
+   "non_hit": 95,
+   "near_miss": 28,
+   "near_miss_by": {
+    "S": 21,
+    "L": 4,
+    "G": 3
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 66,
+    "S": 21,
+    "L": 4,
+    "G": 3,
+    "DS": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 66,
+    "PASS": 55,
+    "S": 21,
+    "L": 4,
+    "G": 3,
+    "DS": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 28,
+   "near_miss_signal_present": 7,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, commitToIEWDelay=d",
+   "build_provenance": "fence_sweep.sh -> SPT_6_oneLP_fence_run_config.jsonc",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/fence_d1/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 53,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 53,
+   "hit_recomputed": 53,
+   "inconsistent_records": 0,
+   "non_hit": 97,
+   "near_miss": 21,
+   "near_miss_by": {
+    "S": 17,
+    "G": 3,
+    "D": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 76,
+    "S": 17,
+    "G": 3,
+    "D": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 76,
+    "PASS": 53,
+    "S": 17,
+    "G": 3,
+    "D": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 21,
+   "near_miss_signal_present": 4,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, commitToIEWDelay=d",
+   "build_provenance": "fence_sweep.sh -> SPT_6_oneLP_fence_run_config.jsonc",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/fence_d2/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 61,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 61,
+   "hit_recomputed": 61,
+   "inconsistent_records": 0,
+   "non_hit": 89,
+   "near_miss": 24,
+   "near_miss_by": {
+    "S": 19,
+    "L": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 64,
+    "S": 19,
+    "L": 5,
+    "DS": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 64,
+    "PASS": 61,
+    "S": 19,
+    "L": 5,
+    "DS": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 24,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, commitToIEWDelay=d",
+   "build_provenance": "fence_sweep.sh -> SPT_6_oneLP_fence_run_config.jsonc",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/fence_d2/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 62,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 62,
+   "hit_recomputed": 62,
+   "inconsistent_records": 0,
+   "non_hit": 88,
+   "near_miss": 21,
+   "near_miss_by": {
+    "S": 17,
+    "L": 2,
+    "G": 1,
+    "D": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 67,
+    "S": 17,
+    "L": 2,
+    "G": 1,
+    "D": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 67,
+    "PASS": 62,
+    "S": 17,
+    "L": 2,
+    "G": 1,
+    "D": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 21,
+   "near_miss_signal_present": 4,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, commitToIEWDelay=d",
+   "build_provenance": "fence_sweep.sh -> SPT_6_oneLP_fence_run_config.jsonc",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/fence_d3/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 47,
+   "summary_status_error": 22,
+   "total": 150,
+   "no_record": 0,
+   "error": 22,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 47,
+   "hit_recomputed": 47,
+   "inconsistent_records": 0,
+   "non_hit": 81,
+   "near_miss": 22,
+   "near_miss_by": {
+    "S": 17,
+    "L": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 58,
+    "S": 17,
+    "L": 5,
+    "DS": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 58,
+    "PASS": 47,
+    "S": 17,
+    "L": 5,
+    "DS": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 128
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 22,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, commitToIEWDelay=d",
+   "build_provenance": "fence_sweep.sh -> SPT_6_oneLP_fence_run_config.jsonc",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/fence_d3/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 51,
+   "summary_status_error": 21,
+   "total": 150,
+   "no_record": 0,
+   "error": 21,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 51,
+   "hit_recomputed": 51,
+   "inconsistent_records": 0,
+   "non_hit": 78,
+   "near_miss": 16,
+   "near_miss_by": {
+    "S": 12,
+    "L": 2,
+    "G": 1,
+    "D": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 62,
+    "S": 12,
+    "L": 2,
+    "G": 1,
+    "D": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 62,
+    "PASS": 51,
+    "S": 12,
+    "L": 2,
+    "G": 1,
+    "D": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 129
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 16,
+   "near_miss_signal_present": 4,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, commitToIEWDelay=d",
+   "build_provenance": "fence_sweep.sh -> SPT_6_oneLP_fence_run_config.jsonc",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/fence_d4/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 51,
+   "summary_status_error": 18,
+   "total": 150,
+   "no_record": 0,
+   "error": 18,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 51,
+   "hit_recomputed": 51,
+   "inconsistent_records": 0,
+   "non_hit": 81,
+   "near_miss": 24,
+   "near_miss_by": {
+    "S": 17,
+    "L": 5,
+    "G": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 56,
+    "S": 17,
+    "L": 5,
+    "G": 2,
+    "DS": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 56,
+    "PASS": 51,
+    "S": 17,
+    "L": 5,
+    "G": 2,
+    "DS": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 132
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 24,
+   "near_miss_signal_present": 7,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, commitToIEWDelay=d",
+   "build_provenance": "fence_sweep.sh -> SPT_6_oneLP_fence_run_config.jsonc",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/fence_d4/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 55,
+   "summary_status_error": 16,
+   "total": 150,
+   "no_record": 0,
+   "error": 16,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 55,
+   "hit_recomputed": 55,
+   "inconsistent_records": 0,
+   "non_hit": 79,
+   "near_miss": 17,
+   "near_miss_by": {
+    "S": 12,
+    "L": 2,
+    "G": 2,
+    "D": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 62,
+    "S": 12,
+    "L": 2,
+    "G": 2,
+    "D": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 62,
+    "PASS": 55,
+    "S": 12,
+    "L": 2,
+    "G": 2,
+    "D": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 134
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 17,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, commitToIEWDelay=d",
+   "build_provenance": "fence_sweep.sh -> SPT_6_oneLP_fence_run_config.jsonc",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/frag_d1/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 300,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 300,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 300,
+   "near_miss": 91,
+   "near_miss_by": {
+    "S": 91
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 209,
+    "S": 91
+   },
+   "grid_points": 300,
+   "grid_joint": {
+    "SL": 209,
+    "S": 91
+   },
+   "families": {
+    "ld": 300
+   },
+   "gate_eval": {
+    "direct": 300
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 91,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py, commitToIEWDelay=d",
+   "build_provenance": "frag_sweep.sh -> STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/frag_d1/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 300,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 300,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 300,
+   "near_miss": 96,
+   "near_miss_by": {
+    "S": 96
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 204,
+    "S": 96
+   },
+   "grid_points": 300,
+   "grid_joint": {
+    "SL": 204,
+    "S": 96
+   },
+   "families": {
+    "ld": 300
+   },
+   "gate_eval": {
+    "direct": 300
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 96,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py, commitToIEWDelay=d",
+   "build_provenance": "frag_sweep.sh -> STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/frag_d2/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 300,
+   "summary_hits": 20,
+   "summary_status_error": 0,
+   "total": 300,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 20,
+   "hit_recomputed": 20,
+   "inconsistent_records": 0,
+   "non_hit": 280,
+   "near_miss": 84,
+   "near_miss_by": {
+    "S": 82,
+    "L": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 196,
+    "S": 82,
+    "L": 2
+   },
+   "grid_points": 300,
+   "grid_joint": {
+    "SL": 196,
+    "S": 82,
+    "PASS": 20,
+    "L": 2
+   },
+   "families": {
+    "ld": 300
+   },
+   "gate_eval": {
+    "direct": 300
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 84,
+   "near_miss_signal_present": 2,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py, commitToIEWDelay=d",
+   "build_provenance": "frag_sweep.sh -> STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/frag_d2/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 300,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 300,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 300,
+   "near_miss": 96,
+   "near_miss_by": {
+    "S": 96
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 204,
+    "S": 96
+   },
+   "grid_points": 300,
+   "grid_joint": {
+    "SL": 204,
+    "S": 96
+   },
+   "families": {
+    "ld": 300
+   },
+   "gate_eval": {
+    "direct": 300
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 96,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py, commitToIEWDelay=d",
+   "build_provenance": "frag_sweep.sh -> STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/frag_d3/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 300,
+   "summary_hits": 41,
+   "summary_status_error": 0,
+   "total": 300,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 41,
+   "hit_recomputed": 41,
+   "inconsistent_records": 0,
+   "non_hit": 259,
+   "near_miss": 78,
+   "near_miss_by": {
+    "S": 76,
+    "L": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 181,
+    "S": 76,
+    "L": 2
+   },
+   "grid_points": 300,
+   "grid_joint": {
+    "SL": 181,
+    "S": 76,
+    "PASS": 41,
+    "L": 2
+   },
+   "families": {
+    "ld": 300
+   },
+   "gate_eval": {
+    "direct": 300
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 78,
+   "near_miss_signal_present": 2,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py, commitToIEWDelay=d",
+   "build_provenance": "frag_sweep.sh -> STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/frag_d3/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 300,
+   "summary_hits": 2,
+   "summary_status_error": 0,
+   "total": 300,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 2,
+   "hit_recomputed": 2,
+   "inconsistent_records": 0,
+   "non_hit": 298,
+   "near_miss": 95,
+   "near_miss_by": {
+    "S": 95
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 203,
+    "S": 95
+   },
+   "grid_points": 300,
+   "grid_joint": {
+    "SL": 203,
+    "S": 95,
+    "PASS": 2
+   },
+   "families": {
+    "ld": 300
+   },
+   "gate_eval": {
+    "direct": 300
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 95,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py, commitToIEWDelay=d",
+   "build_provenance": "frag_sweep.sh -> STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/frag_d4/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 300,
+   "summary_hits": 42,
+   "summary_status_error": 0,
+   "total": 300,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 42,
+   "hit_recomputed": 42,
+   "inconsistent_records": 0,
+   "non_hit": 258,
+   "near_miss": 78,
+   "near_miss_by": {
+    "S": 76,
+    "L": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 180,
+    "S": 76,
+    "L": 2
+   },
+   "grid_points": 300,
+   "grid_joint": {
+    "SL": 180,
+    "S": 76,
+    "PASS": 42,
+    "L": 2
+   },
+   "families": {
+    "ld": 300
+   },
+   "gate_eval": {
+    "direct": 300
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 78,
+   "near_miss_signal_present": 2,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py, commitToIEWDelay=d",
+   "build_provenance": "frag_sweep.sh -> STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/frag_d4/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 300,
+   "summary_hits": 2,
+   "summary_status_error": 1,
+   "total": 300,
+   "no_record": 0,
+   "error": 1,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 2,
+   "hit_recomputed": 2,
+   "inconsistent_records": 0,
+   "non_hit": 297,
+   "near_miss": 95,
+   "near_miss_by": {
+    "S": 95
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 202,
+    "S": 95
+   },
+   "grid_points": 300,
+   "grid_joint": {
+    "SL": 202,
+    "S": 95,
+    "PASS": 2
+   },
+   "families": {
+    "ld": 300
+   },
+   "gate_eval": {
+    "direct": 299
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 95,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py, commitToIEWDelay=d",
+   "build_provenance": "frag_sweep.sh -> STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_fragility/smoke_d4/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 3,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 3,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 3,
+   "near_miss": 1,
+   "near_miss_by": {
+    "S": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 2,
+    "S": 1
+   },
+   "grid_points": 3,
+   "grid_joint": {
+    "SL": 2,
+    "S": 1
+   },
+   "families": {
+    "ld": 3
+   },
+   "gate_eval": {
+    "direct": 3
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 1,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "?",
+   "gem5_variant": "?",
+   "build_provenance": "none",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/fnc_0/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 48,
+   "near_miss_by": {
+    "S": 48
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 101,
+    "S": 48,
+    "FG": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 101,
+    "S": 48,
+    "FG": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 48,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/fnc_0/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 37,
+   "near_miss_by": {
+    "S": 37
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 108,
+    "S": 37,
+    "FG": 5
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 108,
+    "S": 37,
+    "FG": 5
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 37,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/fnc_150/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 49,
+   "near_miss_by": {
+    "S": 48,
+    "G": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 49,
+   "near_miss_signal_present": 1,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/fnc_150/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 42,
+   "near_miss_by": {
+    "S": 37,
+    "G": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 42,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/fnc_300/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 49,
+   "near_miss_by": {
+    "S": 48,
+    "G": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 49,
+   "near_miss_signal_present": 1,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/fnc_300/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 42,
+   "near_miss_by": {
+    "S": 37,
+    "G": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 42,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sR_0/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 49,
+   "near_miss_by": {
+    "S": 48,
+    "G": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 49,
+   "near_miss_signal_present": 1,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sR_0/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 42,
+   "near_miss_by": {
+    "S": 37,
+    "G": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 42,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sR_64/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 49,
+   "near_miss_by": {
+    "S": 48,
+    "G": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 49,
+   "near_miss_signal_present": 1,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sR_64/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 42,
+   "near_miss_by": {
+    "S": 37,
+    "G": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 42,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sR_8/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 49,
+   "near_miss_by": {
+    "S": 48,
+    "G": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 49,
+   "near_miss_signal_present": 1,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sR_8/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 42,
+   "near_miss_by": {
+    "S": 37,
+    "G": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 42,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sU_0/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 49,
+   "near_miss_by": {
+    "S": 48,
+    "G": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 49,
+   "near_miss_signal_present": 1,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sU_0/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 42,
+   "near_miss_by": {
+    "S": 37,
+    "G": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 42,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sU_1000/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 49,
+   "near_miss_by": {
+    "S": 48,
+    "G": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 49,
+   "near_miss_signal_present": 1,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sU_1000/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 42,
+   "near_miss_by": {
+    "S": 37,
+    "G": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 42,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sU_250/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 49,
+   "near_miss_by": {
+    "S": 48,
+    "G": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 49,
+   "near_miss_signal_present": 1,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sU_250/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 42,
+   "near_miss_by": {
+    "S": 37,
+    "G": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 42,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sU_50/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 49,
+   "near_miss_by": {
+    "S": 48,
+    "G": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 49,
+   "near_miss_signal_present": 1,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sU_50/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 42,
+   "near_miss_by": {
+    "S": 37,
+    "G": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 42,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sU_5000/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 49,
+   "near_miss_by": {
+    "S": 48,
+    "G": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 101,
+    "S": 48,
+    "G": 1
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 49,
+   "near_miss_signal_present": 1,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/sU_5000/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 150,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 150,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 150,
+   "near_miss": 42,
+   "near_miss_by": {
+    "S": 37,
+    "G": 5
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "grid_points": 150,
+   "grid_joint": {
+    "SL": 108,
+    "S": 37,
+    "G": 5
+   },
+   "families": {
+    "ld": 150
+   },
+   "gate_eval": {
+    "direct": 150
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 42,
+   "near_miss_signal_present": 5,
+   "gem5_binary": "/work/gem5-recon-modded",
+   "gem5_variant": "scheme 2",
+   "build_provenance": "stall_sweep.sh -> paper_stalls/STT_6_run_config.jsonc:25",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_fnc_0/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 16,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 16,
+   "hit_recomputed": 16,
+   "inconsistent_records": 0,
+   "non_hit": 184,
+   "near_miss": 65,
+   "near_miss_by": {
+    "S": 52,
+    "F": 11,
+    "L": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 119,
+    "S": 52,
+    "F": 11,
+    "L": 2
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 119,
+    "S": 52,
+    "PASS": 16,
+    "F": 11,
+    "L": 2
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 65,
+   "near_miss_signal_present": 13,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_fnc_0/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 1,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 1,
+   "hit_recomputed": 1,
+   "inconsistent_records": 0,
+   "non_hit": 199,
+   "near_miss": 57,
+   "near_miss_by": {
+    "S": 56,
+    "F": 1
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 142,
+    "S": 56,
+    "F": 1
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 142,
+    "S": 56,
+    "PASS": 1,
+    "F": 1
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 57,
+   "near_miss_signal_present": 1,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_fnc_150/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 27,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 27,
+   "hit_recomputed": 27,
+   "inconsistent_records": 0,
+   "non_hit": 173,
+   "near_miss": 54,
+   "near_miss_by": {
+    "S": 52,
+    "L": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 119,
+    "S": 52,
+    "L": 2
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 119,
+    "S": 52,
+    "PASS": 27,
+    "L": 2
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 54,
+   "near_miss_signal_present": 2,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_fnc_150/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 2,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 2,
+   "hit_recomputed": 2,
+   "inconsistent_records": 0,
+   "non_hit": 198,
+   "near_miss": 56,
+   "near_miss_by": {
+    "S": 56
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 142,
+    "S": 56
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 142,
+    "S": 56,
+    "PASS": 2
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 56,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_fnc_300/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 27,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 27,
+   "hit_recomputed": 27,
+   "inconsistent_records": 0,
+   "non_hit": 173,
+   "near_miss": 54,
+   "near_miss_by": {
+    "S": 52,
+    "L": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 119,
+    "S": 52,
+    "L": 2
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 119,
+    "S": 52,
+    "PASS": 27,
+    "L": 2
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 54,
+   "near_miss_signal_present": 2,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_fnc_300/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 2,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 2,
+   "hit_recomputed": 2,
+   "inconsistent_records": 0,
+   "non_hit": 198,
+   "near_miss": 56,
+   "near_miss_by": {
+    "S": 56
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 142,
+    "S": 56
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 142,
+    "S": 56,
+    "PASS": 2
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 56,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sR_0/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 27,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 27,
+   "hit_recomputed": 27,
+   "inconsistent_records": 0,
+   "non_hit": 173,
+   "near_miss": 54,
+   "near_miss_by": {
+    "S": 52,
+    "L": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 119,
+    "S": 52,
+    "L": 2
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 119,
+    "S": 52,
+    "PASS": 27,
+    "L": 2
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 54,
+   "near_miss_signal_present": 2,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sR_0/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 2,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 2,
+   "hit_recomputed": 2,
+   "inconsistent_records": 0,
+   "non_hit": 198,
+   "near_miss": 56,
+   "near_miss_by": {
+    "S": 56
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 142,
+    "S": 56
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 142,
+    "S": 56,
+    "PASS": 2
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 56,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sR_64/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 22,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 22,
+   "hit_recomputed": 22,
+   "inconsistent_records": 0,
+   "non_hit": 178,
+   "near_miss": 54,
+   "near_miss_by": {
+    "S": 54
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 124,
+    "S": 54
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 124,
+    "S": 54,
+    "PASS": 22
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 54,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sR_64/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 2,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 2,
+   "hit_recomputed": 2,
+   "inconsistent_records": 0,
+   "non_hit": 198,
+   "near_miss": 56,
+   "near_miss_by": {
+    "S": 56
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 142,
+    "S": 56
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 142,
+    "S": 56,
+    "PASS": 2
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 56,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sR_8/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 22,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 22,
+   "hit_recomputed": 22,
+   "inconsistent_records": 0,
+   "non_hit": 178,
+   "near_miss": 54,
+   "near_miss_by": {
+    "S": 54
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 124,
+    "S": 54
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 124,
+    "S": 54,
+    "PASS": 22
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 54,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sR_8/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 2,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 2,
+   "hit_recomputed": 2,
+   "inconsistent_records": 0,
+   "non_hit": 198,
+   "near_miss": 56,
+   "near_miss_by": {
+    "S": 56
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 142,
+    "S": 56
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 142,
+    "S": 56,
+    "PASS": 2
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 56,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sU_0/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 27,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 27,
+   "hit_recomputed": 27,
+   "inconsistent_records": 0,
+   "non_hit": 173,
+   "near_miss": 54,
+   "near_miss_by": {
+    "S": 52,
+    "L": 2
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 119,
+    "S": 52,
+    "L": 2
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 119,
+    "S": 52,
+    "PASS": 27,
+    "L": 2
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 54,
+   "near_miss_signal_present": 2,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sU_0/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 2,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 2,
+   "hit_recomputed": 2,
+   "inconsistent_records": 0,
+   "non_hit": 198,
+   "near_miss": 56,
+   "near_miss_by": {
+    "S": 56
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 142,
+    "S": 56
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 142,
+    "S": 56,
+    "PASS": 2
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 56,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sU_1000/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 200,
+   "near_miss": 26,
+   "near_miss_by": {
+    "B": 26
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "FB": 171,
+    "B": 26,
+    "FBG": 2,
+    "BG": 1
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "FB": 171,
+    "B": 26,
+    "FBG": 2,
+    "BG": 1
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 26,
+   "near_miss_signal_present": 26,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sU_1000/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 200,
+   "near_miss": 48,
+   "near_miss_by": {
+    "S": 38,
+    "B": 10
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 95,
+    "FB": 54,
+    "S": 38,
+    "B": 10,
+    "FBG": 3
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 95,
+    "FB": 54,
+    "S": 38,
+    "B": 10,
+    "FBG": 3
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 48,
+   "near_miss_signal_present": 10,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sU_250/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 200,
+   "near_miss": 29,
+   "near_miss_by": {
+    "B": 29
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "FB": 168,
+    "B": 29,
+    "FBG": 2,
+    "BG": 1
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "FB": 168,
+    "B": 29,
+    "FBG": 2,
+    "BG": 1
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 29,
+   "near_miss_signal_present": 29,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sU_250/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 200,
+   "near_miss": 51,
+   "near_miss_by": {
+    "S": 38,
+    "B": 13
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 95,
+    "FB": 51,
+    "S": 38,
+    "B": 13,
+    "FBG": 3
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 95,
+    "FB": 51,
+    "S": 38,
+    "B": 13,
+    "FBG": 3
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 51,
+   "near_miss_signal_present": 13,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sU_50/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 200,
+   "near_miss": 93,
+   "near_miss_by": {
+    "B": 51,
+    "S": 42
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 103,
+    "B": 51,
+    "S": 42,
+    "FB": 4
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 103,
+    "B": 51,
+    "S": 42,
+    "FB": 4
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 93,
+   "near_miss_signal_present": 51,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sU_50/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 0,
+   "summary_status_error": 1,
+   "total": 200,
+   "no_record": 0,
+   "error": 1,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 199,
+   "near_miss": 68,
+   "near_miss_by": {
+    "S": 46,
+    "B": 22
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 131,
+    "S": 46,
+    "B": 22
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 131,
+    "S": 46,
+    "B": 22
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 199
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 68,
+   "near_miss_signal_present": 22,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sU_5000/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 200,
+   "near_miss": 26,
+   "near_miss_by": {
+    "B": 26
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "FB": 171,
+    "B": 26,
+    "FBG": 2,
+    "BG": 1
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "FB": 171,
+    "B": 26,
+    "FBG": 2,
+    "BG": 1
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 26,
+   "near_miss_signal_present": 26,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/paper_stalls/stt_sU_5000/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 200,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 200,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 200,
+   "near_miss": 48,
+   "near_miss_by": {
+    "S": 38,
+    "B": 10
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 95,
+    "FB": 54,
+    "S": 38,
+    "B": 10,
+    "FBG": 3
+   },
+   "grid_points": 200,
+   "grid_joint": {
+    "SL": 95,
+    "FB": 54,
+    "S": 38,
+    "B": 10,
+    "FBG": 3
+   },
+   "families": {
+    "ld": 200
+   },
+   "gate_eval": {
+    "direct": 200
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 48,
+   "near_miss_signal_present": 10,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "se_exp.py slow-comm (commitToIEWDelay=3)",
+   "build_provenance": "stall_sweep_stt.sh -> paper_fragility/STT_6_run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/slow_comm_squash1/sample/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 600,
+   "summary_hits": 187,
+   "summary_status_error": 0,
+   "total": 600,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 187,
+   "hit_recomputed": 187,
+   "inconsistent_records": 0,
+   "non_hit": 413,
+   "near_miss": 135,
+   "near_miss_by": {
+    "S": 96,
+    "L": 39
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 278,
+    "S": 96,
+    "L": 39
+   },
+   "grid_points": 600,
+   "grid_joint": {
+    "SL": 278,
+    "PASS": 187,
+    "S": 96,
+    "L": 39
+   },
+   "families": {
+    "ld": 600
+   },
+   "gate_eval": {
+    "absent": 600
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 135,
+   "near_miss_signal_present": 39,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "slow-comm",
+   "build_provenance": "slow_comm_squash1/STT_6/run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/slow_comm_squash1/sample/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 600,
+   "summary_hits": 44,
+   "summary_status_error": 0,
+   "total": 600,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 44,
+   "hit_recomputed": 44,
+   "inconsistent_records": 0,
+   "non_hit": 556,
+   "near_miss": 183,
+   "near_miss_by": {
+    "S": 173,
+    "L": 10
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 373,
+    "S": 173,
+    "L": 10
+   },
+   "grid_points": 600,
+   "grid_joint": {
+    "SL": 373,
+    "S": 173,
+    "PASS": 44,
+    "L": 10
+   },
+   "families": {
+    "ld": 600
+   },
+   "gate_eval": {
+    "absent": 600
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 183,
+   "near_miss_signal_present": 10,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "slow-comm",
+   "build_provenance": "slow_comm_squash1/STT_6/run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/slow_comm_squash1/sample_stock/mispredict_not_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 600,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 600,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 600,
+   "near_miss": 172,
+   "near_miss_by": {
+    "S": 172
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 428,
+    "S": 172
+   },
+   "grid_points": 600,
+   "grid_joint": {
+    "SL": 428,
+    "S": 172
+   },
+   "families": {
+    "ld": 600
+   },
+   "gate_eval": {
+    "absent": 600
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 172,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "stock comm delays",
+   "build_provenance": "stock_run_config.jsonc:34",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/slow_comm_squash1/sample_stock/mispredict_taken",
+   "kind": "all",
+   "source": "window-results (full per-record)",
+   "summary_total": 600,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 600,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 600,
+   "near_miss": 186,
+   "near_miss_by": {
+    "S": 186
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 414,
+    "S": 186
+   },
+   "grid_points": 600,
+   "grid_joint": {
+    "SL": 414,
+    "S": 186
+   },
+   "families": {
+    "ld": 600
+   },
+   "gate_eval": {
+    "absent": 600
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 186,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "stock comm delays",
+   "build_provenance": "stock_run_config.jsonc:34",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/spt_slowcomm_fence__20260602_121858/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "window-results (full per-record)",
+   "summary_total": 12694,
+   "summary_hits": 669,
+   "summary_status_error": 335,
+   "total": 12694,
+   "no_record": 0,
+   "error": 335,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 669,
+   "hit_recomputed": 669,
+   "inconsistent_records": 0,
+   "non_hit": 11690,
+   "near_miss": 794,
+   "near_miss_by": {
+    "L": 777,
+    "D": 17
+   },
+   "near_miss_resid_unknown": {
+    "L": 777,
+    "D": 17
+   },
+   "joint": {
+    "SLR": 7931,
+    "SR": 2762,
+    "L+R?": 777,
+    "DSR": 203,
+    "D+R?": 17
+   },
+   "grid_points": 12694,
+   "grid_joint": {
+    "SLR": 7931,
+    "SR": 2762,
+    "L+R?": 777,
+    "PASS": 669,
+    "DSR": 203,
+    "D+R?": 17
+   },
+   "families": {
+    "br": 12694
+   },
+   "gate_eval": {
+    "residual": 12359
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 794,
+   "near_miss_signal_present": 794,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, slow-comm",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/spt_slowcomm_fence__20260602_121858/mispredict_not_taken",
+   "kind": "ld",
+   "source": "window-results (full per-record)",
+   "summary_total": 84249,
+   "summary_hits": 40768,
+   "summary_status_error": 22,
+   "total": 84249,
+   "no_record": 0,
+   "error": 22,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 40768,
+   "hit_recomputed": 40768,
+   "inconsistent_records": 97,
+   "non_hit": 43459,
+   "near_miss": 18954,
+   "near_miss_by": {
+    "L": 10382,
+    "S": 7951,
+    "D": 595,
+    "G": 23,
+    "F": 3
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 24078,
+    "L": 10382,
+    "S": 7951,
+    "D": 595,
+    "DS": 330,
+    "PASS(recomputed)": 97,
+    "G": 23,
+    "F": 3
+   },
+   "grid_points": 84249,
+   "grid_joint": {
+    "PASS": 40865,
+    "SL": 24078,
+    "L": 10382,
+    "S": 7951,
+    "D": 595,
+    "DS": 330,
+    "G": 23,
+    "F": 3
+   },
+   "families": {
+    "ld": 84249
+   },
+   "gate_eval": {
+    "absent": 57974,
+    "direct": 26253
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 18954,
+   "near_miss_signal_present": 11003,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, slow-comm",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/spt_slowcomm_fence__20260602_121858/mispredict_taken",
+   "kind": "br_x",
+   "source": "window-results (full per-record)",
+   "summary_total": 11742,
+   "summary_hits": 8,
+   "summary_status_error": 272,
+   "total": 11742,
+   "no_record": 0,
+   "error": 272,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 8,
+   "hit_recomputed": 8,
+   "inconsistent_records": 0,
+   "non_hit": 11462,
+   "near_miss": 7,
+   "near_miss_by": {
+    "L": 7
+   },
+   "near_miss_resid_unknown": {
+    "L": 7
+   },
+   "joint": {
+    "SLR": 8223,
+    "SR": 3039,
+    "DSR": 193,
+    "L+R?": 7
+   },
+   "grid_points": 11742,
+   "grid_joint": {
+    "SLR": 8223,
+    "SR": 3039,
+    "DSR": 193,
+    "PASS": 8,
+    "L+R?": 7
+   },
+   "families": {
+    "br": 11742
+   },
+   "gate_eval": {
+    "residual": 11470
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 7,
+   "near_miss_signal_present": 7,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, slow-comm",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/spt_slowcomm_fence__20260602_121858/mispredict_taken",
+   "kind": "ld",
+   "source": "window-results (full per-record)",
+   "summary_total": 84249,
+   "summary_hits": 36787,
+   "summary_status_error": 446,
+   "total": 84249,
+   "no_record": 0,
+   "error": 446,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 36787,
+   "hit_recomputed": 36787,
+   "inconsistent_records": 0,
+   "non_hit": 47016,
+   "near_miss": 21872,
+   "near_miss_by": {
+    "L": 9823,
+    "S": 7686,
+    "F": 3697,
+    "D": 639,
+    "G": 27
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 24857,
+    "L": 9823,
+    "S": 7686,
+    "F": 3697,
+    "D": 639,
+    "DS": 281,
+    "G": 27,
+    "DF": 6
+   },
+   "grid_points": 84249,
+   "grid_joint": {
+    "PASS": 36787,
+    "SL": 24857,
+    "L": 9823,
+    "S": 7686,
+    "F": 3697,
+    "D": 639,
+    "DS": 281,
+    "G": 27,
+    "DF": 6
+   },
+   "families": {
+    "ld": 84249
+   },
+   "gate_eval": {
+    "absent": 57153,
+    "direct": 26650
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 21872,
+   "near_miss_signal_present": 14186,
+   "gem5_binary": "/work/gem5-spt",
+   "gem5_variant": "SpectreSafeFence, Lazy, slow-comm",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": true
+  },
+  {
+   "mode_dir": "experiments/stt_coincidence/STT_6__20260602_122722/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "sweep raw: experiments/stt_coincidence/STT_6__20260602_122722/mispredict_not_taken/_sweep_raw (14424 files, 0 unreadable)",
+   "summary_total": 27389,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 27389,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 27389,
+   "near_miss": 198,
+   "near_miss_by": {
+    "B": 198
+   },
+   "near_miss_resid_unknown": {
+    "B": 198
+   },
+   "joint": {
+    "SLR": 20805,
+    "SR": 6386,
+    "B+R?": 198
+   },
+   "grid_points": 396276,
+   "grid_joint": {
+    "SLR": 238460,
+    "SR": 153335,
+    "B+R?": 2397,
+    "FB+R?": 2084
+   },
+   "families": {
+    "br": 396276
+   },
+   "gate_eval": {
+    "residual": 396276
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 198,
+   "near_miss_signal_present": 198,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2, stall grid max 24",
+   "build_provenance": "manifest.json + run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/stt_coincidence/STT_6__20260602_122722/mispredict_not_taken",
+   "kind": "ld",
+   "source": "sweep raw: experiments/stt_coincidence/STT_6__20260602_122722/mispredict_not_taken/_sweep_raw (14424 files, 0 unreadable)",
+   "summary_total": 66512,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 66512,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 66512,
+   "near_miss": 20006,
+   "near_miss_by": {
+    "S": 20006
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 46506,
+    "S": 20006
+   },
+   "grid_points": 1074588,
+   "grid_joint": {
+    "SL": 594544,
+    "S": 480044
+   },
+   "families": {
+    "ld": 1074588
+   },
+   "gate_eval": {
+    "direct": 963248,
+    "absent": 111340
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 20006,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2, stall grid max 24",
+   "build_provenance": "manifest.json + run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/stt_coincidence/STT_6__20260602_122722/mispredict_taken",
+   "kind": "br_x",
+   "source": "sweep raw: experiments/stt_coincidence/STT_6__20260602_122722/mispredict_taken/_sweep_raw (14424 files, 0 unreadable)",
+   "summary_total": 27389,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 27389,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 27389,
+   "near_miss": 22,
+   "near_miss_by": {
+    "B": 22
+   },
+   "near_miss_resid_unknown": {
+    "B": 22
+   },
+   "joint": {
+    "SLR": 20805,
+    "SR": 6562,
+    "B+R?": 22
+   },
+   "grid_points": 396276,
+   "grid_joint": {
+    "SLR": 238460,
+    "SR": 157351,
+    "B+R?": 465
+   },
+   "families": {
+    "br": 396276
+   },
+   "gate_eval": {
+    "residual": 396276
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 22,
+   "near_miss_signal_present": 22,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2, stall grid max 24",
+   "build_provenance": "manifest.json + run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/stt_coincidence/STT_6__20260602_122722/mispredict_taken",
+   "kind": "ld",
+   "source": "sweep raw: experiments/stt_coincidence/STT_6__20260602_122722/mispredict_taken/_sweep_raw (14424 files, 0 unreadable)",
+   "summary_total": 66512,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 66512,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 66512,
+   "near_miss": 20006,
+   "near_miss_by": {
+    "S": 20006
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 46506,
+    "S": 20006
+   },
+   "grid_points": 1074588,
+   "grid_joint": {
+    "SL": 594544,
+    "S": 480044
+   },
+   "families": {
+    "ld": 1074588
+   },
+   "gate_eval": {
+    "direct": 966632,
+    "absent": 107956
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 20006,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2, stall grid max 24",
+   "build_provenance": "manifest.json + run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/stt_coincidence/STT_6_interleave__20260602_122722/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "sweep raw: experiments/stt_coincidence/STT_6_interleave__20260602_122722/mispredict_not_taken/_sweep_raw (18840 files, 0 unreadable)",
+   "summary_total": 27704,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 27704,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 27704,
+   "near_miss": 751,
+   "near_miss_by": {
+    "B": 751
+   },
+   "near_miss_resid_unknown": {
+    "B": 751
+   },
+   "joint": {
+    "SR": 15517,
+    "SLR": 11377,
+    "B+R?": 751,
+    "FB+R?": 45,
+    "DSR": 14
+   },
+   "grid_points": 664656,
+   "grid_joint": {
+    "SR": 372644,
+    "SLR": 273273,
+    "B+R?": 10104,
+    "FB+R?": 8200,
+    "DSR": 254,
+    "LB+R?": 173,
+    "DB+R?": 4,
+    "DFB+R?": 4
+   },
+   "families": {
+    "br": 664656
+   },
+   "gate_eval": {
+    "residual": 664656
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 751,
+   "near_miss_signal_present": 751,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2, stall grid max 24",
+   "build_provenance": "manifest.json + run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/stt_coincidence/STT_6_interleave__20260602_122722/mispredict_not_taken",
+   "kind": "ld",
+   "source": "sweep raw: experiments/stt_coincidence/STT_6_interleave__20260602_122722/mispredict_not_taken/_sweep_raw (18840 files, 0 unreadable)",
+   "summary_total": 51696,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 51696,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 51696,
+   "near_miss": 28748,
+   "near_miss_by": {
+    "S": 28748
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "S": 28748,
+    "SL": 22948
+   },
+   "grid_points": 1240624,
+   "grid_joint": {
+    "S": 689872,
+    "SL": 550752
+   },
+   "families": {
+    "ld": 1240624
+   },
+   "gate_eval": {
+    "direct": 1144800,
+    "absent": 95824
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 28748,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2, stall grid max 24",
+   "build_provenance": "manifest.json + run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/stt_coincidence/STT_6_interleave__20260602_122722/mispredict_taken",
+   "kind": "br_x",
+   "source": "sweep raw: experiments/stt_coincidence/STT_6_interleave__20260602_122722/mispredict_taken/_sweep_raw (18840 files, 0 unreadable)",
+   "summary_total": 27704,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 27704,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 27704,
+   "near_miss": 6,
+   "near_miss_by": {
+    "B": 6
+   },
+   "near_miss_resid_unknown": {
+    "B": 6
+   },
+   "joint": {
+    "SR": 16215,
+    "SLR": 11430,
+    "DSR": 52,
+    "B+R?": 6,
+    "LB+R?": 1
+   },
+   "grid_points": 664656,
+   "grid_joint": {
+    "SR": 388994,
+    "SLR": 275215,
+    "DSR": 392,
+    "B+R?": 48,
+    "LB+R?": 7
+   },
+   "families": {
+    "br": 664656
+   },
+   "gate_eval": {
+    "residual": 664656
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 6,
+   "near_miss_signal_present": 6,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2, stall grid max 24",
+   "build_provenance": "manifest.json + run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/stt_coincidence/STT_6_interleave__20260602_122722/mispredict_taken",
+   "kind": "ld",
+   "source": "sweep raw: experiments/stt_coincidence/STT_6_interleave__20260602_122722/mispredict_taken/_sweep_raw (18840 files, 0 unreadable)",
+   "summary_total": 51696,
+   "summary_hits": 0,
+   "summary_status_error": 0,
+   "total": 51696,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 0,
+   "hit_recomputed": 0,
+   "inconsistent_records": 0,
+   "non_hit": 51696,
+   "near_miss": 28748,
+   "near_miss_by": {
+    "S": 28748
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "S": 28748,
+    "SL": 22948
+   },
+   "grid_points": 1240624,
+   "grid_joint": {
+    "S": 689872,
+    "SL": 550752
+   },
+   "families": {
+    "ld": 1240624
+   },
+   "gate_eval": {
+    "direct": 1144800,
+    "absent": 95824
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 28748,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "scheme 2, stall grid max 24",
+   "build_provenance": "manifest.json + run_config.jsonc",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/stt_slowcomm_full__20260602_121858/mispredict_not_taken",
+   "kind": "br_x",
+   "source": "window-results (full per-record)",
+   "summary_total": 27389,
+   "summary_hits": 198,
+   "summary_status_error": 107,
+   "total": 27389,
+   "no_record": 0,
+   "error": 107,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 198,
+   "hit_recomputed": 198,
+   "inconsistent_records": 0,
+   "non_hit": 27084,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 20744,
+    "SR": 6340
+   },
+   "grid_points": 27389,
+   "grid_joint": {
+    "SLR": 20744,
+    "SR": 6340,
+    "PASS": 198
+   },
+   "families": {
+    "br": 27389
+   },
+   "gate_eval": {
+    "residual": 27282
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "slow-comm",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/stt_slowcomm_full__20260602_121858/mispredict_not_taken",
+   "kind": "ld",
+   "source": "window-results (full per-record)",
+   "summary_total": 66512,
+   "summary_hits": 20295,
+   "summary_status_error": 0,
+   "total": 66512,
+   "no_record": 0,
+   "error": 0,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 20295,
+   "hit_recomputed": 20295,
+   "inconsistent_records": 0,
+   "non_hit": 46217,
+   "near_miss": 16556,
+   "near_miss_by": {
+    "S": 11689,
+    "L": 4867
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 29657,
+    "S": 11689,
+    "L": 4867,
+    "LG": 4
+   },
+   "grid_points": 66512,
+   "grid_joint": {
+    "SL": 29657,
+    "PASS": 20295,
+    "S": 11689,
+    "L": 4867,
+    "LG": 4
+   },
+   "families": {
+    "ld": 66512
+   },
+   "gate_eval": {
+    "absent": 55391,
+    "direct": 11121
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 16556,
+   "near_miss_signal_present": 4867,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "slow-comm",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/stt_slowcomm_full__20260602_121858/mispredict_taken",
+   "kind": "br_x",
+   "source": "window-results (full per-record)",
+   "summary_total": 27389,
+   "summary_hits": 33,
+   "summary_status_error": 559,
+   "total": 27389,
+   "no_record": 0,
+   "error": 559,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 33,
+   "hit_recomputed": 33,
+   "inconsistent_records": 0,
+   "non_hit": 26797,
+   "near_miss": 0,
+   "near_miss_by": {},
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SLR": 20492,
+    "SR": 6305
+   },
+   "grid_points": 27389,
+   "grid_joint": {
+    "SLR": 20492,
+    "SR": 6305,
+    "PASS": 33
+   },
+   "families": {
+    "br": 27389
+   },
+   "gate_eval": {
+    "residual": 26830
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 0,
+   "near_miss_signal_present": 0,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "slow-comm",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": false
+  },
+  {
+   "mode_dir": "experiments/stt_slowcomm_full__20260602_121858/mispredict_taken",
+   "kind": "ld",
+   "source": "window-results (full per-record)",
+   "summary_total": 66512,
+   "summary_hits": 3693,
+   "summary_status_error": 12,
+   "total": 66512,
+   "no_record": 0,
+   "error": 12,
+   "partial_error": 0,
+   "div_fault_hit": 0,
+   "unbroken": 0,
+   "hit": 3693,
+   "hit_recomputed": 3693,
+   "inconsistent_records": 0,
+   "non_hit": 62807,
+   "near_miss": 19916,
+   "near_miss_by": {
+    "S": 18866,
+    "L": 1023,
+    "G": 27
+   },
+   "near_miss_resid_unknown": {},
+   "joint": {
+    "SL": 42870,
+    "S": 18866,
+    "L": 1023,
+    "G": 27,
+    "LG": 21
+   },
+   "grid_points": 66512,
+   "grid_joint": {
+    "SL": 42870,
+    "S": 18866,
+    "PASS": 3693,
+    "L": 1023,
+    "G": 27,
+    "LG": 21
+   },
+   "families": {
+    "ld": 66512
+   },
+   "gate_eval": {
+    "absent": 55379,
+    "direct": 11121
+   },
+   "legacy_br_opaque_nonhit": 0,
+   "near_miss_raw_incl_legacy_A": 19916,
+   "near_miss_signal_present": 1050,
+   "gem5_binary": "/work/stt",
+   "gem5_variant": "slow-comm",
+   "build_provenance": "manifest.json",
+   "no_branch_annotations_caveat": false
+  }
+ ]
+}

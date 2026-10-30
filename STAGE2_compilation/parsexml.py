@@ -375,6 +375,10 @@ def pass1_specify_state_a(
 
     resolved_instrs = {ins for (ins, _) in inst.fields.get("isresolved", [])}
     committed_instrs = {ins for (ins, _) in inst.fields.get("iscommitted", [])}
+    # Commit-split models (STT_6_commitsplit) also mark the must-be-uncommitted
+    # suffix U; absent field = older model, where U is everything uncommitted.
+    has_commit_split = "isuncommitted" in inst.fields
+    must_uncommitted_instrs = {ins for (ins, _) in inst.fields.get("isuncommitted", [])}
     xm_instrs        = {ins for (ins, _) in inst.fields.get("isxm",        [])}
 
     reg_states = inst.sig_atoms.get("this/Reg_s", set())
@@ -442,6 +446,8 @@ def pass1_specify_state_a(
                 "kind": kind,
                 "resolved":  resolved_bool,
                 "committed": committed_bool,
+                "must_uncommitted": (ins in must_uncommitted_instrs) if has_commit_split
+                                    else not committed_bool,
                 "xm":        xm_bool,
                 "slots": slots,
             }
@@ -1852,6 +1858,38 @@ def pass4_ssa(
 
 
 # =============================================================================
+# Commit boundary (lc / fnc) — the ONE place it is chosen
+# =============================================================================
+
+def commit_boundary(
+    instructions: List[Dict[str, Any]],
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """
+    Return (last_committed, first_noncommitted) instruction records.
+
+    Both are pinned to instructions that come from the Alloy instance: records
+    tagged ``synthetic`` (pass_interleave chain steps, the xm fall-through NOP)
+    are skipped. fnc is the first instruction of the must-be-uncommitted
+    suffix U; for models without a commit split, U = every uncommitted
+    instruction, so fnc is simply the first uncommitted one. Interleaving inserts chain steps right after the committed
+    prefix, so picking by position alone would make a chain step the fnc in
+    ~39% of interleaved variants. Both pass5_emit_llvm (the litmus labels)
+    and emit_branch_annotations (ann["commit_boundary"]) call this, so the
+    label and the annotation can never disagree.
+    Design rule: wiki/design/COMMIT_BOUNDARY.md.
+    """
+    alloy = [rec for rec in instructions if not rec.get("synthetic")]
+    last_committed = None
+    for rec in alloy:
+        if rec.get("committed", False):
+            last_committed = rec
+    first_noncommitted = next(
+        (rec for rec in alloy
+         if rec.get("must_uncommitted", not rec.get("committed", False))), None)
+    return last_committed, first_noncommitted
+
+
+# =============================================================================
 # Pass 5: emit LLVM IR
 # =============================================================================
 
@@ -2026,16 +2064,10 @@ def pass5_emit_llvm(
         if any(rec.get("stl_annotation") for rec in instructions) else {}
     )
 
-    # ---- Commit boundary PCs ----
-    last_committed_pc: Optional[int] = None
-    first_noncommitted_pc: Optional[int] = None
-    for rec in instructions:
-        if rec.get("committed", False):
-            last_committed_pc = rec["pc"]
-    for rec in instructions:
-        if not rec.get("committed", False):
-            first_noncommitted_pc = rec["pc"]
-            break
+    # ---- Commit boundary PCs (Alloy instructions only; see commit_boundary) ----
+    lc_rec, fnc_rec = commit_boundary(instructions)
+    last_committed_pc: Optional[int] = lc_rec["pc"] if lc_rec else None
+    first_noncommitted_pc: Optional[int] = fnc_rec["pc"] if fnc_rec else None
 
     # ---- Emit instructions ----
     last_was_terminator = False
@@ -2548,16 +2580,12 @@ def emit_branch_annotations(
             }
             break
 
-    # Collect commit boundary (last committed / first noncommitted instruction).
-    last_committed: Optional[Dict[str, Any]] = None
-    first_noncommitted: Optional[Dict[str, Any]] = None
-    for rec in result["instructions"]:
-        if rec.get("committed", False):
-            last_committed = {"pc": rec["pc"], "atom": rec["instruction"]}
-    for rec in result["instructions"]:
-        if not rec.get("committed", False):
-            first_noncommitted = {"pc": rec["pc"], "atom": rec["instruction"]}
-            break
+    # Commit boundary (Alloy instructions only; see commit_boundary).
+    lc_rec, fnc_rec = commit_boundary(result["instructions"])
+    last_committed: Optional[Dict[str, Any]] = (
+        {"pc": lc_rec["pc"], "atom": lc_rec["instruction"]} if lc_rec else None)
+    first_noncommitted: Optional[Dict[str, Any]] = (
+        {"pc": fnc_rec["pc"], "atom": fnc_rec["instruction"]} if fnc_rec else None)
 
     if write_out:
         if out_path is None:
