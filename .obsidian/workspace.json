@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "wiki/findings/audits/2026-10-28/APPROVALS.md",
+                "file": "paper_figures/FIGURES.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "APPROVALS"
+              "title": "FIGURES"
             }
           }
         ]
@@ -190,23 +190,25 @@
   },
   "active": "3a0004c1cab800f3",
   "lastOpenFiles": [
+    "wiki/findings/audits/2026-10-28/APPROVALS.md",
+    "paper_figures/FIGURES.md",
+    "paper_figures/drafts/_standalone_pipeline_vertical_8pt-1.png",
+    "paper_figures/drafts/_standalone_pipeline_vertical_8pt.pdf",
+    "paper_figures/drafts/_standalone_pipeline_vertical_8pt.aux",
+    "paper_figures/drafts/_standalone_pipeline_vertical_8pt.log",
+    "paper_figures/drafts/_standalone_pipeline_vertical_8pt.tex",
     "paper_figures/drafts/_standalone_pipeline_vertical.pdf",
     "paper_figures/drafts/_standalone_pipeline_vertical.aux",
     "paper_figures/drafts/_standalone_pipeline_vertical.log",
     "paper_figures/drafts/gem5logo.pdf",
     "paper_figures/drafts/tmp-pdfcrop-40300.tex",
     "paper_figures/drafts/_standalone_interleave_v3.aux",
-    "paper_figures/drafts/_standalone_interleave_v3.log",
     "paper_figures/plans/fig_b_relaxation.md",
     "paper_figures/plans/AUDIT_existing_figures.md",
     "paper_figures/drafts/_standalone_relaxation_v3-1.png",
     "paper_figures/plans/fig_c_interleave.md",
     "paper_figures/plans/fig_e_checkerwindow.md",
-    "paper_figures/drafts/_standalone_relaxation_v3.tex",
     "paper_figures/drafts/_standalone_checkerwindow_v3-1.png",
-    "paper_figures/drafts/audit/tmp-pdfcrop-37383.tex",
-    "paper_figures/drafts/audit/tmp-pdfcrop-37375.tex",
-    "paper_figures/drafts/audit/tmp-pdfcrop-37364.tex",
     "paper_figures/plans/fig_a_execgraphsyntax.md",
     "paper_figures/drafts/audit/audit_interleave_v3_paperfonts.png",
     "paper_figures/plans/fig_d_instrtable.md",
@@ -216,7 +218,6 @@
     "paper_figures/drafts/_standalone_pipeline_vertical-1.png",
     "paper_figures/drafts/audit/audit_reconbugs.png",
     "paper_figures/drafts/audit/audit_checkerwindow.png",
-    "paper_figures/drafts/audit/audit_statetable.png",
     "paper_figures/plans/VISUAL_LANGUAGE.md",
     "wiki/design/CONCRETIZATION_PASSES.md",
     "wiki/design/STT_VS_RECON_STT.md",
@@ -234,7 +235,6 @@
     "wiki/design/COMMIT_BOUNDARY.md",
     "wiki/design/RESOLUTION_HOOKS_SURVEY.md",
     "wiki/findings/audits/2026-10-28/check_footprint_review.md",
-    "wiki/findings/audits/2026-10-28/alloy_STT_6.md",
-    "wiki/findings/audits/2026-10-28/alloy_Recon_6.md"
+    "wiki/findings/audits/2026-10-28/alloy_STT_6.md"
   ]
 }

@@ -90,10 +90,10 @@
 \coordinate (s1) at ($(f1b -| \flowx,0)+(0,-\sgap-0.15cm)$);
 \graphicon{g1}{(s1)}
 \draw[->] (f1b -| s1) -- (g1-n);
-\node[outcap, anchor=west] (c1) at (s1 -| \capx,0) {Exhaustive set of defense-specific leaking execution graphs};
+\node[outcap] (c1) at ($(s1 -| \capx,0)+(0,0.15cm)$) {Exhaustive set of defense-specific leaking execution graphs};
 
 % ============================== STAGE 1.5 ==============================
-\coordinate (f2t) at ($(0,0 |- g1-s)+(0,-\sgap)$);
+\path let \p1=(g1-s), \p2=(c1.south) in coordinate (f2t) at (0,{min(\y1,\y2)-\sgap});
 \draw[->] (g1-s) -- (f2t -| s1);
 \node[title] (t2) at ($(f2t)+(\pad,-\pad)$) {\textbf{Stage 1.5:} Alloy enumeration};
 \node[row, font=\scriptsize\itshape] (h2) at ($(t2.south west)+(0,-\tgap)$) {Constraints on execution graphs:};
@@ -112,11 +112,11 @@
 \coordinate (s2) at ($(f2b -| \flowx,0)+(0,-\sgap-0.15cm)$);
 \graphicon{g2}{(s2)}
 \draw[->] (f2b -| s2) -- (g2-n);
-\node[outcap, anchor=west] (c2) at (s2 -| \capx,0) {More flexible defense-specific leaking execution graphs\\{\itshape multiple per Stage-1 graph}};
+\node[outcap] (c2) at ($(s2 -| \capx,0)+(0,0.15cm)$) {More flexible defense-specific leaking execution graphs\\{\itshape multiple per Stage-1 graph}};
 
 % =============================== STAGE 2 ===============================
 % pass order = STAGE2_compilation/batch_generate.py:run_pipeline (see wiki/design/CONCRETIZATION_PASSES.md)
-\coordinate (f3t) at ($(0,0 |- g2-s)+(0,-\sgap)$);
+\path let \p1=(g2-s), \p2=(c2.south) in coordinate (f3t) at (0,{min(\y1,\y2)-\sgap});
 \draw[->] (g2-s) -- (f3t -| s2);
 \node[title] (t3) at ($(f3t)+(\pad,-\pad)$) {\textbf{Stage 2:} Concretization (Python, C++)};
 \node[row, text width=\widew, font=\scriptsize\itshape] (h3) at ($(t3.south west)+(0,-\tgap)$) {Concretization passes, per graph:};
@@ -137,7 +137,7 @@
 \docicon{an}{($(s3)+(0.4cm,0)$)}{white}{\{\,\}}
 \draw[->] (f3b -| s3) -- (asm-n);
 \draw[->] (f3b -| an-n) -- (an-n);
-\node[outcap, anchor=west] (c3) at (s3 -| \capx,0) {Program (x86 asm) + annotations (labels, speculation directives)\\{\itshape 1+ program--annotation pairs per graph}};
+\node[outcap] (c3) at ($(s3 -| \capx,0)+(0,0.17cm)$) {Program (x86 asm) + annotations (labels, speculation directives)\\{\itshape 1+ program--annotation pairs per graph}};
 \coordinate (r0) at ($(an-s |- c3.south)+(0,-0.8mm)$);
 
 % =============================== STAGE 3 ===============================

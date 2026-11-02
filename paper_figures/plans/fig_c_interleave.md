@@ -48,3 +48,8 @@ Sources read this session: `wiki/design/CONCRETIZATION_PASSES.md`; `STAGE2_compi
 ## To use the draft in the paper (when you decide)
 
 The clone is read only, so this is for you to do. Make a new file `tikz/interleave_v3.tex` containing `\begin{figure}[t]\centering`, the draft's knob block, the `\setbox0=...\edef\cw{...}` line and the `tikzpicture`, then your caption and `\label{fig:interleave}` and `\end{figure}`. Leave out the two preview-only lines (`newtxtext,newtxmath` and `\renewcommand{\ttdefault}{pcr}`); the paper already uses Courier. Then change `sections/pipeline.tex:33` from `\input{tikz/interleave}` to `\input{tikz/interleave_v3}`. The figure needs only the `calc` TikZ library, which the paper loads (`bare_conf_compsoc.tex:333`).
+
+
+## Decided
+
+- 2026-11-02 (Anna): D1 → the figure may show Stage 2 interleaving (`parsexml:pass_interleave`), as long as the caption/text says so. Redraw per option (b).
