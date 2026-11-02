@@ -1,0 +1,75 @@
+% Table (f): load-transmitter transmission criteria per defense, as SimSpect's Stage 3 checkers implement them.
+% Source of truth for every cell (file:line citations): paper_figures/plans/fig_f_xmitcriteria.md
+% Visual language: paper_figures/plans/VISUAL_LANGUAGE.md. Full text width: use inside a table* (about 500pt wide).
+% Needs booktabs, array, colortbl (all already in the paper preamble). Everything is local to the outer group.
+{%
+% ============================ TUNING KNOBS ============================
+\def\xcwA{67pt}%  defense + gem5 build
+\def\xcwB{92pt}%  criterion source (JSON file + key fields)
+\def\xcwC{92pt}%  counts as a transmission
+\def\xcwD{80pt}%  does not count
+\def\xcwE{88pt}%  trace signal (debug flag / hook line)
+\def\xcwF{54pt}%  window
+\setlength{\tabcolsep}{2.5pt}%
+\def\xcRowGap{3.2pt}% extra space between rows
+% ======================================================================
+\scriptsize
+\renewcommand{\arraystretch}{1.0}%
+\setlength{\aboverulesep}{0pt}\setlength{\belowrulesep}{0pt}%
+\def\xs#1{\texttt{#1}}% signal / code names
+\def\xpad{\rule{0pt}{8.2pt}}% strut at the top of each row (room above the first line)
+\def\xbot{\rule[-\xcRowGap]{0pt}{0pt}}% strut at the bottom of each row
+\def\xgray{\cellcolor{black!12}}%
+\hyphenpenalty=10000\exhyphenpenalty=10000
+\begin{tabular}{@{}%
+  >{\raggedright\arraybackslash}p{\xcwA}%
+  >{\raggedright\arraybackslash}p{\xcwB}%
+  >{\raggedright\arraybackslash}p{\xcwC}%
+  >{\raggedright\arraybackslash}p{\xcwD}%
+  >{\raggedright\arraybackslash}p{\xcwE}%
+  >{\raggedright\arraybackslash}p{\xcwF}@{}}
+\toprule
+\xpad Defense (gem5 build) & Criterion source & Counts as a transmission & Does not count & Trace signal & Window\xbot\\
+\midrule
+% ---------------------------- STT-Spectre ----------------------------
+\xpad STT-Spectre\newline \xs{/work/stt}\newline scheme~2, Spectre threat model
+& \xs{stt.json}: \xs{transmitters:[ld,br\_x]}, \xs{checkers.ld:} \xs{check\_ld.py}\newline \emph{No criterion JSON: generic \xs{check\_ld} gate.}
+& The transmitter load executes in $W$ and obtains data: it sends a read packet (\xs{reached\_cache}) or, sending none, completes (\xs{store\_forward}).
+& Load never executes; or executes, sends no packet and never completes.
+& \xs{LSQUnit}: \xs{Executing load}, \xs{successfully sent out packet(s)}; \xs{O3PipeView}: \xs{complete}.
+& \xs{Executing load} tick in $W$.\xbot\\
+% ----------------------------- Recon-STT -----------------------------
+\xpad Recon-STT\newline \xs{gem5-recon-modded}\newline scheme~2
+& \xs{recon.json}: same keys as \xs{stt.json}.\newline \emph{No criterion JSON: generic \xs{check\_ld} gate.}
+& Same gate, but this build never prints the packet line, so only \xs{store\_forward} (the load completes) can fire.
+& Delay-unit bounce; also a load that sent a packet but was squashed before completing (gate bug).
+& \xs{LSQUnit}: \xs{Executing load}; the real send, \xs{Memory request}\,\ldots\,\xs{was sent}, is not parsed; \xs{O3PipeView}: \xs{complete}.
+& \xs{Executing load} tick in $W$.\xbot\\
+% ----------------------------- InvisiSpec ----------------------------
+\xpad InvisiSpec\newline \xs{amulet-InvisiSpec}\newline \xs{--ruby}, \xs{SpectreSafe}\allowbreak\xs{InvisibleSpec}
+& \xgray \xs{invisispec.json}: \xs{leak.form:exists}, \xs{structures:} \xs{[L1D,L2,DIR,DTLB]}, \xs{kinds:[fill,evict,} \xs{inv,coh,repl\_touch]}
+& Any such event caused by any squashed instruction younger than lc (not only the transmitter).
+& \xs{SB}, \xs{LLCSB} \xs{buf\_fill}/\xs{buf\_release}; \xs{expose}/\xs{validate}; MSHR/TBE; L1I, ITLB.
+& SimSpect hook lines \xs{O3PipeView:simspect:} \xs{<struct>:<kind>} (Ruby \xs{CacheMemory}, TLB, SLICC transitions).
+& Event tick in $W$; Futuristic mode: any instruction, before its visibility point.\xbot\\
+% ------------------------------ SpecLFB ------------------------------
+\xpad SpecLFB\newline \xs{amulet-SpecLFB}\newline classic caches, \xs{--l2cache}, \xs{--scheme=}\allowbreak\xs{Speclfb}
+& \xgray \xs{speclfb.json}: \xs{leak.form:exists}, \xs{structures:[L1D,L2]}, \xs{kinds:[fill,evict]}
+& An L1D or L2 \xs{fill}, or the \xs{evict} of a victim, caused by a squashed instruction younger than lc.
+& Parking in the \xs{LFB} (\xs{buf\_fill}/\xs{buf\_release}); hits, \xs{repl\_touch}; DTLB, L1I; MSHRs.
+& SimSpect hook lines (classic \xs{BaseCache} allocate and evict, \xs{refillBlocks}).
+& Event tick in $W$.\xbot\\
+% ---------------------------- CleanupSpec ----------------------------
+\xpad CleanupSpec\newline \xs{amulet-CleanupSpec}\newline \xs{--ruby}, \xs{Cleanup\_FOR\_}\allowbreak\xs{L1L2}
+& \xgray \xs{cleanupspec.json}: \xs{leak.form:} \xs{per\_line\_balance}, \xs{undo\_obligations:} \xs{L1D:[install,victim],} \xs{L2:[install]}
+& Per structure and line, squashed installs minus \xs{cleanup\_inv}, or L1D victims minus \xs{cleanup\_restore}, is nonzero (too little or too much undo; skips and drops are not undo).
+& Fully undone footprint; a fill evicted again inside $W$; L2 victims, replacement state, DIR; cleanup timing (unXpec).
+& SimSpect hook lines: \xs{CacheMemory} plus cleanup events (\xs{Inv\_CLEANUP}, \xs{Load\_ROLLBACK}, LSQ \xs{cleanup\_done}).
+& Footprint in $W$; undo from the squash to \xs{cleanup\_done}.\xbot\\
+\midrule
+\multicolumn{6}{@{}>{\raggedright\arraybackslash}p{\dimexpr\xcwA+\xcwB+\xcwC+\xcwD+\xcwE+\xcwF+10\tabcolsep\relax}@{}}{\xpad
+$W$: \xs{lc\_retire} $<t<$ \xs{fnc\_retire}, and every branch the model marks unresolved is still unresolved at $t$ (SimSpect \xs{BR:resolve\_visible} hook line). A specified lc that never retires disqualifies the test; a run that did not realize the modeled speculation (mispredict, stall, forced prediction) is invalid, never a hit.\hfill
+{\setlength{\fboxsep}{0pt}\fcolorbox{black}{black!12}{\rule{0pt}{4.5pt}\rule{4.5pt}{0pt}}}\,defense-specific criterion JSON\xbot}\\
+\bottomrule
+\end{tabular}%
+}%

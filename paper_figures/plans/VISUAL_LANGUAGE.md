@@ -36,6 +36,13 @@ The paper (`test-paper`, `\documentclass[conference]{IEEEtran}`) has `\columnwid
 - A list goes in **one** box with numbered rows (`1.~…`); a shaded row marks a defense-specific item. No separate box per item.
 - Outputs passed between stages use the same treatment everywhere: an arrow, a small drawn icon, then a caption in 8pt with its multiplicity on the next line in 7pt italics.
 
+## Captions and file layout (Anna, 2026-11-02)
+
+- Every figure has a proposed caption, written in `paper_figures/FIGURES.md` (Captions section) and in `captions/<name>.tex`. Previews do NOT render the caption (Anna, 2026-11-02: the minipage wrapper misaligned the figure); they leave blank space where it will go (standalone `border` padding). In the paper the caption goes separately into `\caption{}` (paper text; Anna pastes it).
+- Three files per figure in `paper_figures/drafts/`: `<name>.tex` = the body only (the `tikzpicture` plus its local definitions, wrapped in `{ }` so nothing leaks into other figures; this is what goes into the paper's `tikz/`); `captions/<name>.tex` = the caption text alone; `_standalone_<name>.tex` = the preview: `\documentclass[tikz,border={2pt 24pt 2pt 2pt}]{standalone}` + `\input{<name>}` (tikz mode drops stray whitespace outside the picture).
+- Margins: ISCA sets page margins only; nothing about padding inside figures. Anna wants comfortable breathing room inside figures; nothing touching.
+- The paper preamble already loads TikZ with `arrows.meta, positioning, calc, bending, fit, backgrounds, shapes.geometric`; TikZ loads graphicx.
+
 ## Code conventions
 
 - Each figure ships as `_standalone_<name>.tex` (with `\documentclass[tikz,border=1pt]{standalone}`) plus a `-1.png` preview at 300 dpi, matching the paper repo's `tikz/` convention.

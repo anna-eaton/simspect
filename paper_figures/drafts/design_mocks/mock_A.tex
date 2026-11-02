@@ -1,0 +1,131 @@
+% Direction A: "Shape-coded blobs". One rounded blob per stage in a process lane; defense-specific
+% sources of truth in a left lane; data stacks on a left spine (Z reading order, like text).
+% Shapes: constraint clauses = stacked slabs joined by a collector bar; solver = stadium; passes = a
+% snake of numbered chevrons; gem5 = container holding a gray die (defense build) in a harness ring;
+% data = card stacks; inspection = box with a magnifier; finding = black badge.
+\documentclass[tikz,border=0pt]{standalone}
+\usepackage{newtxtext,newtxmath}
+\usepackage{graphicx}
+\input{mock_macros}
+\begin{document}
+\begin{tikzpicture}[x=1pt,y=1pt]
+% ---------------- knobs ----------------
+\def\LX{24}      % center of the sources-of-truth lane
+\def\PL{56.3}    % blob left edge
+\def\PR{251.7}   % blob right edge
+\def\IL{62}      % inner left
+\def\IR{246}     % inner right
+\def\SX{69}      % spine x (data stacks)
+\def\SW{108}     % slab width
+\useasboundingbox (0,1) rectangle (252,-374);
+
+% ---------------- legend ----------------
+\swatch{(0,-20.6)}
+\node[q, anchor=north west, align=left] at (7.5,-13) {defense-specific\\sources of truth};
+
+% ================= Stage 1 =================
+\def\T{-6}
+\node[slab, text width=\SW pt-6pt] (a1) at (\IL,\T-8) {\textbf{1}\enspace well-formed execution};
+\node[slab, text width=\SW pt-6pt] (a2) at ($(a1.south west)+(0,-2)$) {\textbf{2}\enspace minimality};
+\node[slab, text width=\SW pt-6pt, dspec] (a3) at ($(a2.south west)+(0,-2)$) {\textbf{3}\enspace leakage predicate};
+\draw[line width=0.6pt] ($(a1.north east)+(3,0)$) -- ($(a3.south east)+(3,0)$) coordinate (cb1);
+\node[tool] (A1) at (213,{(\T-8-37.5/2-2)}) {Alloy Analyzer\\[-1.5pt]{\scriptsize Kodkod + SAT}};
+\draw[->] ($(a1.north east)!0.5!(a3.south east)+(3,0)$) -- (A1.west);
+\draw[blob] (\PL,\T) rectangle (\PR,{(\T-51)}) coordinate (b1);
+\node[btitle] at (\IL+2,\T) {\textbf{Stage 1}\enspace Abstract test generation \textit{(Alloy)}};
+% source: defense specification -> clause 3
+\sot{ds}{(\LX,{(\T-43.6)})}{}
+\node[sm, anchor=north, align=center] at ($(ds-s)+(0,-1.5)$) {Defense\\specification};
+\draw[->] (ds-e) -- (a3.west);
+
+% ---- output 1 ----
+\def\G{-63}
+\draw (A1.south) -- (A1.south |- 0,\G+3) -- (\SX,\G+3);
+\cardstack{o1}{(\SX,\G-12)}{3}{\gGraph}
+\draw[->] (\SX,\G+3) -- (o1-n);
+\node[anchor=west, align=left] at (\SX+14,\G-11) {Leaking execution graphs\\[-1pt]{\scriptsize\itshape exhaustive set}};
+
+% ================= Stage 1.5 =================
+\def\T{-91}
+\draw[->] (o1-s) -- (\SX,\T-8);
+\node[slab, text width=\SW pt-6pt] (b4) at (\IL,\T-8) {\textbf{4}\enspace pin: contains Stage-1 graph};
+\node[ghost, text width=\SW pt-6pt] (b1) at ($(b4.south west)+(0,-2)$) {\textbf{1}};
+\node[slab, text width=\SW pt-6pt] (b2) at ($(b1.south west)+(0,-2)$) {\textbf{2$'$}\enspace loosened minimality};
+\node[ghost, text width=\SW pt-6pt, dspec] (b3) at ($(b2.south west)+(0,-2)$) {\textbf{3}};
+\node[q, anchor=east] at ($(b1.east)+(-3,0)$) {as Stage 1};
+\node[q, anchor=east] at ($(b3.east)+(-3,0)$) {as Stage 1};
+\draw[line width=0.6pt] ($(b4.north east)+(3,0)$) -- ($(b3.south east)+(3,0)$);
+\node[tool] (A2) at (213,{(\T-8-50/2-3)}) {Alloy Analyzer};
+\draw[->] ($(b4.north east)!0.5!(b3.south east)+(3,0)$) -- (A2.west);
+\draw[blob] (\PL,\T) rectangle (\PR,{(\T-63.5)});
+\node[btitle] at (\SX+6,\T) {\textbf{Stage 1.5}\enspace Abstract test enumeration \textit{(Alloy)}};
+
+% ---- output 2 ----
+\def\G{-160}
+\draw (A2.south) -- (A2.south |- 0,\G+3) -- (\SX,\G+3);
+\cardstack{o2}{(\SX,\G-12)}{3}{\gGraph}
+\draw[->] (\SX,\G+3) -- (o2-n);
+\node[anchor=west, align=left] at (\SX+14,\G-11) {More flexible leaking execution graphs\\[-1pt]{\scriptsize\itshape multiple per Stage-1 graph; non-exhaustive}};
+
+% ================= Stage 2 =================
+\def\T{-188}
+\draw[->] (o2-s) -- (\SX,\T-6);
+% row 1: passes 1-4 point right; row 2: passes 5-7 point left (snake)
+\def\ra{\T-17}\def\rb{\T-40}
+\foreach \i/\x/\t in {1/85.8/{\textbf{1} state +\\PC order},2/129.9/{\textbf{2} pick\\instructions},3/174.1/{\textbf{3} speculation\\primitives},4/218.2/{\textbf{4} interleave\\chains}}
+  \node[chev, minimum width=47.6pt] (p\i) at (\x,\ra) {\t};
+\foreach \i/\x/\t in {5/210.85/{\textbf{5} assign state,\\reserve registers},6/151.95/{\textbf{6} SSA + LLVM\\with PC labels},7/93.05/{\textbf{7} asm +\\annotations}}
+  \node[chevL, minimum width=62.3pt] (p\i) at (\x,\rb) {\t};
+\draw[->, line width=0.5pt] (p4.east) .. controls +(5,0) and +(5,0) .. (p5.east);
+\draw[blob] (\PL,\T) rectangle (\PR,{(\T-55)});
+\node[btitle] at (\SX+6,\T) {\textbf{Stage 2}\enspace Concretization \textit{(Python, C++)}};
+
+% ---- output 3 ----
+\def\G{-243}
+\pairstack{o3}{(\SX+9,\G-17)}{3}
+\draw[->] (\SX,\G) -- (\SX,\G-6.3);
+\node[anchor=west, align=left] at (\SX+28,\G-14) {Program (x86 asm) + annotation pairs\\[-1pt]{\scriptsize\itshape one or more per graph}};
+
+% ================= Stage 3 =================
+\def\T{-280}
+\def\J{-271.5}
+% gem5 container: logo + gray die (defense build) inside a harness ring with probe ticks
+\draw[rounded corners=4pt, line width=0.6pt] (\IL,\T-8) rectangle (152,\T-64) coordinate (gemBR);
+\node[anchor=north east] at (149,\T-10.5) {\includegraphics[height=6pt]{gem5logo.pdf}};
+\draw[rounded corners=3pt] (74,\T-19) rectangle (140,\T-58);
+\node[draw, rounded corners=2pt, dspec, minimum width=56pt, minimum height=25pt, align=center, font=\scriptsize] (die) at (107,\T-37) {defense build\\under test};
+\foreach \y in {-31,-37,-43} \draw[line width=0.5pt] (135,\T+\y) -- (140,\T+\y);
+\foreach \x in {91,107,123} \draw[line width=0.5pt] (\x,\T-24.5) -- (\x,\T-19);
+\node[q, fill=white, inner xsep=1.5pt] at (116,\T-58) {harness};
+% program -> gem5 ; directives -> harness ; labels -> inspection
+\draw[->] (o3-asm-s) -- (o3-asm-s |- 0,\T-8);
+\draw (o3-ann-s) -- (o3-ann-s |- 0,\J) coordinate (jn);
+\draw[->] (jn) -- (jn |- 0,\T-19);
+\node[dot] at (jn) {};
+\node[q, anchor=west, align=left] at ($(jn |- 0,\T-12.5)+(1.5,0)$) {directives};
+% trace, inspection, bug
+\cardstack{tr}{(161,\T-37)}{1}{\gTrace}
+\draw[->] (140,\T-37) -- (tr-w);
+\node[box, minimum height=24pt, anchor=west, font=\scriptsize, align=left, inner xsep=2.5pt] (I) at (172,\T-37) {\hspace*{9pt}Inspection\\\hspace*{9pt}program};
+\magn{($(I.west)+(6,1.2)$)}{2.6}
+\draw[->] (tr-e) -- (I.west);
+\draw[->] (jn) -- (I.north |- jn) -- (I.north);
+\node[q, anchor=west] at ($(I.north |- 0,\T-10)+(1.5,0)$) {labels};
+\node[draw, fill=black, rounded corners=3pt, minimum width=22pt, minimum height=26pt] (bug) at (235,\T-37) {};
+\buggl{(235,\T-32)}{1.15}{white}
+\node[text=white, font=\scriptsize\bfseries] at (235,\T-44.5) {Bug?};
+\draw[->] (I.east) -- (bug.west);
+% sources: defense gem5 build -> die ; transmission mechanisms -> harness + inspection
+\sot{gb}{(\LX,\T-37)}{\textless/\textgreater}
+\node[sm, anchor=north, align=center] at ($(gb-s)+(0,-1.5)$) {Defense's\\gem5 build};
+\draw[->] (gb-e) -- (die.west);
+\sot{tm}{(\LX,\T-71)}{}
+\node[sm, anchor=north, align=center] at ($(tm-s)+(0,-1.5)$) {Transmission\\mechanisms};
+\draw (tm-e) -- (I.south |- tm-e);
+\draw[->] (I.south |- tm-e) -- (I.south);
+\draw[->] (86,\T-71) -- (86,\T-58);
+\node[dot] at (86,\T-71) {};
+\draw[blob] (\PL,\T) rectangle (\PR,\T-77);
+\node[btitle] at (\SX+21,\T) {\textbf{Stage 3}\enspace Execution \textit{(gem5)}};
+\end{tikzpicture}
+\end{document}

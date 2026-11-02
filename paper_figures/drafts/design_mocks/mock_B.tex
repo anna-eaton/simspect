@@ -1,0 +1,136 @@
+% Direction B: "One spine". Every tool and every data set sits on ONE vertical spine at the right;
+% what we specify for each tool sits to its left; defense-specific sources of truth sit in the left lane.
+% So the columns mean something: sources | specification | spine (tool -> data -> tool -> ...).
+% Shapes: constraints = a conjunction of pills joined by "and" glyphs + a brace; solver = stadium on the
+% spine; passes = metro stations ON the spine (order = the line itself); data = card stacks whose depth
+% grows with multiplicity; gem5 = container with a gray die in a harness ring; finding = starburst.
+% Tool names live in the tool shapes, so stage titles drop "(Alloy)" / "(gem5)".
+\documentclass[tikz,border=0pt]{standalone}
+\usepackage{newtxtext,newtxmath}
+\usepackage{graphicx}
+\input{mock_macros}
+\usetikzlibrary{decorations.pathreplacing}
+\begin{document}
+\begin{tikzpicture}[x=1pt,y=1pt]
+% ---------------- knobs ----------------
+\def\LX{24}      % sources lane center
+\def\PL{56.3}    % blob left edge
+\def\PR{251.7}   % blob right edge
+\def\IL{62}      % inner left
+\def\SX{212}     % THE spine
+\def\CX{200}     % right edge of captions left of the spine
+\def\PW{86}      % pill width
+\def\py{9.6}     % metro station pitch
+\useasboundingbox (0,1) rectangle (252,-414);
+\tikzset{andg/.style={font=\scriptsize, inner sep=0pt}}
+
+% ---------------- legend ----------------
+\swatch{(0,-20.6)}
+\node[q, anchor=north west, align=left] at (7.5,-13) {defense-specific\\sources of truth};
+
+% ================= Stage 1 =================
+\def\T{-6}
+\node[pill, minimum width=\PW pt, anchor=north west] (c1) at (\IL+6,\T-9) {well-formed execution};
+\node[andg] at ($(c1.south)+(0,-2.5)$) {$\wedge$};
+\node[pill, minimum width=\PW pt, anchor=north west] (c2) at ($(c1.south west)+(0,-5)$) {minimal};
+\node[andg] at ($(c2.south)+(0,-2.5)$) {$\wedge$};
+\node[pill, minimum width=\PW pt, anchor=north west, dspec] (c3) at ($(c2.south west)+(0,-5)$) {leakage predicate};
+\draw[decorate, decoration={brace, amplitude=3pt}] ($(c1.north east)+(2.5,0)$) -- ($(c3.south east)+(2.5,0)$);
+\node[tool] (A1) at (\SX,{(\T-9-41.5/2)}) {Alloy Analyzer\\[-1.5pt]{\scriptsize Kodkod + SAT}};
+\draw[->] ($(c1.north east)!0.5!(c3.south east)+(6.5,0)$) -- (A1.west);
+\draw[blob] (\PL,\T) rectangle (\PR,\T-56);
+\node[btitle] at (\IL+2,\T) {\textbf{Stage 1}\enspace Abstract test generation};
+\sot{ds}{(\LX,{(\T-9-36)})}{}
+\node[sm, anchor=north, align=center] at ($(ds-s)+(0,-1.5)$) {Defense\\specification};
+\draw[->] (ds-e) -- (c3.west);
+
+% ---- output 1 (3 cards) ----
+\def\G{-62}
+\cardstack{o1}{(\SX-1.8,\G-12)}{3}{\gGraph}
+\draw[->] (A1.south) -- (o1-n);
+\node[anchor=east, align=right] at (\CX-4,\G-11) {Leaking execution graphs\\[-1pt]{\scriptsize\itshape exhaustive set}};
+
+% ================= Stage 1.5 =================
+\def\T{-90}
+\node[pill, minimum width=16pt, anchor=north west, dash pattern=on 1.4pt off 1.1pt] (d1) at (\IL+6,\T-9) {1};
+\node[pill, minimum width=16pt, anchor=west, dash pattern=on 1.4pt off 1.1pt, dspec] (d3) at ($(d1.east)+(3,0)$) {3};
+\node[q, anchor=west] at ($(d3.east)+(3,0)$) {as Stage 1};
+\node[andg] at ($(d1.south west)+(43,-2.5)$) {$\wedge$};
+\node[pill, minimum width=\PW pt, anchor=north west] (d2) at ($(d1.south west)+(0,-5)$) {loosened minimality};
+\node[andg] at ($(d2.south)+(0,-2.5)$) {$\wedge$};
+\node[pill, minimum width=\PW pt, anchor=north west] (d4) at ($(d2.south west)+(0,-5)$) {pin: contains the graph};
+\draw[decorate, decoration={brace, amplitude=3pt}] ($(d1.north west)+(\PW+2.5,0)$) -- ($(d4.south east)+(2.5,0)$);
+\node[tool] (A2) at (\SX,{(\T-9-41.5/2)}) {Alloy Analyzer};
+\draw[->] ($(d4.south east)+(6.5,20.75)$) -- (A2.west);
+\draw[->] (o1-s) -- (o1-s |- A2.north) node[q, pos=0.62, anchor=west, xshift=2pt] {per graph};
+\draw[blob] (\PL,\T) rectangle (\PR,\T-56);
+\node[btitle] at (\IL+2,\T) {\textbf{Stage 1.5}\enspace Abstract test enumeration};
+
+% ---- output 2 (4 cards: more) ----
+\def\G{-146}
+\cardstack{o2}{(\SX-2.7,\G-13)}{4}{\gGraph}
+\draw[->] (A2.south) -- (o2-n);
+\node[anchor=east, align=right] at (\CX-6,\G-12) {More flexible leaking execution graphs\\[-1pt]{\scriptsize\itshape multiple per Stage-1 graph; non-exhaustive}};
+
+% ================= Stage 2: metro line on the spine =================
+\def\T{-176}
+\draw[->] (o2-s) -- (o2-s |- 0,\T-5);
+\draw[line width=1.6pt] (\SX,\T-7) -- (\SX,{\T-11-6*\py});
+\foreach \i/\t in {1/{concretize state, PC order},
+                   2/{pick instructions},
+                   3/{speculation primitives},
+                   4/{interleave chains},
+                   5/{assign state, reserve registers},
+                   6/{SSA + LLVM, PC labels},
+                   7/{asm + annotations}} {
+  \node[station] (s\i) at (\SX,{\T-11-(\i-1)*\py}) {\i};
+  \node[sm, anchor=east] at ($(s\i.west)+(-3,0)$) {\t};
+}
+\draw[blob] (\PL,\T) rectangle (\PR,{\T-18-6*\py});
+\node[btitle] at (\IL+2,\T) {\textbf{Stage 2}\enspace Concretization \textit{(Python, C++)}};
+
+% ---- output 3 (pairs, 5 deep) ----
+\def\G{-256}
+\pairstack{o3}{(\SX-3.6,\G-13)}{5}
+\draw[->] (s7.south) -- (\SX,\G-1);
+\node[anchor=east, align=right] at (\CX-14,\G-12) {Program (x86 asm) + annotation pairs\\[-1pt]{\scriptsize\itshape one or more per graph}};
+
+% ================= Stage 3 =================
+\def\T{-288}
+\draw[rounded corners=4pt, line width=0.6pt] (\IL,\T-8) rectangle (\PR-6,\T-52);
+\node[anchor=north west] at (\IL+3,\T-10.5) {\includegraphics[height=6pt]{gem5logo.pdf}};
+\draw[rounded corners=3pt] (112,\T-19) rectangle (240,\T-47);
+\node[draw, rounded corners=2pt, dspec, minimum width=116pt, minimum height=17pt] (die) at (176,\T-31) {defense build under test};
+\foreach \x in {160,186,224} \draw[line width=0.5pt] (\x,\T-39.5) -- (\x,\T-47);
+\node[q, fill=white, inner xsep=1.5pt] at (140,\T-47) {harness};
+\draw[->] (o3-asm-s) -- (o3-asm-s |- die.north);
+\draw[->] (o3-ann-s) -- (o3-ann-s |- 0,\T-19);
+\node[q, anchor=west] at ($(o3-ann-s |- 0,\T-13.6)+(1.5,0)$) {directives};
+% trace -> inspection; the labels card is re-drawn next to its consumer (glyph reuse, not a long wire)
+\cardstack{tr}{(\SX,\T-69)}{1}{\gTrace}
+\draw[->] (\SX,\T-47) -- (tr-n);
+\node[q, anchor=east] at ($(tr-w)+(-2,0)$) {pipeline trace};
+\node[box, anchor=north, font=\scriptsize, align=left, minimum height=14pt, minimum width=84pt] (I) at (\SX-8,\T-82) {\hspace*{8pt}Inspection program};
+\magn{($(I.west)+(6,0.8)$)}{2.4}
+\draw[->] (tr-s) -- (tr-s |- I.north);
+\cardstack{lb}{(237,\T-69)}{1}{\gAnn}
+\draw[->] (lb-s) -- (lb-s |- I.north);
+\node[q, anchor=south] at ($(lb-n)+(0,1.2)$) {labels};
+% the finding: a starburst at the end of the spine
+\node[starburst, starburst points=13, starburst point height=3.4pt, draw, line width=0.7pt, fill=white, minimum size=23pt] (bug) at (\SX,\T-112) {};
+\buggl{(\SX,\T-112.5)}{1.1}{black}
+\node[anchor=west, font=\footnotesize\bfseries] at ($(bug.east)+(1.5,0)$) {Bug?};
+\draw[->] (\SX,\T-96) -- (bug.north);
+% sources
+\sot{gb}{(\LX,\T-31)}{\textless/\textgreater}
+\node[sm, anchor=north, align=center] at ($(gb-s)+(0,-1.5)$) {Defense's\\gem5 build};
+\draw[->] (gb-e) -- (die.west);
+\sot{tm}{(\LX,\T-89)}{}
+\node[sm, anchor=north, align=center] at ($(tm-s)+(0,-1.5)$) {Transmission\\mechanisms};
+\draw[->] (tm-e) -- (I.west |- tm-e);
+\draw[->] (122,\T-89) -- (122,\T-47);
+\node[dot] at (122,\T-89) {};
+\draw[blob] (\PL,\T) rectangle (\PR,\T-125);
+\node[btitle] at (\IL+2,\T) {\textbf{Stage 3}\enspace Execution};
+\end{tikzpicture}
+\end{document}
