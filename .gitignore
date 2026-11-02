@@ -18,3 +18,6 @@ __pycache__/
 *.class
 analysis/
 m5out/
+
+# Third-party reference paper PDFs (downloaded for figure-style survey; crops are kept)
+paper_figures/reference_papers/**/*.pdf

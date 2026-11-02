@@ -20,6 +20,8 @@ list → `wiki/state/OPEN.md`. Prior: cleanuprepo repo cleanup + Mac↔cafe2 git
 
 ## 📄 2026-11-02 — Paper figures (paper-figs session) → drafts in [`paper_figures/drafts/`](paper_figures/drafts/), plans + decisions in [`paper_figures/plans/`](paper_figures/plans/), DECIDEs in [`URGENT_TODO.md`](URGENT_TODO.md)
 
+- **→ RESUME the 2026-11-02 paper-figures session from [`paper_figures/SESSION_HANDOFF.md`](paper_figures/SESSION_HANDOFF.md)** (all TODOs, figure status, rules). Fact audit (IMPORTANT): [`paper_figures/plans/BIGFIG_FACT_AUDIT.md`](paper_figures/plans/BIGFIG_FACT_AUDIT.md).
+
 - **Note to Anna (requested 2026-11-02):** say **"DSL"** in the paper: the defense specification is manually translated into the SimSpect DSL (the three Alloy defense clauses). The pipeline figure now says "manual translation to DSL", so the text should introduce the term.
 - Drafts: vertical pipeline figure (`_standalone_pipeline_vertical`), (a) execution-graph syntax, (b) relaxation, (c) interleave + audit of all existing figures (`plans/AUDIT_existing_figures.md`), (d) instrumentation table, (e) checker window. Shared style: `paper_figures/plans/VISUAL_LANGUAGE.md`.
 

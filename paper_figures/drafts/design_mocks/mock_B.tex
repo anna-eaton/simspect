@@ -22,6 +22,7 @@
 \def\PW{86}      % pill width
 \def\py{9.6}     % metro station pitch
 \useasboundingbox (0,1) rectangle (252,-414);
+\coordinate (lxc) at (\LX,0); \coordinate (spx) at (\SX,0);
 \tikzset{andg/.style={font=\scriptsize, inner sep=0pt}}
 
 % ---------------- legend ----------------
@@ -36,11 +37,12 @@
 \node[andg] at ($(c2.south)+(0,-2.5)$) {$\wedge$};
 \node[pill, minimum width=\PW pt, anchor=north west, dspec] (c3) at ($(c2.south west)+(0,-5)$) {leakage predicate};
 \draw[decorate, decoration={brace, amplitude=3pt}] ($(c1.north east)+(2.5,0)$) -- ($(c3.south east)+(2.5,0)$);
-\node[tool] (A1) at (\SX,{(\T-9-41.5/2)}) {Alloy Analyzer\\[-1.5pt]{\scriptsize Kodkod + SAT}};
-\draw[->] ($(c1.north east)!0.5!(c3.south east)+(6.5,0)$) -- (A1.west);
+\coordinate (m1) at ($(c1.north east)!0.5!(c3.south east)$);
+\node[tool] (A1) at (m1 -| spx) {Alloy Analyzer\\[-1.5pt]{\scriptsize Kodkod + SAT}};
+\draw[->] ($(m1)+(6.5,0)$) -- (A1.west);
 \draw[blob] (\PL,\T) rectangle (\PR,\T-56);
 \node[btitle] at (\IL+2,\T) {\textbf{Stage 1}\enspace Abstract test generation};
-\sot{ds}{(\LX,{(\T-9-36)})}{}
+\sot{ds}{(c3.west -| lxc)}{}
 \node[sm, anchor=north, align=center] at ($(ds-s)+(0,-1.5)$) {Defense\\specification};
 \draw[->] (ds-e) -- (c3.west);
 
@@ -60,8 +62,9 @@
 \node[andg] at ($(d2.south)+(0,-2.5)$) {$\wedge$};
 \node[pill, minimum width=\PW pt, anchor=north west] (d4) at ($(d2.south west)+(0,-5)$) {pin: contains the graph};
 \draw[decorate, decoration={brace, amplitude=3pt}] ($(d1.north west)+(\PW+2.5,0)$) -- ($(d4.south east)+(2.5,0)$);
-\node[tool] (A2) at (\SX,{(\T-9-41.5/2)}) {Alloy Analyzer};
-\draw[->] ($(d4.south east)+(6.5,20.75)$) -- (A2.west);
+\coordinate (m2) at ($(d1.north west)!0.5!(d4.south west)+(\PW,0)$);
+\node[tool] (A2) at (m2 -| spx) {Alloy Analyzer\\[-1.5pt]{\scriptsize\itshape non-exhaustive}};
+\draw[->] ($(m2)+(6.5,0)$) -- (A2.west);
 \draw[->] (o1-s) -- (o1-s |- A2.north) node[q, pos=0.62, anchor=west, xshift=2pt] {per graph};
 \draw[blob] (\PL,\T) rectangle (\PR,\T-56);
 \node[btitle] at (\IL+2,\T) {\textbf{Stage 1.5}\enspace Abstract test enumeration};
@@ -70,30 +73,30 @@
 \def\G{-146}
 \cardstack{o2}{(\SX-2.7,\G-13)}{4}{\gGraph}
 \draw[->] (A2.south) -- (o2-n);
-\node[anchor=east, align=right] at (\CX-6,\G-12) {More flexible leaking execution graphs\\[-1pt]{\scriptsize\itshape multiple per Stage-1 graph; non-exhaustive}};
+\node[anchor=east, align=right] at (\CX-6,\G-12) {More flexible leaking execution graphs\\[-1pt]{\scriptsize\itshape multiple per Stage-1 graph; parallelizable SAT solving}};
 
 % ================= Stage 2: metro line on the spine =================
 \def\T{-176}
 \draw[->] (o2-s) -- (o2-s |- 0,\T-5);
 \draw[line width=1.6pt] (\SX,\T-7) -- (\SX,{\T-11-6*\py});
-\foreach \i/\t in {1/{concretize state, PC order},
+\foreach \i/\t in {1/{order instructions $\rightarrow$ PCs; collect state},
                    2/{pick instructions},
                    3/{speculation primitives},
                    4/{interleave chains},
-                   5/{assign state, reserve registers},
+                   5/{assign registers + memory; reserve registers},
                    6/{SSA + LLVM, PC labels},
                    7/{asm + annotations}} {
   \node[station] (s\i) at (\SX,{\T-11-(\i-1)*\py}) {\i};
   \node[sm, anchor=east] at ($(s\i.west)+(-3,0)$) {\t};
 }
 \draw[blob] (\PL,\T) rectangle (\PR,{\T-18-6*\py});
-\node[btitle] at (\IL+2,\T) {\textbf{Stage 2}\enspace Concretization \textit{(Python, C++)}};
+\node[btitle] at (\IL+2,\T) {\textbf{Stage 2}\enspace Concretization \textit{(Python, LLVM)}};
 
 % ---- output 3 (pairs, 5 deep) ----
 \def\G{-256}
 \pairstack{o3}{(\SX-3.6,\G-13)}{5}
 \draw[->] (s7.south) -- (\SX,\G-1);
-\node[anchor=east, align=right] at (\CX-14,\G-12) {Program (x86 asm) + annotation pairs\\[-1pt]{\scriptsize\itshape one or more per graph}};
+\node[anchor=east, align=right] at (\CX-14,\G-12) {Programs (x86 asm) + annotations\\[-1pt]{\scriptsize\itshape one pair per branch mode $\times$}\\[-2pt]{\scriptsize\itshape interleave variant}};
 
 % ================= Stage 3 =================
 \def\T{-288}
@@ -105,7 +108,7 @@
 \node[q, fill=white, inner xsep=1.5pt] at (140,\T-47) {harness};
 \draw[->] (o3-asm-s) -- (o3-asm-s |- die.north);
 \draw[->] (o3-ann-s) -- (o3-ann-s |- 0,\T-19);
-\node[q, anchor=west] at ($(o3-ann-s |- 0,\T-13.6)+(1.5,0)$) {directives};
+\node[q, anchor=west] at ($(o3-ann-s |- 0,\T+5.5)+(1.5,0)$) {directives};
 % trace -> inspection; the labels card is re-drawn next to its consumer (glyph reuse, not a long wire)
 \cardstack{tr}{(\SX,\T-69)}{1}{\gTrace}
 \draw[->] (\SX,\T-47) -- (tr-n);
@@ -122,6 +125,9 @@
 \node[anchor=west, font=\footnotesize\bfseries] at ($(bug.east)+(1.5,0)$) {Bug?};
 \draw[->] (\SX,\T-96) -- (bug.north);
 % sources
+% SimSpect goal: the implementation should satisfy the specification (fills the otherwise empty lane)
+\draw[dashed, ->] (\LX,-76) -- (\LX,-310);
+\node[q, rotate=90, anchor=south] at (\LX-2,{(-76+-310)/2}) {\textbf{SimSpect goal:} validate security guarantee in implementation};
 \sot{gb}{(\LX,\T-31)}{\textless/\textgreater}
 \node[sm, anchor=north, align=center] at ($(gb-s)+(0,-1.5)$) {Defense's\\gem5 build};
 \draw[->] (gb-e) -- (die.west);

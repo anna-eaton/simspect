@@ -4,21 +4,19 @@
     "type": "split",
     "children": [
       {
-        "id": "6becf43150944047",
+        "id": "93ba517495c996d4",
         "type": "tabs",
         "children": [
           {
-            "id": "3a0004c1cab800f3",
+            "id": "347a9dc0eec19401",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "image",
               "state": {
-                "file": "paper_figures/FIGURES.md",
-                "mode": "source",
-                "source": false
+                "file": "paper_figures/drafts/design_mocks/mock_A_full-1.png"
               },
-              "icon": "lucide-file",
-              "title": "FIGURES"
+              "icon": "lucide-image",
+              "title": "mock_A_full-1"
             }
           }
         ]
@@ -188,32 +186,36 @@
       "bases:Create new base": false
     }
   },
-  "active": "3a0004c1cab800f3",
+  "active": "347a9dc0eec19401",
   "lastOpenFiles": [
-    "paper_figures/drafts/_standalone_xmitcriteria.pdf",
-    "paper_figures/drafts/_standalone_xmitcriteria-1.png",
-    "paper_figures/drafts/_standalone_instrtable_v2-1.png",
-    "paper_figures/drafts/_standalone_instrtable_v2.pdf",
+    "paper_figures/SESSION_HANDOFF.md",
+    "paper_figures/FIGURES.md",
+    "STAGE3_gem5/__pycache__/check_other.cpython-314.pyc",
+    "STAGE3_gem5/__pycache__/check_br.cpython-314.pyc",
+    "paper_figures/drafts/design_mocks/mock_A_full-1.png",
+    "paper_figures/drafts/design_mocks/mock_A_full.pdf",
+    "paper_figures/drafts/design_mocks/mock_A_full.aux",
+    "paper_figures/drafts/design_mocks/mock_A_full.log",
+    "paper_figures/drafts/design_mocks/mock_A_full.tex",
     "paper_figures/drafts/_standalone_pipeline_vertical.aux",
     "paper_figures/drafts/_standalone_pipeline_vertical.log",
-    "paper_figures/drafts/_standalone_xmitcriteria.tex",
-    "paper_figures/drafts/captions/xmitcriteria.tex",
-    "paper_figures/drafts/xmitcriteria.tex",
+    "paper_figures/README.md",
+    "paper_figures/plans/BIGFIG_SHAPE_DESIGN.md",
+    "paper_figures/plans/fig_f_xmitcriteria.md",
+    "paper_figures/drafts/_standalone_checkerwindow_v4-1.png",
+    "paper_figures/plans/TRIPPEL_FIGURE_STYLE.md",
+    "paper_figures/drafts/design_mocks/mock_C-1.png",
+    "paper_figures/drafts/design_mocks/mock_C.pdf",
+    "paper_figures/drafts/design_mocks/mock_C.aux",
+    "paper_figures/drafts/_standalone_xmitcriteria-1.png",
+    "paper_figures/drafts/_standalone_instrtable_v2-1.png",
     "paper_figures/drafts/design_mocks/mock_B-1.png",
-    "paper_figures/drafts/design_mocks/mock_B.pdf",
-    "paper_figures/drafts/design_mocks/mock_B.aux",
-    "paper_figures/drafts/design_mocks/mock_B.log",
-    "paper_figures/drafts/design_mocks/mock_B.tex",
     "paper_figures/reference_papers/crops/transform_isca20_p8.png",
     "paper_figures/reference_papers/crops/transform_isca20_p9.png",
     "paper_figures/reference_papers/crops/transform_isca20_p3.png",
     "paper_figures/reference_papers/crops/rtl2mupath_synthlc_micro24_p7.png",
-    "paper_figures/reference_papers/crops/rtl2mupath_synthlc_micro24_p9.png",
-    "paper_figures/reference_papers/crops/lcm_clou_isca22_p10.png",
-    "paper_figures/reference_papers/crops/lcm_clou_isca22_p5.png",
     "paper_figures/plans/BIGFIG_FACT_AUDIT.md",
     "wiki/findings/audits/2026-10-28/APPROVALS.md",
-    "paper_figures/FIGURES.md",
     "paper_figures/plans/fig_b_relaxation.md",
     "paper_figures/plans/AUDIT_existing_figures.md",
     "paper_figures/plans/fig_c_interleave.md",
@@ -231,10 +233,6 @@
     "wiki/design/RESOLUTION_HOOKS.md",
     "wiki/findings/mdsToRead/PROTECTION_SET_REEVAL.md",
     "wiki/findings/mdsToRead/RIONLY_BASELINE_PROOF.md",
-    "wiki/findings/mdsToRead/FNC_RECOMPUTE_ROOT_CAUSE.md",
-    "STAGE1_alloy/models/MANIFEST.md",
-    "wiki/findings/mdsToRead/NEAR_MISS_BREAKDOWN.md",
-    "wiki/design/COMMIT_BOUNDARY.md",
-    "wiki/design/RESOLUTION_HOOKS_SURVEY.md"
+    "wiki/findings/mdsToRead/FNC_RECOMPUTE_ROOT_CAUSE.md"
   ]
 }

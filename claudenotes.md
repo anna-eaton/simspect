@@ -1,10 +1,24 @@
+2026-11-02 — paper-figs — SESSION ENDED (usage): resume from paper_figures/SESSION_HANDOFF.md.
+
+2026-11-02 — paper-figs — PAUSED for usage: 4 agents stopped; resume list in URGENT_TODO.md ("RESUME (paused 2026-11-02"). test-paper pushed a469b46.
+
+2026-11-02 — stt-recon-spt-criteria — IN PROGRESS: writing v1 per-kind criterion JSONs into specs/leakage/{stt,recon,spt}.json (descriptive of current check_ld/check_br/check_other code; no code/pipeline change) + schema doc section + claudelog entry.
+
+2026-11-02 — paper-figs/fig-e — DONE (draft v4): checker-window figure revised from Anna's v3 feedback → paper_figures/drafts/checkerwindow_v4.tex (body, { }-scoped) + captions/checkerwindow_v4.tex + _standalone_checkerwindow_v4.tex/-1.png (250.6x178.9pt). Plan + 13 decisions: paper_figures/plans/fig_e_checkerwindow.md ("v4 changes"). v3 untouched; paper clone untouched; FIGURES.md not edited.
+
+2026-11-02 — paper-figs/fig-f — DONE (draft): load-transmitter criteria table paper_figures/drafts/_standalone_xmitcriteria.tex (+ xmitcriteria.tex body, captions/xmitcriteria.tex, -1.png; ~496x261pt, full width; caption not rendered per Anna). Cited fact table, 10 gaps, 8 decisions in paper_figures/plans/fig_f_xmitcriteria.md. Read-only otherwise.
+
+2026-11-02 — paper-figs/trippel-style — DONE (read-only): downloaded 13 Trippel papers (official open copies) to paper_figures/reference_papers/<shortname>/, 17 figure crops in reference_papers/crops/, style notes + synthesis + 6 decisions in paper_figures/plans/TRIPPEL_FIGURE_STYLE.md. No paper/.als/git touched. reference_papers PDFs (~19 MB) are NOT gitignored — Anna to decide before make sync.
+
+2026-11-02 — paper-figs/fig-d-v2 — DONE (draft): one-column instrumentation table paper_figures/drafts/instrtable_v2.tex (body) + captions/instrtable_v2.tex + _standalone_instrtable_v2.tex/-1.png (251x189pt, 31% of v1's area; caption space reserved, not rendered); plain graph notation (ids, code-font kinds, flags as words); v2 section + 4 decisions in paper_figures/plans/fig_d_instrtable.md. v1 untouched; FIGURES.md not edited.
+
 2026-11-02 — paper-figs/bigfig-audit — DONE (read-only): fact audit of every claim in the pipeline figure (`_standalone_pipeline_vertical_8pt.tex`) + upcoming wording → paper_figures/plans/BIGFIG_FACT_AUDIT.md (43 rows, 8 decisions). Figure .tex untouched.
 
 2026-11-02 — paper-figs/fig-d — DONE (draft): instrumentation table paper_figures/drafts/_standalone_instrtable.tex (+ -1.png, 507x305pt, full width); cited fact table + 7 decisions in paper_figures/plans/fig_d_instrtable.md. Read-only otherwise; paper clone untouched.
 
 2026-11-02 — resolve-hooks — round-2 fixed campaigns + STT_6_interleave regen DONE (claudelog 2026-11-02). Next: triage SPT br_x/ld hits and recon-modded 7 ld hits; interleave campaign not launched. New holder job 18259987.
 
-2026-11-02 — paper-figs — pipeline figure v3 (8pt, SoT column on left + top legend, rounded stage blobs) in paper_figures/drafts/; 2 bg agents: shape-language design (plans/BIGFIG_SHAPE_DESIGN.md) + fact audit (plans/BIGFIG_FACT_AUDIT.md). Earlier v2 (7pt, no gutter) in paper_figures/drafts/; minifig agents a–e reported (plans in paper_figures/plans/). Earlier: vertical one-column pipeline figure drafted (paper_figures/drafts/_standalone_pipeline_vertical.tex, 245x503pt; Stage 2 list now in code order per Anna). 5 background agents drafting minifigs a–e → plans in paper_figures/plans/fig_*.md, drafts in paper_figures/drafts/. Shared style: paper_figures/plans/VISUAL_LANGUAGE.md. Paper repo only cloned read-only in scratch; nothing pushed.
+2026-11-02 — paper-figs — shape-design mocks A/B/C landed (paper_figures/drafts/design_mocks/, brief plans/BIGFIG_SHAPE_DESIGN.md), awaiting Anna's pick; all figure agents done. Earlier: pipeline figure v3 (8pt, SoT column on left + top legend, rounded stage blobs) in paper_figures/drafts/; 2 bg agents: shape-language design (plans/BIGFIG_SHAPE_DESIGN.md) + fact audit (plans/BIGFIG_FACT_AUDIT.md). Earlier v2 (7pt, no gutter) in paper_figures/drafts/; minifig agents a–e reported (plans in paper_figures/plans/). Earlier: vertical one-column pipeline figure drafted (paper_figures/drafts/_standalone_pipeline_vertical.tex, 245x503pt; Stage 2 list now in code order per Anna). 5 background agents drafting minifigs a–e → plans in paper_figures/plans/fig_*.md, drafts in paper_figures/drafts/. Shared style: paper_figures/plans/VISUAL_LANGUAGE.md. Paper repo only cloned read-only in scratch; nothing pushed.
 
 2026-11-02 — hooks-v2 — STALLED: the v2 agent died 10-30 (API error) mid-build; its v2 source edits exist ONLY in the cafe2 amulet InvisiSpec/CleanupSpec trees (nothing local, no diff, SIMSPECT_HOOKS.md still v1). InvisiSpec v2 binary panics (`Invalid range for type MachineType`); last good = gem5.opt.simspect-hooks-v1-resolve-20261030. cafe2 unreachable (holder job ended). Next: make hold → diff cafe2 trees vs v1+resolve backups → finish/redo v2 on top of resolve hooks.
 

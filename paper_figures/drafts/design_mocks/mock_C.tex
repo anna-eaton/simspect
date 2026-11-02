@@ -1,0 +1,132 @@
+% Direction C: "Merged Alloy + clause matrix". Stage 1 and Stage 1.5 share one blob, because they share
+% the solver and three of four clauses: a clause MATRIX (rows = clauses, columns = stage) shows exactly what
+% changes, and the Stage-1 graphs loop back in as the pin. Passes = one horizontal chevron timeline with
+% labels alternating above/below. gem5 = a chip package: the gray die is the defense build, the PINS are the
+% non-invasive harness (it touches only the boundary). Finding = the bug under a magnifier lens.
+\documentclass[tikz,border=0pt]{standalone}
+\usepackage{newtxtext,newtxmath}
+\usepackage{graphicx}
+\input{mock_macros}
+\begin{document}
+\begin{tikzpicture}[x=1pt,y=1pt]
+% ---------------- knobs ----------------
+\def\LX{24}
+\def\PL{56.3}
+\def\PR{251.7}
+\def\IL{62}
+\def\SX{69}
+\def\MW{112}    % matrix width
+\def\ca{130}    % x of the Stage-1 column
+\def\cb{160}    % x of the Stage-1.5 column
+\useasboundingbox (0,1) rectangle (252,-344);
+\coordinate (lxc) at (\LX,0); \coordinate (spx) at (214,0);
+\tikzset{cell/.style={font=\scriptsize}, row/.style={slab, text width=\MW pt-6pt}}
+
+% ---------------- legend ----------------
+\swatch{(0,-20.6)}
+\node[q, anchor=north west, align=left] at (7.5,-13) {defense-specific\\sources of truth};
+
+% ================= Stages 1 + 1.5 (one blob) =================
+\def\T{-6}
+\node[q] at (\ca,\T-11) {Stage 1};
+\node[q] at (\cb,\T-11) {Stage 1.5};
+\node[row] (r1) at (\IL,\T-17) {\textbf{1}\enspace well-formed};
+\node[row] (r2) at ($(r1.south west)+(0,-2)$) {\textbf{2}\enspace minimality};
+\node[row, dspec] (r3) at ($(r2.south west)+(0,-2)$) {\textbf{3}\enspace leakage};
+\node[row] (r4) at ($(r3.south west)+(0,-2)$) {\textbf{4}\enspace pin};
+\foreach \r in {r1,r3} {\node[dot, inner sep=1pt] at (\r -| \ca,0) {}; \node[dot, inner sep=1pt] at (\r -| \cb,0) {};}
+\node[cell] at (r2 -| \ca,0) {strict};
+\node[cell] at (r2 -| \cb,0) {loosened};
+\node[cell] at (r4 -| \ca,0) {--};
+\begin{scope}[shift={(\cb,0)}, shift={(r4.center -| 0,0)}, scale=0.62]\gGraph\end{scope}
+\draw[line width=0.6pt] ($(r1.north east)+(3,0)$) -- ($(r4.south east)+(3,0)$);
+\coordinate (m1) at ($(r1.north east)!0.5!(r4.south east)$);
+\node[tool] (A) at (m1 -| spx) {Alloy Analyzer\\[-1.5pt]{\scriptsize Kodkod + SAT}};
+\draw[->] ($(r1.north east)!0.5!(r4.south east)+(3,0)$) -- (A.west);
+% Stage-1 run -> exhaustive graphs -> loop back as the pin of each Stage-1.5 run
+\cardstack{s1}{(200,\T-77)}{3}{\gGraph}
+\draw[->] (s1-n |- A.south) -- (s1-n);
+\node[q, anchor=east] at (199,\T-58) {1};
+\draw[->] (s1-w) -- (\cb,\T-77) -- (r4.south -| \cb,0);
+\node[q, anchor=north west, align=left] at (\IL+2,\T-71) {exhaustive Stage-1 graphs;\\each one is pinned};
+\draw[blob] (\PL,\T) rectangle (\PR,\T-90);
+\node[btitle] at (\IL+2,\T) {\textbf{Stages 1, 1.5}\enspace Abstract tests \textit{(Alloy)}};
+\sot{ds}{(r3.west -| lxc)}{}
+\node[sm, anchor=north, align=center] at ($(ds-s)+(0,-1.5)$) {Defense\\specification};
+\draw[->] (ds-e) -- (r3.west);
+
+% ---- output: Stage-1.5 graphs ----
+\def\G{-102}
+\draw (230,{\T-17-48/2-8.5}) -- (230,\G) -- (\SX,\G);
+\node[q, anchor=west] at (232,\T-57) {1.5};
+\cardstack{o2}{(\SX,\G-16)}{4}{\gGraph}
+\draw[->] (\SX,\G) -- (o2-n);
+\node[anchor=west, align=left] at (\SX+16,\G-14) {More flexible leaking execution graphs\\[-1pt]{\scriptsize\itshape multiple per Stage-1 graph; non-exhaustive;}\\[-2pt]{\scriptsize\itshape parallelizable SAT solving}};
+
+% ================= Stage 2: one chevron timeline =================
+\def\T{-136}
+\draw[->] (o2-s) -- (\SX,\T-29);
+\def\cy{\T-35.5}
+\foreach \i/\x/\t in {1/75.5/{PC order,\\state},2/100.7/{pick\\instructions},3/125.8/{speculation\\primitives},4/151/{interleave\\chains},5/176.2/{assign regs +\\mem; reserve},6/201.3/{SSA + LLVM,\\PC labels},7/226.5/{asm +\\annotations}} {
+  \node[chev, minimum width=27pt, minimum height=13pt, font=\scriptsize\bfseries] (p\i) at (\x,\cy) {\i};
+  \pgfmathparse{int(mod(\i,2))}
+  \ifnum\pgfmathresult=1
+    \node[sm, anchor=north, align=center] at ($(p\i.south)+(0,-1.8)$) {\t};
+  \else
+    \node[sm, anchor=south, align=center] at ($(p\i.north)+(0,1.8)$) {\t};
+  \fi
+}
+\draw[blob] (\PL,\T) rectangle (\PR,\T-62);
+\node[btitle] at (\SX+6,\T) {\textbf{Stage 2}\enspace Concretization \textit{(Python, LLVM)}};
+
+% ---- output 3 ----
+\def\G{-206}
+\draw (p7.east) -- (246,\cy) -- (246,\G) -- (\SX+9,\G);
+\pairstack{o3}{(\SX+9,\G-17)}{4}
+\draw[->] (\SX+9,\G) -- (\SX+9,\G-5.5);
+\node[anchor=west, align=left] at (\SX+31,\G-15) {Programs (x86 asm) + annotations\\[-1pt]{\scriptsize\itshape one pair per branch mode $\times$ interleave variant}};
+
+% ================= Stage 3: gem5 as a chip =================
+\def\T{-243}
+\def\J{-234.5}
+% package (gem5) with pins (harness) and a gray die (defense build)
+\draw[rounded corners=2.5pt, line width=0.6pt] (66,\T-16) rectangle (146,\T-60);
+\node[anchor=north west] at (69,\T-18.5) {\includegraphics[height=6pt]{gem5logo.pdf}};
+\node[draw, rounded corners=1.5pt, dspec, minimum width=60pt, minimum height=21pt, align=center, font=\scriptsize] (die) at (110,\T-42) {defense build\\under test};
+\foreach \x in {84,96,108,120,132} {\draw[line width=0.6pt] (\x,\T-16) -- (\x,\T-12.5); \draw[line width=0.6pt] (\x,\T-60) -- (\x,\T-63.5);}
+\foreach \y in {-30,-42,-54} \draw[line width=0.6pt] (146,\T+\y) -- (149.5,\T+\y);
+\node[q, anchor=west] at (150,\T-21) {harness pins};
+\draw[->] (o3-asm-s) -- (o3-asm-s |- 0,\T-16);
+\draw (o3-ann-s) -- (o3-ann-s |- 0,\J) coordinate (jn);
+\draw[->] (jn) -- (jn |- 0,\T-12.5);
+\node[dot] at (jn) {};
+\node[q, anchor=west] at ($(jn |- 0,\T-7)+(2.5,0)$) {directives};
+% trace -> inspection -> bug under the lens
+\cardstack{tr}{(160,\T-42)}{1}{\gTrace}
+\draw[->] (149.5,\T-42) -- (tr-w);
+\node[box, minimum height=22pt, anchor=west, font=\scriptsize] (I) at (171,\T-42) {Inspection\\program};
+\draw[->] (tr-e) -- (I.west);
+\draw[->] (jn) -- (I.north |- jn) -- (I.north);
+\node[q, anchor=west] at ($(I.north |- 0,\T-7)+(1.5,0)$) {labels};
+\draw[line width=0.9pt, fill=white] (230,\T-38) circle (9.5);
+\draw[line width=2pt] ($(230,\T-38)+(-45:9.5)$) -- ++(-45:7);
+\buggl{(230,\T-38.5)}{1.25}{black}
+\node[font=\footnotesize\bfseries, anchor=north] at (226,\T-50.5) {Bug?};
+\draw[->] (I.east) -- (220.5,\T-42);
+% sources
+% SimSpect goal: the implementation should satisfy the specification (fills the otherwise empty lane)
+\draw[dashed, ->] (\LX,-79) -- (\LX,-276);
+\node[q, rotate=90, anchor=south] at (\LX-2,{(-79+-276)/2}) {\textbf{SimSpect goal:} validate security guarantee in implementation};
+\sot{gb}{(\LX,\T-42)}{\textless/\textgreater}
+\node[sm, anchor=north, align=center] at ($(gb-s)+(0,-1.5)$) {Defense's\\gem5 build};
+\draw[->] (gb-e) -- (die.west);
+\sot{tm}{(\LX,\T-78)}{}
+\node[sm, anchor=north, align=center] at ($(tm-s)+(0,-1.5)$) {Transmission\\mechanisms};
+\draw (tm-e) -- (I.south |- tm-e);
+\draw[->] (I.south |- tm-e) -- (I.south);
+\draw[->] (108,\T-78) -- (108,\T-63.5);
+\node[dot] at (108,\T-78) {};
+\draw[blob] (\PL,\T) rectangle (\PR,\T-85);
+\node[btitle] at (\SX+21,\T) {\textbf{Stage 3}\enspace Execution \textit{(gem5)}};
+\end{tikzpicture}
+\end{document}

@@ -130,3 +130,89 @@ Suggested caption (Anna pastes, if she wants it): "How concretization instrument
 - `wiki/design/SPEC_PRIMITIVE_INSTANCES.md`: sweep values "dᵢ ∈ {0,10,25,50,100}" and "`sweep.enabled` is `false`" (the fixed configs use {0, 500, 2500}, enabled); "BTB override is only active in `mispredict_taken` mode" (superseded by the derived force on hooked builds); STL hooks "not yet built" (built 2026-10-30); line numbers (CONCRETIZATION_PASSES.md §7).
 - `wiki/design/METHODS_INSTRUMENTATION.md` §1.1: the BTB force is "only applied in taken mode" (same supersession).
 - Root `CLAUDE.md`: "`check_br.py` … does not enforce the `lc/fnc` window". It now does (`check_br.py:90-99`).
+
+## v2 (2026-11-02): one column, about a third of the area
+
+Anna's feedback on v1: "wow the instrumentation table is huge", "the visual language for the graph needs to match the other graph", "these generally need more margins". Later additions: each preview reserves blank space for its caption but does not render it; the caption text lives in its own file.
+
+### Files
+
+- Table body (what goes into the paper, wrapped in `{ }` so its local definitions don't leak): `paper_figures/drafts/instrtable_v2.tex`.
+- Proposed caption text: `paper_figures/drafts/captions/instrtable_v2.tex`.
+- Preview: `paper_figures/drafts/_standalone_instrtable_v2.tex` + `_standalone_instrtable_v2-1.png` (300 dpi, `pdftoppm -png -r 300 -singlefile`) + `.pdf`. `\documentclass[border={2pt 2pt 2pt 16pt}]{standalone}`: the 16 pt top border is blank space for the caption (IEEE tables put the caption above). v1 files untouched.
+- It needs `tikz`, `booktabs` and `array`, all already in the paper preamble (`bare_conf_compsoc.tex:332-336`, read from the scratch clone).
+
+### Size
+
+- Table body: **251 × 189 pt**, one column (`\columnwidth` = 252 pt) = 47.4k pt², **31% of v1** (507 × 305 pt = 154.8k pt²).
+- Proposed caption at 8 pt over 252 pt: 9 lines, 83 pt. Table plus caption is about 276 pt tall, so the caption is now the long part (see decisions).
+- Preview page: 255 × 207 pt (table + 2 pt borders + 16 pt caption space).
+
+### What changed
+
+- **Size.** One column, five rows, three columns: Execution graph | Stage 2: program | Stage 3: gem5 harness. Cells are fragments, not sentences. The "every instruction" row, the "Cases generated" column and the "Stage 2: annotation" column are gone; their content moved to the row labels, the caption and suggested paper text (table below).
+- **Font.** `\scriptsize` (7 pt) everywhere, as `VISUAL_LANGUAGE.md` requires. v1's body was `\footnotesize` (8 pt), which broke that rule.
+- **Margins.** 8 pt between columns, 4 pt above and below every rule (booktabs `\aboverulesep`/`\belowrulesep`), 1.5 pt between a row name and its glyph. All are knobs in the body's `TUNING KNOBS` block.
+- **Table, not picture.** v2 is a booktabs + array `tabular`, so it can sit in a `table` float with a "TABLE" caption like the paper's (parked) bug table (`sections/results.tex:21`); each exec-graph glyph is a small inline TikZ picture. The preview sets `\ttdefault` to `pcr`, the paper's Courier (`IEEEtran.cls:496`), so code widths match the paper.
+- **Graph notation.** v1's boxes and r/c/t flag letters are gone (Anna: the r/c/t dot columns are "entirely unclear"). v2 uses the plainest form that can be made consistent across figures. **This column follows whatever notation the graph figures (a)-(c), (e) settle on; it is a placeholder.**
+  - One line per instruction, in program order from top to bottom: a row-local lowercase id (`i0`, `i1`), then the kind in code font, then the flag as an italic word.
+  - Kinds are the model's kind atoms without the `T` prefix (`STT_6.als:30-35`: `TLoad`, `TStore`, `TBranchn`, `TBranchx`, `TOthern`, `TOtherx`), spelled with an underscore (`Branch_n`) to match figure (a)'s subscripts.
+  - Flags are the words resolved / unresolved, committed / uncommitted and xmit. The model's fields are `isresolved`, `iscommitted`, `isxm` (funs `resolved`, `committed`, `xm`, `STT_6.als:60-68`). "xmit" follows the brief; the model's own name is `xm`.
+  - The commit-boundary row has no kind. lc and fnc sit in the kind slot as role names, as figure (e) writes "i0: lc".
+  - rf is a solid arrow from i0 to i1 labeled *rf*, as in figures (a) and (c).
+  - The row-5 glyph lists `Branch_x` *or* `Other_x`, the two xmit kinds that get extra instrumentation.
+
+### Cell → fact table (every v2 cell traces to a bullet above)
+
+| v2 row | Exec graph (name + glyph) | Stage 2 cell | Stage 3 cell |
+|---|---|---|---|
+| Store bypass | Row 1 "Cases generated" (the rf arrow is the aliasing; S unresolved) | Row 1 "Stage 2 program" (shared slot / retarget; inline asm stops forwarding) | Row 1 "Stage 3 harness" (S address held `stl_store_addr_stall_cycles` = 5000; `stl_alias_pred: "no_alias"`) |
+| Unresolved branch, mispredicted either way | Row 2 "Cases generated" (both modes) | Row 2 "Stage 2 program" (constant condition; architectural path to `end_block`) | Row 2 "force" (derived force toward pc+1 = mispredict), "stall" (5000), "gate" (unresolved at transmission) |
+| Resolved branch, not taken | Row 3 "Cases generated" (correctly predicted not-taken only) | Row 3 "Stage 2 program" (`xorq`, falls through) | Row 3 "force" (architectural = correct), "stall" (sweep {0, 500, 2500}, Cartesian product) |
+| Commit boundary | Row 4 "Cases generated" (lc committed, fnc first of the uncommitted suffix) | Row 4 "Stage 2 program" (global labels; synthetic records skipped) | Row 4 "Stage 3 harness" (window measured; `fnc_commit_stall_cycles` = 0) |
+| Target transmitter | Row 5 "Cases generated" (kinds) | Row 5 "branch" (`testq`+`jz` on the Alloy inreg, architecturally taken), "divide" (xmit divide unguarded) | Row 5 "Stage 3 harness" (mispredicts, `resolve_stall_cycles = 0`; divide panic scored) |
+
+Wording notes: "Forced correct" = the derived force picks the architectural direction (`want_arch`). "Forced to mispredict" = the derived force sends the branch toward pc+1, the non-architectural side (`window_opened` checks the mispredict). "no commit stall" = `fnc_commit_stall_cycles` = 0 in the fixed configs.
+
+### What was cut or moved, and where
+
+| v1 content | Where it is in v2 |
+|---|---|
+| "Every instruction" row: inline-asm block per instruction with a global PC label; prologue zeroes memory and live-in registers, then `mfence` | Caption |
+| Same row: no hook on ordinary instructions | Caption ("no other instruction is hooked") |
+| Same row: probe array for address operands; clang `-O2`; transmission read from O3PipeView, LSQUnit, Commit traces | Suggested text (below) |
+| Same row, annotation: labels resolved to x86 addresses | Suggested text (caption says the annotation carries each element's PC) |
+| "Cases generated", store bypass: predicted no alias, actually aliases | Glyph (rf arrow = aliases) + Stage 3 "i1 forced to predict no alias" |
+| "Cases generated", unresolved: mispredicted not-taken and taken | Row label "mispredicted either way" |
+| "Cases generated", resolved: correctly predicted not-taken | Row label "not taken" + Stage 3 "Forced correct" |
+| "Correctly predicted: not generated" / "Taken: not generated" | Caption |
+| "Cases generated", commit boundary: definitions of lc and fnc | Caption + glyph flags |
+| "Cases generated", xmit: one per test | Caption ("the test's one target transmitter") |
+| "Cases generated", xmit kinds (load, store, branch, multiply, divide) | Glyph shows `Branch_x` / `Other_x`; full list in suggested text |
+| "Stage 2: annotation" column, all rows | Caption: one sentence (PC, branch mode and predicted target, xmit kind) |
+| "kind selects the checker" | Suggested text |
+| Store bypass: "Own mode; all branches resolved"; "STL-hooked build" | Suggested text |
+| Store bypass: with an address register, S re-addressed to L's runtime address | Stage 2 "share an address" (the outcome) + suggested text |
+| Store bypass: "Window check not yet built" | Caption, as a bracketed draft note |
+| Unresolved: `movq $1` / `xorq` | Suggested text |
+| Unresolved: "invalid unless mispredicted and held"; resolved: "invalid if it mispredicts" | Caption ("invalid if a force or hold did not take effect") |
+| Commit boundary: "measured, not forced"; "commit stall on fnc: 0 cycles" | Stage 3 "(measured); no commit stall" |
+| xmit branch: `nop` after it if it is last | Suggested text |
+| Divide: other divides get `orq $1` | Suggested text (the cell keeps "unguarded") |
+| Footer legend for the box glyphs and r/c/t | Gone: flags are now words; the caption points to the graph notation figure |
+| Branch rows also cover a non-xmit `Branch_x` | Suggested text |
+| "Values are those of the evaluated campaigns" | Suggested text |
+
+### Suggested paper text (Anna pastes; Claude does not edit paper text)
+
+Every instruction is emitted as its own inline-asm block that carries a global PC label, so nothing can sit between the label and the instruction; the annotation rewrites each label as an x86 address. A prologue zeroes the memory slots, the probe array (when used) and the live-in registers, then runs \texttt{mfence}. Address operands index the probe array, and the program is compiled with clang \texttt{-O2}. Stage~3 adds no hook for ordinary instructions: it reads transmission from gem5's O3PipeView, LSQUnit and Commit traces, with the checker chosen by the xmit's kind (Load, Store, Branch\_x, or Other\_x, a zero-skip multiply or a divide). Branch conditions are constants (\texttt{movq \$1} or \texttt{xorq}), and a Branch\_x that is not the xmit is handled like a Branch\_n. A branch xmit that is the last instruction is followed by a \texttt{nop}; divides other than the xmit get \texttt{orq \$1} on their divisor so they cannot fault. Store bypass is its own run mode, with all branches resolved, on a gem5 build with store-bypass hooks; when an address register is involved, the store is re-emitted at the load's runtime address. All values are those of the evaluated campaigns.
+
+(Sources: Row 6 and Rows 1, 2, 5 bullets above.)
+
+### Open decisions (v2)
+
+- [ ] **DECIDE: one graph notation for all the figures.** The current graph figures disagree with each other. (a) uses boxes, r/c/t dot columns, `I0` and roman kinds with subscripts. (c) uses `I0:`, lowercase typewriter `branch_n` and r/c letters. (e) uses `i0: lc`. So "match the other graph" can't be met until one notation is chosen. Options: (a) the v2 placeholder everywhere: lowercase ids, model kinds in code font, flags as words, rf/ddi arrows; (b) figure (a)'s boxes with flags written as words instead of dots; (c) whatever the shape-language design (`plans/BIGFIG_SHAPE_DESIGN.md`, if it lands) proposes. *Recommendation:* (a). It is the only form that fits a 7 pt table cell, and flags as words answer the "r/c/t is unclear" complaint. This table follows whichever you choose.
+- [ ] **DECIDE: caption length.** The caption is 9 lines (83 pt), about 44% of the table's height. Options: (a) keep it; (b) move the "Every instruction…" and "Not generated…" sentences into the paper text, leaving about 5 lines; (c) also drop the draft note once the STL decision is made. *Recommendation:* (b) + (c). The table then reads with a short caption, and the text already describes concretization.
+- [ ] **DECIDE: annotation in the cells or in the caption?** v2 moved the annotation column into one caption sentence. Putting short italic annotation fragments back at the end of each Stage 2 cell costs about 1 line in 4 of 5 rows (roughly 25-30 pt of table height). *Recommendation:* caption. Per element, the annotation is mostly just "its PC".
+- [ ] **DECIDE: "mispredicted either way" / "not taken" labels.** The case labels are short. The full cases ("mispredicted not-taken and mispredicted taken, one per run mode"; "correctly predicted not-taken only") are only in this plan and the suggested text. OK, or should they be spelled out at the cost of a line each?
+- Still open from v1: what (d) replaces; whether to show the not-generated cases (v2 keeps them in the caption); whether STL is in the evaluation (v2 carries the draft note in the caption); which timing values the paper states (v2 shows the fixed-config values: 5000, {0, 500, 2500}, no commit stall; the STL config still has fnc stall 150); whether to gate on `resolved_before_signal`. The v1 "rows 5 and 6" decision is settled by Anna's feedback: row 6 is in the caption. The v1 "glyph format" decision is replaced by the notation decision above.

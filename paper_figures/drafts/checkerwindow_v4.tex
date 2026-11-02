@@ -10,28 +10,28 @@
 % lowercase abbreviations set with \cwab (one font everywhere, upright even in italics).
 {%
 % ============================ TUNING KNOBS ============================
-\def\cwcyc{6.5}       % pt per simulated cycle (same scale in every axis segment)
-\def\cwbrk{14}        % pt width of each elided stretch (dotted)
-\def\cwtl{66}         % pt, x of the time axis origin (cycle -0.5); left of it: label column
-\def\cwrowh{30}       % pt between instruction rows
-\def\cwbarh{4}        % pt height of an instruction bar
-\def\cwbusx{1.5}      % pt, x of the Alloy-label bus line
-\def\cwlabx{6}        % pt, left edge of the row labels
-\def\cwiconx{3.85}    % pt, centre x of the source icons
-\def\cwicongap{11}    % pt, left edge of a source icon's label
-\def\cwright{250}     % pt, right edge of the criterion box (figure is <= 252pt wide)
-\def\cwwinlw{0.9pt}   % line width of the window frame
-\def\cwstar{8.5pt}    % outer diameter of the transmission star
-\def\cwwtop{13}       % pt, window frame top above row i0
-\def\cwwbot{25}       % pt, window frame bottom below row i2
-\def\cwgap{10}        % pt between the cycle numbers and the criterion box
-\def\cwdefshade{black!12} % fill marking defense-specific elements (the only gray)
-\def\cwfs{\scriptsize}    % the one font size (7pt)
+\def\cwcyc{6.5}%        pt per simulated cycle (same scale in every axis segment)
+\def\cwbrk{14}%         pt width of each elided stretch (dotted)
+\def\cwtl{66}%          pt, x of the time axis origin (cycle -0.5); left of it: label column
+\def\cwrowh{30}%        pt between instruction rows
+\def\cwbarh{4}%         pt height of an instruction bar
+\def\cwbusx{1.5}%       pt, x of the Alloy-label bus line
+\def\cwlabx{6}%         pt, left edge of the row labels
+\def\cwiconx{3.85}%     pt, centre x of the source icons
+\def\cwicongap{11}%     pt, left edge of a source icon's label
+\def\cwright{250}%      pt, right edge of the criterion box (figure is <= 252pt wide)
+\def\cwwinlw{0.9pt}%    line width of the window frame
+\def\cwstar{8.5pt}%     outer diameter of the transmission star
+\def\cwwtop{13}%        pt, window frame top above row i0
+\def\cwwbot{25}%        pt, window frame bottom below row i2
+\def\cwgap{10}%         pt between the cycle numbers and the criterion box
+\def\cwdefshade{black!12}%  fill marking defense-specific elements (the only gray)
+\def\cwfs{\scriptsize}%     the one font size (7pt)
 % axis segments [start,end], in cycles after i0's fetch; elided stretches between them
-\def\cwsA{-0.5}\def\cweA{8.5}       % front end; lc retires at 8
-\def\cwsB{39.5}\def\cweB{41.5}      % xmit issues at 40
-\def\cwsC{68.5}\def\cweC{71.5}      % transmission (L1D eviction) at 70
-\def\cwsE{5006.5}\def\cweE{5013.5}  % branch resolves 5007, squash 5008, fnc retires 5013
+\def\cwsA{-0.5}\def\cweA{8.5}%        front end; lc retires at 8
+\def\cwsB{39.5}\def\cweB{41.5}%       xmit issues at 40
+\def\cwsC{68.5}\def\cweC{71.5}%       transmission (L1D eviction) at 70
+\def\cwsE{5006.5}\def\cweE{5013.5}%   branch resolves 5007, squash 5008, fnc retires 5013
 % ======================================================================
 \pgfmathsetmacro\cwoA{0}%
 \pgfmathsetmacro\cwoB{(\cweA-\cwsA)*\cwcyc+\cwbrk}%
@@ -76,12 +76,12 @@
 \pgfmathsetmacro\cwyA{0}
 \pgfmathsetmacro\cwyB{-\cwrowh}
 \pgfmathsetmacro\cwyC{-2*\cwrowh}
-\pgfmathsetmacro\cwwT{\cwyA+\cwwtop}      % window frame top
-\pgfmathsetmacro\cwwB{\cwyC-\cwwbot}      % window frame bottom
-\pgfmathsetmacro\cwyT{\cwwB-3.5}          % top of the cycle numbers
-\pgfmathsetmacro\cwyK{\cwyT-7-\cwgap}     % top of the criterion box
-\pgfmathsetmacro\cwyS{\cwwT+7.5}          % centre line of the window title / Alloy labels
-\pgfmathsetmacro\cwyL{\cwyS+13}           % legend line
+\pgfmathsetmacro\cwwT{\cwyA+\cwwtop}%       window frame top
+\pgfmathsetmacro\cwwB{\cwyC-\cwwbot}%       window frame bottom
+\pgfmathsetmacro\cwyT{\cwwB-3.5}%           top of the cycle numbers
+\pgfmathsetmacro\cwyK{\cwyT-7-\cwgap}%      top of the criterion box
+\pgfmathsetmacro\cwyS{\cwwT+7.5}%           centre line of the window title / Alloy labels
+\pgfmathsetmacro\cwyL{\cwyS+13}%            legend line
 
 % ------------------------------ legend line ------------------------------
 \node[anchor=west] at (0,\cwyL) {F: fetch\quad D: decode\quad E: issue\quad Dotted: elided cycles};
@@ -89,7 +89,7 @@
 \draw[fill=\cwdefshade] ($(cwlg.west)+(-9.5,-3)$) rectangle ++(6,6);
 
 % ------------- left column: the roles come from the Alloy instance -------------
-\cwdoc{\cwiconx}{\cwyS}{white}{\{\,\}}
+\cwdoc{\cwiconx}{\cwyS}{white}{$\{\,\}$}
 \node[anchor=base west] at (\cwicongap,\cwyS-2.4) {Role labels from the Alloy instance};
 \draw (\cwbusx,\cwyS-5) -- (\cwbusx,\cwyC);
 \foreach \cwy in {\cwyA,\cwyB,\cwyC} \draw (\cwbusx,\cwy) -- (\cwlabx-2,\cwy);
@@ -126,7 +126,7 @@
 % the transmission: the one star in the figure
 \node[star, star points=5, star point ratio=2.4, fill=black, draw=white, line width=0.5pt,
       minimum size=\cwstar, inner sep=0pt] (cwtx) at ({\cwx{C}{70}},\cwyC) {};
-\node[anchor=north, align=center] at ($(cwtx.south)+(0,-2.5)$) {Transmission\\[1pt]\textit{(L1D eviction)}};
+\node[cwann, anchor=north, align=center] at ($(cwtx.south)+(0,-2.5)$) {Transmission\\[1pt](L1D eviction)};
 
 % ------------------------- the unresolved window -------------------------
 \draw[line width=\cwwinlw] ({\cwx{A}{8}},\cwwT) rectangle ({\cwx{E}{5007}},\cwwB);

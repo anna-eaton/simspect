@@ -18,6 +18,7 @@
 \def\SX{69}      % spine x (data stacks)
 \def\SW{108}     % slab width
 \useasboundingbox (0,1) rectangle (252,-374);
+\coordinate (lxc) at (\LX,0); \coordinate (spx) at (213,0);
 
 % ---------------- legend ----------------
 \swatch{(0,-20.6)}
@@ -29,12 +30,13 @@
 \node[slab, text width=\SW pt-6pt] (a2) at ($(a1.south west)+(0,-2)$) {\textbf{2}\enspace minimality};
 \node[slab, text width=\SW pt-6pt, dspec] (a3) at ($(a2.south west)+(0,-2)$) {\textbf{3}\enspace leakage predicate};
 \draw[line width=0.6pt] ($(a1.north east)+(3,0)$) -- ($(a3.south east)+(3,0)$) coordinate (cb1);
-\node[tool] (A1) at (213,{(\T-8-37.5/2-2)}) {Alloy Analyzer\\[-1.5pt]{\scriptsize Kodkod + SAT}};
+\coordinate (m1) at ($(a1.north east)!0.5!(a3.south east)$);
+\node[tool] (A1) at (m1 -| spx) {Alloy Analyzer\\[-1.5pt]{\scriptsize Kodkod + SAT}};
 \draw[->] ($(a1.north east)!0.5!(a3.south east)+(3,0)$) -- (A1.west);
 \draw[blob] (\PL,\T) rectangle (\PR,{(\T-51)}) coordinate (b1);
 \node[btitle] at (\IL+2,\T) {\textbf{Stage 1}\enspace Abstract test generation \textit{(Alloy)}};
 % source: defense specification -> clause 3
-\sot{ds}{(\LX,{(\T-43.6)})}{}
+\sot{ds}{(a3.west -| lxc)}{}
 \node[sm, anchor=north, align=center] at ($(ds-s)+(0,-1.5)$) {Defense\\specification};
 \draw[->] (ds-e) -- (a3.west);
 
@@ -55,7 +57,8 @@
 \node[q, anchor=east] at ($(b1.east)+(-3,0)$) {as Stage 1};
 \node[q, anchor=east] at ($(b3.east)+(-3,0)$) {as Stage 1};
 \draw[line width=0.6pt] ($(b4.north east)+(3,0)$) -- ($(b3.south east)+(3,0)$);
-\node[tool] (A2) at (213,{(\T-8-50/2-3)}) {Alloy Analyzer};
+\coordinate (m2) at ($(b4.north east)!0.5!(b3.south east)$);
+\node[tool] (A2) at (m2 -| spx) {Alloy Analyzer\\[-1.5pt]{\scriptsize\itshape non-exhaustive}};
 \draw[->] ($(b4.north east)!0.5!(b3.south east)+(3,0)$) -- (A2.west);
 \draw[blob] (\PL,\T) rectangle (\PR,{(\T-63.5)});
 \node[btitle] at (\SX+6,\T) {\textbf{Stage 1.5}\enspace Abstract test enumeration \textit{(Alloy)}};
@@ -65,26 +68,26 @@
 \draw (A2.south) -- (A2.south |- 0,\G+3) -- (\SX,\G+3);
 \cardstack{o2}{(\SX,\G-12)}{3}{\gGraph}
 \draw[->] (\SX,\G+3) -- (o2-n);
-\node[anchor=west, align=left] at (\SX+14,\G-11) {More flexible leaking execution graphs\\[-1pt]{\scriptsize\itshape multiple per Stage-1 graph; non-exhaustive}};
+\node[anchor=west, align=left] at (\SX+14,\G-11) {More flexible leaking execution graphs\\[-1pt]{\scriptsize\itshape multiple per Stage-1 graph; parallelizable SAT solving}};
 
 % ================= Stage 2 =================
 \def\T{-188}
 \draw[->] (o2-s) -- (\SX,\T-6);
 % row 1: passes 1-4 point right; row 2: passes 5-7 point left (snake)
 \def\ra{\T-17}\def\rb{\T-40}
-\foreach \i/\x/\t in {1/85.8/{\textbf{1} state +\\PC order},2/129.9/{\textbf{2} pick\\instructions},3/174.1/{\textbf{3} speculation\\primitives},4/218.2/{\textbf{4} interleave\\chains}}
+\foreach \i/\x/\t in {1/85.8/{\textbf{1} order $\rightarrow$\\PCs; state},2/129.9/{\textbf{2} pick\\instructions},3/174.1/{\textbf{3} speculation\\primitives},4/218.2/{\textbf{4} interleave\\chains}}
   \node[chev, minimum width=47.6pt] (p\i) at (\x,\ra) {\t};
-\foreach \i/\x/\t in {5/210.85/{\textbf{5} assign state,\\reserve registers},6/151.95/{\textbf{6} SSA + LLVM\\with PC labels},7/93.05/{\textbf{7} asm +\\annotations}}
+\foreach \i/\x/\t in {5/210.85/{\textbf{5} assign + reserve\\regs and memory},6/151.95/{\textbf{6} SSA + LLVM\\with PC labels},7/93.05/{\textbf{7} asm +\\annotations}}
   \node[chevL, minimum width=62.3pt] (p\i) at (\x,\rb) {\t};
 \draw[->, line width=0.5pt] (p4.east) .. controls +(5,0) and +(5,0) .. (p5.east);
 \draw[blob] (\PL,\T) rectangle (\PR,{(\T-55)});
-\node[btitle] at (\SX+6,\T) {\textbf{Stage 2}\enspace Concretization \textit{(Python, C++)}};
+\node[btitle] at (\SX+6,\T) {\textbf{Stage 2}\enspace Concretization \textit{(Python, LLVM)}};
 
 % ---- output 3 ----
 \def\G{-243}
 \pairstack{o3}{(\SX+9,\G-17)}{3}
 \draw[->] (\SX,\G) -- (\SX,\G-6.3);
-\node[anchor=west, align=left] at (\SX+28,\G-14) {Program (x86 asm) + annotation pairs\\[-1pt]{\scriptsize\itshape one or more per graph}};
+\node[anchor=west, align=left] at (\SX+28,\G-14) {Programs (x86 asm) + annotations\\[-1pt]{\scriptsize\itshape one pair per branch mode $\times$ interleave variant}};
 
 % ================= Stage 3 =================
 \def\T{-280}
@@ -116,6 +119,9 @@
 \node[text=white, font=\scriptsize\bfseries] at (235,\T-44.5) {Bug?};
 \draw[->] (I.east) -- (bug.west);
 % sources: defense gem5 build -> die ; transmission mechanisms -> harness + inspection
+% SimSpect goal: the implementation should satisfy the specification (fills the otherwise empty lane)
+\draw[dashed, ->] (\LX,-78) -- (\LX,-308);
+\node[q, rotate=90, anchor=south] at (\LX-2,{(-78+-308)/2}) {\textbf{SimSpect goal:} validate security guarantee in implementation};
 \sot{gb}{(\LX,\T-37)}{\textless/\textgreater}
 \node[sm, anchor=north, align=center] at ($(gb-s)+(0,-1.5)$) {Defense's\\gem5 build};
 \draw[->] (gb-e) -- (die.west);

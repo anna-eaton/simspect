@@ -13,7 +13,7 @@
 \def\listw{4.2cm}    % text width of the Stage 1 / 1.5 constraint lists
 \def\widew{6.6cm}   % text width of the Stage 2 pass list
 \def\toolw{2.0cm}   % text width of the Alloy Analyzer boxes
-\def\flowx{2.45cm}   % x of the stage-to-stage arrows and output icons
+\def\flowx{2.2cm}   % x of the stage-to-stage arrows and output icons
 \def\capx{3.15cm}    % x where output captions start
 \def\capw{5.6cm}     % text width of output captions
 \def\sgap{2mm}       % gap between a blob and its output strip
@@ -29,7 +29,7 @@
                      execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000\relax}},%
   row/.style={align=left, inner xsep=2pt, inner ysep=1.1pt, text width=\listw, anchor=north west},%
   tool/.style={draw, rounded corners=3pt, align=center, inner sep=2pt, text width=\toolw},%
-  title/.style={anchor=north west},%
+  title/.style={anchor=north west, align=left},%
   mult/.style={font=\scriptsize\itshape, align=center},%
   outcap/.style={anchor=north west, align=left, text width=\capw},%
   sotlab/.style={font=\scriptsize, align=center, text width=\gutw, anchor=north},%
@@ -82,14 +82,14 @@
 \node[sotlab, font=\scriptsize\itshape] at (\gutx,0) {Defense sources of truth};
 % =============================== STAGE 1 ===============================
 \coordinate (f1t) at (\mainx,0);
-\node[title] (t1) at ($(f1t)+(\pad,-\pad)$) {\textbf{Stage 1:} Abstract test generation (Alloy)};
-\node[row, font=\footnotesize\itshape] (h1) at ($(t1.south west)+(0,-\tgap)$) {Constraints on execution graphs:};
+\node[title] (t1) at ($(f1t -| \flowx,0)+(3mm,-\pad)$) {\textbf{Stage 1:} Abstract test generation\\[-0.5pt]{\scriptsize\itshape (Alloy relational modeling language)}};
+\node[row, font=\footnotesize\itshape] (h1) at ($(t1.south -| \mainx,0)+(\pad,-\tgap)$) {Constraints on execution graphs:};
 \node[row] (a1) at (h1.south west) {1.~Defense-agnostic execution well-formedness};
 \node[row] (a2) at (a1.south west) {2.~Defense-agnostic minimality requirements (only load-bearing components specified)};
 \node[row, dspec] (a3) at (a2.south west) {3.~Defense-specific leakage predicate};
 \node[draw, fit=(h1)(a1)(a2)(a3)] (L1) {};
-\node[tool, anchor=west] (A1) at ($(L1.east)+(3mm,1.5mm)$) {Alloy Analyzer\\(Kodkod + SAT)};
-\node[mult, anchor=north] (m1) at ($(A1.south)+(0,-0.6mm)$) {exhaustive\\enumeration};
+\node[tool, anchor=west] (A1) at ($(L1.east)+(3mm,1.5mm)$) {Alloy Analyzer\\[-0.5pt]{\scriptsize (Kodkod model finder + SAT backend)}\\[-0.5pt]+ bound};
+\node[mult, anchor=north] (m1) at ($(A1.south)+(0,-0.6mm)$) {bounded exhaustive\\enumeration};
 \draw[->] (L1.east |- A1) -- (A1);
 \path let \p1=(L1.south), \p2=(m1.south) in coordinate (f1b) at (0,{min(\y1,\y2)-\pad});
 \draw[blob] (f1t) rectangle (f1b -| \figw,0);
@@ -102,20 +102,21 @@
 \coordinate (s1t) at ($(f1b -| \flowx,0)+(0,-\sgap)$);
 \graphicon{g1}{($(s1t)+(0,-0.15cm)$)}
 \draw[->] (f1b -| s1t) -- (g1-n);
-\node[outcap] (c1) at (s1t -| \capx,0) {Exhaustive set of defense-specific leaking execution graphs};
+\node[outcap] (c1) at (s1t -| \capx,0) {Bounded-exhaustive set of defense-specific leaking execution graphs};
 
 % ============================== STAGE 1.5 ==============================
 \coordinate (f2t) at ($(s1t)+(0,-\striph)$);
 \coordinate (f2t) at (\mainx,0 |- f2t);
-\draw[->] (g1-s) -- (f2t -| s1t);
-\node[title] (t2) at ($(f2t)+(\pad,-\pad)$) {\textbf{Stage 1.5:} Abstract test enumeration (Alloy)};
-\node[row, font=\footnotesize\itshape] (h2) at ($(t2.south west)+(0,-\tgap)$) {Constraints on execution graphs:};
+
+\node[title] (t2) at ($(f2t -| \flowx,0)+(3mm,-\pad)$) {\textbf{Stage 1.5:} Abstract test enumeration\\[-0.5pt]{\scriptsize\itshape (Alloy relational modeling language)}};
+\node[row, font=\footnotesize\itshape] (h2) at ($(t2.south -| \mainx,0)+(\pad,-\tgap)$) {Constraints on execution graphs:};
 \node[row] (b1) at (h2.south west) {1.~\textit{Same as Stage 1}};
 \node[row] (b2) at (b1.south west) {2.~Loosened minimality requirements $\Rightarrow$ more flexible execution graphs};
 \node[row, dspec] (b3) at (b2.south west) {3.~\textit{Same as Stage 1}};
 \node[row] (b4) at (b3.south west) {+\,4.~Pin: graph contains target Stage-1 graph};
 \node[draw, fit=(h2)(b1)(b2)(b3)(b4)] (L2) {};
-\node[tool, anchor=west] (A2) at ($(L2.east)+(3mm,1.5mm)$) {Alloy Analyzer\\(Kodkod + SAT)};
+\draw[->] (g1-s) |- ($(f2t -| \mainx,0)+(-3mm,1.6mm)$) |- (b4.west); % each Stage-1 graph is the pin target
+\node[tool, anchor=west] (A2) at ($(L2.east)+(3mm,1.5mm)$) {Alloy Analyzer\\[-0.5pt]{\scriptsize (Kodkod model finder + SAT backend)}\\[-0.5pt]+ bound};
 \node[mult, anchor=north] (m2) at ($(A2.south)+(0,-0.6mm)$) {non-exhaustive\\enumeration};
 \draw[->] (L2.east |- A2) -- (A2);
 \path let \p1=(L2.south), \p2=(m2.south) in coordinate (f2b) at (0,{min(\y1,\y2)-\pad});
@@ -125,15 +126,15 @@
 \coordinate (s2t) at ($(f2b -| \flowx,0)+(0,-\sgap)$);
 \graphicon{g2}{($(s2t)+(0,-0.15cm)$)}
 \draw[->] (f2b -| s2t) -- (g2-n);
-\node[outcap] (c2) at (s2t -| \capx,0) {More flexible defense-specific leaking execution graphs\\{\scriptsize\itshape Multiple per Stage-1 graph; parallelizable SAT solving}};
+\node[outcap] (c2) at (s2t -| \capx,0) {More flexible defense-specific leaking execution graphs\\{\scriptsize\itshape Multiple per Stage-1 graph; parallelizable}};
 
 % =============================== STAGE 2 ===============================
 % pass order = STAGE2_compilation/batch_generate.py:run_pipeline (see wiki/design/CONCRETIZATION_PASSES.md)
 \coordinate (f3t) at ($(s2t)+(0,-\striph)$);
 \coordinate (f3t) at (\mainx,0 |- f3t);
 \draw[->] (g2-s) -- (f3t -| s2t);
-\node[title] (t3) at ($(f3t)+(\pad,-\pad)$) {\textbf{Stage 2:} Concretization (Python, LLVM)};
-\node[row, text width=\widew, font=\footnotesize\itshape] (h3) at ($(t3.south west)+(0,-\tgap)$) {Concretization passes, per graph:};
+\node[title] (t3) at ($(f3t -| \flowx,0)+(3mm,-\pad)$) {\textbf{Stage 2:} Concretization\\[-0.5pt]{\scriptsize\itshape (Python, LLVM)}};
+\node[row, text width=\widew, font=\footnotesize\itshape] (h3) at ($(t3.south -| \mainx,0)+(\pad,-\tgap)$) {Concretization passes, per graph:};
 \node[row, text width=\widew] (p1) at (h3.south west) {1.~Order instructions ($\rightarrow$ PCs); collect state};
 \node[row, text width=\widew] (p2) at (p1.south west) {2.~Concretize instructions};
 \node[row, text width=\widew] (p3) at (p2.south west) {3.~Concretize speculation primitives (branches, STL)};
@@ -147,8 +148,8 @@
 
 % ---- output strip 3 ----
 \coordinate (s3t) at ($(f3b -| \flowx,0)+(0,-\sgap)$);
-\docstack{asm}{($(s3t)+(-0.2cm,-0.18cm)$)}{}
-\docstack{an}{($(s3t)+(0.3cm,-0.18cm)$)}{\{\,\}}
+\docstack{asm}{($(s3t)+(0,-0.18cm)$)}{}
+\docstack{an}{($(s3t)+(0.5cm,-0.18cm)$)}{\{\,\}}
 \draw[->] (f3b -| asm-n) -- (asm-n);
 \draw[->] (f3b -| an-n) -- (an-n);
 \node[outcap] (c3) at (s3t -| \capx,0) {Programs (x86 asm) + annotations\\{\scriptsize\itshape One pair per branch mode $\times$ interleave variant}};
@@ -157,13 +158,15 @@
 % =============================== STAGE 3 ===============================
 \coordinate (f4t) at ($(s3t)+(0,-\striph)$);
 \coordinate (f4t) at (\mainx,0 |- f4t);
-\draw[->] (asm-s) -- (f4t -| asm-s);
-\node[title] (t4) at ($(f4t)+(\pad,-\pad)$) {\textbf{Stage 3:} Execution (gem5)};
+
+\node[title] (t4) at ($(f4t -| \flowx,0)+(3mm,-\pad)$) {\textbf{Stage 3:} Execution\\[-0.5pt]{\scriptsize\itshape (gem5)}};
 % gem5 = rounded container (tool shape) holding the defense build and the harness
-\node[anchor=north west, inner sep=1.5pt] (logo) at ($(t4.south west)+(0,-1.4mm)$) {\includegraphics[height=2.8mm]{gem5logo.pdf}};
-\node[row, dspec, text width=\gemw, inner ysep=2pt] (G) at ($(logo.south west)+(0,-0.6mm)$) {Defense build under test};
-\node[row, text width=\gemw, inner ysep=2pt] (H) at (G.south west) {+\,Non-invasive harness: pipeline-stage probes; speculation directives; timing directives};
-\node[draw, rounded corners=3pt, line width=0.6pt, fit=(logo)(G)(H)] (GEM) {};
+\node[anchor=north west, inner sep=1.5pt] (logo) at ($(t4.south -| \mainx,0)+(\pad+4.5mm,-1.6mm)$) {\includegraphics[height=2.8mm]{gem5logo.pdf}};
+\node[anchor=west, font=\scriptsize\itshape] (pm) at ($(logo.east)+(0.6mm,-0.2mm)$) {processor model};
+\node[row, dspec, text width=\gemw, inner ysep=2.4pt] (G) at ($(logo.south -| \mainx,0)+(\pad,-0.6mm)$) {Defense implementation\\under test};
+\node[row, text width=\gemw, inner ysep=1.6pt, font=\scriptsize] (H) at (G.south west) {+\,Non-invasive harness: pipeline-stage probes; speculation and timing directives};
+\node[draw, rounded corners=3pt, line width=0.6pt, fit=(logo)(pm)(G)(H)] (GEM) {};
+\draw[->] (asm-s) -- (G.north -| asm-s); % the programs run on the defense implementation
 \draw (G.north west) -- (G.north east) (G.south west) -- (G.south east);
 
 \coordinate (xsp) at ($(GEM.east)+(2.6mm,0)$);            % x of the speculation-directive line
@@ -171,13 +174,13 @@
 \coordinate (hout) at ($(H.east)+(0,-1.8mm)$);            % where the pipeline artifact leaves
 \docicon{pv}{($(hout -| xsp)+(4mm,0)$)}{white}{}
 \node[anchor=north, align=center, text width=1.3cm, font=\scriptsize] (pvl) at ($(pv-s)+(0,-0.5mm)$) {Pipeline info artifact};
-\node[draw, anchor=south west, align=left, inner sep=1.8pt] (I) at ($(pv-e)+(4.2mm,1.2mm)$) {\hspace*{3.6mm}Inspection\\\hspace*{3.6mm}program};
+\node[draw, anchor=south west, align=left, inner sep=1.8pt] (I) at ($(pv-e)+(4.2mm,1.2mm)$) {\hspace*{3.6mm}Inspector};
 \draw[line width=0.5pt] ($(I.west)+(1.7mm,0.4mm)$) circle (0.8mm) ++(-45:0.8mm) -- ++(-45:1mm);
 % the finding
-\coordinate (bc) at ($(I.south)+(1.5mm,-5mm)$);
+\coordinate (bc) at ($(I.south)+(1.5mm,-6.8mm)$);
 \bugicon{($(bc)+(-3.2mm,0)$)}
 \node[anchor=west, font=\footnotesize\bfseries] (bug) at ($(bc)+(-0.6mm,0)$) {Bug?};
-\draw[->, line width=0.7pt] ($(I.south)+(2.2mm,0)$) -- ($(I.south)+(2.2mm,-2.2mm)$);
+\draw[->, line width=0.7pt] ($(I.south)+(2.2mm,0)$) -- ($(I.south)+(2.2mm,-3.8mm)$);
 
 \draw[->] (hout) -- (pv-w);
 \draw[->] (pv-e) -- ++(1.6mm,0) |- (I.west);
@@ -190,7 +193,7 @@
 
 % defense-specific sources of truth feeding Stage 3 (left column)
 \docicon{gc}{(G.west -| \gutx,0)}{\defshade}{\textless/\textgreater}
-\draw[dashed, ->, line width=0.4pt] ($(dsl.south)+(0,-1.2mm)$) -- node[midway, sloped, below=0.8mm, font=\scriptsize\itshape] {\textbf{SimSpect goal:} validate security guarantee in implementation} ($(gc-n)+(0,1.2mm)$); % SimSpect checks that the implementation upholds the specification's guarantee
+\draw[dashed, ->, line width=0.4pt] ($(dsl.south)+(0,-1.2mm)$) -- node[midway, sloped, below=0.8mm, font=\scriptsize\itshape] {\textbf{SimSpect goal:} validate security guarantee on implementation} ($(gc-n)+(0,1.2mm)$); % SimSpect checks that the implementation upholds the specification's guarantee
 \node[sotlab] (gcl) at ($(gc-s)+(0,-0.6mm)$) {Defense implementation (gem5)};
 \draw[->] (gc-e) -- (G.west);
 \path let \p1=(GEM.south), \p2=(pvl.south), \p3=(bug.south) in coordinate (ym) at (0,{min(\y1,\y2,\y3)-2.4mm});
@@ -198,7 +201,7 @@
 \node[sotlab] at ($(xm-s)+(0,-0.6mm)$) {Defense transmission mechanisms};
 \coordinate (iin) at ($(I.south)+(-4mm,0)$);
 \draw (xm-e) -| ($(ym -| \mainx,0)+(0.9mm,0)$) -- (ym -| iin);
-\draw[->] (ym -| GEM.south) -- (GEM.south);
+\draw[->] (ym -| GEM.south) -- node[mult, right=0.6mm, pos=0.45] {selects hooks} (GEM.south);
 \draw[->] (ym -| iin) -- (iin);
 \node[dot] at (ym -| GEM.south) {};
 

@@ -1,6 +1,95 @@
 # Figure (e): pipeline inspection graph (checker violation window)
 
-**Status:** first draft, 2026-11-02. Draft: `paper_figures/drafts/_standalone_checkerwindow_v3.tex` + `_standalone_checkerwindow_v3-1.png` (300 dpi). Rendered size **244.9 × 101.7 pt** (one column is 252 pt). Follows `paper_figures/plans/VISUAL_LANGUAGE.md`: black on white, one gray (`black!12`) used only for the defense-specific note, bold only for the "Violation window" title, `\footnotesize` / `\scriptsize\itshape`, no font family set, calc library only, `TUNING KNOBS` block at the top. Nothing in the paper clone was touched.
+**Status:** v4 draft, 2026-11-02, revised from Anna's feedback on v3 (see "v4 changes" below). Files in `paper_figures/drafts/`: `checkerwindow_v4.tex` (the body: the `tikzpicture` and its local definitions inside `{ }`, which is what would go into the paper's `tikz/`), `captions/checkerwindow_v4.tex` (the proposed caption alone), and `_standalone_checkerwindow_v4.tex` + `_standalone_checkerwindow_v4-1.png` (the preview, 300 dpi, `border={2pt 24pt 2pt 2pt}` with blank space below for a caption; the caption itself is not rendered). Body size **250.6 × 178.9 pt** (measured with `\sbox` inside IEEEtran; one column is 252 pt). v3 (`_standalone_checkerwindow_v3.tex`, 244.9 × 101.7 pt) is kept unchanged. Nothing in the paper clone was touched.
+
+## v4 changes (2026-11-02)
+
+What Anna asked for on v3, and what v4 does about each:
+
+- **"Is it clear? We might need more of a caption."** There is a new four-sentence caption, below under "Proposed caption (v4)", also in `paper_figures/drafts/captions/checkerwindow_v4.tex`. It opens with a bold title sentence, like the sibling captions.
+- **"I'm going to need more labels there."** v4 adds:
+  - a key line at the top: "F: fetch, D: decode, E: issue, Dotted: elided cycles", plus the gray "Defense-specific" legend at top right;
+  - a gloss under each role: "Last committed", "First non-committed (unresolved branch)", "Transmitter";
+  - labels at both window edges: "Retires (window opens)" on i0 and "Resolves (window closes)" on i1;
+  - "5000-cycle resolve stall", "Retires", "Squashed", and a labelled criterion source on the left.
+- **"Why is capitalization unclear."** One convention, applied everywhere (stated below under "Text convention").
+- **"A transmission that is a clearer point."** The transmission is now the only star in the figure: a filled 8.5 pt five-point star on the xmit bar at cycle 70, with a two-line callout, "Transmission (L1D eviction)".
+  - The open-circle speculative-buffer fill (cycle 101) is gone from the timeline, so nothing competes with the star. The criterion box says in words that speculative-buffer fills do not count.
+  - Dropping it also removed one axis segment, which freed width for the window.
+- **"Annotation on the left that this is marked transmitter by a label propagated from the Alloy."** The left column now opens with a white annotation-file icon (`{ }`, the same icon the pipeline figure uses for annotations), headed "Role labels from the Alloy instance". A bus line runs from it to the three row labels (i0: lc, i1: fnc, i2: xmit).
+  - All three roles are drawn as coming from Alloy because all three do: xmit from `isxm`, and lc / fnc from `iscommitted` via `commit_boundary`. Citations are in "Label propagation" below.
+- **"Transmission criteria come from the defense, so we check for them in the unresolved window."** The logic is drawn left to right and bottom to top:
+  - a gray document icon, "Defense transmission criterion" (the defense-specific source of truth, `specs/leakage/invisispec.json`);
+  - an arrow from it to the gray criterion box, which starts with "*InvisiSpec, checked inside the window:*";
+  - an arrow from the box up into the window frame.
+  - The window's edges are labelled with what opens and closes it. This follows the pipeline figure's sources-on-the-left style.
+- **"These generally need more margins."**
+  - Rows are 30 pt apart (v3: 17 pt).
+  - The elided stretches inside the window are 14 pt wide (v3: 9 pt), which widens the window to about 82 pt, so every label inside it clears the frame by at least 5 pt.
+  - The window frame sits 13 pt above i0 and 25 pt below i2. The criterion box has 3 pt padding. Glosses sit on a uniform 8 pt baseline grid.
+  - Checked at 800–900 dpi: nothing touches. The closest pair is F / D at one-cycle spacing (6.5 pt between centres, about 2 pt between glyphs, a normal word space).
+- **Lowercase instruction ids.** i0, i1, i2, so i is not misread as l.
+
+Other changes:
+
+- **Font size.** Everything is `\scriptsize` (7 pt), per `VISUAL_LANGUAGE.md` "one size everywhere". v3 used `\footnotesize` for row labels.
+- **Window name.** "Violation window" became **"Unresolved window"**, from Anna's wording in this feedback (Decision 5).
+- **Transmitter name.** "Xm" became **xmit**, the annotation key's name.
+- **Leak safety.** All helper macros are prefixed `\cw…`. There are no global pgfmath functions (v3's `xa`…`xe` were replaced by `\cwx{segment}{cycle}`), and everything is inside `{ }`.
+  - Tested by `\input`-ing the body twice in an IEEEtran document that already defines `\docicon`, `\edges` and `\cyc`: no errors, nothing leaked, and the pre-existing macros were untouched.
+  - The knob lines put `%` straight after `}`, so no stray spaces enter in horizontal mode. An earlier draft had 21 of them, which made an `\sbox` measure 324 pt.
+- **Libraries.** The body needs TikZ `calc` and `shapes.geometric` (for the star). The paper preamble already loads both.
+
+### Text convention (capitalization and fonts)
+
+- **Sentence case for every prose label.** The first letter is capital and the rest lowercase, except proper names and acronyms (InvisiSpec, Alloy, L1D, L2, D-TLB). Examples: "Unresolved window", "Retires (window opens)", "Squashed", "Cycle", "Defense transmission criterion", "Role labels from the Alloy instance".
+- **After a colon, lowercase** (the text continues the label): "F: fetch", "Dotted: elided cycles", "InvisiSpec, checked inside the window: a fill, …".
+- **lc, fnc and xmit are fixed abbreviations.** They are always lowercase and always upright roman, set with one macro, `\cwab`, so they stay upright even inside italic text. They are never capitalized, and labels are worded so that no label begins with one.
+- **Identifiers keep their fixed form:** i0–i2, the stage letters F / D / E (capitals, as in Anna's sketch), and cycle numbers.
+- **Italic is for annotations; upright is for everything else.**
+  - Italic: role glosses and timeline events ("Last committed", "Retires", "Resolves", "Squashed", "Transmission", "5000-cycle resolve stall"), and the criterion box's lead-in, which works like the italic list headers in the pipeline figure.
+  - Upright: identifiers, names and headings (row ids, the key, the window title, source labels, cycle numbers, the criterion text).
+- **No bold** in the figure. Bold is reserved for panel and stage labels, and this figure has none.
+
+### Label propagation (why i2 is "the transmitter")
+
+The xmit label travels from the Alloy instance to the checker as follows:
+
+1. **Alloy.** `STAGE1_alloy/models/STT_6.als:62` declares `isxm: lone tBool` and `:68` declares `fun xm`. `:269` `fact one_xm` requires exactly one transmitter, and `:270-273` `fact tag_xm` makes its operand speculatively protected.
+2. **Concretization (parsexml.py).**
+   - `STAGE2_compilation/parsexml.py:382` reads the instance's `isxm` field, and `:408` and `:451` set each record's `xm` flag.
+   - `emit_branch_annotations` (`:2565`) picks the `xm` record (`:2609-2614`) and writes `payload["xmit"] = {pc, kind, atom}` into `<stem>.ann.json` (`:2636`).
+3. **Address resolution.** `STAGE2_compilation/compile_annotate.py:270-281` resolves `xmit.pc` to the x86 address.
+4. **Stage 3.**
+   - `pipeline.py:296-326` (`_KIND_TO_CHECKER`, `_read_xmit_kind`) routes each test to its checker by `ann["xmit"]["kind"]`.
+   - `STAGE3_gem5/gem5_common.py:759` `load_annotation` returns `xmit`, and `:1097-1104` `process_one` resolves `xmit_pc` and hands it to the checker.
+
+lc and fnc follow the same path. `parsexml.py:1902-1927` `commit_boundary` derives them from the Alloy `iscommitted` flags (Alloy instructions only), and `:2622-2643` writes them as `ann["commit_boundary"]`.
+
+**Caveat (Decision 3, still open).** For load, branch and "other" transmitters, `xmit_pc` decides whose signal is timed. `check_footprint.py`, which this InvisiSpec figure uses, receives `xmit_pc` (`:473`) but does not use it to pick the actor. It counts any squashed instruction younger than lc (`:216-223`). The figure, like the paper text, frames the transmission as xmit's.
+
+### Data re-checked this session
+
+- I decompressed the fixture again and parsed it with `gem5_common.parse_pipeview_by_seq`. Seqs 556, 564 and 573 match the table below.
+  - The hook lines for seq 573 confirm the L1D eviction at tick 3,192,000 (cycle 70), the SB fill at 3,207,500 (cycle 101), and the squash of seq 564 at 5,661,000 (cycle 5008).
+- `check_footprint.evaluate_trace` with `specs/leakage/invisispec.json` and the meta values still returns `leak=True`, `lc_retire=3161000`, `fnc_retire=5663500`, `actor_mode=spec`.
+
+## Proposed caption (v4)
+
+Also in `paper_figures/drafts/captions/checkerwindow_v4.tex`. Paper text is read-only for Claude; Anna pastes it.
+
+\textbf{How the checker decides a violation, on a real gem5 trace} (InvisiSpec build, test inst-002014). Each bar is one instruction from fetch (F) through decode (D) and issue (E) to retirement; dotted stretches are elided cycles. The roles lc (last committed), fnc (first non-committed, here the unresolved branch) and xmit (transmitter) are labels carried from the Alloy instance, and the unresolved window runs from lc's retirement to the branch's resolution. Inside that window the checker applies the defense's transmission criterion (gray): xmit's L1D eviction ($\star$) meets InvisiSpec's criterion before xmit is squashed, so the test is reported as a violation.
+
+## v3 (superseded; kept for reference)
+
+v3 followed `VISUAL_LANGUAGE.md`:
+
+- black on white, with one gray (`black!12`) used only for the defense-specific note;
+- bold only for the "Violation window" title;
+- `\footnotesize` / `\scriptsize\itshape`, no font family set;
+- the calc library only, and a `TUNING KNOBS` block at the top.
+
+The v3 sections below describe the v3 drawing. Where v4 differs, the "v4 changes" section above wins.
 
 ## What exists
 
@@ -86,8 +175,12 @@ Hook events used (trace lines, `O3PipeView:simspect:` prefix, format in `wiki/de
 - `sections/pipeline.tex:70` says an "other" transmitter transmits through a fault. `check_other.py:36-42` keys on the `complete` tick and does no fault detection.
 - `sections/pipeline.tex:73` describes a store-transmitter signal, but no store checker exists (`specs/transmitter_criteria.json` `kinds.str`).
 - `wiki/design/TRANSMISSION_CRITERIA_FORMAT.md:1-3` still says "PROPOSAL, awaiting Anna" and has "placeholders from memory". The section at its end says the criteria are built.
+- (Noticed 2026-11-02, v4.) The figure captions use different names for the same things:
+  - the window: "committed window" (`sections/pipeline.tex:55-57`), "speculative window" (`paper_figures/drafts/captions/pipeline_vertical.tex`), and v4's "unresolved window";
+  - fnc: "first uncommitted" (`paper_figures/drafts/captions/instrtable_v2.tex`) vs "first non-committed" (paper text, `parsexml.py` `first_noncommitted`, and v4).
+  - See Decisions 5 and 7.
 
-## Proposed caption (for Anna to paste; paper text is read-only for Claude)
+## Proposed caption (v3, superseded by the v4 caption above)
 
 Pipeline inspection of a real violation (InvisiSpec, STT_6 test inst-002014). Each bar is one instruction from fetch (F) to retire, with decode (D) and issue (E) marked; dotted stretches are elided cycles. The violation window opens when the last committed instruction (lc) retires and closes when the unresolved branch, here also the first non-committed instruction (fnc), resolves. Inside it, the transmitter (Xm) evicts an L1D line (●), which InvisiSpec forbids, before it is squashed. Its fill of the speculative buffer (○) is allowed. What counts as a transmission is defense-specific (shaded).
 
@@ -98,12 +191,12 @@ Pipeline inspection of a real violation (InvisiSpec, STT_6 test inst-002014). Ea
    - (b) The legacy expose-tick criterion (`check_ld_invisispec.py`, which `sections/pipeline.tex:63` describes).
    - Under (b), this trace is **not** a violation: Xm never exposes, and there is no expose / validate event in the trace.
    - Recommendation: (a), and you update `pipeline.tex:63`.
-2. **Which event is "the transmission" on the Xm bar?**
+2. **Which event is "the transmission" on the xmit bar?**
    - Drawn: the L1D eviction at cycle 70 (UV1, confirmed by the AMuLeT-patch differential).
-   - The checker also counts Xm's DTLB repl_touch (cycle 41) and L2 coh (cycle 78). Those kinds are open triage (`TRANSMISSION_CRITERIA_FORMAT.md:151`, possible attribution artifacts), so I left them off.
+   - The checker also counts xmit's DTLB repl_touch (cycle 41) and L2 coh (cycle 78). Those kinds are open triage (`TRANSMISSION_CRITERIA_FORMAT.md:151`, possible attribution artifacts), so I left them off.
    - Recommendation: keep the L1D eviction until DTLB / coh triage is done.
 3. **Per-transmitter framing vs the footprint criterion.**
-   - The footprint criterion counts any squashed load younger than lc, not only the Alloy transmitter. In this trace three loads (seqs 566, 573 = Xm, 576) leave in-window footprints. The earliest is L2 coh by seq 566 at cycle 16.
+   - The footprint criterion counts any squashed instruction younger than lc (`check_footprint.py:216-223`, `squashed_after_lc`), not only the Alloy transmitter. In this trace three loads (seqs 566, 573 = xmit, 576) leave in-window footprints. The earliest is L2 coh by seq 566 at cycle 16.
    - The paper (`pipeline.tex:55, 61`) and this figure frame the signal as the transmitter's.
    - Options: keep the framing and say so in the text; restrict the criterion's actor to the transmitter's seq (a semantics change); or reframe the text for footprint defenses.
    - Recommendation: keep the figure as drawn and decide the semantics separately.
@@ -112,15 +205,34 @@ Pipeline inspection of a real violation (InvisiSpec, STT_6 test inst-002014). Ea
    - The paper text names `(lc_retire, fnc_retire)` plus the unresolved-branch condition.
    - The 5007 is the checker's estimate (no `BR` lines in this pre-hook trace); the observed squash is at 5008.
    - Recommendation: keep the intersection; the caption explains it.
-5. **Name.** "Violation window" (your sketch, used here) or "committed window" (`pipeline.tex:55-57`, existing figure). The text and the figure should agree.
+5. **Name of the window.** Four names are in play:
+   - "Violation window" (your sketch, v3);
+   - "committed window" (`pipeline.tex:55-57`, the existing figure);
+   - "speculative window" (the pipeline-figure caption);
+   - "unresolved window" (your v3 feedback wording, **used in v4**).
+   - The text, this figure and the pipeline caption should use one name.
+   - Recommendation: "unresolved window". It describes what the checker gates on (lc retired, the guarding branch still unresolved). "Committed window" sounds like the committed instructions' window, and "violation window" names the outcome, not the interval.
 6. **Real or schematic.**
    - The real trace forces a broken axis (5 segments).
    - It is an amplified config (1 kB L1D) from a hook-verification run, not a campaign.
    - Alternatives: the recon OTB repro trace (`oldest_taint_bug/debug_out/pipeview_scheme2.txt`, a check_ld-style real gem5 bug), or a labelled schematic.
    - Recommendation: keep this one; it matches the "e.g. InvisiSpec" annotation exactly.
 7. **Notation.**
-   - "Xm" (your sketch) vs "transmitter" / "xmit".
-   - lc / fnc in roman (visual language) vs `\texttt` (paper text).
+   - v4 uses **xmit** (the annotation key) instead of your sketch's "Xm".
+   - lc / fnc / xmit are upright roman in v4, through one macro, `\cwab`, per the visual language's "no typewriter except literal code". The paper text sets lc and fnc in `\texttt` (`pipeline.tex:57`).
+   - To match the paper, change `\cwab` to `\texttt` (one line in `checkerwindow_v4.tex`); otherwise the paper text should switch to roman.
+   - Recommendation: one font in both places. Roman is the lighter choice at 7 pt.
    - E is placed at the issue tick; rename, dispatch and complete are omitted.
 8. **Row labels.** Only roles are shown. The trace's gem5 macro-op names (`MOV_R_R`, `JNZ_I`, `MOV_R_M`) were dropped to keep the column width. The AT&T asm is not on this Mac: it is at cafe2 `/tests/simspect/testsets/STT_6/mispredict_not_taken/asm/inst-002014.s`. Should a mnemonic go back in?
-9. **STT contrast line in the gray box.** Keep it (it shows that the criterion is per defense) or drop it (one defense per minifig)?
+9. **STT contrast line in the gray box.** v4 drops it: one defense per minifig, and the box now reads as "the criterion that is checked in this window". Restore it if you want the box to show that the criterion differs per defense; the cost is one more box line.
+10. **The speculative-buffer fill (v4: dropped from the timeline).**
+    - v3 drew it as ○ at cycle 101 next to the ● transmission. You asked for one clear transmission point, so v4 removes it and says "Speculative-buffer fills do not count" in the criterion box.
+    - Restoring it as a small open marker at cycle 101 shows what the criterion rejects, but costs one axis segment (about 28 pt of width) and competes with the star.
+    - Recommendation: keep it out.
+11. **Name of the defense source of truth.** v4 labels the gray icon "Defense transmission criterion". The pipeline figure labels the same source "Defense transmission mechanisms". The two figures should use one term.
+    - Recommendation: "transmission criterion" in both, which matches `specs/leakage/*.json` (schema `simspect.transmission_criterion/v1`) and the pipeline caption's "transmission criteria".
+12. **Font size vs the pipeline figure.** v4 is 7 pt throughout, per `VISUAL_LANGUAGE.md` ("one size everywhere: `\scriptsize`"), but the current pipeline-figure draft uses 8 pt (`\footnotesize`) for its main text.
+    - If figures should match the pipeline figure, set `\cwfs` to `\footnotesize`. At 8 pt the width (about 250 pt) no longer fits, and the knobs (`\cwcyc`, `\cwbrk`, `\cwtl`) would need retuning.
+13. **Height.** v4 is 178.9 pt tall (v3: 101.7 pt), the price of the extra labels, margins and the criterion row.
+    - Knobs to shrink it: `\cwrowh` (30), `\cwwbot` (25), `\cwgap` (10). Dropping the key line saves about 13 pt if the caption carries F / D / E.
+    - Recommendation: keep it as is unless page budget forces a cut.
