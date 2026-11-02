@@ -1,0 +1,306 @@
+--- a/src/cpu/o3/BaseO3CPU.py
++++ b/src/cpu/o3/BaseO3CPU.py
+@@ -140,6 +140,19 @@
+     LFSTSize = Param.Unsigned(1024, "Last fetched store table size")
+     SSITSize = Param.Unsigned(1024, "Store set ID table size")
+ 
++    # SimSpect-STL hooks (gem5-hooks/stl/, wiki/design/STL_SPECULATION.md)
++    stlStallStorePCs = VectorParam.Addr([], "SimSpect-STL: store PCs whose "
++        "address generation is held for stlStoreStallCycles")
++    stlStoreStallCycles = Param.Unsigned(0, "SimSpect-STL: cycles to hold an "
++        "annotated store before it computes its address (0 = off)")
++    stlAliasLoadPCs = VectorParam.Addr([], "SimSpect-STL: annotated bypass "
++        "load PCs, index-paired with stlAliasStorePCs")
++    stlAliasStorePCs = VectorParam.Addr([], "SimSpect-STL: the store PC each "
++        "annotated load truly aliases")
++    stlAliasPred = Param.Unsigned(0, "SimSpect-STL: memory-dependence "
++        "prediction for annotated loads: 0 = unmodified store sets, "
++        "1 = no alias (false negative), 2 = alias (false positive control)")
++
+     numRobs = Param.Unsigned(1, "Number of Reorder Buffers");
+ 
+     numPhysIntRegs = Param.Unsigned(256,
+--- a/src/cpu/o3/iew.hh
++++ b/src/cpu/o3/iew.hh
+@@ -43,6 +43,8 @@
+ 
+ #include <queue>
+ #include <set>
++#include <unordered_map>  // SimSpect-STL
++#include <unordered_set>  // SimSpect-STL
+ 
+ #include "base/statistics.hh"
+ #include "cpu/o3/comm.hh"
+@@ -376,6 +378,13 @@
+     /** Records if there is a fetch redirect on this cycle for each thread. */
+     bool fetchRedirect[MaxThreads];
+ 
++    /** SimSpect-STL: store PCs whose address generation is held. */
++    std::unordered_set<Addr> stlStallStorePCs;
++    /** SimSpect-STL: hold length (0 = hook off). */
++    Cycles stlStoreStallCycles;
++    /** SimSpect-STL: held store seqNum -> tick its hold ends. */
++    std::unordered_map<InstSeqNum, Tick> stlHoldUntil;
++
+     /** Records if the queues have been changed (inserted or issued insts),
+      * so that IEW knows to broadcast the updated amount of free entries.
+      */
+--- a/src/cpu/o3/iew.cc
++++ b/src/cpu/o3/iew.cc
+@@ -99,6 +99,11 @@
+     exeStatus = Running;
+     wbStatus = Idle;
+ 
++    // SimSpect-STL: store address-generation hold (--stl-ann-file)
++    stlStallStorePCs.insert(params.stlStallStorePCs.begin(),
++                            params.stlStallStorePCs.end());
++    stlStoreStallCycles = Cycles(params.stlStoreStallCycles);
++
+     // Setup wire to read instructions coming from issue.
+     fromIssue = issueToExecQueue.getWire(-issueToExecuteDelay);
+ 
+@@ -1228,6 +1233,43 @@
+                     inst->fault = NoFault;
+                 }
+             } else if (inst->isStore()) {
++                // SimSpect-STL: hold an annotated store's address generation
++                // for stlStoreStallCycles after it first issues. It goes back
++                // to the mem-dep replay list (as the LSQ does for a load it
++                // can't execute yet); an event replays it when the hold ends.
++                // An early replay (MemDepUnit::replay replays every waiting
++                // mem op) just re-defers it until then.
++                if (stlStoreStallCycles > 0 &&
++                        stlStallStorePCs.count(inst->pcState().instAddr())) {
++                    auto held = stlHoldUntil.find(inst->seqNum);
++                    if (held == stlHoldUntil.end()) {
++                        Tick until = cpu->clockEdge(stlStoreStallCycles);
++                        stlHoldUntil[inst->seqNum] = until;
++                        DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:STL:"
++                            "stl_hold:line=-:seq=%llu:pc=%#x:victim=-:"
++                            "cause=-:sq=-:id=-\n", curTick(), inst->seqNum,
++                            inst->pcState().instAddr());
++                        auto *ev = new EventFunctionWrapper(
++                            [this, inst]() {
++                                if (inst->isSquashed())
++                                    return;
++                                replayMemInst(inst);
++                                cpu->wakeCPU();
++                            },
++                            "iew.simspectStlStoreRelease",
++                            true);  // deleteOnFire
++                        cpu->schedule(ev, until);
++                        rescheduleMemInst(inst);
++                        continue;
++                    } else if (curTick() < held->second) {
++                        rescheduleMemInst(inst);
++                        continue;
++                    }
++                    DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:STL:"
++                        "stl_release:line=-:seq=%llu:pc=%#x:victim=-:"
++                        "cause=-:sq=-:id=-\n", curTick(), inst->seqNum,
++                        inst->pcState().instAddr());
++                }
+                 fault = ldstQueue.executeStore(inst);
+ 
+                 if (inst->isTranslationDelayed() &&
+@@ -1461,6 +1503,11 @@
+                 instQueue.violation(inst, violator);
+ 
+                 // Squash.
++                // SimSpect-STL: window end for store-to-load speculation
++                DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:STL:"
++                    "mem_order_squash:line=-:seq=%llu:pc=%#x:victim=-:"
++                    "cause=%llu:sq=-:id=-\n", curTick(), violator->seqNum,
++                    violator->pcState().instAddr(), inst->seqNum);
+                 squashDueToMemOrder(violator, tid);
+ 
+                 ++iewStats.memOrderViolationEvents;
+--- a/src/cpu/o3/mem_dep_unit.hh
++++ b/src/cpu/o3/mem_dep_unit.hh
+@@ -243,6 +243,21 @@
+      */
+     StoreSet depPred;
+ 
++    /** SimSpect-STL: prediction override for annotated loads
++     * (0 = off, 1 = no alias, 2 = alias). */
++    unsigned stlAliasPred = 0;
++    /** SimSpect-STL: annotated bypass load PCs. */
++    std::unordered_set<Addr> stlAliasLoadPCs;
++    /** SimSpect-STL: store PC -> the bypass load PCs it truly aliases. */
++    std::unordered_multimap<Addr, Addr> stlAliasStoreToLoads;
++    /** SimSpect-STL: bypass load PC -> the store PCs it truly aliases. */
++    std::unordered_multimap<Addr, Addr> stlAliasLoadToStores;
++    /** SimSpect-STL: annotated store PC -> its youngest inserted seqNum. */
++    std::unordered_map<Addr, InstSeqNum> stlLastStoreSeq;
++    /** SimSpect-STL (alias control): the in-flight paired store an annotated
++     * load must wait on, or 0. */
++    InstSeqNum stlAliasDep(const DynInstPtr &inst);
++
+     /** Sequence numbers of outstanding load barriers. */
+     std::unordered_set<InstSeqNum> loadBarrierSNs;
+ 
+--- a/src/cpu/o3/mem_dep_unit.cc
++++ b/src/cpu/o3/mem_dep_unit.cc
+@@ -38,6 +38,7 @@
+ #include "cpu/o3/inst_queue.hh"
+ #include "cpu/o3/limits.hh"
+ #include "debug/MemDepUnit.hh"
++#include "debug/O3PipeView.hh"  // SimSpect-STL
+ #include "params/BaseO3CPU.hh"
+ 
+ namespace gem5
+@@ -99,6 +100,20 @@
+     depPred.init(params.store_set_clear_period, params.SSITSize,
+             params.LFSTSize);
+ 
++    // SimSpect-STL: memory-dependence prediction override (--stl-alias-pred)
++    stlAliasPred = params.stlAliasPred;
++    if (params.stlAliasLoadPCs.size() != params.stlAliasStorePCs.size())
++        fatal("SimSpect-STL: stlAliasLoadPCs and stlAliasStorePCs differ in "
++              "length (%u vs %u)", params.stlAliasLoadPCs.size(),
++              params.stlAliasStorePCs.size());
++    for (size_t i = 0; i < params.stlAliasLoadPCs.size(); ++i) {
++        stlAliasLoadPCs.insert(params.stlAliasLoadPCs[i]);
++        stlAliasStoreToLoads.emplace(params.stlAliasStorePCs[i],
++                                     params.stlAliasLoadPCs[i]);
++        stlAliasLoadToStores.emplace(params.stlAliasLoadPCs[i],
++                                     params.stlAliasStorePCs[i]);
++    }
++
+     std::string stats_group_name = csprintf("MemDepUnit__%i", tid);
+     cpu->addStatGroup(stats_group_name.c_str(), &stats);
+ }
+@@ -186,11 +201,37 @@
+     }
+ }
+ 
++// SimSpect-STL (alias control). The store-set predictor cannot be used
++// for this: StoreSet::issued() drops a store from the LFST when it issues,
++// and the held store issues (then waits) before a slow-to-dispatch load is
++// inserted, so checkInst() would return 0. Depend on the paired store's
++// seqNum directly while it is still in flight in this unit.
++InstSeqNum
++MemDepUnit::stlAliasDep(const DynInstPtr &inst)
++{
++    InstSeqNum dep = 0;
++    auto range = stlAliasLoadToStores.equal_range(inst->pcState().instAddr());
++    for (auto it = range.first; it != range.second; ++it) {
++        auto seq_it = stlLastStoreSeq.find(it->second);
++        if (seq_it != stlLastStoreSeq.end() &&
++                seq_it->second < inst->seqNum &&
++                memDepHash.count(seq_it->second) &&
++                seq_it->second > dep)
++            dep = seq_it->second;
++    }
++    return dep;
++}
++
+ void
+ MemDepUnit::insert(const DynInstPtr &inst)
+ {
+     ThreadID tid = inst->threadNumber;
+ 
++    // SimSpect-STL (alias control): remember each annotated store's seqNum
++    if (stlAliasPred == 2 && inst->isStore() &&
++            stlAliasStoreToLoads.count(inst->pcState().instAddr()))
++        stlLastStoreSeq[inst->pcState().instAddr()] = inst->seqNum;
++
+     MemDepEntryPtr inst_entry = std::make_shared<MemDepEntry>(inst);
+ 
+     // Add the MemDepEntry to the hash.
+@@ -213,6 +254,24 @@
+         producing_stores.insert(std::end(producing_stores),
+                                 std::begin(loadBarrierSNs),
+                                 std::end(loadBarrierSNs));
++        // SimSpect-STL: a load barrier (the litmus setup mfence) is in
++        // flight, so gem5 makes this load wait on the barrier and never asks
++        // the predictor. Apply the forced prediction here too: alias mode adds
++        // the paired-store dependence the predictor branch would have added;
++        // no_alias has nothing to drop (a barrier wait is not a prediction).
++        if (stlAliasPred != 0 && inst->isLoad() &&
++                stlAliasLoadPCs.count(inst->pcState().instAddr())) {
++            InstSeqNum dep = 0;
++            if (stlAliasPred == 2) {
++                dep = stlAliasDep(inst);
++                if (dep != 0)
++                    producing_stores.push_back(dep);
++            }
++            DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:STL:%s:line=-:"
++                "seq=%llu:pc=%#x:victim=-:cause=%llu:sq=-:id=-:via=barrier\n",
++                curTick(), stlAliasPred == 1 ? "pred_no_alias" : "pred_alias",
++                inst->seqNum, inst->pcState().instAddr(), dep);
++        }
+     } else if ((inst->isStore() || inst->isAtomic()) && hasStoreBarrier()) {
+         DPRINTF(MemDepUnit, "%d store barriers in flight\n",
+                 storeBarrierSNs.size());
+@@ -221,6 +280,18 @@
+                                 std::end(storeBarrierSNs));
+     } else {
+         InstSeqNum dep = depPred.checkInst(inst->pcState().instAddr());
++        // SimSpect-STL: forced prediction for an annotated bypass load
++        if (stlAliasPred != 0 && inst->isLoad() &&
++                stlAliasLoadPCs.count(inst->pcState().instAddr())) {
++            if (stlAliasPred == 1)
++                dep = 0;  // no alias (false negative): never wait
++            else
++                dep = stlAliasDep(inst);  // alias (control): wait on the store
++            DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:STL:%s:line=-:"
++                "seq=%llu:pc=%#x:victim=-:cause=%llu:sq=-:id=-\n", curTick(),
++                stlAliasPred == 1 ? "pred_no_alias" : "pred_alias",
++                inst->seqNum, inst->pcState().instAddr(), dep);
++        }
+         if (dep != 0)
+             producing_stores.push_back(dep);
+     }
+--- a/configs/common/Options.py
++++ b/configs/common/Options.py
+@@ -533,6 +533,20 @@
+                              "entries that already supply absolute addresses.")
+ 
+ 
++    # SimSpect-STL hooks (gem5-hooks/stl/). Inert unless --stl-ann-file is set.
++    parser.add_argument("--stl-ann-file", default="",
++                        help="SimSpect-STL: test .ann.json; its "
++                             "stl_annotations give (store_addr, load_addr) pairs")
++    parser.add_argument("--stl-store-stall-cycles", type=int, default=0,
++                        help="SimSpect-STL: cycles each annotated store's "
++                             "address generation is held (0 = no hold)")
++    parser.add_argument("--stl-alias-pred", default="no_alias",
++                        choices=["off", "no_alias", "alias"],
++                        help="SimSpect-STL: memory-dependence prediction for "
++                             "the annotated loads: no_alias = false negative "
++                             "(the primitive), alias = false positive (control)")
++
++
+ def addFSOptions(parser):
+     from common.FSConfig import os_types
+ 
+--- a/configs/example/se.py
++++ b/configs/example/se.py
+@@ -353,6 +353,26 @@
+               (len(ann_branch_pcs), args.branch_ann_file,
+                sum(1 for s in ann_resolve_stall if s > 0)))
+ 
++    # SimSpect-STL hooks (gem5-hooks/stl/)
++    if args.stl_ann_file:
++        import json as _stl_json
++        with open(args.stl_ann_file) as _f:
++            _stl = _stl_json.load(_f).get("stl_annotations", [])
++        _st = [int(e["store_addr"]) for e in _stl if "store_addr" in e and "load_addr" in e]
++        _ld = [int(e["load_addr"]) for e in _stl if "store_addr" in e and "load_addr" in e]
++        if len(_st) != len(_stl):
++            warn("--stl-ann-file: %d stl_annotations entries lack store_addr/"
++                 "load_addr (run compile_annotate.py); skipped" %
++                 (len(_stl) - len(_st)))
++        system.cpu[i].stlStallStorePCs = sorted(set(_st))
++        system.cpu[i].stlStoreStallCycles = args.stl_store_stall_cycles
++        system.cpu[i].stlAliasLoadPCs = _ld
++        system.cpu[i].stlAliasStorePCs = _st
++        system.cpu[i].stlAliasPred = {"off": 0, "no_alias": 1, "alias": 2}[args.stl_alias_pred]
++        print("[se.py] SimSpect-STL: %d store/load pairs from %s, store hold "
++              "%d cycles, alias pred %s" % (len(_st), args.stl_ann_file,
++              args.stl_store_stall_cycles, args.stl_alias_pred))
++
+     system.cpu[i].createThreads()
+ 
+ if args.ruby:

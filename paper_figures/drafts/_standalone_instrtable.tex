@@ -1,0 +1,129 @@
+% Figure (d): how concretization instruments each execution-graph element.
+% Source of truth for every cell (file:line citations): paper_figures/plans/fig_d_instrtable.md
+% Visual language: paper_figures/plans/VISUAL_LANGUAGE.md. Full text width (<= 516pt): use in a table* / figure*.
+\documentclass[tikz,border=1pt]{standalone}
+\usepackage{newtxtext,newtxmath} % preview only (matches the paper's Times); when \input'd the figure inherits the paper font
+\usetikzlibrary{calc,fit}
+
+% ============================ TUNING KNOBS ============================
+\def\gw{1.95cm}    % exec-graph column (glyph + name)
+\def\cw{2.9cm}     % cases-generated column
+\def\pw{4.8cm}     % Stage 2 program column
+\def\aw{2.45cm}    % Stage 2 annotation column
+\def\hw{4.75cm}    % Stage 3 harness column
+\def\cg{2.4mm}     % gap between columns
+\def\rg{1.3mm}     % gap above and below each row rule
+\def\gh{1.05cm}    % height reserved for the glyph above the row name
+\def\bw{1.05cm}    % instruction-box width in glyphs
+\def\bh{8.5pt}     % instruction-box height in glyphs
+\def\bg{2.9mm}     % vertical gap between the two boxes of a glyph (program order)
+% ======================================================================
+
+% column x positions (derived)
+\pgfmathsetlengthmacro\xB{\gw+\cg}
+\pgfmathsetlengthmacro\xC{\xB+\cw+\cg}
+\pgfmathsetlengthmacro\xD{\xC+\pw+\cg}
+\pgfmathsetlengthmacro\xE{\xD+\aw+\cg}
+\pgfmathsetlengthmacro\xW{\xE+\hw}
+
+\tikzset{
+  >=latex,
+  every node/.style={font=\footnotesize, inner sep=0pt,
+    execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000}},
+  cell/.style={anchor=north west, align=left},
+  note/.style={font=\scriptsize\itshape},
+  ins/.style={draw, minimum width=\bw, minimum height=\bh, inner sep=0pt, font=\scriptsize},
+  flag/.style={font=\scriptsize, inner sep=0pt},
+}
+
+% one table row: #1 id, #2 glyph (TikZ code drawn around (0,0)), #3 row name,
+% #4 cases, #5 Stage 2 program, #6 Stage 2 annotation, #7 Stage 3 harness
+\newcommand{\trow}[7]{%
+  \coordinate (#1-t) at (rowtop);
+  \begin{scope}[shift={($(#1-t)+(0.5*\gw,-0.5*\gh)$)}] #2 \end{scope}
+  \node[cell, note, text width=\gw, align=center] (#1-a) at ($(#1-t)+(0,-\gh)$) {#3};
+  \node[cell, text width=\cw] (#1-b) at ($(#1-t)+(\xB,0)$) {#4};
+  \node[cell, text width=\pw] (#1-c) at ($(#1-t)+(\xC,0)$) {#5};
+  \node[cell, text width=\aw] (#1-d) at ($(#1-t)+(\xD,0)$) {#6};
+  \node[cell, text width=\hw] (#1-e) at ($(#1-t)+(\xE,0)$) {#7};
+  \node[fit=(#1-t)(#1-a)(#1-b)(#1-c)(#1-d)(#1-e), inner sep=0pt] (#1) {};
+  \coordinate (rowtop) at ($(0,0 |- #1.south)+(0,-2*\rg)$);
+}
+\newcommand{\rowrule}{\draw ($(rowtop)+(0,\rg)$) -- ++(\xW,0);}
+% two instructions in program order (top to bottom, as in Fig. a; no edge drawn for spo)
+% #1/#2 = box text, #3/#4 = flags written right of the box (e.g. $r$), empty = none
+\newcommand{\pair}[4]{%
+  \node[ins] (p1) at (0,0.5*\bg+0.5*\bh) {#1};
+  \node[ins] (p2) at (0,-0.5*\bg-0.5*\bh) {#2};
+  \node[flag, anchor=west] at ($(p1.east)+(1.5pt,0)$) {#3};
+  \node[flag, anchor=west] at ($(p2.east)+(1.5pt,0)$) {#4};}
+
+\begin{document}
+\begin{tikzpicture}
+
+% ------------------------------- header -------------------------------
+\draw (0,0) -- (\xW,0);
+\node[cell, text width=\gw, align=center] (h-a) at (0,-\rg) {Exec.\ graph};
+\node[cell, text width=\cw] (h-b) at (\xB,-\rg) {Cases generated};
+\node[cell, text width=\pw] (h-c) at (\xC,-\rg) {\textbf{Stage 2:} program};
+\node[cell, text width=\aw] (h-d) at (\xD,-\rg) {\textbf{Stage 2:} annotation};
+\node[cell, text width=\hw] (h-e) at (\xE,-\rg) {\textbf{Stage 3:} gem5 harness};
+\node[fit=(h-a)(h-b)(h-c)(h-d)(h-e), inner sep=0pt] (h) {};
+\coordinate (rowtop) at ($(0,0 |- h.south)+(0,-2*\rg)$);
+\rowrule
+
+% ------------------------------- rows ---------------------------------
+\trow{r1}{%
+  \pair{Store}{Load}{}{}
+  \draw[->, shorten >=0.4pt] (p1.south) -- (p2.north) node[pos=0.45, note, anchor=west, xshift=1.5pt] {rf};
+}{store, aliasing load}
+{Predicted no alias, actually aliases (false negative). Own mode; all branches resolved.}
+{S and L share an 8-byte slot; with an address register, S is re-addressed to L's runtime address. Inline asm stops the compiler forwarding S to L.}
+{(S,\,L) PC pair per aliasing load}
+{STL-hooked build: S's address generation held 5000 cycles; L's dependence prediction forced to no-alias. {\scriptsize\itshape Window check not yet built.}}
+\rowrule
+
+\trow{r2}{\pair{Branch}{}{}{}}{unresolved branch}
+{Mispredicted not-taken; mispredicted taken. {\scriptsize\itshape Correctly predicted: not generated.}}
+{Jump on a constant register (\texttt{movq \$1} / \texttt{xorq}). The architectural path goes to the end block, so the next instruction runs only speculatively.}
+{Mode; predicted target = next PC}
+{Force the direction reaching the next instruction; hold resolution $s_U{=}5000$ cycles. Gate: unresolved at transmission; invalid unless mispredicted and held.}
+\rowrule
+
+\trow{r3}{\pair{Branch}{}{$r$}{}}{resolved branch}
+{Correctly predicted not-taken. {\scriptsize\itshape Taken: not generated.}}
+{Jump on a zeroed register (\texttt{xorq}): falls through, never takes its target.}
+{Mode}
+{Force the architectural direction; resolution delay swept over \mbox{\{0, 500, 2500\}} cycles per branch, all combinations. Invalid if it mispredicts.}
+\rowrule
+
+\trow{r4}{%
+  \pair{}{}{$c$}{}
+  \node[note, anchor=east] at ($(p1.west)+(-1pt,0)$) {lc};
+  \node[note, anchor=east] at ($(p2.west)+(-1pt,0)$) {fnc};
+}{commit boundary}
+{lc: last committed; fnc: first that must stay uncommitted (Alloy instructions only).}
+{Global labels on lc and fnc.}
+{lc and fnc PCs}
+{Window: lc retired $<$ transmission $<$ fnc retires (measured, not forced). Commit stall on fnc: 0 cycles.}
+\rowrule
+
+\trow{r5}{\node[ins] (p1) at (0,0) {}; \node[flag, anchor=west] at ($(p1.east)+(1.5pt,0)$) {$t$};}{target transmitter}
+{One per test: load, store, branch, multiply or divide.}
+{Branch: \texttt{testq}+\texttt{jz} on the transmitted value, architecturally taken (\texttt{nop} after it if last). Divide: a zero divisor faults (other divides get \texttt{orq \$1}).}
+{PC; kind selects the checker}
+{Branch: forced to mispredict, no stall. A divide fault at the transmitter counts as a transmission.}
+\rowrule
+
+\trow{r6}{\node[ins] at (0,0) {};}{every instruction}
+{All.}
+{Inline-asm block per instruction with a global PC label; memory and live-in registers zeroed, then \texttt{mfence}; address operands index a probe array; clang \texttt{-O2}.}
+{Labels resolved to x86 addresses}
+{No hook: measured from the O3PipeView, LSQUnit and Commit traces.}
+
+% ------------------------------- footer -------------------------------
+\draw ($(rowtop)+(0,\rg)$) -- ++(\xW,0);
+\node[cell, note, text width=\xW] at (rowtop) {Glyphs use the execution-graph syntax of Fig.~(a): boxes are instructions in program order, top to bottom (empty box: any instruction); rf = reads-from; flags $r$ resolved, $c$ committed, $t$ target transmitter. Each glyph shows only the flags its row is about: a Branch or Store without $r$ is unresolved.};
+
+\end{tikzpicture}
+\end{document}

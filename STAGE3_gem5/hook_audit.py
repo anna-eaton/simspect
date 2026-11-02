@@ -37,7 +37,7 @@ Usage (inside the gem5_dev container):
         --n 6 --jobs 16 --out hook_audit_stt.json
     python3 STAGE3_gem5/hook_audit.py --build all ...
 Builds are defined in BUILDS below (binary / se.py / cpu / extra_args copied
-from the campaign run_config.jsonc files). Design: wiki/design/HOOK_AUDIT.md.
+from the campaign run_config.jsonc files). Design: wiki/design/RESOLUTION_HOOKS.md §4.
 """
 
 from __future__ import annotations
@@ -56,9 +56,11 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gem5_common import (_func_base_addr, build_binary, parse_commit_squashes,  # noqa: E402
-                         parse_pipeview_by_seq, parse_simspect_events,
-                         parse_ticks_per_cycle)
+import gem5_common  # noqa: E402
+from gem5_common import (_branch_ann_for_se, _func_base_addr, binary_has_resolve_hooks,  # noqa: E402
+                         build_binary, execution_validity, parse_branch_events,
+                         parse_commit_squashes, parse_pipeview_by_seq,
+                         parse_simspect_events, parse_ticks_per_cycle)
 
 # binary, se.py, cpu, extra args: copied from each build's campaign run_config.jsonc
 # (cafe2 /tests/simspect/results/*/run_config.jsonc, read 2026-10-30).
@@ -149,15 +151,29 @@ def _parse_ready(trace: Path) -> dict:
     return {pc: sorted(t) for pc, t in by_pc.items()}
 
 
+def _parse_ready_seq(trace: Path) -> dict:
+    """seq -> 'ready within ROB' tick (Commit flag, independent of the BR lines)."""
+    out = {}
+    with open(trace) as f:
+        for line in f:
+            m = _READY_RE.match(line)
+            if m:
+                out[int(m.group(3))] = int(m.group(1))
+    return out
+
+
 def _run_variant(build: dict, workdir: Path, name: str, binary: Path,
                  ann: dict | None, base: int | None, fnc_pc: int | None,
-                 fnc_cycles: int, scheme: int, timeout: int) -> dict:
+                 fnc_cycles: int, scheme: int, timeout: int,
+                 plan: bool = False) -> dict:
     vdir = workdir / name
     vdir.mkdir()
     ann_file = None
     if ann is not None:
         ann_file = vdir / "ann.json"
         ann_file.write_text(json.dumps(ann, indent=1))
+        if plan:   # exactly the file the pipeline hands gem5 (alias + force plan)
+            ann_file = _branch_ann_for_se(ann_file, vdir, binary)
     cmd = _gem5_cmd(build, vdir / "m5out", binary, ann_file, base, fnc_pc,
                     fnc_cycles, scheme)
     p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
@@ -181,6 +197,12 @@ def _run_variant(build: dict, workdir: Path, name: str, binary: Path,
     # that only adds print lines leaves the pipeline unchanged.
     res["sha"] = hashlib.sha256(json.dumps(
         [res["pipeview"], res["squash"], res["ready"]]).encode()).hexdigest()[:16]
+    res["br"] = {hex(k): {str(q): d for q, d in v.items()}
+                 for k, v in parse_branch_events(trace).items()}
+    res["ready_by_seq"] = _parse_ready_seq(trace)
+    res["by_seq"] = seqs
+    if plan and (vdir / "force_plan.json").exists():
+        res["force_plan"] = json.loads((vdir / "force_plan.json").read_text())
     retire_by_pc: dict = {}
     for r in seqs.values():
         if r["retire"] > 0:
@@ -205,6 +227,76 @@ def _with_stalls(ann: dict, alias: bool, unresolved_s: int, resolved_s: int) -> 
     return out
 
 
+def _br_checks(C, V, brs, unres, mis, ann, xmit_addr, tpc, S):
+    """Checks that only exist on binaries with the 2026-10-30 resolve hooks."""
+    # (1) Every stalled branch instance that resolved was held; release fires at
+    #     the scheduled tick; visible == the Commit 'ready within ROB' tick.
+    bad = []
+    n = 0
+    for b in unres:
+        for q, d in V["ann_S"]["br"].get(hex(b["addr"]), {}).items():
+            if "resolve_release" not in d and "resolve_visible" not in d:
+                continue
+            n += 1
+            if "resolve_hold" not in d:
+                bad.append(dict(addr=hex(b["addr"]), seq=q, why="no hold"))
+                continue
+            if d.get("resolve_release") and d["resolve_release"] != d.get("resolve_hold_fire"):
+                bad.append(dict(addr=hex(b["addr"]), seq=q, why="release != fire",
+                                release=d["resolve_release"], fire=d.get("resolve_hold_fire")))
+            if d.get("resolve_hold_stall") != S:
+                bad.append(dict(addr=hex(b["addr"]), seq=q, why="stall != S"))
+    C["br_hold_release"] = _check(n > 0 and not bad, n=n, bad=bad)
+    bad = []
+    for v in ("ann_0", "ann_S", "ann_R", "none"):
+        rs = V[v]["ready_by_seq"]
+        for pc, seqs in V[v]["br"].items():
+            for q, d in seqs.items():
+                if "resolve_visible" in d and rs.get(int(q)) != d["resolve_visible"]:
+                    bad.append(dict(variant=v, pc=pc, seq=q, visible=d["resolve_visible"],
+                                    ready=rs.get(int(q))))
+    C["br_visible_eq_commit_ready"] = _check(not bad, bad=bad[:5])
+    # (2) visible - release: how far commit's view lags IEW (expected 1 cycle).
+    lags = sorted({(d["resolve_visible"] - d["resolve_release"]) / tpc
+                   for b in unres for d in V["ann_S"]["br"].get(hex(b["addr"]), {}).values()
+                   if d.get("resolve_visible") and d.get("resolve_release")})
+    C["br_visible_minus_release_cycles"] = dict(result="INFO", value=lags)
+    # (3) The force plan: every annotated branch planned, and execution valid.
+    P = V.get("plan_0")
+    if P is None:
+        return
+    plan = P.get("force_plan") or []
+    C["plan_complete"] = _check(plan and all(p["force"] != "unknown" for p in plan),
+                                plan=[(hex(p["addr"]), p.get("mode"), p["force"]) for p in plan])
+    for vn in ("plan_0", "plan_S"):
+        brv = {int(pc, 16): {int(q): d for q, d in seqs.items()}
+               for pc, seqs in V[vn]["br"].items()}
+        entries = _with_stalls(ann, False, S if vn == "plan_S" else 0, 0)["annotations"]
+        val = execution_validity(entries, brv, V[vn]["by_seq"], xmit_addr, V[vn].get("force_plan"))
+        C[f"{vn}_valid"] = _check(all(val[k] is not False for k in
+                                      ("resolved_correct", "window_opened", "stall_applied",
+                                       "force_applied")), **val)
+    # (4) Stall under the plan (the production path): the IEW release of the
+    #     oldest unresolved branch's held instance is exactly S cycles after its
+    #     execute (hold). Any extra release->visible delay is reported (it was
+    #     27-40 cycles before the CPU-wake fix, when a held branch's release
+    #     could sit until something woke a sleeping CPU).
+    if unres:
+        b = unres[0]
+        held = [d for d in V["plan_S"]["br"].get(hex(b["addr"]), {}).values()
+                if "resolve_hold" in d and "resolve_release" in d]
+        if held:
+            d = held[0]
+            rel = (d["resolve_release"] - d["resolve_hold"]) / tpc
+            extra = ((d.get("resolve_visible", 0) - d["resolve_release"]) / tpc - 1
+                     if d.get("resolve_visible") else None)
+            C["plan_stall_shift"] = _check(rel == S, addr=hex(b["addr"]),
+                                           release_minus_execute_cycles=rel,
+                                           commit_extra_cycles=extra)
+        else:
+            C["plan_stall_shift"] = _na("oldest unresolved branch never released (dropped)")
+
+
 def _check(cond, **kw) -> dict:
     return dict(result="PASS" if cond else "FAIL", **kw)
 
@@ -216,6 +308,7 @@ def _na(why: str) -> dict:
 def audit_one(build_name: str, s_path: str, ann_path: str, S: int, F: int,
               scheme: int, timeout: int, keep: bool) -> dict:
     build = BUILDS[build_name]
+    gem5_common.GEM5_BIN = Path(build["bin"])    # used by _branch_ann_for_se
     s_path, ann_path = Path(s_path), Path(ann_path)
     stem = s_path.stem
     workdir = Path(tempfile.mkdtemp(prefix=f"hookaudit_{stem}_"))
@@ -224,7 +317,8 @@ def audit_one(build_name: str, s_path: str, ann_path: str, S: int, F: int,
         ann = json.loads(ann_path.read_text())
         binary = build_binary(s_path, workdir)
         base = _func_base_addr(binary, stem)
-        xmit_pc = ann.get("xmit", {}).get("pc")
+        xmit_pc = ann.get("xmit", {}).get("pc")             # Alloy pc (matches branch_pc)
+        xmit_addr = ann.get("xmit", {}).get("addr")         # x86 PC (what BR events use)
         fnc = (ann.get("commit_boundary") or {}).get("first_noncommitted") or {}
         fnc_pc = fnc.get("addr")
         brs = [dict(alloy_pc=e["branch_pc"], addr=int(e["branch_addr"]),
@@ -241,6 +335,12 @@ def audit_one(build_name: str, s_path: str, ann_path: str, S: int, F: int,
         V["ann_S"] = run("ann_S", _with_stalls(ann, True, S, 0))
         V["ann_R"] = run("ann_R", _with_stalls(ann, True, 0, S))
         V["fnc_F"] = run("fnc_F", None, fnc_pc, F) if fnc_pc else None
+        hooked = binary_has_resolve_hooks(Path(build["bin"]))
+        if hooked:
+            runp = lambda n, a: _run_variant(  # noqa: E731
+                build, workdir, n, binary, a, base, None, 0, scheme, timeout, plan=True)
+            V["plan_0"] = runp("plan_0", _with_stalls(ann, False, 0, 0))
+            V["plan_S"] = runp("plan_S", _with_stalls(ann, False, S, 0))
         errs = {k: v["error"] for k, v in V.items() if v and v.get("rc")}
         if errs:
             rec["status"] = "error"
@@ -337,21 +437,16 @@ def audit_one(build_name: str, s_path: str, ann_path: str, S: int, F: int,
         else:
             C["fnc_shift"] = _na("no fnc")
 
-        ev = V["ann_S"]["br_events"]
-        if ev:
-            holds = {e.get("pc") for e in ev if e["kind"] == "resolve_hold"}
-            need = {b["addr"] for b in unres}
-            fetched = {b["addr"] for b in unres if V["ann_S"]["ready"].get(hex(b["addr"]))
-                       or sq("ann_S", b["addr"])}
-            C["br_events"] = _check(fetched <= holds, holds=sorted(map(hex, holds)),
-                                    need=sorted(map(hex, need)))
+        if hooked:
+            _br_checks(C, V, brs, unres, mis, ann, xmit_addr, tpc, S)
         else:
             C["br_events"] = _na("binary prints no BR resolve lines")
 
         rec["status"] = "ok"
         rec["summary"] = {k: v["result"] for k, v in C.items()}
         if keep:
-            rec["variants"] = {k: {kk: vv for kk, vv in v.items() if kk != "pipeview"}
+            rec["variants"] = {k: {kk: vv for kk, vv in v.items()
+                                   if kk not in ("pipeview", "by_seq", "ready_by_seq")}
                                for k, v in V.items() if v}
         return rec
     except Exception as e:  # noqa: BLE001 — report, never hide

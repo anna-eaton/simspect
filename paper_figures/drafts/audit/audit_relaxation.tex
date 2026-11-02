@@ -1,0 +1,23 @@
+% Audit wrapper: renders one paper figure (\input from the read-only clone) with the paper's
+% fonts (IEEEtran.cls:494-496 sets rm=ptm, sf=phv, tt=pcr) and the paper preamble's packages,
+% libraries and colors (bare_conf_compsoc.tex:327-352). Captions/labels are dropped; the
+% figure body is boxed and its width/height printed to the log as relaxationSIZE.
+\documentclass[border=2pt]{standalone}
+\renewcommand{\rmdefault}{ptm}\renewcommand{\sfdefault}{phv}\renewcommand{\ttdefault}{pcr}
+\usepackage{xspace,amssymb,amsmath,tikz,xcolor,booktabs,array,makecell,colortbl}
+\usetikzlibrary{arrows.meta, positioning, calc, bending, fit, backgrounds, shapes.geometric, decorations.pathreplacing}
+\definecolor{ctarget}{HTML}{B3322C}\definecolor{copen}{HTML}{8E5A9B}\definecolor{calloy}{HTML}{2C5AA0}
+\definecolor{camulet}{HTML}{8C6D4B}\definecolor{cclean}{HTML}{2E8B57}\definecolor{cpipe}{HTML}{B8860B}
+\newcommand{\toolname}{SimSpect\xspace}
+\renewcommand{\cite}[1]{[1]}
+\AtBeginDocument{\setlength{\columnwidth}{252pt}\setlength{\textwidth}{516pt}\setlength{\linewidth}{252pt}\setlength{\hsize}{516pt}}
+\newsavebox{\figbox}
+\makeatletter
+\AtBeginDocument{\renewenvironment{figure}[1][]{\def\@captype{figure}\setlength{\linewidth}{252pt}\begin{lrbox}{\figbox}}{\end{lrbox}\typeout{relaxationSIZE W=\the\wd\figbox\space H=\the\dimexpr\ht\figbox+\dp\figbox\relax}\usebox{\figbox}}}
+\AtBeginDocument{\renewenvironment{figure*}[1][]{\def\@captype{figure}\setlength{\linewidth}{516pt}\begin{lrbox}{\figbox}}{\end{lrbox}\typeout{relaxationSIZE W=\the\wd\figbox\space H=\the\dimexpr\ht\figbox+\dp\figbox\relax}\usebox{\figbox}}}
+\renewcommand{\caption}[2][]{}
+\renewcommand{\label}[1]{}
+\makeatother
+\begin{document}
+\input{/private/tmp/claude-501/-Users-annaeaton-Documents-stanford-trippel-simspect/15c53160-c914-4164-9142-cacfcd307bbc/scratchpad/test-paper/tikz/relaxation}
+\end{document}

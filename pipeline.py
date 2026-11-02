@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 import zlib
 import os
 import re
@@ -512,6 +513,7 @@ def _aggregate_sweep_results(per_grid_results: dict, manifest: dict,
         per_grid_summary = []
         any_hit = False
         any_err = False
+        n_invalid = 0
         triggered = []
 
         for idx, stalls in enumerate(grid):
@@ -532,7 +534,11 @@ def _aggregate_sweep_results(per_grid_results: dict, manifest: dict,
             if hit:
                 any_hit = True
                 triggered.append(stalls)
-            if status not in ("ok", None):
+            # "invalid" (gem5_common execution-validity gate) is a valid
+            # result, not a crash: count it separately, never as an error.
+            if status == "invalid":
+                n_invalid += 1
+            elif status not in ("ok", None):
                 any_err = True
 
         sidecar = sweep_dir / (base_stem + "_sweep.json")
@@ -548,6 +554,7 @@ def _aggregate_sweep_results(per_grid_results: dict, manifest: dict,
             "status":           "ok" if not any_err else "error",
             "sweep_grid_size":  len(grid),
             "sweep_triggered":  len(triggered),
+            "sweep_invalid":    n_invalid,
         })
 
     return aggregated
@@ -756,7 +763,7 @@ def _phase_gem5_sweep(cfg: dict, model: str, ts_mode: Path, rs_mode: Path,
             for start in range(0, len(files), batch_sz):
                 batch_n += 1
                 batch = files[start : start + batch_sz]
-                batch_out = raw_dir / f"grid{grid_idx:04d}_batch{batch_n:04d}_{script}.json"
+                batch_out = raw_dir / f"{time.strftime('%Y%m%d%H%M%S')}_grid{grid_idx:04d}_batch{batch_n:04d}_{script}.json"
 
                 print(f"  grid {grid_idx} ({script}): "
                       f"{batch[0].stem} … {batch[-1].stem}  ({len(batch)} tests)")
@@ -881,6 +888,9 @@ def phase_asm_gem5_streaming(cfg: dict, model: str, ts_mode: Path,
         variant_dir.mkdir(parents=True, exist_ok=True)
 
     gem5_run_n = [0]  # unique counter for batch output files
+    # Per-invocation tag so a resumed run never overwrites earlier raw batch
+    # outputs (the only place full per-record fields survive on the sweep path).
+    run_tag = time.strftime("%Y%m%d%H%M%S")
 
     def _copy_hits(stems):
         if not stems:
@@ -935,7 +945,7 @@ def phase_asm_gem5_streaming(cfg: dict, model: str, ts_mode: Path,
                 grid_raw: list = []
                 for script, files in sorted(groups.items()):
                     gem5_run_n[0] += 1
-                    batch_out = raw_dir / f"s{gem5_run_n[0]:06d}_g{grid_idx:04d}_{script}.json"
+                    batch_out = raw_dir / f"{run_tag}_s{gem5_run_n[0]:06d}_g{grid_idx:04d}_{script}.json"
                     _run_checker_batch(stage3 / script, files, grid_subdir,
                                        batch_out, scheme, jobs, keep_tmp,
                                        env=checker_env)
@@ -965,7 +975,7 @@ def phase_asm_gem5_streaming(cfg: dict, model: str, ts_mode: Path,
                 groups.setdefault(script, []).append(sf)
             for script, files in sorted(groups.items()):
                 gem5_run_n[0] += 1
-                batch_out = rs_mode / f"batch_{gem5_run_n[0]:06d}_results.json"
+                batch_out = rs_mode / f"batch_{run_tag}_{gem5_run_n[0]:06d}_results.json"
                 _run_checker_batch(stage3 / script, files, ann_dir,
                                    batch_out, scheme, jobs, keep_tmp,
                                    env=checker_env)

@@ -2,9 +2,37 @@
 
 *Shown on the status dashboard (linked from `STATUS.md`). The hot decisions blocking the active
 Alloy two-stage / minimality workstream. Full backlog: [`TODO.md`](TODO.md).*
-**Updated:** 2026-10-30
+**Updated:** 2026-11-02
 
 ---
+
+## 📄 Paper figures (2026-11-02) → plans in [`paper_figures/plans/`](paper_figures/plans/)
+
+- [ ] DECIDE: Alloy models do NOT share one verbatim skeleton: fact `rf_from_most_recent_writer` (`STT_6.als:161-169`) is in the STT_6 family (STT_6, _stl, _interleave, _futuristic, _commitsplit, _core, _multisource, STT_all) but absent from Recon_6, SPT_6, SPT_6_full, SPT_6_oneLP(_noSTLF), STT_6_pincommit, STT_6_modified_protset; `specs/alloy_models.json:43,58,63` claims otherwise. Align the models (an .als change → your sign-off) or qualify any "same skeleton + defense block" claim in the paper?
+- [ ] DECIDE: probe array: `parsexml.py:2079` comment says 256 slots × 64 B (cache-line stride) but the code is `[256 x i64]` (`_PROBE_MEM_BYTES = 256*8`, :1063) indexed at byte stride (`movq ($1,$2,1)`, :2152), so byte values 0–255 hit only 4 lines. Checkers don't use line identity, so results shouldn't change. Fix the comment, or change the stride (parsexml change → regen)?
+- [ ] DECIDE: fig (d) instrumentation table: which timing values the paper states (fixed configs s_U=5000, s_R∈{0,500,2500}, fnc stall 0 vs prose s_U=0, fnc {0,150}); whether it replaces `sptable_v2` + `resolutiontiming_v2`; keep the STL row only once the STL window checker + campaign exist. Details: `paper_figures/plans/fig_d_instrtable.md`.
+- [ ] DECIDE: InvisiSpec footprint checker (`STAGE3_gem5/check_footprint.py`, `specs/leakage/invisispec.json`) counts a footprint from ANY squashed load younger than lc inside the window, not only the target transmitter (in fixture `inv_uv1` seqs 566/573/576 all leave footprints; earliest is seq 566 at cycle 16). Paper + figures frame the signal as the transmitter's. Restrict to the xmit, or reframe the criterion in the paper? Also: present footprint criterion (fig e draft) vs the old expose-tick criterion still described at `pipeline.tex:63`. Details: `paper_figures/plans/fig_e_checkerwindow.md`.
+- [ ] DECIDE: fig (c) interleave: the caption says "Alloy interleave phase", but STT_6 cannot emit a two-source merge (`specs/alloy_models.json:15`) and you decided 10-30 that OTB comes from `parsexml:pass_interleave`. Redraw as the concretization round (recommended: chain of 2+ unflagged steps after the first uncommitted instruction, "?" for I4's 2nd source) or keep it neutral and fix the caption? Also confirm the reg0 rf correction. Details: `paper_figures/plans/fig_c_interleave.md`.
+- [ ] DECIDE: fig (b) relaxation: merge old Fig 2 (`fig:ddi-rf`) into the new one-program relaxation figure (recommended; saves ~350pt), and OK to use stale-testset instance `testsets/STT_6/xml/inst-047231.xml` (it violates the current STT_6 minimality rules, which is why it shows redundancy)? Details: `paper_figures/plans/fig_b_relaxation.md`.
+- [ ] DECIDE: fig (a) execution-graph syntax: TikZ figure with example graph (recommended) vs inline table; adopt its notation for all graph figures (restyle fig:ddi-rf, fig:four-panes, fig:interleave)? Details: `paper_figures/plans/fig_a_execgraphsyntax.md`.
+
+
+## 🚩 Fixed harness (2026-10-30 / 11-02) → [`wiki/findings/bug/BRANCH_ANNOTATION_AND_FORCE.md`](wiki/findings/bug/BRANCH_ANNOTATION_AND_FORCE.md)
+
+- [ ] DECIDE: gate on `criteria.resolved_before_signal` (a leak must happen after every resolved branch actually resolved) or keep it reported only? Today it is reported only, so it never removes a hit. Recommendation: keep it reported until we see how many hits it would remove.
+- [ ] DECIDE: review `STAGE1_alloy/models/STT_6_commitsplit.als` (diff vs STT_6 in the 2026-10-30 session; a 20k/mode candidate testset is already generated and ran 0 hits on /work/stt).
+- [ ] DECIDE: amulet-InvisiSpec panics on every run (`Invalid range for type MachineType`) since the 10-30 rebuild picked up the stalled hooks-v2 Ruby edits. Roll the binary back to `gem5.opt.simspect-hooks-v1-resolve-20261030`, or finish hooks-v2 first?
+- [ ] DECIDE: which round-2 hits to triage first: SPT br_x (28 | 22 tests, new since annotations load on gem5-spt), SPT ld (336 | 264, includes the known const-addr artifact), or the 7 recon-modded ld tests?
+- [ ] Anna: `scripts/archive_results_pre_resolve_hooks.sh --delete` in the container (zip verified; originals still there).
+
+## 🚩 Threat model + Futuristic model (2026-10-30) → [`wiki/design/FUTURISTIC_MODEL.md`](wiki/design/FUTURISTIC_MODEL.md)
+
+- [ ] DECIDE: review `STAGE1_alloy/models/STT_6_futuristic.als` (new copy of STT_6; contract = uncommitted & after any not-yet-completed instruction). Visibility point = all older **completed** (as /work/stt does) or all older **committed** (ROB head)? Recommendation: completed.
+- [ ] DECIDE: also make `STT_6_shadows.als` (branch + store sources only), the model matching what the Recon builds actually protect? Recommendation: yes. Their STT results should be judged against it, not against Spectre-only STT_6.
+- [ ] DECIDE: how to hold a non-branch, non-store source incomplete in gem5 for Futuristic tests: a completion-hold hook by PC, or naturally slow instructions (div chain, cache miss)? Recommendation: the hook.
+- [ ] DECIDE: names for the two STTs in results and the paper: **STT-Spectre** (`/work/stt`) vs **Recon-STT** (`gem5-recon*` scheme 2), or something else? Also whether to read amulet-STT's code to place it. Evidence: `wiki/design/STT_VS_RECON_STT.md`.
+- [ ] DECIDE: fix the check_ld gate on Recon builds (add the `Memory request … was sent` line to `parse_lsq`) and re-score past recon results? → [`wiki/findings/bug/recon_cache_reach_gate/README.md`](wiki/findings/bug/recon_cache_reach_gate/README.md). Recommendation: yes; it's additive.
+- [ ] DECIDE: `stl_bypass` now annotates every load of the held store's location, not only the first (it changed the alias control from leaky to clean). OK as the semantics, "the predictor says no-alias for every true alias"?
 
 ## 🟠 Footprint-defense audit decisions (2026-10-30, full detail in [`wiki/findings/audits/2026-10-28/APPROVALS.md`](wiki/findings/audits/2026-10-28/APPROVALS.md))
 

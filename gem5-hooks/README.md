@@ -20,7 +20,7 @@ as uncommitted/untracked changes in an **ephemeral container**; this directory c
 | `/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1` | no git (AMuLeT AE artifact) | `amulet-InvisiSpec/simspect_hooks.diff` (`diff -ruN` pristine vs hooked, 2026-10-28) | SimSpect cache-event hooks: SLICC peek/doTransition codegen, CacheMemory, TBETable, x86 TLB, ROB squash, Sequencer SB, AbstractController LLC-SB, LSQ squash |
 | `/work/amulet/amulet-gem5-CleanupSpec_AE-v1.1` | no git (AMuLeT AE artifact) | `amulet-CleanupSpec/simspect_hooks.diff` (2026-10-28) | SimSpect cache-event hooks: same Ruby set as InvisiSpec + LSQ cleanup decisions (`cleanup_skip`/`cleanup_done`) |
 | `/work/amulet/amulet-gem5-SpecLFB_AE-v1.1` | no git (AMuLeT AE artifact) | `amulet-SpecLFB/simspect_hooks.diff` (2026-10-28) | SimSpect cache-event hooks: classic BaseCache fill/evict/inv, tags LRU touch, LFB refillBlocks, ROB squash |
-| **SimSpect-STL (not yet in any build)** | gem5 v22.0.0.2 reference | `stl/apply_stl_hooks.py` (anchor-based inserter) + `stl/stl_hooks_vs_gem5_v22.0.0.2.diff` (reference diff) | o3 `iew.{hh,cc}` store address-generation hold, `mem_dep_unit.{hh,cc}` prediction override, `BaseO3CPU.py` params, `Options.py` + `se.py` flags `--stl-ann-file` / `--stl-store-stall-cycles` / `--stl-alias-pred`. Written 2026-10-28, not applied or built anywhere. See `wiki/design/STL_SPECULATION.md`. |
+| **SimSpect-STL** | `/work/gem5-recon-stl` (built 2026-10-30) | `stl/apply_stl_hooks.py` (anchor-based inserter) + `stl/stl_hooks_vs_gem5-recon-modded.diff` (the applied diff; `stl_hooks_vs_gem5_v22.0.0.2.diff` is the older upstream reference, before the 2026-10-30 barrier/alias fixes) + `stl/stl_hooktest.py` (control-run driver) | o3 `iew.{hh,cc}` store address-generation hold, `mem_dep_unit.{hh,cc}` prediction override, `BaseO3CPU.py` params, `Options.py` + `se.py` flags `--stl-ann-file` / `--stl-store-stall-cycles` / `--stl-alias-pred`. Built into `/work/gem5-recon-stl` only; controls pass. See `wiki/design/STL_SPECULATION.md`. |
 | `/work/sdo` | git, cwfletcher/sdo @ `5d058fd` | clean (no hooks) | — |
 
 ## Key fact: Recon base vs change (per owner, 2026-10-20)
@@ -52,3 +52,11 @@ Print-only hooks that emit `O3PipeView:simspect:...` lines (cache fills, evictio
 - Pristine sources: `/work/amulet/backups/<build>-pre-simspect-hooks-20261028.tgz` (cafe2 container). InvisiSpec/CleanupSpec tarballs extract in the build root (paths `src/...`); the SpecLFB one extracts in `src/`. Pre-hook binary: `build/<ISA>/gem5.opt.pre-simspect-hooks-20261028` in each tree.
 - Re-apply: from the build root, `patch -p1 < amulet-<build>/simspect_hooks.diff`, then `gem5-hooks/verify/build_simspect_hooks.sh <build>` (scons -j12; log `/work/amulet/rebuild_<build>_simspect_hooks_20261028.log`).
 - Verify: `gem5-hooks/verify/run_all_verify.sh` (all cases) / `verify_simspect_hooks.py` (one case; see the wiki page, "How to verify"); hand gadgets `verify/uv6x.s`, `verify/uv6dep.s`; annotation maker `verify/mkann.py`.
+
+## SimSpect resolve hooks (2026-10-30, all 8 hooked builds)
+
+BR resolve lines (`predict_force`, `resolve_hold/drop/release/bcast`, `resolve_visible`), forced target 1 = predict not-taken, and the release waking the CPU. Full spec and verification: [`wiki/design/RESOLUTION_HOOKS.md`](../wiki/design/RESOLUTION_HOOKS.md).
+
+- Generator: `resolve/apply_resolve_hooks.py <gem5_root>` (anchor-based, idempotent). Rebuild + backup: `resolve/rebuild_resolve_hooks.sh <build>`.
+- Captured diffs: `<build>/resolve_hooks.diff` (live files vs the originals in `/work/simspect_backups/resolve-hooks-20261030/<build>-src.tgz`). ⚠️ For amulet-InvisiSpec and amulet-CleanupSpec the `iew_impl.hh` hunk also contains about 31 lines from the concurrent hooks-v2 session's edits (2026-10-30 19:38–19:48), because the diff is taken against the pre-resolve original. Only the hunks marked `SimSpect resolve hooks` / `SimSpect resolve wake` are from these hooks.
+- Binaries per build: `build/<ISA>/gem5.opt.pre-resolve-hooks-20261030` (before), `.resolve-print-only-20261030` (edits 1-3), `gem5.opt` (edits 1-4).

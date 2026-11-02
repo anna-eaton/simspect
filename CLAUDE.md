@@ -65,6 +65,14 @@ When work reaches a genuinely hard decision, Claude brings it to Anna instead of
 - **Bar:** "would deciding this teach Anna something or shape the research outcome?" Routine or mechanical choices with a conventional default still just get done.
 - The final block of a turn lists any hard decisions that are pending or were surfaced.
 
+## Alloy model structure: the defense lives in the defense block; everything else is duplicated (Anna, 2026-10-30)
+
+Every Alloy model is **shared skeleton + a small defense-definition block**. The definition of a defense lives in **three clauses** at the bottom of the model (the "Specific defense model" block, e.g. `STT_6.als:320-332`): (1) the **speculation contract** (`speculation_contract_p` — what is speculative), (2) the **protection set** (`hardware_protection_policy` + `prot_set_propagation_p` — what is protected and how it propagates), and (3) the **leakage / transmitter function** (`leakage_function` — what can transmit). Everything else in the `.als` (sigs, spo/rf/ddi structure, the perturbation machinery, `secure_speculation_scheme_p`, `gen_useful_litmus`, symmetry-breaking, scope) is **duplicated verbatim across all models** — shared boilerplate, not per-model content.
+
+- When creating a model or variant, change **only** those three defense clauses; copy everything else unchanged. A new defense = a new defense block on the same skeleton.
+- A **protection-set update** (e.g. A1 — making the protection set match the paper) is an edit to clause (2) **only**, and is a **separate concern** from generation / minimality / interleave — treat it as its own task, never folded into a two-stage or minimality change. If the protection sets need re-evaluating against the papers, have an agent investigate it and record it in `STATUS.md` as its own issue.
+- This keeps every model diffable down to its defense and stops the skeleton silently drifting between models.
+
 ## Directives mirrored from `~/Documents/CLAUDE.md` (home of these rules)
 
 These rules live in `~/Documents/CLAUDE.md`. They're copied here so that sessions on cafe2 or the mini, which don't load that file, still follow them. If the two copies ever disagree, the Documents copy wins.

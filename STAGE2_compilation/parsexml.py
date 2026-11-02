@@ -993,7 +993,11 @@ def pass2_6_specify_stl(pass25_result: Dict[str, Any]) -> Dict[str, Any]:
     Mem_s atom m, the bypass load L is the first uncommitted load after S that
     reads m (inmem physical == m) before any other store writes m. That is the
     same "most recent writer" rule as STT_6's rf facts, so L is at or before the
-    load the model's stl_alias_pair fact names.
+    load the model's stl_alias_pair fact names. Every later load in that range
+    that also reads m is tagged role "alias_load" with the same pair id: it
+    truly aliases S too, so it gets the same forced prediction (it may be the
+    one that feeds the transmitter). emit_branch_annotations keeps the ones
+    whose runtime address equals S's (_stl_alias_load_matches).
 
     Pairs are tagged on the instruction records (rec["stl_annotation"], with a
     shared "pair" id) rather than by PC, because pass_interleave renumbers PCs.
@@ -1014,18 +1018,19 @@ def pass2_6_specify_stl(pass25_result: Dict[str, Any]) -> Dict[str, Any]:
         m = _specified_physical(s, "outmem")
         if m is None:
             raise ValueError(f"stl_bypass: unresolved store pc={s['pc']} has no specified outmem")
-        load = None
+        loads = []
         for t in instructions[i + 1:]:
             if t.get("kind") == "str" and _specified_physical(t, "outmem") == m:
                 break  # another writer of m comes first
             if (t.get("kind") == "ld" and not t.get("committed", False)
                     and _specified_physical(t, "inmem") == m):
-                load = t
-                break
-        if load is None:
+                loads.append(t)
+        if not loads:
             raise ValueError(f"stl_bypass: unresolved store pc={s['pc']} ({m}) has no aliasing load")
         s["stl_annotation"] = {"role": "store", "pair": n_pairs, "mem_atom": m}
-        load["stl_annotation"] = {"role": "bypass_load", "pair": n_pairs, "mem_atom": m}
+        loads[0]["stl_annotation"] = {"role": "bypass_load", "pair": n_pairs, "mem_atom": m}
+        for t in loads[1:]:
+            t["stl_annotation"] = {"role": "alias_load", "pair": n_pairs, "mem_atom": m}
         n_pairs += 1
 
     if n_pairs == 0:
@@ -1037,14 +1042,20 @@ def pass2_6_specify_stl(pass25_result: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _stl_pairs(instructions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """[{pair, store_pc, load_pc, mem_atom}] from the pass2_6 tags (current PCs)."""
+    """[{pair, store_pc, load_pc, alias_load_pcs, mem_atom}] from the pass2_6
+    tags (current PCs). load_pc is the bypass load; alias_load_pcs the later
+    loads of the same Mem_s (unfiltered; see _stl_alias_load_matches)."""
     by_pair: Dict[int, Dict[str, Any]] = {}
     for rec in instructions:
         tag = rec.get("stl_annotation")
         if not tag:
             continue
-        e = by_pair.setdefault(tag["pair"], {"pair": tag["pair"], "mem_atom": tag["mem_atom"]})
-        e["store_pc" if tag["role"] == "store" else "load_pc"] = rec["pc"]
+        e = by_pair.setdefault(tag["pair"], {"pair": tag["pair"], "mem_atom": tag["mem_atom"],
+                                             "alias_load_pcs": []})
+        if tag["role"] == "alias_load":
+            e["alias_load_pcs"].append(rec["pc"])
+        else:
+            e["store_pc" if tag["role"] == "store" else "load_pc"] = rec["pc"]
     return [by_pair[k] for k in sorted(by_pair)]
 
 
@@ -1206,7 +1217,34 @@ def _stl_store_retargets(pass4_result: Dict[str, Any]) -> Dict[int, Dict[str, An
         if not -(1 << 31) <= disp < (1 << 31):
             raise ValueError(f"stl_bypass: store pc={s['pc']} displacement {disp} out of range")
         override[s["pc"]] = (l_space, l_addr)
-        out[s["pc"]] = {"space": l_space, "disp": disp, "index_ssa": s_idx_ssa}
+        out[s["pc"]] = {"space": l_space, "disp": disp, "index_ssa": s_idx_ssa,
+                        "addr": l_addr}
+    return out
+
+
+def _stl_alias_load_matches(pass4_result: Dict[str, Any]) -> Dict[int, List[int]]:
+    """{pair: [alias_load_pc, ...]} keeping only the alias loads whose runtime
+    address equals their store's (as emitted, after _stl_store_retargets). An
+    alias load addressed through a specified inaddr can land elsewhere at
+    runtime; it does not alias S there, so it gets no forced prediction."""
+    instructions = pass4_result["instructions"]
+    alloca_n = pass4_result["alloca_total_slots"]
+    by_pc = {rec["pc"]: rec for rec in instructions}
+    retargets = _stl_store_retargets(pass4_result)
+    override = {pc: (r["space"], r["addr"]) for pc, r in retargets.items()}
+    out: Dict[int, List[int]] = {}
+    for p in _stl_pairs(instructions):
+        s = by_pc[p["store_pc"]]
+        target = override.get(s["pc"]) or _mem_addr_of(s, "outmem", {})[:2]
+        keep = []
+        for a_pc in p["alias_load_pcs"]:
+            try:
+                vals = _stl_arch_values(instructions, a_pc, alloca_n, override)
+            except ValueError:
+                continue  # past an architecturally taken branch: address unknown
+            if _mem_addr_of(by_pc[a_pc], "inmem", vals)[:2] == target:
+                keep.append(a_pc)
+        out[p["pair"]] = keep
     return out
 
 
@@ -2605,12 +2643,17 @@ def emit_branch_annotations(
             payload["commit_boundary"] = cb_payload
         # stl_bypass only: (store, bypass load) pairs for the gem5 STL hooks
         # (--stl-ann-file). compile_annotate.py adds store_addr / load_addr.
+        # One entry per aliasing load: role "bypass" (the first one, pair[0])
+        # then role "alias" for later loads of the same location.
         stl = _stl_pairs(result["instructions"])
         if stl:
+            alias = _stl_alias_load_matches(result)
             payload["stl_annotations"] = [
-                {"store_pc": p["store_pc"], "load_pc": p["load_pc"],
+                {"store_pc": p["store_pc"], "load_pc": l_pc, "role": role,
                  "mem_atom": p["mem_atom"], "mode": "stl_bypass"}
                 for p in stl
+                for l_pc, role in ([(p["load_pc"], "bypass")]
+                                   + [(a, "alias") for a in alias[p["pair"]]])
             ]
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)

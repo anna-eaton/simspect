@@ -29,15 +29,30 @@ def check_other(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle, lsq_
     fnc_retire    = fnc_rec["retire"]    if fnc_rec  else 0
     fnc_complete  = fnc_rec["complete"]  if fnc_rec  else 0
 
+    # Mirror check_ld (2026-10-30): a specified last-committed predecessor must
+    # actually retire, else the run is not the execution the model describes.
+    lc_unretired_but_specified = (lc_pc is not None) and (lc_retire == 0)
+
     after_lc   = (lc_retire == 0) or (xmit_complete > lc_retire)
     before_fnc = (fnc_retire == 0) or (xmit_complete < fnc_retire)
     branches_unresolved, branch_details = check_branch_resolutions(
         by_pc, xmit_complete, unresolved, ticks_per_cycle)
-    issued_in_window = ((xmit_complete > 0) and after_lc and before_fnc
+    issued_in_window = (not lc_unretired_but_specified
+                        and (xmit_complete > 0) and after_lc and before_fnc
                         and branches_unresolved)
+
+    criteria = dict(
+        lc_retired=not lc_unretired_but_specified,
+        signal_seen=xmit_complete > 0,
+        after_lc=after_lc,
+        before_fnc=before_fnc,
+        branches_unresolved=branches_unresolved,
+    )
 
     return dict(
         issued_in_window=issued_in_window,
+        criteria=criteria,
+        lc_unretired_but_specified=lc_unretired_but_specified,
         xmit_issue=xmit_issue,
         xmit_complete=xmit_complete,
         lc_retire=lc_retire,

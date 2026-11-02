@@ -15,6 +15,12 @@
    "caveat": "The per-branch minimality clause means it STRUCTURALLY CANNOT emit a two-source (in-degree>=2) merge (~99.6% single-source). See OTB_GENERATION_GAP.md; STT_6_multisource/bugsynth exist to work around this.",
    "aliases": "STT_6_interleave, STT_all (symlinks); interleave is a config/parsexml knob, not a separate model"
   },
+  "STT_6_futuristic": {
+    "tier": "variant",
+    "summary": "STT_6 under STT's Futuristic threat model: any older instruction that has not COMPLETED is a speculation source (isresolved = completed, for every kind), not only branches. Contract uncommitted & has_unresolved_any; loads past the VP declassify. Matches /work/stt --threatModel=Futuristic (isPrevInstsCompleted, rob_impl.hh:493-512).",
+    "intention": "Test STT-Futuristic builds (/work/stt with threatModel Futuristic). NOT for gem5-recon*/STT, whose threat model is control+store shadows only.",
+    "caveat": "2026-10-30: written + SAT (500 instances in 7s), not reviewed by Anna, no concretization mode yet (non-branch/non-store sources need a completion-hold hook). See wiki/design/FUTURISTIC_MODEL.md."
+  },
   "STT_6_stl": {
    "tier": "variant",
    "summary": "STT_6 with the speculation source switched from unresolved branches to unresolved-ADDRESS stores (store-to-load / memory-dependence speculation, STT Futuristic visibility point). Control-flow speculation off (all branches resolved). Requires a true alias: a load at or before the xmit reads the Mem_s an older unresolved store writes (false-negative alias prediction).",

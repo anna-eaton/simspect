@@ -1,0 +1,99 @@
+\documentclass[tikz,border=1pt]{standalone}
+\usepackage{newtxtext,newtxmath} % preview only (matches the paper's Times); when \input'd the figure inherits the paper font
+\renewcommand{\ttdefault}{pcr}   % preview only: the paper's IEEEtran sets tt = Courier (IEEEtran.cls:496); newtxtext would swap in a narrower typewriter
+\usetikzlibrary{calc}
+
+% Draft v3 of fig:interleave (paper tikz/interleave.tex, \input at sections/pipeline.tex:33).
+% Same program, flags and edges as the original, redrawn in the shared visual language
+% (paper_figures/plans/VISUAL_LANGUAGE.md). Plan + provenance + open decisions:
+% paper_figures/plans/fig_c_interleave.md. One change to the drawn graph is flagged there (D2):
+% the reg0 rf edge now leaves I1's output reg0 (not mem 0), with a ddi mem 0 -> reg0 inside I1,
+% because rf in STT_6.als:156 runs only from an output operand to an input operand of the same
+% state (STT_6.als:159) and load ddi is inmem -> outreg (STT_6.als:171).
+
+% ============================ TUNING KNOBS ============================
+\def\rowp{13pt}      % baseline-to-baseline pitch of the program rows
+\def\cop{4}          % column (in characters) where the opcode starts
+\def\cdst{12.5}      % column of the destination operand
+\def\carr{17.4}      % column of the <- arrow
+\def\csrc{20}        % column of the first source operand
+\def\crail{31.6}     % column of the long rf rail (right of every row)
+\def\cflr{34.4}      % column of the r flag
+\def\cflc{36.4}      % column of the c flag
+\def\cbr{-0.9}       % column of the "added" bracket
+\def\domeA{9pt}      % control-point height of the ddi arcs in I1 and I3 (room above: short branch rows)
+\def\domeB{4.4pt}    % control-point height of the ddi arc in I4 (stays under the incoming rf)
+\def\gdrop{1.2pt}    % how far an rf line drops below its source operand before turning
+\def\keygap{2pt}     % gap between the key line and the first row
+% ======================================================================
+
+\begin{document}
+% width of one typewriter character at the body size; every column is a multiple of it
+\setbox0=\hbox{\footnotesize\ttfamily 0}\edef\cw{\the\wd0}
+\begin{tikzpicture}[
+  >=latex,
+  every node/.style={font=\footnotesize, inner sep=0pt,
+    execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000}},
+  tok/.style={font=\footnotesize\ttfamily, anchor=base west},
+  mem/.style={tok, draw, inner sep=0.9pt},
+  lab/.style={font=\scriptsize\itshape},
+  flag/.style={anchor=base},
+]
+\newcommand{\tk}[4]{\node[tok] (#1) at ({(#2)*\cw},{-(#3)*\rowp}) {#4};}
+
+% ------------------------------ program ------------------------------
+% I0 (added)
+\tk{l0}{0}{0}{I0:}  \tk{o0}{\cop}{0}{branch\_n}
+% I1 (added)
+\tk{l1}{0}{1}{I1:}  \tk{o1}{\cop}{1}{load}  \tk{d1}{\cdst}{1}{reg0}
+\node[tok] at ({\carr*\cw},{-1*\rowp}) {$\leftarrow$};
+\node[mem] (m1) at ({\csrc*\cw},{-1*\rowp}) {mem 0};
+% I2
+\tk{l2}{0}{2}{I2:}  \tk{o2}{\cop}{2}{branch\_n}
+% I3
+\tk{l3}{0}{3}{I3:}  \tk{o3}{\cop}{3}{load}  \tk{d3}{\cdst}{3}{reg1}
+\node[tok] at ({\carr*\cw},{-3*\rowp}) {$\leftarrow$};
+\node[mem] (m3) at ({\csrc*\cw},{-3*\rowp}) {mem 1};
+% I4
+\tk{l4}{0}{4}{I4:}  \tk{o4}{\cop}{4}{other\_n}  \tk{d4}{\cdst}{4}{reg2}
+\node[tok] at ({\carr*\cw},{-4*\rowp}) {$\leftarrow$};
+\tk{s4a}{\csrc}{4}{reg1}  \tk{s4c}{\csrc+4}{4}{,}  \tk{s4b}{\csrc+6}{4}{reg0}
+% I5
+\tk{l5}{0}{5}{I5:}  \tk{o5}{\cop}{5}{load}  \tk{d5}{\cdst}{5}{?}
+\node[tok] at ({\carr*\cw},{-5*\rowp}) {$\leftarrow$};
+\tk{s5o}{\csrc}{5}{[}  \tk{s5}{\csrc+1}{5}{reg2}  \tk{s5c}{\csrc+5}{5}{]}
+
+% ------------------------- resolved / committed -------------------------
+\foreach \row/\fr/\fc in {0/r/c, 1/r/c, 2//, 3/r/, 4/r/, 5/r/} {
+  \node[flag] at ({\cflr*\cw+0.5*\cw},{-\row*\rowp}) {\fr};
+  \node[flag] at ({\cflc*\cw+0.5*\cw},{-\row*\rowp}) {\fc};
+}
+\node[lab, anchor=base east] at ({\cflc*\cw+1*\cw},{\rowp-\keygap}) {r = resolved,\ c = committed};
+
+% ------------------------------- edges -------------------------------
+% Convention: an arc above a row is a ddi edge (inside one instruction); a routed line
+% between rows is an rf edge (output operand of one instruction -> input operand of a later one).
+% ddi inside I1 and I3 (inmem -> outreg)
+\draw[->] (m1.north) .. controls +(0,\domeA) and +(0,\domeA) .. (d1.north)
+  node[lab, pos=0.5, above=0.6pt] {ddi};
+\draw[->] (m3.north) .. controls +(0,\domeA) and +(0,\domeA) .. (d3.north)
+  node[lab, pos=0.5, above=0.6pt] {ddi};
+% ddi inside I4 (reg1 -> reg2): a low arc that stays under the rf landing on reg1
+\draw[->] ($(s4a.north west)+(0.6*\cw,0)$) .. controls +(0,\domeB) and +(0,\domeB) .. ($(d4.north east)+(-0.6*\cw,0)$);
+% rf I3.reg1 -> I4.reg1
+\draw[->] (d3.south) -- ++(0,-\gdrop) -| ($(s4a.north)+(0.7*\cw,0)$);
+% rf I4.reg2 -> I5.reg2
+\draw[->] (d4.south) -- ++(0,-\gdrop) -| (s5.north);
+% rf I1.reg0 -> I4.reg0: under I1, then down the rail right of every row
+\coordinate (rail) at ({\crail*\cw},0);
+\draw[->] (d1.south) -- ++(0,-\gdrop) coordinate (g1) -- (g1 -| rail) -- ($(rail |- s4b.center)$) -- (s4b.east);
+\node[lab, anchor=west] at ($(rail |- l3.base)+(1.2pt,0)$) {rf};
+
+% ------------------------- added-instruction bracket -------------------------
+\coordinate (bt) at ({\cbr*\cw},{0.72*\rowp});
+\coordinate (bb) at ({\cbr*\cw},{-1*\rowp-0.3*\rowp});
+\draw ($(bt)+(0.45*\cw,0)$) -- (bt) -- (bb) -- ($(bb)+(0.45*\cw,0)$);
+\node[lab, anchor=east, align=right] at ($(bt)!0.5!(bb)+(-1.5pt,0)$) {added by\\interleaving};
+
+\end{tikzpicture}
+\end{document}

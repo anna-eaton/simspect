@@ -1,0 +1,59 @@
+// STT_6_commitsplit testset + fixed-harness campaign on /work/stt (2026-10-30).
+// Model STT_6_commitsplit.als is AWAITING ANNA'S REVIEW: this testset is a candidate, not a result.
+// max_instances 20000; otherwise as STT_6_stt_fixed.jsonc. Design: wiki/design/COMMIT_BOUNDARY.md §5.
+{
+  "paths": {
+    "alloy_stage": "STAGE1_alloy",
+    "models_dir": "STAGE1_alloy/models",
+    "stage2_dir": "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir": "STAGE3_gem5",
+    "testset_dir": "testsets",
+    "results_dir": "results",
+    "results_name": "STT_6_commitsplit_stt_fixed"
+  },
+  "alloy": {
+    "max_instances": 20000,
+    "batch_size": 1000
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow": false,
+    "branch_modes": [
+      "mispredict_not_taken",
+      "mispredict_taken"
+    ]
+  },
+  "gem5": {
+    "binary": "/work/stt/build/X86/gem5.opt",
+    "config_script": "/work/stt/configs/example/se.py",
+    "branch_ann_enable": true,
+    "cpu_type": "DerivO3CPU",
+    "scheme": 2,
+    "caches": true,
+    "jobs": 16,
+    "debug_flags": [
+      "O3PipeView",
+      "LSQUnit"
+    ],
+    "debug_file": "pipeview.txt",
+    "fnc_commit_stall_cycles": 0,
+    "sample_fraction": 0.1
+  },
+  "sweep": {
+    "enabled": true,
+    "points": [
+      0,
+      500,
+      2500
+    ],
+    "unresolved_stall_cycles": 5000
+  },
+  "pipeline": {
+    "check": "per_type",
+    "keep_tmp": false
+  },
+  "interleave": {
+    "enabled": false
+  }
+}

@@ -1,0 +1,118 @@
+\documentclass[tikz,border=1pt]{standalone}
+\usepackage{newtxtext,newtxmath} % preview only (matches the paper's Times); when \input'd the figure inherits the paper font
+\usetikzlibrary{calc}
+
+% Minifig (b): relaxation / minimality. Draft v3; candidate merge with old Fig. 2 (tikz/alloyviolation.tex,
+% the ddi/rf violation listing): the black part shows the violation, the red part the relaxations (see plan).
+% ONE real program: testsets/STT_6/xml/inst-047231.xml (local copies:
+% testsets/DEMO_corpus/xml/inst-047231.xml, wiki/findings/bug/stt_slowcomm_vp_squash_race/inst-047231.xml),
+% rows in spo order (Alloy atom -> row: Instruction$5=I0, $4=I1, $3=I2, $2=I3, $1=I4, $0=I5;
+% Reg_s$0=r0, Reg_s$1=r1, Mem_s$0=m0). Black = the violation (minimal backbone); red = components
+% that the relaxations remove while the execution still violates. Every red mark was checked by
+% evaluating secure_speculation_scheme_p[<perturbation>] on this XML against STAGE1_alloy/models/STT_6.als.
+% Sources and the check are in paper_figures/plans/fig_b_relaxation.md. To use in the paper, copy
+% everything between the "FIGURE BODY" markers into a new tikz/ file inside a figure env.
+
+\begin{document}
+% ============================== FIGURE BODY ==============================
+% ============================ TUNING KNOBS ============================
+\definecolor{rlxred}{HTML}{B3322C}% THE red: redundant components (same hex as the preamble's ctarget, bare_conf_compsoc.tex:347)
+\def\rldefshade{black!12}% gray = defense-specific (here: m0 is in STT's protection set)
+\def\rlidx{0.30cm}% x of the right edge of the I0..I5 labels
+\def\rlop{0.42cm}% x where instruction types start
+\def\rlout{1.50cm}% x of the output-operand column
+\def\rlarr{1.86cm}% x of the <- arrow
+\def\rlin{2.26cm}% x of the input-operand column
+\def\rlgut{2.95cm}% x of the gutter that carries the I0 -> I4 rf edge
+\def\rlflag{3.27cm}% x of the r flag column (c and t follow)
+\def\rlflagdx{0.28cm}% spacing of the r / c / t flag columns
+\def\rlnote{4.18cm}% x where the explanations start
+\def\rlnotew{4.50cm}% text width of the explanations (keep the rendered width <= 252pt)
+\def\rlrow{0.56cm}% vertical pitch between rows
+\def\rlddigap{0.16cm}% extra space above I3 (room for its ddi arc)
+\def\rlrfgap{0.10cm}% extra space above I5 (room for the I3 -> I5 rf edge)
+% ======================================================================
+\begin{tikzpicture}[
+  >=latex,
+  every node/.style={font=\footnotesize, inner sep=0pt},
+  execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000},
+  rltok/.style={anchor=base west, inner sep=0pt, outer sep=0.4pt},
+  rllab/.style={font=\scriptsize\itshape},
+  rlnote/.style={font=\scriptsize\itshape, anchor=base west, align=left, text width=\rlnotew},
+  rlrf/.style={->},
+  rlddi/.style={->, densely dashed},
+  rlflag/.style={circle, fill, inner sep=0pt, minimum size=2.4pt},
+  rlhole/.style={circle, draw=rlxred, line width=0.5pt, inner sep=0pt, minimum size=2.6pt},
+]
+
+% ----------------------------- row baselines -----------------------------
+\path (0,0) coordinate (y0)
+      ($(y0)+(0,-\rlrow)$) coordinate (y1)
+      ($(y1)+(0,-\rlrow)$) coordinate (y2)
+      ($(y2)+(0,-\rlrow-\rlddigap)$) coordinate (y3)
+      ($(y3)+(0,-\rlrow)$) coordinate (y4)
+      ($(y4)+(0,-\rlrow-\rlrfgap)$) coordinate (y5);
+\foreach \k in {2,3,5} \node[rllab, anchor=base east] at (\rlidx,0 |- y\k) {I\k};
+\foreach \k in {0,1,4} \node[rllab, anchor=base east, text=rlxred] at (\rlidx,0 |- y\k) {I\k};
+
+% ------------------------------- program ---------------------------------
+% I0: Other_n r1 <- ?        (committed)                          REDUNDANT
+\node[rltok, text=rlxred] at (\rlop,0 |- y0) {Other\textsubscript{n}};
+\node[rltok, text=rlxred] (i0o) at (\rlout,0 |- y0) {$r_1$};
+\node[rltok, text=rlxred] at (\rlarr,0 |- y0) {$\leftarrow$};
+\node[rltok, text=rlxred] at (\rlin,0 |- y0) {?};
+% I1: Other_x r0 <- ?        (first uncommitted)                  REDUNDANT
+\node[rltok, text=rlxred] at (\rlop,0 |- y1) {Other\textsubscript{x}};
+\node[rltok, text=rlxred] at (\rlout,0 |- y1) {$r_0$};
+\node[rltok, text=rlxred] at (\rlarr,0 |- y1) {$\leftarrow$};
+\node[rltok, text=rlxred] at (\rlin,0 |- y1) {?};
+% I2: Branch_n               (unresolved: the speculation source)
+\node[rltok] at (\rlop,0 |- y2) {Branch\textsubscript{n}};
+% I3: Load r0 <- m0          (resolved; m0 in the protection set)
+\node[rltok] at (\rlop,0 |- y3) {Load};
+\node[rltok] (i3o) at (\rlout,0 |- y3) {$r_0$};
+\node[rltok] at (\rlarr,0 |- y3) {$\leftarrow$};
+\node[rltok, fill=\rldefshade, inner xsep=1pt, inner ysep=1.2pt] (i3m) at (\rlin,0 |- y3) {$m_0$};
+% I4: Branch_x r1            (resolved; a transmitter, but not the target)  REDUNDANT
+\node[rltok, text=rlxred] at (\rlop,0 |- y4) {Branch\textsubscript{x}};
+\node[rltok, text=rlxred] (i4i) at (\rlin,0 |- y4) {$r_1$};
+% I5: Load ? <- [r0]         (target transmitter; unresolved = REDUNDANT flag)
+\node[rltok] at (\rlop,0 |- y5) {Load};
+\node[rltok] at (\rlout,0 |- y5) {?};
+\node[rltok] at (\rlarr,0 |- y5) {$\leftarrow$};
+\node[rltok] (i5b) at (\rlin,0 |- y5) {[};
+\node[rltok] (i5r) at (i5b.base east) {$r_0$};
+\node[rltok] at (i5r.base east) {]};
+
+% ------------------------------- relations -------------------------------
+% violation path (black): m0 -ddi-> r0 (I3) -rf-> [r0] (I5)
+\draw[rlddi, shorten >=0.6pt] ($(i3m.north)+(0,0.2pt)$) to[out=120, in=60, looseness=1.0]
+  node[pos=0.5, above=1.6pt, rllab] {ddi} ($(i3o.north)+(0,0.9pt)$);
+\draw[rlrf, shorten <=0.6pt, shorten >=0.9pt] (i3o.south) .. controls +(0,-0.42) and +(-0.30,0.10) .. (i5r.north west)
+  node[pos=0.14, rllab, anchor=east, xshift=-1.5pt] {rf};
+% redundant rf (red): r1 (I0) -rf-> r1 (I4), routed through the gutter right of the program
+\draw[rlrf, draw=rlxred, shorten <=0.9pt, shorten >=0.9pt, rounded corners=2pt]
+  ($(i0o.north)+(0,0.4pt)$) -- ++(0,0.17) -| ($(\rlgut,0 |- i4i.east)$) -- (i4i.east);
+\node[rllab, text=rlxred, anchor=west] at ($(\rlgut,0 |- y2)+(1.2pt,0.6mm)$) {rf};
+
+% --------------------------- flags r / c / t -----------------------------
+\foreach \f/\n in {0/r,1/c,2/t}
+  \node[rllab, anchor=base] at ($(\rlflag+\f*\rlflagdx,0 |- y0)+(0,0.36)$) {$\n$};
+% black dots: I3 r, I5 t
+\foreach \row/\f in {3/0, 5/2}
+  \node[rlflag] at ($(\rlflag+\f*\rlflagdx,0 |- y\row)+(0,0.75mm)$) {};
+% red dots: I0 r, I0 c, I4 r (flags of redundant instructions)
+\foreach \row/\f in {0/0, 0/1, 4/0}
+  \node[rlflag, fill=rlxred] at ($(\rlflag+\f*\rlflagdx,0 |- y\row)+(0,0.75mm)$) {};
+% red hollow dot: I5 is unresolved, but need not be
+\node[rlhole] at ($(\rlflag,0 |- y5)+(0,0.75mm)$) {};
+
+% ----------------------------- explanations ------------------------------
+\node[rlnote] at (\rlnote,0 |- y0) {Only feeds I4 (RI)};
+\node[rlnote] at (\rlnote,0 |- y1) {I5 reads $r_0$ from I3, not I1 (RI)};
+\node[rlnote] at (\rlnote,0 |- y4) {Its $r_1$ carries no protected data (RI, RS)};
+\node[rlnote] at (\rlnote,0 |- y5) {Needlessly unresolved: I2 already makes I5 speculative (RR)};
+
+\end{tikzpicture}
+% ============================ END FIGURE BODY ============================
+\end{document}

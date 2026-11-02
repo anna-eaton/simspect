@@ -18,10 +18,13 @@ Two hooks (design: wiki/design/STL_SPECULATION.md):
      bypass load PC, in MemDepUnit::insert:
        no_alias  (1) the predictor's answer is ignored, the load never waits:
                      the false-negative alias prediction (the primitive).
-       alias     (2) the store and its paired loads are put in one store set
-                     before the store enters the LFST, so the load waits for the
-                     store: the false-positive control (no window should open).
+       alias     (2) the load is made to depend on its paired store's in-flight
+                     seqNum (not via the store set: StoreSet::issued() drops the
+                     held store from the LFST once it issues), so the load waits
+                     for the store: the false-positive control (no window opens).
        off       (0) unmodified store sets.
+     Both modes also apply when a load barrier (the litmus setup mfence) is in
+     flight, where gem5 skips the predictor; those lines carry via=barrier.
 
 Print-only trace lines (O3PipeView flag, wiki/design/SIMSPECT_HOOKS.md format):
   O3PipeView:simspect:<tick>:STL:stl_hold:...:seq=<store sn>:pc=<store pc>:...
@@ -164,6 +167,13 @@ EDITS: list[tuple[str, str, str, str]] = [
     std::unordered_set<Addr> stlAliasLoadPCs;
     /** SimSpect-STL: store PC -> the bypass load PCs it truly aliases. */
     std::unordered_multimap<Addr, Addr> stlAliasStoreToLoads;
+    /** SimSpect-STL: bypass load PC -> the store PCs it truly aliases. */
+    std::unordered_multimap<Addr, Addr> stlAliasLoadToStores;
+    /** SimSpect-STL: annotated store PC -> its youngest inserted seqNum. */
+    std::unordered_map<Addr, InstSeqNum> stlLastStoreSeq;
+    /** SimSpect-STL (alias control): the in-flight paired store an annotated
+     * load must wait on, or 0. */
+    InstSeqNum stlAliasDep(const DynInstPtr &inst);
 '''),
     ("src/cpu/o3/mem_dep_unit.cc",
      '#include "debug/MemDepUnit.hh"\n',
@@ -184,21 +194,43 @@ EDITS: list[tuple[str, str, str, str]] = [
         stlAliasLoadPCs.insert(params.stlAliasLoadPCs[i]);
         stlAliasStoreToLoads.emplace(params.stlAliasStorePCs[i],
                                      params.stlAliasLoadPCs[i]);
+        stlAliasLoadToStores.emplace(params.stlAliasLoadPCs[i],
+                                     params.stlAliasStorePCs[i]);
     }
+'''),
+    ("src/cpu/o3/mem_dep_unit.cc",
+     "void\nMemDepUnit::insert(const DynInstPtr &inst)\n{\n",
+     "before",
+     '''// SimSpect-STL (alias control). The store-set predictor cannot be used
+// for this: StoreSet::issued() drops a store from the LFST when it issues,
+// and the held store issues (then waits) before a slow-to-dispatch load is
+// inserted, so checkInst() would return 0. Depend on the paired store's
+// seqNum directly while it is still in flight in this unit.
+InstSeqNum
+MemDepUnit::stlAliasDep(const DynInstPtr &inst)
+{
+    InstSeqNum dep = 0;
+    auto range = stlAliasLoadToStores.equal_range(inst->pcState().instAddr());
+    for (auto it = range.first; it != range.second; ++it) {
+        auto seq_it = stlLastStoreSeq.find(it->second);
+        if (seq_it != stlLastStoreSeq.end() &&
+                seq_it->second < inst->seqNum &&
+                memDepHash.count(seq_it->second) &&
+                seq_it->second > dep)
+            dep = seq_it->second;
+    }
+    return dep;
+}
+
 '''),
     ("src/cpu/o3/mem_dep_unit.cc",
      "MemDepUnit::insert(const DynInstPtr &inst)\n{\n    ThreadID tid = inst->threadNumber;\n",
      "after",
      '''
-    // SimSpect-STL (alias control): put an annotated store and its paired
-    // loads in one store set BEFORE the store enters the LFST (insertStore
-    // below), so the paired load's checkInst returns this store.
-    if (stlAliasPred == 2 && inst->isStore()) {
-        auto range =
-            stlAliasStoreToLoads.equal_range(inst->pcState().instAddr());
-        for (auto it = range.first; it != range.second; ++it)
-            depPred.violation(it->first, it->second);
-    }
+    // SimSpect-STL (alias control): remember each annotated store's seqNum
+    if (stlAliasPred == 2 && inst->isStore() &&
+            stlAliasStoreToLoads.count(inst->pcState().instAddr()))
+        stlLastStoreSeq[inst->pcState().instAddr()] = inst->seqNum;
 '''),
     ("src/cpu/o3/mem_dep_unit.cc",
      "        InstSeqNum dep = depPred.checkInst(inst->pcState().instAddr());\n",
@@ -208,6 +240,8 @@ EDITS: list[tuple[str, str, str, str]] = [
                 stlAliasLoadPCs.count(inst->pcState().instAddr())) {
             if (stlAliasPred == 1)
                 dep = 0;  // no alias (false negative): never wait
+            else
+                dep = stlAliasDep(inst);  // alias (control): wait on the store
             DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:STL:%s:line=-:"
                 "seq=%llu:pc=%#x:victim=-:cause=%llu:sq=-:id=-\\n", curTick(),
                 stlAliasPred == 1 ? "pred_no_alias" : "pred_alias",
@@ -222,13 +256,13 @@ EDITS: list[tuple[str, str, str, str]] = [
      '''        // SimSpect-STL: a load barrier (the litmus setup mfence) is in
         // flight, so gem5 makes this load wait on the barrier and never asks
         // the predictor. Apply the forced prediction here too: alias mode adds
-        // the store-set dependence the predictor branch would have added;
+        // the paired-store dependence the predictor branch would have added;
         // no_alias has nothing to drop (a barrier wait is not a prediction).
         if (stlAliasPred != 0 && inst->isLoad() &&
                 stlAliasLoadPCs.count(inst->pcState().instAddr())) {
             InstSeqNum dep = 0;
             if (stlAliasPred == 2) {
-                dep = depPred.checkInst(inst->pcState().instAddr());
+                dep = stlAliasDep(inst);
                 if (dep != 0)
                     producing_stores.push_back(dep);
             }

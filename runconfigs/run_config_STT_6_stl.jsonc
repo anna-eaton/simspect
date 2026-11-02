@@ -4,9 +4,13 @@
 // testsets/STT_6_stl/stl_bypass/ and results/STT_6_stl/stl_bypass/.
 // Design + window check: wiki/design/STL_SPECULATION.md.
 //
-// NOT RUNNABLE ON gem5 YET: the SimSpect-STL hooks (gem5-hooks/stl/) are written
-// but not built into any binary. The xml/llvm/asm phases work today
-// (make gen MODEL=STT_6_stl CONFIG=runconfigs/run_config_STT_6_stl.jsonc).
+// gem5: /work/gem5-recon-stl = copy of gem5-recon-modded + the SimSpect-STL hooks
+// (gem5-hooks/stl/), built 2026-10-30; hook controls passed on 60 tests
+// (wiki/design/STL_SPECULATION.md "Hook test"). The window checker is NOT written
+// yet, so the gem5 phase's check_ld/check_br verdicts are NOT meaningful for this
+// testset (no lc, fnc = the store); use gem5-hooks/stl/stl_hooktest.py.
+// Alloy needs STAGE1_alloy/a6CountModels.class, which cafe2 lacks: run xml on the
+// Mac and copy testsets/STT_6_stl/xml over.
 {
   "paths": {
     "alloy_stage":        "STAGE1_alloy",
@@ -31,10 +35,9 @@
   },
 
   "gem5": {
-    // Same build/scheme as runconfigs/run_config_STT_6.jsonc, once the STL hooks
-    // are applied to it (gem5-hooks/stl/apply_stl_hooks.py) and rebuilt.
-    "binary":            "/work/gem5-recon-modded/build/X86/gem5.opt",
-    "config_script":     "/work/gem5-recon-modded/configs/example/se.py",
+    // gem5-recon-modded's STT/scheme 2 + the STL hooks (specs/gem5_builds.json gem5-recon-stl).
+    "binary":            "/work/gem5-recon-stl/build/X86/gem5.opt",
+    "config_script":     "/work/gem5-recon-stl/configs/example/se.py",
     "branch_ann_enable": true,
     "cpu_type":          "X86O3CPU",
     "scheme":            2,

@@ -1,0 +1,97 @@
+\documentclass[tikz,border=1pt]{standalone}
+\usepackage{newtxtext,newtxmath} % preview only (matches the paper's Times); when \input'd the figure inherits the paper font
+\usetikzlibrary{calc}
+
+% Minifig (a): execution graph syntax (a graph on instructions).
+% Every label's source (STAGE1_alloy/models/STT_6.als file:line, paper text) is in
+% paper_figures/plans/fig_a_execgraphsyntax.md. To use in the paper, copy everything
+% between "FIGURE BODY" markers into tikz/execgraphsyntax.tex inside a figure env.
+
+\begin{document}
+% ============================== FIGURE BODY ==============================
+% ============================ TUNING KNOBS ============================
+\def\egfigw{8.75cm}   % width of the syntax frame (one column = 252pt = 8.89cm)
+\def\egpad{1.5mm}     % padding inside the frame
+\def\egexgap{2.4mm}   % gap between the frame and the example graph
+\def\egspox{2.2mm}    % x of the spo axis
+\def\egidx{0.66cm}    % x of the right edge of the I0/I1/I2 labels
+\def\egnodex{0.76cm}  % x of the instruction boxes' left edge
+\def\egboxw{2.3cm}    % width of an instruction box
+\def\egrowh{0.86cm}   % vertical pitch between instruction rows
+\def\egboxup{3.9mm}   % box top above the text baseline (room for the ddi arc)
+\def\egboxdn{1.2mm}   % box bottom below the text baseline
+\def\egflagx{0.3cm}   % gap from a box's right edge to the first flag column
+\def\egflagdx{0.3cm}  % spacing of the r / c / t flag columns
+\def\egnotex{0.4cm}   % gap from the last flag column to the reading note
+% ======================================================================
+% inline legend glyphs for the two operand-level relations
+\def\egrfglyph{\tikz[baseline=-0.55ex]\draw[->] (0,0) -- (3.6mm,0);}
+\def\egddiglyph{\tikz[baseline=-0.55ex]\draw[->, densely dashed] (0,0) -- (3.6mm,0);}
+\begin{tikzpicture}[
+  >=latex,
+  every node/.style={font=\footnotesize, inner sep=0pt},
+  execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000},
+  egrow/.style={align=left, inner xsep=0pt, inner ysep=1.2pt, text width=\egfigw-2*\egpad, anchor=north west},
+  egtok/.style={anchor=base west, inner sep=0pt, outer sep=0.4pt},
+  eglab/.style={font=\scriptsize\itshape},
+  egrf/.style={->},
+  egddi/.style={->, densely dashed},
+  egflag/.style={circle, fill, inner sep=0pt, minimum size=2.4pt},
+]
+
+% =========================== SYNTAX LIST (one box) ===========================
+\coordinate (egtop) at (0,0);
+\node[egrow, font=\footnotesize\itshape] (eh) at ($(egtop)+(\egpad,-\egpad)$) {Execution graph: a graph on instructions};
+\node[egrow] (e1) at ($(eh.south west)+(0,-0.6mm)$) {1.~Instructions (nodes): Load, Store, Branch\textsubscript{x}, Other\textsubscript{x} (potential transmitters); Branch\textsubscript{n}, Other\textsubscript{n} (non-transmitters). Operands inreg, inaddr, inmem, outreg, outmem name Reg ($r_i$) or Mem ($m_i$) state.};
+\node[egrow] (e2) at (e1.south west) {2.~Annotations (per-instruction Booleans): resolved $r$; committed $c$ (implies $r$; a prefix of spo); target transmitter $t$ (exactly one).};
+\node[egrow] (e3) at (e2.south west) {3.~Relations (edges): spo, total program order (top to bottom); rf~\egrfglyph, reads-from, output to input operand of a later instruction (same state); ddi~\egddiglyph, input to output operand within one instruction.};
+\coordinate (egbot) at ($(e3.south west)+(-\egpad,-\egpad)$);
+\draw (egtop) rectangle (egbot -| \egfigw,0);
+
+% ============================ EXAMPLE GRAPH ==============================
+% node = instruction box (type, then out <- in operands; [ ] = address, ? = unspecified output)
+% spo = row order (axis on the left); rf = solid arrow between operands of two rows;
+% ddi = dashed arc inside one row; flags = dots in the r / c / t columns.
+\begin{scope}[shift={($(egbot)+(0,-\egexgap)$)}]
+  % row baselines (top of the example = y 0)
+  \path (0,-\egboxup-3.2mm) coordinate (y0)
+        ($(y0)+(0,-\egrowh)$) coordinate (y1)
+        ($(y1)+(0,-\egrowh)$) coordinate (y2);
+  \foreach \k in {0,1,2} {
+    \draw (\egnodex,0 |- y\k) ++(0,-\egboxdn) rectangle ++(\egboxw,\egboxup+\egboxdn);
+    \node[eglab, anchor=base east] at ($(\egidx,0 |- y\k)$) {I\k};
+  }
+  % I0: Branch_n (no operands)
+  \node[egtok] (i0k) at ($(\egnodex,0 |- y0)+(1.5pt,0)$) {Branch\textsubscript{n}};
+  % I1: Load r0 <- m0
+  \node[egtok] (i1k) at ($(\egnodex,0 |- y1)+(1.5pt,0)$) {Load};
+  \node[egtok] (i1o) at ($(i1k.base east)+(2.4pt,0)$) {$r_0$};
+  \node[egtok] (i1a) at (i1o.base east) {$\,\leftarrow\,$};
+  \node[egtok] (i1m) at (i1a.base east) {$m_0$};
+  % I2: Load ? <- [r0]
+  \node[egtok] (i2k) at ($(\egnodex,0 |- y2)+(1.5pt,0)$) {Load};
+  \node[egtok] (i2o) at ($(i2k.base east)+(2.4pt,0)$) {?};
+  \node[egtok] (i2a) at (i2o.base east) {$\,\leftarrow\,$[};
+  \node[egtok] (i2r) at (i2a.base east) {$r_0$};
+  \node[egtok] (i2c) at (i2r.base east) {]};
+  % relations
+  \draw[egddi, shorten >=0.6pt] ($(i1m.north)+(0.6pt,1.4pt)$) to[out=115, in=60, looseness=1.1] ($(i1o.north)+(0,0.9pt)$);
+  \node[eglab, anchor=base west] at ($(i1m.base east)+(4pt,0)$) {ddi};
+  \draw[egrf, shorten <=0.3pt, shorten >=0.9pt] (i1o.south) -- (i2r.north) node[pos=0.36, eglab, anchor=east, xshift=-4pt] {rf};
+  % spo axis
+  \draw[->] (\egspox,0 |- y0) ++(0,\egboxup) -- ($(\egspox,0 |- y2)+(0,-\egboxdn)$);
+  \node[eglab, anchor=base] at ($(\egspox,0 |- y0)+(0,\egboxup+1.3mm)$) {spo};
+  % flag columns r / c / t
+  \foreach \f/\n in {0/r,1/c,2/t}
+    \node[eglab, anchor=base] at ($(\egnodex+\egboxw+\egflagx+\f*\egflagdx,0 |- y0)+(0,\egboxup+1.3mm)$) {$\n$};
+  \foreach \row/\f in {1/0, 2/0, 2/2}
+    \node[egflag] at ($(\egnodex+\egboxw+\egflagx+\f*\egflagdx,0 |- y\row)+(0,0.75mm)$) {};
+  % reading note
+  \coordinate (egnote) at ($(\egnodex+\egboxw+\egflagx+2*\egflagdx+\egnotex,0)+(0,-1mm)$);
+  \node[eglab, anchor=north west, align=left, text width=\egfigw-\egnodex-\egboxw-\egflagx-2*\egflagdx-\egnotex]
+    at (egnote) {Example: I1 loads $m_0$ into $r_0$ (ddi); I2 reads $r_0$ as its address (rf). I0 is unresolved, I1 and I2 are resolved, nothing is committed, and I2 is the target transmitter. ? = output left unspecified.};
+\end{scope}
+
+\end{tikzpicture}
+% ============================ END FIGURE BODY ============================
+\end{document}

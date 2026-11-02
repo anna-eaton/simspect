@@ -8,7 +8,7 @@ call, what's running, the development front, and what's parked.
 ⚠️ *Run/sweep state below is "as last logged" — always trust `claudenotes.md` for the live
 picture and re-verify a sweep is actually alive before relying on it.*
 
-*Last refreshed: 2026-10-29 by `commit-boundary-fix` session (see top section). Prior: 2026-10-26 by `alloy-minimality` session — Alloy two-stage / minimality / OTB workstream.
+*Last refreshed: 2026-11-02 by `paper-figs` session (paper figures section). Prior: 2026-11-02 by `resolve-hooks` session (round-2 results). Prior: 2026-10-30 by `resolve-hooks` session (harness section at top). Prior: 2026-10-30 by `stl-spec` session (threat-model flag). Prior: 2026-10-29 by `commit-boundary-fix` session. Prior: 2026-10-26 by `alloy-minimality` session — Alloy two-stage / minimality / OTB workstream.
 👉 **[`URGENT_TODO.md`](URGENT_TODO.md)** (OTB shape decision — needs your call ASAP) · **[`TODO.md`](TODO.md)**
 (active workstream) · open questions → [`wiki/state/OPEN.md`](wiki/state/OPEN.md). Prior refresh:
 2026-10-20 19:45 by `system setup` — session rig + dashboard fix + `/session-log`
@@ -18,11 +18,37 @@ list → `wiki/state/OPEN.md`. Prior: cleanuprepo repo cleanup + Mac↔cafe2 git
 
 ---
 
+## 📄 2026-11-02 — Paper figures (paper-figs session) → drafts in [`paper_figures/drafts/`](paper_figures/drafts/), plans + decisions in [`paper_figures/plans/`](paper_figures/plans/), DECIDEs in [`URGENT_TODO.md`](URGENT_TODO.md)
+
+- **Note to Anna (requested 2026-11-02):** say **"DSL"** in the paper: the defense specification is manually translated into the SimSpect DSL (the three Alloy defense clauses). The pipeline figure now says "manual translation to DSL", so the text should introduce the term.
+- Drafts: vertical pipeline figure (`_standalone_pipeline_vertical`), (a) execution-graph syntax, (b) relaxation, (c) interleave + audit of all existing figures (`plans/AUDIT_existing_figures.md`), (d) instrumentation table, (e) checker window. Shared style: `paper_figures/plans/VISUAL_LANGUAGE.md`.
+
+## 🚩🚩 2026-10-30 — HARNESS FIXED: every earlier campaign is suspect → [`wiki/findings/bug/BRANCH_ANNOTATION_AND_FORCE.md`](wiki/findings/bug/BRANCH_ANNOTATION_AND_FORCE.md)
+
+- **Proven in gem5:** gem5-spt and gem5-recon-modded loaded 0 branch annotations in mainline runs (no force, no stall). The old BTB force was wrong on every build: decode-squashed on gem5-22 builds, wrong-path start on old builds. Taken-side layouts broke the natural prediction. The resolve-stall hook froze runs when the CPU slept.
+- **Built:** BR resolve lines + forced-not-taken + CPU-wake in all 8 hooked builds (backups kept), derived branch force, `resolve_visible` gating, execution-validity gate (`status="invalid"`), criteria in every checker. Design: [`wiki/design/RESOLUTION_HOOKS.md`](wiki/design/RESOLUTION_HOOKS.md). Hook audit: `STAGE3_gem5/hook_audit.py`.
+- **⚠️ amulet-InvisiSpec broken right now** (concurrent hooks-v2 Ruby edits; last good binary `gem5.opt.simspect-hooks-v1-resolve-20261030`).
+- **Round 2 done (2026-11-02; 2% samples, cafe2 `/tests/simspect_fixed_20261030/`):** 0 invalid records anywhere. Hit tests not_taken | taken: STT_6/stt 0 | 0; STT_6/recon-modded ld 7 | 7 (same 7); STT_6_commitsplit/stt 0 | 0; SPT_6_oneLP fence ld 336 | 264 of 1697, **br_x 28 | 22 (new)**. None triaged yet. STT_6_interleave regen finished, commit-boundary audit clean; its campaign is not launched. Tables: `wiki/findings/audits/2026-10-30/fixed_tab_round2.json`.
+- **Your calls** (now in `URGENT_TODO.md`): `--delete` the zipped originals; gate on `resolved_before_signal` or not; review `STT_6_commitsplit.als`; InvisiSpec rollback; which hits to triage first; `make sync`.
+
+## 🚩🚩 2026-10-30 — THREAT MODEL: which STT is each build? (read before interpreting any STL / Futuristic result) → [`wiki/design/FUTURISTIC_MODEL.md`](wiki/design/FUTURISTIC_MODEL.md)
+
+- **Two different STTs — don't call both "STT".** **STT-Spectre** = `/work/stt` (upstream code; speculative only behind older unresolved *branches*). **Recon-STT** = `gem5-recon*` scheme 2 (Recon's re-implementation; behind older unresolved branches **or stores with no address**). Recon-STT protects a superset, so STL tests are only meaningful on Recon-STT (or STT-Futuristic). Side-by-side with code lines → [`wiki/design/STT_VS_RECON_STT.md`](wiki/design/STT_VS_RECON_STT.md); each build's `threat_model` is now in `specs/gem5_builds.json`.
+- **gem5-recon / gem5-recon-modded STT = control + store shadows**, not Spectre and not Futuristic. A load is unsafe while an older conditional branch is unresolved **or an older store has no address** (Recon paper Sec. 3, 6; `decode.cc:686-695`, `shadow_tracker.cc`). So **STL bypass tests are in scope there**, and Futuristic-only sources (slow ALU ops, loads, faults) are not: a "leak" from those on Recon builds is expected by design.
+- **/work/stt** has both: `--threatModel=Spectre` (branches only, what the harness pins, `gem5-hooks/stt/se_exp.py:332`) and `Futuristic` (all older instructions completed, `rob_impl.hh:493-512`).
+- **New model `STAGE1_alloy/models/STT_6_futuristic.als`** (written, SAT, awaiting your review). Futuristic visibility point = every older instruction **completed** (not committed). Four decisions in `URGENT_TODO.md`.
+- **STL hooks built + tested**: `/work/gem5-recon-stl`. On 60 tests, Unsafe leaks 28/28 load transmitters, STT 0/28, and the `alias` and zero-hold controls give 0 → [`wiki/design/STL_SPECULATION.md`](wiki/design/STL_SPECULATION.md).
+- 🔴 **check_ld gate gap on Recon builds**: the data-obtained gate can't see a real cache send there, so squashed-before-complete leaks are scored as non-leaks → [`wiki/findings/bug/recon_cache_reach_gate/README.md`](wiki/findings/bug/recon_cache_reach_gate/README.md).
+
 ## 🚨 2026-10-29 — commit boundary + branch-annotation fixes (local, needs `make sync`) → [`wiki/design/COMMIT_BOUNDARY.md`](wiki/design/COMMIT_BOUNDARY.md)
 
 - 🔴 **gem5-spt and gem5-recon-modded never loaded any branch annotation** (no BTB force, no resolve stall) in mainline runs. Their past results need re-running before you interpret them. Fixed in `gem5_common.py`.
 - 🔴 **Interleaved testsets put fnc on a synthetic chain step** in 35-53% of tests. Fixed in `parsexml.py`; regenerate interleaved testsets from `llvm` (audit with `STAGE2_compilation/audit_commit_boundary.py`).
 - **Needs your review:** `STAGE1_alloy/models/STT_6_commitsplit.als` (new copy, C/D/U commit split + each-unresolved-necessary); the print-only resolve-tick hooks for 8 builds (`wiki/design/RESOLUTION_HOOKS_SURVEY.md`, needs rebuild approval).
+
+## 🔬 2026-10-30 — Protection-set re-evaluation (SEPARATE issue) → [`PROTECTION_SET_REEVAL.md`](wiki/findings/mdsToRead/PROTECTION_SET_REEVAL.md)
+
+**This is a separate concern from the two-stage/minimality build and must not be folded into it** (Anna, 2026-10-30). Agent re-evaluated the protection-set clauses in STT_6 / SPT_6_oneLP / Recon_6 against the defense papers (all read locally from `quail/sources/papers/`). **Key finding — A1 is SPT-ONLY:** the const-address / `no_hold` over-approximation comes from SPT's operand-based seed (`SPT_6_oneLP.als:341` `hardware_protection_policy = Instruction.operands - …`, protecting ~all operands). **STT_6 and Recon_6 do NOT share it** — both seed from `Mem_s` (memory *states*; `STT_6.als:326`, `Recon_6.als:316-318`), so a const-ALU register output is never forward-reachable and the FP never arises. So `ALLOY_MODEL_CHANGES.md`'s rerun matrix is imprecise (it marks STT_6/Recon_6 as needing A1; they don't) — **not yet corrected, awaiting Anna's confirm**. Papers: STT seeds from load outputs (Yu 2019 §6.1), SPT likewise (Choudhary 2021 §2.2.1), ReCon = Mem_s minus revealed public addrs (Aimoniotis 2023). 5 open questions for Anna in the doc. No `.als` edits without Anna's per-change sign-off.
 
 ## 🚨 2026-10-26 — ACTIVE: Alloy two-stage / minimality / OTB  → **[`URGENT_TODO.md`](URGENT_TODO.md)** · **[`TODO.md`](TODO.md)**
 

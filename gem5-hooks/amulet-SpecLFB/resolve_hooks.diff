@@ -1,0 +1,102 @@
+--- a/src/cpu/o3/commit.cc
++++ b/src/cpu/o3/commit.cc
+@@ -1395,6 +1395,16 @@
+ 
+             // Mark the instruction as ready to commit.
+             fromIEW->insts[inst_num]->setCanCommit();
++            // SimSpect resolve hooks (2026-10-30)
++            if (fromIEW->insts[inst_num]->isControl()) {
++                DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_visible:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:upc=%d:mispred=%d:stall=%llu\n",
++                         (unsigned long long)curTick(),
++                         (unsigned long long)fromIEW->insts[inst_num]->seqNum,
++                         (unsigned long long)fromIEW->insts[inst_num]->pcState().instAddr(),
++                         (int)fromIEW->insts[inst_num]->pcState().microPC(),
++                         (int)fromIEW->insts[inst_num]->mispredicted(),
++                         (unsigned long long)(cpu->getBranchPred() ? (uint64_t)cpu->getBranchPred()->getResolveStallCyclesFor(fromIEW->insts[inst_num]->pcState().instAddr()) : 0));
++            }
+         }
+     }
+     //[speclfb]add;
+--- a/src/cpu/o3/iew.cc
++++ b/src/cpu/o3/iew.cc
+@@ -1304,15 +1304,41 @@
+             if (stall > 0) {
+                 ThreadID stall_tid = inst->threadNumber;
+                 DynInstPtr stall_inst = inst;
++                // SimSpect resolve hooks (2026-10-30)
++                DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_hold:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:stall=%llu:fire=%llu:mispred=%d\n",
++                         (unsigned long long)curTick(),
++                         (unsigned long long)inst->seqNum,
++                         (unsigned long long)inst->pcState().instAddr(),
++                         (unsigned long long)stall,
++                         (unsigned long long)cpu->clockEdge(stall),
++                         (int)inst->mispredicted());
+                 cpu->schedule(new EventFunctionWrapper(
+                     [this, stall_inst, stall_tid]() mutable {
+-                        if (stall_inst->isSquashed()) return;
++                        if (stall_inst->isSquashed()) {
++                            DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_drop:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-\n",
++                                     (unsigned long long)curTick(),
++                                     (unsigned long long)stall_inst->seqNum,
++                                     (unsigned long long)stall_inst->pcState().instAddr());
++                            return;
++                        }
++                        // SimSpect resolve wake (2026-10-30): wake the CPU, as a late memory response does.
++                        wakeCPU();
+                         stall_inst->setExecuted(); instToCommit(stall_inst);
++                        activityThisCycle();
++                        DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_release:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:mispred=%d\n",
++                                 (unsigned long long)curTick(),
++                                 (unsigned long long)stall_inst->seqNum,
++                                 (unsigned long long)stall_inst->pcState().instAddr(),
++                                 (int)stall_inst->mispredicted());
+                         if (!fetchRedirect[stall_tid] || !toCommit->squash[stall_tid] ||
+                                 toCommit->squashedSeqNum[stall_tid] > stall_inst->seqNum) {
+                             if (stall_inst->mispredicted()) {
+                                 fetchRedirect[stall_tid] = true;
+                                 squashDueToBranch(stall_inst, stall_tid);
++                                DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_bcast:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-\n",
++                                         (unsigned long long)curTick(),
++                                         (unsigned long long)stall_inst->seqNum,
++                                         (unsigned long long)stall_inst->pcState().instAddr());
+                                 ppMispredict->notify(stall_inst);
+                                 stall_inst->readPredTaken() ? iewStats.predictedTakenIncorrect++
+                                                             : iewStats.predictedNotTakenIncorrect++;
+--- a/src/cpu/pred/bpred_unit.cc
++++ b/src/cpu/pred/bpred_unit.cc
+@@ -49,6 +49,8 @@
+ #include "base/compiler.hh"
+ #include "base/trace.hh"
+ #include "debug/Branch.hh"
++#include "debug/O3PipeView.hh"  // SimSpect resolve hooks (2026-10-30)
++#include "sim/core.hh"
+ #include "debug/AnalyseIPC.hh"
+ 
+ namespace gem5
+@@ -297,9 +299,23 @@
+     if (!btbForcedTargets.empty()) {
+         auto it = btbForcedTargets.find(pc.instAddr());
+         if (it != btbForcedTargets.end()) {
+-            target->as<X86ISA::PCState>().set(it->second);
+-            pred_taken = true;
+-            predict_record.predTaken = true;
++            // SimSpect resolve hooks (2026-10-30): forced target 1 = predict not-taken (fall-through).
++            if (it->second == 1) {
++                target.reset(pc.clone());
++                inst->advancePC(*target);
++                pred_taken = false;
++                predict_record.predTaken = false;
++            } else {
++                target->as<X86ISA::PCState>().set(it->second);
++                pred_taken = true;
++                predict_record.predTaken = true;
++            }
++            DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:predict_force:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:taken=%d:target=%#llx\n",
++                     (unsigned long long)curTick(),
++                     (unsigned long long)seqNum,
++                     (unsigned long long)pc.instAddr(),
++                     (int)pred_taken,
++                     (unsigned long long)target->instAddr());
+         }
+     }
+ 

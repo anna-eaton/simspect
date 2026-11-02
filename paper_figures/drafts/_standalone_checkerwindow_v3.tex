@@ -1,0 +1,126 @@
+\documentclass[tikz,border=1pt]{standalone}
+\usepackage{newtxtext,newtxmath} % preview only (matches the paper's Times); when \input'd the figure inherits the paper font
+\usetikzlibrary{calc}
+
+% Figure (e): pipeline inspection graph with the checker's violation window.
+% Data: a REAL trace, STAGE3_gem5/tests/fixtures/inv_uv1.pipeview.txt.gz (STT_6
+% mispredict_not_taken/inst-002014 on amulet-InvisiSpec, --ruby
+% --scheme=SpectreSafeInvisibleSpec, resolve stall 5000). Cycle c = (tick - 3157000)/500.
+% Every number and label: paper_figures/plans/fig_e_checkerwindow.md.
+
+% ============================ TUNING KNOBS ============================
+\def\cyc{6.2}        % pt per simulated cycle (same scale in every axis segment)
+\def\brk{9}          % pt width of each axis break
+\def\rowh{17}        % pt between instruction rows
+\def\barh{4}         % pt height of an instruction bar
+\def\labx{-4}        % pt, right edge of the row labels
+\def\winlw{0.9pt}    % line width of the violation-window frame
+\def\mrk{1.7pt}      % radius of the footprint markers
+\def\boxgap{9}       % pt between the time axis and the defense-specific note (note spans the full figure width)
+\def\defshade{black!12} % fill marking defense-specific elements
+% axis segments [start,end], in cycles after i0's fetch; breaks between them
+\def\aS{-0.5}\def\aE{8.5}       % front end; lc retires at 8
+\def\bS{39.5}\def\bE{41.5}      % transmitter issues at 40
+\def\cS{68.5}\def\cE{71.5}      % L1D eviction at 70
+\def\dS{99.5}\def\dE{102.5}     % speculative-buffer fill at 101
+\def\eS{5006.5}\def\eE{5013.5}  % branch resolves 5007, squash 5008, fnc retires 5013
+% ======================================================================
+
+\pgfmathsetmacro\wA{(\aE-\aS)*\cyc}
+\pgfmathsetmacro\wB{(\bE-\bS)*\cyc}
+\pgfmathsetmacro\wC{(\cE-\cS)*\cyc}
+\pgfmathsetmacro\wD{(\dE-\dS)*\cyc}
+\pgfmathsetmacro\wE{(\eE-\eS)*\cyc}
+% x position (pt) of cycle #1 inside segment a..e
+\pgfmathdeclarefunction{xa}{1}{\pgfmathparse{(#1-\aS)*\cyc}}
+\pgfmathdeclarefunction{xb}{1}{\pgfmathparse{\wA+\brk+(#1-\bS)*\cyc}}
+\pgfmathdeclarefunction{xc}{1}{\pgfmathparse{\wA+\wB+2*\brk+(#1-\cS)*\cyc}}
+\pgfmathdeclarefunction{xd}{1}{\pgfmathparse{\wA+\wB+\wC+3*\brk+(#1-\dS)*\cyc}}
+\pgfmathdeclarefunction{xe}{1}{\pgfmathparse{\wA+\wB+\wC+\wD+4*\brk+(#1-\eS)*\cyc}}
+
+\tikzset{
+  every node/.style={font=\footnotesize, inner sep=0pt,
+    execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000}},
+  stg/.style={font=\scriptsize, anchor=south},
+  ann/.style={font=\scriptsize\itshape},
+}
+
+% bar edges (top and bottom lines) from x=#2 to x=#3 at row y=#1; #4 = extra draw options
+\newcommand{\edges}[4]{\draw[#4] (#2,#1+\barh/2) -- (#3,#1+\barh/2) (#2,#1-\barh/2) -- (#3,#1-\barh/2);}
+% vertical tick across a bar at x=#2, row y=#1
+\newcommand{\tck}[2]{\draw (#2,#1-\barh/2) -- (#2,#1+\barh/2);}
+% a bar that runs from x=#2 through every later segment up to segment e at x=#3
+\newcommand{\longbar}[3]{%
+  \edges{#1}{#2}{\wA}{}
+  \edges{#1}{\wA}{\wA+\brk}{densely dotted}
+  \edges{#1}{\wA+\brk}{\wA+\brk+\wB}{}
+  \edges{#1}{\wA+\brk+\wB}{\wA+2*\brk+\wB}{densely dotted}
+  \edges{#1}{\wA+2*\brk+\wB}{\wA+2*\brk+\wB+\wC}{}
+  \edges{#1}{\wA+2*\brk+\wB+\wC}{\wA+3*\brk+\wB+\wC}{densely dotted}
+  \edges{#1}{\wA+3*\brk+\wB+\wC}{\wA+3*\brk+\wB+\wC+\wD}{}
+  \edges{#1}{\wA+3*\brk+\wB+\wC+\wD}{\wA+4*\brk+\wB+\wC+\wD}{densely dotted}
+  \edges{#1}{\wA+4*\brk+\wB+\wC+\wD}{#3}{}}
+
+\begin{document}
+\begin{tikzpicture}[x=1pt, y=1pt]
+
+\pgfmathsetmacro\yA{0}
+\pgfmathsetmacro\yB{-\rowh}
+\pgfmathsetmacro\yC{-2*\rowh}
+
+% ------------------------------ row labels ------------------------------
+\node[anchor=east] at (\labx,\yA) {i0: lc};
+\node[anchor=east] at (\labx,\yB) {i1: fnc (branch)};
+\node[anchor=east] at (\labx,\yC) {i2: Xm (load)};
+
+% --------------------- i0: last committed (retires at 8) ---------------------
+\edges{\yA}{{xa(0)}}{{xa(8)}}{}
+\tck{\yA}{{xa(0)}} \tck{\yA}{{xa(1)}} \tck{\yA}{{xa(4)}} \tck{\yA}{{xa(8)}}
+\node[stg] at ({xa(0)},\yA+\barh/2+1) {F};
+\node[stg] at ({xa(1)},\yA+\barh/2+1) {D};
+\node[stg] at ({xa(4)},\yA+\barh/2+1) {E};
+\node[ann, anchor=west] at ({xa(8)+2.5},\yA) {lc retires};
+
+% ------------- i1: first non-committed = the unresolved branch -------------
+\longbar{\yB}{{xa(1)}}{{xe(5013)}}
+\tck{\yB}{{xa(1)}} \tck{\yB}{{xa(2)}} \tck{\yB}{{xa(6)}} \tck{\yB}{{xe(5007)}} \tck{\yB}{{xe(5013)}}
+\node[stg] at ({xa(1)},\yB+\barh/2+1) {F};
+\node[stg] at ({xa(2)},\yB+\barh/2+1) {D};
+\node[stg] at ({xa(6)},\yB+\barh/2+1) {E};
+\node[ann, anchor=south] at ({(xb(40)+xd(101))/2},\yB+\barh/2+1.2) {5000-cycle resolve stall};
+\node[ann, anchor=north east] at ({xe(5007)-1.5},\yB-\barh/2-1.5) {resolves};
+\node[ann, anchor=south east] at ({xe(5013)+0.5},\yB+\barh/2+1.2) {retires};
+
+% ------------------- i2: the transmitter (a load), squashed -------------------
+\longbar{\yC}{{xa(2)}}{{xe(5008)}}
+\tck{\yC}{{xa(2)}} \tck{\yC}{{xa(3)}} \tck{\yC}{{xb(40)}}
+\node[stg] at ({xa(2)},\yC+\barh/2+1) {F};
+\node[stg] at ({xa(3)},\yC+\barh/2+1) {D};
+\node[stg] at ({xb(40)},\yC+\barh/2+1) {E};
+\fill ({xc(70)},\yC) circle (\mrk);
+\draw[fill=white] ({xd(101)},\yC) circle (\mrk);
+\draw[line width=0.6pt] ({xe(5008)-1.8},\yC-1.8) -- ++(3.6,3.6) ({xe(5008)-1.8},\yC+1.8) -- ++(3.6,-3.6);
+\node[ann, anchor=north] at ({xc(70)},\yC-\barh/2-2) {L1D evict};
+\node[ann, anchor=north] at ({xd(101)},\yC-\barh/2-2) {SB fill};
+\node[ann, anchor=west] at ({xe(5008)+3.5},\yC) {squashed};
+\node[ann, anchor=south] at ({xc(70)},\yC+\barh/2+1.2) {transmission};
+
+% ------------------------ the violation window ------------------------
+\draw[line width=\winlw] ({xa(8)},\yA+8) rectangle ({xe(5007)},\yC-12);
+\node[anchor=south, font=\footnotesize\bfseries] at ({(xa(8)+xe(5007))/2},\yA+9.5) {Violation window};
+
+% ------------------------------ time axis ------------------------------
+\pgfmathsetmacro\yT{\yC-15}
+\foreach \c/\f in {0/xa, 8/xa, 40/xb, 70/xc, 101/xd, 5007/xe, 5013/xe}
+  \node[font=\scriptsize, anchor=north] at ({\f(\c)},\yT) {\c};
+\node[ann, anchor=north east] at (\labx,\yT) {cycle};
+
+% ---------------------- defense-specific signal note ----------------------
+\path (current bounding box.south west); \pgfgetlastxy{\bbx}{\bby}
+\path (current bounding box.north east); \pgfgetlastxy{\bbX}{\bbY}
+\pgfmathsetmacro\bw{\bbX-\bbx-4}
+\node[draw, fill=\defshade, anchor=north west, align=left, text width=\bw pt, inner sep=2pt, font=\scriptsize]
+  at (\bbx,\yT-\boxgap) {\raggedright\textit{Defense-specific transmission signal.} InvisiSpec: any footprint of a squashed load in the L1D, L2, directory or D-TLB ($\bullet$), but not its speculative-buffer fill ($\circ$). STT: the load obtaining data (cache access or store forward).};
+
+\end{tikzpicture}
+\end{document}

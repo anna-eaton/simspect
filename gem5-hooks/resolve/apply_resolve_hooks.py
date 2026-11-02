@@ -20,7 +20,9 @@ template trees and the gem5-22 trees recon-modded / SpecLFB):
                        (upc, mispred, stall registered for this PC)
 
 Edits 2-3 only print. Edit 1 changes behaviour only for target==1, which no
-annotation used before 2026-10-30 (a real PC is never 1). Lines follow
+annotation used before 2026-10-30 (a real PC is never 1). Edit 4
+(patch_iew_wake) makes the deferred release wake a sleeping CPU, a fix for a
+hook bug that froze long-stall runs; it is a no-op while the CPU is running. Lines follow
 wiki/design/SIMSPECT_HOOKS.md and parse with gem5_common.parse_simspect_line.
 
 Usage:  apply_resolve_hooks.py <gem5-root> [--dry-run]
@@ -33,6 +35,7 @@ import sys
 from pathlib import Path
 
 MARK = "SimSpect resolve hooks (2026-10-30)"
+WAKE = "SimSpect resolve wake (2026-10-30)"
 SIM = 'O3PipeView:simspect:%llu:BR:'
 COMMON = ':line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-'
 
@@ -150,6 +153,31 @@ def patch_iew(text):
     return head + _sub_once(text, bc_pat, bc_repl, "lambda squash broadcast")
 
 
+def patch_iew_wake(text):
+    """Edit 4 (behaviour fix, 2026-10-30): the deferred release must wake the CPU.
+
+    Without it, a branch held long enough that the ROB fills and the CPU goes
+    idle is never released: the event fires on a sleeping CPU, nothing ticks
+    again, and gem5 runs to --abs-max-tick with the program frozen (found by
+    the validity gate, stt inst-000733 mispredict_taken). The release now does
+    what gem5's own late-completion path does for a load returning from memory:
+    wakeCPU(), then setExecuted/instToCommit, then activityThisCycle().
+    wakeCPU() is a no-op while the CPU is running.
+    """
+    start = text.index("resolve_hold")
+    head, tail = text[:start], text[start:]
+    pats = [r'(\n(\s*))(stall_inst->setExecuted\(\); instToCommit\(stall_inst\);)',
+            r'(\n(\s*))(inst->setExecuted\(\);\n\s*instToCommit\(inst\);)']
+    for pat in pats:
+        m = re.search(pat, tail)
+        if m:
+            i = m.group(2)
+            new = (f"{m.group(1)}// {WAKE}: wake the CPU, as a late memory response does.\n"
+                   f"{i}wakeCPU();\n{i}{m.group(3)}\n{i}activityThisCycle();")
+            return head + tail[:m.start()] + new + tail[m.end():]
+    raise SystemExit("anchor not found: lambda release (wake)")
+
+
 def patch_commit(text):
     m = re.search(r'\n(\s*)fromIEW->insts\[inst_num\]->setCanCommit\(\);\n', text)
     if not m:
@@ -181,8 +209,13 @@ def main():
         text = path.read_text()
         if MARK in text:
             print(f"already patched: {path}")
+            new = text
+        else:
+            new = fn(text)
+        if fn is patch_iew and WAKE not in new:
+            new = patch_iew_wake(new)
+        if new == text:
             continue
-        new = fn(text)
         print(f"{'would patch' if dry else 'patched'}: {path} (+{new.count(chr(10)) - text.count(chr(10))} lines)")
         if not dry:
             path.write_text(new)

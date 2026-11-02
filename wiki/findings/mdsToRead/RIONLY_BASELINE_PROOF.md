@@ -1,73 +1,42 @@
-# Why the staged baseline must be RI-minimality ONLY (not RO+RI) — and why "excess operands" are not a problem
+# Staged STT build: RI-minimal baseline, operands PINNED, stage 2 strictly contains the skeleton
 
-**Decision (Anna, 2026-10-30):** the two-stage STT build uses an **RI-only** minimal baseline (operand-minimality RO **off**). RO is kept documented and brought back only if ever shown necessary — and the argument below is that for replication it is *not* necessary. We build in **two phases: Phase 1 = replicate the current STT_6 corpus** (RI-only baseline, RO off, A1 off) so the decomposition is clear and nothing is lost; **Phase 2 = improvements** (A1 taint-closure, etc.), which deliberately change the corpus. Perfect bit-for-bit replication is not the bar; faithful reconstruction of the current model's *leak set* is.
+**Design (Anna, 2026-10-30).** Two phases, replication first. The staged STT build is:
+- **Stage 1 (baseline):** enumerate minimal leak **skeletons** with **RI-minimality only** (operand-minimality RO **off**). Each skeleton has **concrete, pinned operands** — no operand freedom, no blank/unspecified slots.
+- **Stage 2:** a model that **strictly contains** a stage-1 skeleton — every skeleton instruction *and operand* (roles + `rf`/`ddi` edges) is **pinned by the seed and never relaxed** — and only **adds** interleave/padding structure around the fixed skeleton.
 
-This doc proves RI-only is the correct choice for Phase 1 and answers the sharp question: *won't RO-off leave overspecified operands and create duplicates in stage 2?*
+This supersedes an earlier draft of this doc that argued operands should be left free (RO-off "matches the target"). That was wrong per Anna's design: we **do not** rely on operand freedom; we **pin** operands and forbid relaxing them in stage 2. The RO-vs-RI conclusion below is unchanged; the operand-freedom framing is replaced.
+
+Perfect bit-for-bit replication of current STT_6 is **not** the bar (Anna: "don't need perfect replication") — a clear, inspectable decomposition is. See the honest trade-off in the last section.
 
 ---
 
-## The claim
+## Why RI-only and not RO+RI (unchanged — RO over-prunes)
 
-For replicating today's STT_6, the staged baseline must minimize on **RI only**. Adding **RO** makes the baseline a *strict subset* of the target's leak shapes and silently drops a real STT_6 mechanism.
+From the real model (`STAGE1_alloy/models/STT_6.als:301-311`), the run block `gen_useful_litmus` minimizes on **RR** (per-branch resolution, non-boundary), **RC+RR** (boundary), and **RS** (per-state) — there is **no RO clause and no RI clause**. The staged baseline `STT_6_core.als` adds RO (`:301`) and RI (`:303`).
 
-## Grounding: what the current STT_6 actually minimizes
+Adding **RO** to the baseline enumerates only leaks where *every operand is individually necessary* — a strict subset. Measured (`TWO_STAGE_STT_FEASIBILITY.md`): RO+RI reconstructs only **48/80** of the exhaustive N=3 set; the missing **32 are all `br_x`-gating**. Mechanism: a `br_x` used as a gate has a leak-irrelevant condition operand, so RO deletes it → the instance fails RO-minimality; combined with `no_extra_inst` (`STT_6.als:313`, which forbids a zero-operand `br_x`) **no RO-minimal `br_x`-gate can exist.** RI-only reconstructs **80/80**. So RO is wrong for replication — it is *more* minimal than the model we are reproducing, and it can only *shrink* the set, so it can never help coverage either. **RO is kept documented and brought back only if a concrete Phase-2 need ("most-minimal catalog") appears.**
 
-From the real model (`STAGE1_alloy/models/STT_6.als`), the run block `gen_useful_litmus` (lines 301–311):
+## Your operand concern, answered by the design (pin, don't free)
 
-```
-not secure_speculation_scheme_p[no_p]                                     // it leaks
-all i: (unresolved - first_uncommitted) | secure_speculation_scheme_p[RR->i]   // (b) per-branch resolution-min
-secure_speculation_scheme_p[RC->first_uncommitted + RR->first_uncommitted]     // (c) boundary
-all s: State | secure_speculation_scheme_p[RS->s]                               // (d) per-state
-```
+The worry was: *won't RO-off leave overspecified operands and create duplicates, because stage 2 isn't pruning/pinning?* The design removes this **by construction**:
 
-There is **no RO clause and no RI clause.** Operand-minimality (RO, line 191 "remove operand") and instruction-minimality (RI, line 194 "remove instruction") are both **OFF** in the model we are replicating. So the current STT_6 corpus *already contains* instances with leak-irrelevant ("overspecified") operands and non-necessary instructions — within the one structural limit it does impose, `no_extra_inst` (line 313: no non-`Branchns` instruction may have zero operands).
+- **Operands are pinned, not free.** Stage-1 skeletons carry concrete operands; there are no blank slots to be filled nondeterministically later. So there is no operand overspecification to worry about within a skeleton.
+- **Stage 2 contains the skeleton and does not relax it.** The seed pins every skeleton instruction and operand (roles + `rf`/`ddi`); stage 2 may only *add* structure (interleave/padding) around the fixed skeleton. It cannot re-open or re-assign the skeleton's operands.
+- **Operand variety lives in Stage 1, not Stage 2.** Because stage 2 does not relax operands, any operand *variation* that STT_6 has must be enumerated as **distinct skeletons in stage 1** — not produced by stage-2 fleshing. This is exactly "no operand freedom in the second stage": the operand degrees of freedom are resolved up front, in the skeleton enumeration, where they are explicit and inspectable.
+- **Cross-shard duplicates** (one full instance regenerated from two different skeletons) are removed by taking the **union on the canonical fingerprint** (operand *role* `(pc,slot)` + `rf`/`ddi` edges; atom-name-invariant) — the same dedup the single-stage model already relies on.
 
-The staged baseline `STT_6_core.als` differs by **adding** RO (`:301`) and RI (`:303`). RI matches the "every instruction necessary" idea; RO is the extra one in question.
+## No over-count is structurally possible (stage2 ⊆ STT_6)
 
-## Argument 1 — RO off is forced by the target (RO over-prunes)
+Stage 2 is **STT_6 plus constraints** (the `seed_core` pin, plus the "operands pinned / not relaxed" requirement). Constraints only *shrink* a solution set. So every stage-2 solution is a valid STT_6 solution ⟹ the union over all skeletons **⊆ STT_6**. It is impossible for the build to emit an instance or operand STT_6 would not. The only way the two can differ is the other direction.
 
-A baseline that adds RO enumerates only leaks where **every operand is individually necessary**. That is a *strict subset* of STT_6's leaks. Measured previously (`TWO_STAGE_STT_FEASIBILITY.md`): the RO+RI baseline reconstructs only **48/80** of the exhaustive N=3 set; the missing **32 are all `br_x`-gating**. Mechanism: a `br_x` used as a *gate* has a condition operand that is leak-irrelevant, so RO deletes that operand → the instance fails RO-minimality; combined with `no_extra_inst` (which forbids a zero-operand `br_x`), **no RO-minimal `br_x`-gate can exist at all.** So RO erases a real STT_6 leak mechanism. RI-only reconstructs the full **80/80**. RO is therefore wrong for replication — it is more-minimal than the thing we are trying to reproduce.
+## The one open point: coverage (an under-count), at N≥4
 
-## Argument 2 — the "excess operands" are the spec, not a bug
+Equality reduces to **coverage** (⊇): does every leaking STT_6 instance reduce to at least one **emitted** RI-minimal, operand-pinned skeleton, such that pinning that skeleton + adding structure regenerates it? If yes, equality holds. This is the N≥4 exactness that is **not yet proven** (N=3 is the trivial base: RI vacuous, interleave empty). The honest risk is a **missed** instance (under-count), never excess/duplicates. Your "something isn't pinned" instinct is right that there is an open question — it lands on coverage.
 
-Because in-use STT_6 has RO **off**, those overspecified operands are *part of what STT_6 is*. Reproducing them is correct behavior, not leakage of junk. The reconstruction is not *introducing* excess operands versus the target — it is *matching* the target's RO-off behavior. "Cleaning them up" with RO would make the baseline **diverge from** the target (that is a Phase-2 choice, in the same bucket as A1), which is exactly what we do not want in the replication phase.
+## How Phase 1 is verified
 
-## Argument 3 — stage 2 cannot over-count or add excess (stage2 ⊆ STT_6)
+At a **small exhaustible bound** (STT_6 reaches real UNSAT, not the 100k cap — `REACH_UNSAT_ENUMERATION.md`): enumerate STT_6 → `A`; enumerate RI-only skeletons → seed+contain each into STT_6 → union by canonical fingerprint → `B`; check `A == B`, reporting `|B\A|` (must be 0 by stage2 ⊆ STT_6), `|A\B|` (coverage — the real test), and dupes-removed.
 
-This is the direct answer to "won't the second Alloy stage leave excess operands by not pruning/pinning?"
+## Honest trade-off (why this is a design choice, not free)
 
-Stage 2 is **literally STT_6** — same sigs, same facts, same defense contract, same scope — **plus one added conjunct `seed_core`** that asserts "the stage-1 core is present" (verified this session: the seeded file = STT_6 + a `seed_core` token in the run + an appended `pred seed_core {…}`; nothing else changes). A conjunct can only **shrink** a solution set, never grow it. Therefore:
-
-> **every stage-2 solution is a valid STT_6 solution** ⟹ (union over all cores) **⊆ STT_6.**
-
-So stage 2 leaves **exactly the operands STT_6 itself leaves — no more.** It is impossible for stage 2 to produce an instance, or an operand binding, that STT_6 would not. There is no "excess" relative to the target, by construction. The only way the two can differ is the *other* direction (stage 2 missing something STT_6 has) — see Argument 5.
-
-## Argument 4 — duplicates are a counting artifact, removed by canonical dedup
-
-A single full STT_6 instance can contain **two or more** distinct RI-minimal cores, so it can be regenerated by seeding from two different shards → the *same* instance appears in multiple shards. That is a real duplication, but it is removed by taking the **union on the canonical fingerprint** (keyed on operand *role* `(pc, slot)` + the `rf`/`ddi` edges, which is atom-name-invariant — the same canonicalization STT_6's own enumeration already relies on to be duplicate-free). Consequences:
-- Two instances that differ **only** in overspecified-operand *atom labeling* → same fingerprint → collapse to one. (No spurious duplicate.)
-- Two instances that differ in operand **role or value** → genuinely different → STT_6 enumerates both too. (Correctly kept.)
-
-So RO-off duplicates do **not** threaten set-equality; they are de-duplicated exactly as in the single-stage model.
-
-## Argument 5 — the ONE genuinely open point: coverage, not excess
-
-Since stage2 ⊆ STT_6 always, set-equality reduces entirely to **coverage** (the ⊇ direction):
-
-> Does **every** leaking STT_6 instance contain at least one RI-minimal leaking **sub-core** that stage 1 emits?
-
-If yes, re-fleshing that core regenerates the instance and equality holds. This is the N≥4 exactness that is **not yet proven** (N=3 is the trivial base case: RI vacuous, interleave empty). The honest risk is therefore an **under-count** (a missed instance), never an over-count or excess. Your instinct that "something isn't pinned in stage 2" is correct that there *is* an open question — but it lands on **coverage**, not on excess operands or duplicates, both of which are handled above.
-
-## How Phase 1 actually gets verified
-
-At a **small exhaustible bound** (where STT_6 itself reaches real UNSAT, not the 100k cap — see `REACH_UNSAT_ENUMERATION.md`):
-1. Enumerate in-use STT_6 to UNSAT → set `A`.
-2. Enumerate RI-only baseline to UNSAT → cores; seed + flesh each back into STT_6; union by canonical fingerprint → set `B`.
-3. Check `A == B`. Report: duplicates removed in the union (expected > 0, fine), `|B \ A|` (**must be 0** by Argument 3), `|A \ B|` (**coverage** — the real test).
-
-**Caveat on "net == in-use":** the shipped STT_6 *testset* is capped at 100k and never reached UNSAT, so comparing against the testset will show reconstruction "extras" that are simply real STT_6 instances the cap omitted — that is reaching UNSAT, a feature. The valid comparison is at the exhaustible bound above, model-to-model.
-
-## Bottom line on RO
-
-RO is **not needed** for replication, and is in fact **wrong** for it (Argument 1). It belongs to a separate, Phase-2 goal — a "most-minimal catalog" of leak mechanisms — not to reproducing the current corpus. It stays documented here; bring it back only if a concrete Phase-2 need appears. It cannot help coverage (it shrinks the set), so it is not a fix for the one open risk either.
+Current STT_6 has RO **off** and **does** allow operand freedom (blank slots filled from the free pool at concretization — this is also how interleave/OTB hooks on). Pinning operands and forbidding stage-2 relaxation means the staged build's per-instance operand behavior is **more specified** than STT_6's, so the two are **not guaranteed bit-identical** — operand variety is recovered via *more skeletons* rather than via stage-2 fleshing. Anna accepts this for a clearer decomposition (replication is the goal, not bit-identity). If exact bit-parity with STT_6's operand-free enumeration is ever required, that is a separate, later question.

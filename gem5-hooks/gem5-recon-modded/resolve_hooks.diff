@@ -1,0 +1,108 @@
+--- a/src/cpu/o3/commit.cc
++++ b/src/cpu/o3/commit.cc
+@@ -1475,6 +1475,16 @@
+ 
+             // Mark the instruction as ready to commit.
+             fromIEW->insts[inst_num]->setCanCommit();
++            // SimSpect resolve hooks (2026-10-30)
++            if (fromIEW->insts[inst_num]->isControl()) {
++                DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_visible:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:upc=%d:mispred=%d:stall=%llu\n",
++                         (unsigned long long)curTick(),
++                         (unsigned long long)fromIEW->insts[inst_num]->seqNum,
++                         (unsigned long long)fromIEW->insts[inst_num]->pcState().instAddr(),
++                         (int)fromIEW->insts[inst_num]->pcState().microPC(),
++                         (int)fromIEW->insts[inst_num]->mispredicted(),
++                         (unsigned long long)(cpu->getBranchPred() ? (uint64_t)cpu->getBranchPred()->getResolveStallCyclesFor(fromIEW->insts[inst_num]->pcState().instAddr()) : 0));
++            }
+             //TODO: Is this the earliest possible clear?
+             if (fromIEW->insts[inst_num]->isCondCtrl())
+                 fromIEW->insts[inst_num]->branchResolved(true);
+--- a/src/cpu/o3/iew.cc
++++ b/src/cpu/o3/iew.cc
+@@ -1329,6 +1329,14 @@
+                     "fire@tick=%llu\n",
+                     inst->seqNum, inst->pcState().instAddr(),
+                     (uint64_t)stallCycles, (uint64_t)fire_tick);
++                // SimSpect resolve hooks (2026-10-30)
++                DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_hold:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:stall=%llu:fire=%llu:mispred=%d\n",
++                         (unsigned long long)curTick(),
++                         (unsigned long long)inst->seqNum,
++                         (unsigned long long)inst->pcState().instAddr(),
++                         (unsigned long long)stallCycles,
++                         (unsigned long long)cpu->clockEdge(stallCycles),
++                         (int)inst->mispredicted());
+                 auto *ev = new EventFunctionWrapper(
+                     [this, inst, tid_local]() {
+                         DPRINTF(IEW,
+@@ -1336,10 +1344,22 @@
+                             inst->seqNum, inst->pcState().instAddr(),
+                             (int)inst->isSquashed());
+                         if (inst->isSquashed()) {
++                            DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_drop:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-\n",
++                                     (unsigned long long)curTick(),
++                                     (unsigned long long)inst->seqNum,
++                                     (unsigned long long)inst->pcState().instAddr());
+                             return;
+                         }
++                        // SimSpect resolve wake (2026-10-30): wake the CPU, as a late memory response does.
++                        wakeCPU();
+                         inst->setExecuted();
+                         instToCommit(inst);
++                        activityThisCycle();
++                        DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_release:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:mispred=%d\n",
++                                 (unsigned long long)curTick(),
++                                 (unsigned long long)inst->seqNum,
++                                 (unsigned long long)inst->pcState().instAddr(),
++                                 (int)inst->mispredicted());
+ 
+                         if (!fetchRedirect[tid_local] ||
+                             !toCommit->squash[tid_local] ||
+@@ -1352,6 +1372,10 @@
+                                     "branch mispredict.\n",
+                                     tid_local, inst->seqNum);
+                                 squashDueToBranch(inst, tid_local);
++                                DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_bcast:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-\n",
++                                         (unsigned long long)curTick(),
++                                         (unsigned long long)inst->seqNum,
++                                         (unsigned long long)inst->pcState().instAddr());
+                                 ppMispredict->notify(inst);
+                                 if (inst->readPredTaken()) {
+                                     iewStats.predictedTakenIncorrect++;
+--- a/src/cpu/pred/bpred_unit.cc
++++ b/src/cpu/pred/bpred_unit.cc
+@@ -49,6 +49,8 @@
+ #include "base/trace.hh"
+ #include "config/the_isa.hh"
+ #include "debug/Branch.hh"
++#include "debug/O3PipeView.hh"  // SimSpect resolve hooks (2026-10-30)
++#include "sim/core.hh"
+ 
+ namespace gem5
+ {
+@@ -334,9 +336,23 @@
+                     "[tid:%i] [sn:%llu] Annotation override: forcing BTB "
+                     "target at PC %#x to %#x\n",
+                     tid, seqNum, pc.instAddr(), forced);
+-            target->setInstAddr(forced);
+-            pred_taken = true;
+-            predict_record.predTaken = pred_taken;
++            // SimSpect resolve hooks (2026-10-30): forced target 1 = predict not-taken (fall-through).
++            if (it->second == 1) {
++                target.reset(pc.clone());
++                inst->advancePC(*target);
++                pred_taken = false;
++                predict_record.predTaken = false;
++            } else {
++                target->setInstAddr(forced);
++                pred_taken = true;
++                predict_record.predTaken = true;
++            }
++            DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:predict_force:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:taken=%d:target=%#llx\n",
++                     (unsigned long long)curTick(),
++                     (unsigned long long)seqNum,
++                     (unsigned long long)pc.instAddr(),
++                     (int)pred_taken,
++                     (unsigned long long)target->instAddr());
+         }
+     }
+ 

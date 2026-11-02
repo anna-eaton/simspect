@@ -1,15 +1,15 @@
 # Store-to-load (STL) speculation: model, concretization, gem5 hooks, window check
 
-*Living doc, overwrite-in-place. Written 2026-10-28. Paper table row: [`SPEC_PRIMITIVE_INSTANCES.md`](SPEC_PRIMITIVE_INSTANCES.md) (h, i).*
+*Living doc, overwrite-in-place. Written 2026-10-28, updated 2026-10-30 (hooks built + tested). Paper table row: [`SPEC_PRIMITIVE_INSTANCES.md`](SPEC_PRIMITIVE_INSTANCES.md) (h, i).*
 
 ## Status
 
 | Piece | State |
 |---|---|
 | Model `STAGE1_alloy/models/STT_6_stl.als` | written (Anna approved new `.als` files), SAT, 500 instances enumerated locally in a few seconds |
-| Concretization, branch mode `stl_bypass` | written + tested: 500/500 instances concretize and compile to x86; the existing modes are byte-identical before/after (120/120 STT_6 `.ll` + `.ann.json`) |
+| Concretization, branch mode `stl_bypass` | written + tested: 500/500 instances concretize and compile to x86; the existing modes are byte-identical before/after (120/120 STT_6 `.ll` + `.ann.json`). 2026-10-30: every true-alias load is annotated, not only the first (2/60 tests gain a second one) |
 | Harness flags (`gem5.stl_*` → `SIMSPECT_STL_*` → `--stl-*`) | written; off unless a config sets `gem5.stl_ann_enable` |
-| gem5 hooks `gem5-hooks/stl/` | written, anchors verified on upstream gem5 v22.0.0.2, **not built into any binary**, not compiled |
+| gem5 hooks `gem5-hooks/stl/` | **built** into `/work/gem5-recon-stl` (copy of gem5-recon-modded, 2026-10-30); two hook bugs found and fixed by the controls; all controls pass on 60 tests (see Hook test) |
 | Window checker | proposed below, not written |
 
 ## The primitive: a false-negative alias prediction
@@ -18,7 +18,7 @@ The store's address is unresolved when a younger load to the same address issues
 
 The false-positive direction (predict alias, addresses differ) opens no window in gem5: O3's store sets only make the load wait; there is no predictive forwarding. It is kept as a negative control (`--stl-alias-pred=alias`).
 
-STT covers this only in its Futuristic threat model. STT p5: "In the Spectre model, an instruction has reached the visibility point if all older control-flow instructions have resolved. In the Futuristic model, an instruction has only reached this point if it cannot be squashed." STT §6.4.2 frames memory-dependence speculation as "simply a prediction of the store-to-load forwarding implicit branch". Source: `~/Documents/quail/sources/papers/yu-2019-stt.pdf`.
+STT's paper covers this only in its Futuristic threat model, **but the Recon builds' STT does cover it** (see Threat model below). STT p5: "In the Spectre model, an instruction has reached the visibility point if all older control-flow instructions have resolved. In the Futuristic model, an instruction has only reached this point if it cannot be squashed." STT §6.4.2 frames memory-dependence speculation as "simply a prediction of the store-to-load forwarding implicit branch". Source: `~/Documents/quail/sources/papers/yu-2019-stt.pdf`.
 
 ## Generation: `STT_6_stl.als`
 
@@ -76,7 +76,7 @@ Turned on only by putting `"stl_bypass"` in `speculation.branch_modes` (or `batc
 |---|---|---|
 | `--stl-ann-file <ann.json>` | supplies the (store_addr, load_addr) pairs | `configs/example/se.py` → CPU params |
 | `--stl-store-stall-cycles N` | **store address-generation hold.** An annotated store is sent back to the mem-dep replay list (`IEW::rescheduleMemInst`, the LSQ's own path for a load it can't execute yet) instead of computing its address, and an event replays it N cycles after it first issued. An early replay re-defers it. | `cpu/o3/iew.{hh,cc}` |
-| `--stl-alias-pred {no_alias,alias,off}` | **prediction override** for the annotated loads: `no_alias` ignores the store-set answer (false negative, the primitive); `alias` primes the store set at the store's insert, so the load waits (false-positive control); `off` = unmodified | `cpu/o3/mem_dep_unit.{hh,cc}` |
+| `--stl-alias-pred {no_alias,alias,off}` | **prediction override** for the annotated loads: `no_alias` ignores the store-set answer (false negative, the primitive); `alias` makes the load depend directly on the paired store's in-flight seqNum, so it waits (false-positive control). Both modes also apply when a load barrier is in flight (`via=barrier`); `off` = unmodified | `cpu/o3/mem_dep_unit.{hh,cc}` |
 
 Why the existing pieces weren't reused: the recon-modded store "resolve stall" placeholder (`iew.cc` ~1247) fires *after* `executeStore`, so the address is already known. The unwired `AnnotatedStoreSet` (`store_set_annot.cc`) primes the store set in the load's `checkInst`, after the store has already been inserted into the LFST without a set ID, so the forced dependence would miss the first dynamic instance.
 
@@ -91,6 +91,35 @@ O3PipeView:simspect:<tick>:STL:mem_order_squash:line=-:seq=<L sn>:pc=<L pc>:...:
 
 Harness: run config `gem5.stl_ann_enable`, `gem5.stl_store_addr_stall_cycles`, `gem5.stl_alias_pred` → `pipeline._build_gem5_env` → `SIMSPECT_STL_*` → `gem5_common.run_gem5` appends `--stl-ann-file=<test>.ann.json --stl-store-stall-cycles=N --stl-alias-pred=X`. Example config: `runconfigs/run_config_STT_6_stl.jsonc`. Its D = 5000 mirrors `sweep.unresolved_stall_cycles` in `run_config_STT_6.jsonc`.
 
+## Threat model of the build (answered 2026-10-30)
+
+`gem5-recon` / `gem5-recon-modded` / `gem5-recon-stl` STT (scheme 2) is **not** STT's Spectre model: a load is unsafe while any older conditional branch is unresolved **or any older store has no address yet**. So the STL primitive is in scope there.
+
+- Recon paper Sec. 3: "For evaluation, we use only speculation cast by control flow and store instructions"; Sec. 6: "Speculation state is tracked through shadows [...] triggered by control and store instructions", "closer to the Spectre threat model [...] rather than the Futuristic threat model" (`~/Documents/quail/sources/papers/aimoniotis-2023-recon.pdf`).
+- Code: `src/cpu/o3/decode.cc:686-695` inserts every conditional branch and every store into the shadow tracker and marks a load speculative if any shadow exists; `secure_scheme/shadow_tracker.cc` frees a store shadow when `effAddrValid()` and a branch shadow when `branchResolved()`; `taint_tracker.cc:138` untaints when the load is no longer speculative. Exceptions are tracked but never inserted ("Currently unused").
+- `/work/stt` is different: `--threatModel` Spectre (branches only) or Futuristic (all older instructions completed, `rob_impl.hh:493-512`); the SimSpect harness pins it to Spectre (`gem5-hooks/stt/se_exp.py:332`), where STL is out of scope. See [`FUTURISTIC_MODEL.md`](FUTURISTIC_MODEL.md).
+
+## Hook test (2026-10-30)
+
+Build: `/work/gem5-recon-stl/build/X86/gem5.opt` (md5 `9ac3ac66…`), built with `/usr/bin/scons` (SCons 3.1.2; `/usr/local/bin/scons` 2.5.1 doesn't run on Python 3.8). Applied diff: `gem5-hooks/stl/stl_hooks_vs_gem5-recon-modded.diff`. Testset: 60 `STT_6_stl` instances (XML from the Mac, cafe2 has no `a6CountModels.class`), `testsets/STT_6_stl/stl_bypass/` on cafe2. Driver: `gem5-hooks/stl/stl_hooktest.py <testdir> <scheme> <out.json>` (env `SIMSPECT_GEM5_BIN`, `SIMSPECT_SE_CONFIG`, `SIMSPECT_STL_*`, `LC_ALL=C.UTF-8`); per-config JSONs in cafe2 `results/STT_6_stl_hooktest/controls/`.
+
+| config | valid bypass (hold + no-alias + L before release + squash caused by S) | ld transmitter (28) sent to memory inside [hold, release) |
+|---|---|---|
+| A: STT (scheme 2), no_alias, D=5000 | 58/60 | **0/28**: STT's delay unit holds every one |
+| B: Unsafe (0), no_alias, D=5000 | 58/60 | **28/28**: the primitive opens a real window |
+| C: STT, alias | 0/60 (no load bypasses) | 0 |
+| E: Unsafe, alias | 0/60 | 0 |
+| F: Unsafe, no_alias, D=0 | 0 (no hold) | 0 |
+
+The 2 non-valid tests in A/B (`inst-000020`, `-023`) did bypass: gem5 checks memory-order violations at 16-byte granularity, so the squash names an older load 8 bytes from S, and L is squashed with it. The gate should accept a squash caused by S of any load at or before L.
+
+Bugs the controls found, both fixed:
+1. **Hook:** the litmus setup `mfence` (`parsexml.py:2058`) is still in flight when S and L dispatch, so `MemDepUnit::insert` takes the barrier path and never asks the predictor. The override now also applies there (`via=barrier`).
+2. **Hook:** priming the store set does not work for `alias`. `StoreSet::issued()` drops the held store from the LFST as soon as it issues, so a load dispatched after that got no dependence (9/60 still bypassed). Now the load depends directly on the paired store's seqNum (`MemDepUnit::stlAliasDep`).
+3. **Concretization:** only the first aliasing load was annotated; in `inst-000006` a second load of the same slot feeds the transmitter and bypassed through the cold predictor even under `alias`. `pass2_6_specify_stl` now tags every load of S's location before the next writer; `.ann.json` gets one entry per load (`role` bypass/alias), keeping only loads whose runtime address equals S's.
+
+**Signal on recon builds.** The real cache send is `Memory request (pkt: …) from inst [sn:N] was sent` (`lsq_unit.cc:1546`). `Doing memory access` is not a send: STT's delay unit bounces a tainted load after it (`lsq_unit.cc:2104`). See the gate finding in `wiki/findings/bug/recon_cache_reach_gate/`.
+
 ## Proposed window check (not built)
 
 Per test: S, L and the xmit X are known by address from the ann. All times come from one pipeview trace (`O3PipeView` + `LSQUnit`).
@@ -100,11 +129,11 @@ Per test: S, L and the xmit X are known by address from the ann. All times come 
    - With `no_alias`, a `pred_no_alias` line for L.
    - L's first dynamic instance executes (LSQUnit "Executing load") before `stl_release`: the bypass happened.
    - Its fate isn't `store_forward`.
-   - A `mem_order_squash` with `seq` = that L instance and `cause` = S: the alias was real. No squash means a concretization bug.
+   - A `mem_order_squash` with `cause` = S and `seq` = an instance at or before L's first instance (16-byte violation granularity can name an older neighbour): the alias was real. No squash means a concretization bug.
 2. **Which X counts.** Only X's *first* dynamic instance: younger than S, at or after L's first instance, and squashed by that `mem_order_squash`. After the squash, L and X re-execute with the right value, and that replay is architectural. That differs from the branch checkers, which match the xmit by PC.
 3. **Window.** `t(stl_hold) ≤ signal < t(stl_release)` is the strict contract bound: X transmits while S's address is unresolved. Also record `signal < t(mem_order_squash)`, the transient bound; the two differ by a cycle or two. Don't reuse the branch window `lc_retire < signal < fnc_retire`. There is usually no committed instruction (no `lc`). `fnc` = S retires after the squash and the commit stall, so the replayed X would land in-window: a false positive.
 4. **Signal and gate per transmitter kind.**
-   - For `ld`, unchanged: the LSQ "Executing load" tick plus the data-obtained gate (`check_ld._xmit_cache_fate` + pipeview `complete`), keyed by X's instance seq, not by PC.
+   - For `ld`: the real-send tick (`Memory request … was sent` on recon builds; `successfully sent out packet(s)` on /work/stt and gem5-spt) or store-forward completion, keyed by X's instance seq, not by PC. The shared `check_ld._xmit_cache_fate` cannot be reused as-is on recon builds (see the gate finding).
    - For `br_x`, the redirect tick check_br already uses, now with the window enforced (closing check_br's known gap for these tests).
    - Implement this as one shared `stl_window(trace, ann)` in `gem5_common.py` that `check_ld` / `check_br` call when `ann` has `stl_annotations`, not as a new checker family.
 5. **Controls, run before reading any STT hit.**
@@ -115,7 +144,7 @@ Per test: S, L and the xmit X are known by address from the ann. All times come 
 
 ## Open
 
-- **Which build gets the hooks first, and how?** `/work/gem5-recon-modded` is the STT_6 build (scheme 2 = STT), but other sessions run sweeps on that binary. Build a copy (e.g. `/work/gem5-recon-stl`) or rebuild in place? The flags are inert without `--stl-ann-file`, so behavior is unchanged for other runs either way. Nothing has been applied or built.
-- **Threat model.** Under STT's Spectre model these loads are outside the defense, so every hit is expected by construction (scoping, `SCOPE_VS_IMPLEMENTATION.md`). Which threat model does the recon-modded scheme-2 STT run in, and does it treat a load past an unresolved-address store as unsafe? `gem5-hooks/stt/se_exp.py:332` pins `/work/stt` to `threatModel = 'Spectre'`. Needs reading the Recon/STT source on cafe2 and the papers.
+- **Answered:** build = copy `/work/gem5-recon-stl` (Anna, 2026-10-30); threat model = control + store shadows (above).
+- **Window checker** still to write (above), then a full STT_6_stl testset + sweep. The 60-test result already says STT holds on these shapes.
 - **Contract granularity.** Is "everything after an unresolved store" right for STT Futuristic, or only loads that may alias it? See Generation.
 - **Other defenses.** SPT and Recon versions (`SPT_6_*_stl.als`, `Recon_6_stl.als`) follow the same three edits once STT is settled; the hooks port by re-running `apply_stl_hooks.py` on each tree.

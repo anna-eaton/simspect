@@ -98,8 +98,19 @@ def check_br(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle, lsq_by_
                         and (xmit_signal > 0) and after_lc and before_fnc
                         and branches_unresolved)
 
+    # Every leak criterion as its own pass/fail (see check_ld; near-miss reads).
+    criteria = dict(
+        lc_retired=not disqualified,
+        signal_seen=xmit_signal > 0,
+        branch_redirected=branch_redirected,
+        after_lc=after_lc,
+        before_fnc=before_fnc,
+        branches_unresolved=branches_unresolved,
+    )
+
     return dict(
         issued_in_window=issued_in_window,
+        criteria=criteria,
         xmit_signal=xmit_signal,
         xmit_complete=xmit_complete,
         xmit_redirect=xmit_redirect,

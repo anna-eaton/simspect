@@ -153,22 +153,210 @@ def resolve_pc(binary: Path, func_name: str, ann_entry: dict) -> Optional[int]:
 
 # ── gem5 simulation ──────────────────────────────────────────────────────────
 
-def _branch_ann_for_se(ann_path: Path, workdir: Path) -> Path:
+_FORCE_MARKER = b"BR:predict_force"   # format string compiled into hooked binaries
+_force_support: Dict[str, bool] = {}
+
+
+def binary_has_resolve_hooks(gem5_bin: Path) -> bool:
+    """True if the gem5 binary carries the 2026-10-30 resolve hooks (BR lines +
+    forced-not-taken), detected by the predict_force format string."""
+    key = str(gem5_bin)
+    if key not in _force_support:
+        try:
+            with open(gem5_bin, "rb") as f:
+                _force_support[key] = _FORCE_MARKER in f.read()
+        except OSError:
+            _force_support[key] = False
+    return _force_support[key]
+
+
+_JCC = re.compile(r"^j(?!mp)[a-z]+$")
+
+
+def _disasm(binary: Path) -> List[tuple]:
+    """(addr, next_addr, mnemonic, direct target, operand text) per instruction."""
+    out = subprocess.check_output(["objdump", "-d", "--no-show-raw-insn", str(binary)],
+                                  text=True, stderr=subprocess.DEVNULL)
+    rows = []
+    for line in out.splitlines():
+        m = re.match(r"^\s+([0-9a-f]+):\s+(\S+)\s*(.*)$", line)
+        if not m:
+            continue
+        t = re.match(r"([0-9a-f]+) <", m.group(3))
+        rows.append([int(m.group(1), 16), 0, m.group(2), int(t.group(1), 16) if t else None,
+                     m.group(3)])
+    for i in range(len(rows) - 1):
+        rows[i][1] = rows[i + 1][0]
+    return [tuple(r) for r in rows]
+
+
+def _litmus_labels(binary: Path, stem: str) -> Dict[int, int]:
+    """alloy pc -> address of the __litmus_<stem>_pc<N> label."""
+    safe = stem.replace("-", "_").replace(".", "_")
+    prefix = f"__litmus_{safe}_pc"
+    out = subprocess.check_output(["nm", "--defined-only", str(binary)], text=True)
+    labels = {}
+    for line in out.splitlines():
+        parts = line.split()
+        if parts and parts[-1].startswith(prefix) and parts[-1][len(prefix):].isdigit():
+            labels[int(parts[-1][len(prefix):])] = int(parts[0], 16)
+    return labels
+
+
+def _reaches(rows_by_addr: dict, addrs: list, start: int, dest: int) -> bool:
+    """Straight-line from `start`, is `dest` reached before any conditional
+    branch, call or return? Direct unconditional jmps are followed (LLVM often
+    emits `jcc X; jmp bb_next`), up to 4 hops."""
+    import bisect
+    hops = 0
+    i = bisect.bisect_left(addrs, start)
+    for _ in range(64):
+        if i >= len(addrs):
+            return False
+        a = addrs[i]
+        if a == dest:
+            return True
+        r = rows_by_addr[a]
+        if r[2].startswith("jmp") and r[3] is not None and hops < 4:
+            hops += 1
+            i = bisect.bisect_left(addrs, r[3])
+            continue
+        if r[2].startswith(("j", "call", "ret")):
+            return False
+        i += 1
+    return False
+
+
+def _arch_taken(rows: list, idx: int) -> Optional[bool]:
+    """Architectural direction of the jcc at rows[idx] when its flags come from
+    the codegen's constant idiom `xor %r,%r ; test %r,%r` (ZF=1): je/jz taken,
+    jne/jnz not taken. None if the idiom is not there."""
+    if idx < 2:
+        return None
+    x, t, j = rows[idx - 2], rows[idx - 1], rows[idx]
+    rx = re.fullmatch(r"(%\w+),(%\w+)", x[4].replace(" ", ""))
+    rt = re.fullmatch(r"(%\w+),(%\w+)", t[4].replace(" ", ""))
+    if not (x[2].startswith("xor") and t[2].startswith("test") and rx and rt
+            and rx.group(1) == rx.group(2) and rt.group(1) == rt.group(2)
+            and rx.group(1)[-2:] == rt.group(1)[-2:]):
+        return None
+    if j[2] in ("je", "jz"):
+        return True
+    if j[2] in ("jne", "jnz"):
+        return False
+    return None
+
+
+def branch_force_plan(binary: Path, ann: dict) -> List[dict]:
+    """Decide, per annotated branch, which x86 direction gem5 must predict.
+
+    The wanted predicted path is the one that reaches the next Alloy
+    instruction (label pc+1): the speculative critical section for an
+    unresolved or xmit branch, the architectural path for a resolved one. The
+    force is then "not_taken" (fall-through reaches it) or "taken" to the jcc's
+    own static target, never an arbitrary label address. Forcing "taken" to the
+    label (the pre-2026-10-30 rule) skipped LLVM-hoisted instructions before the
+    label on old builds, and on gem5-22 builds (recon-modded, SpecLFB) was
+    caught at decode, so the branch never mispredicted at execute.
+    wiki/design/RESOLUTION_HOOKS.md §2.
+    """
+    rows = _disasm(binary)
+    rows_by_addr = {r[0]: r for r in rows}
+    index = {r[0]: i for i, r in enumerate(rows)}
+    addrs = sorted(rows_by_addr)
+    stem = binary.name
+    labels = _litmus_labels(binary, stem)
+    plan = []
+    for e in ann.get("annotations", []):
+        if "branch_addr" not in e:
+            continue
+        ba = int(e["branch_addr"])
+        p = dict(branch_pc=e.get("branch_pc"), addr=ba, mode=e.get("mode"))
+        r = rows_by_addr.get(ba)
+        dest = labels.get(e.get("btb_forced_target_pc"))
+        # The annotation's mode says what gem5 must predict: the architectural
+        # path for correctly_not_taken, the other path for a mispredict mode
+        # (the xmit branch is mispredict_not_taken in current testsets; some
+        # old testsets, e.g. STT_all, annotate it correctly_not_taken).
+        want_arch = e.get("mode") == "correctly_not_taken"
+        arch = _arch_taken(rows, index[ba]) if r is not None else None
+        p["arch_taken"] = arch
+        if r is None or not _JCC.match(r[2]) or r[3] is None:
+            p.update(force="unknown", why="no direct jcc at branch_addr")
+        elif r[3] == r[1]:
+            # Both edges go to the same address: either prediction is correct.
+            p.update(force="not_taken", fallthrough=r[1], static_target=r[3],
+                     why="degenerate: target == fall-through")
+        else:
+            p.update(fallthrough=r[1], static_target=r[3], dest=dest)
+            ft = tk = False
+            if dest is not None:
+                ft = _reaches(rows_by_addr, addrs, r[1], dest)
+                tk = _reaches(rows_by_addr, addrs, r[3], dest)
+            if ft and not tk:
+                p["force"] = "not_taken"
+            elif tk and not ft:
+                p["force"] = "taken"
+            elif arch is not None:
+                # No reachable next-Alloy label (e.g. the last Alloy branch):
+                # use the constant-flag direction.
+                taken = arch if want_arch else (not arch)
+                p.update(force="taken" if taken else "not_taken",
+                         why=f"from flags idiom (reach fallthrough={ft} taken={tk})")
+            else:
+                p.update(force="unknown", why=f"reach fallthrough={ft} taken={tk}, no flags idiom")
+        # Independent cross-check: resolved -> force == arch; others -> force != arch.
+        if arch is not None and p["force"] in ("taken", "not_taken") and "degenerate" not in p.get("why", ""):
+            p["consistent_with_arch"] = ((p["force"] == "taken") == arch) == want_arch
+        plan.append(p)
+    return plan
+
+
+def _branch_ann_for_se(ann_path: Path, workdir: Path,
+                       binary: Optional[Path] = None) -> Path:
     """Write the --branch-ann-file copy that every build's se.py can read.
 
-    compile_annotate.py writes each branch's absolute PC as `branch_addr[_hex]`,
-    which /work/stt's se.py reads. The /work/gem5-spt and /work/gem5-recon-modded
-    se.py loaders only accept `branch_pc_addr[_hex]` (or x86 offsets) and skip
-    every other entry, so no BTB override and no resolve stall were registered
-    on those builds (config.ini annotationBranchPCs empty). The alias is added
-    here, at the one point where an annotation is handed to gem5, so existing
-    testsets need no regeneration. See wiki/design/COMMIT_BOUNDARY.md §3.
+    (1) Key alias. compile_annotate.py writes each branch's absolute PC as
+    `branch_addr[_hex]`, which /work/stt's se.py reads. The /work/gem5-spt and
+    /work/gem5-recon-modded se.py loaders only accept `branch_pc_addr[_hex]` (or
+    x86 offsets) and skip every other entry, so no BTB override and no resolve
+    stall were registered on those builds (config.ini annotationBranchPCs
+    empty; confirmed by STAGE3_gem5/hook_audit.py 2026-10-30). The alias is
+    added here, at the one point where an annotation is handed to gem5, so
+    existing testsets need no regeneration. wiki/design/COMMIT_BOUNDARY.md §3.
+
+    (2) Forced direction. When the gem5 binary has the resolve hooks, every
+    annotated branch gets the direction from branch_force_plan: target 1 means
+    "force not-taken", otherwise the jcc's static target (taken). The mode is
+    set to "simspect_force" so every se.py loader passes the target through.
+    The plan is written next to the file (force_plan.json) for the record.
     """
     ann = json.loads(ann_path.read_text())
     for entry in ann.get("annotations", []):
         if "branch_addr" in entry and "branch_pc_addr" not in entry:
             entry["branch_pc_addr"] = entry["branch_addr"]
             entry["branch_pc_addr_hex"] = hex(int(entry["branch_addr"]))
+    if binary is not None and binary_has_resolve_hooks(GEM5_BIN):
+        plan = branch_force_plan(binary, ann)
+        by_addr = {p["addr"]: p for p in plan}
+        for entry in ann.get("annotations", []):
+            p = by_addr.get(int(entry.get("branch_addr", -1)))
+            if p is None:
+                continue
+            if p["force"] == "unknown":
+                # Never fall back to the old force-to-label rule: register the
+                # branch (stall still applies) but force nothing.
+                entry["orig_mode"] = entry.get("mode")
+                entry["mode"] = "mispredict_not_taken"
+                continue
+            tgt = 1 if p["force"] == "not_taken" else p["static_target"]
+            entry["orig_mode"] = entry.get("mode")
+            entry["mode"] = "simspect_force"
+            entry["btb_forced_target_addr"] = tgt
+            entry["btb_forced_target_addr_hex"] = hex(tgt)
+            entry.pop("btb_forced_target_x86_offset", None)
+            entry.pop("btb_forced_target_x86_offset_hex", None)
+        (workdir / "force_plan.json").write_text(json.dumps(plan, indent=1))
     out = workdir / "branch_ann_se.json"
     out.write_text(json.dumps(ann, indent=1))
     return out
@@ -203,7 +391,7 @@ def run_gem5(binary: Path, workdir: Path,
 
     if BRANCH_ANN_ENABLE and ann_path is not None and ann_path.exists():
         base = _func_base_addr(binary, binary.stem)
-        cmd.append(f"--branch-ann-file={_branch_ann_for_se(ann_path, workdir)}")
+        cmd.append(f"--branch-ann-file={_branch_ann_for_se(ann_path, workdir, binary)}")
         if base is not None:
             cmd.append(f"--branch-ann-base={hex(base)}")
 
@@ -689,6 +877,13 @@ def collect_unresolved_branches(ann_full: dict, binary: Path,
         stall = int(e.get("resolve_stall_cycles", 0) or 0)
         if stall <= 0:
             continue
+        # Only the model's unresolved branches define the window. A resolved
+        # (correctly_not_taken) branch can carry a sweep grid stall, but the
+        # model says it has resolved, so it must not be required to still be
+        # unresolved at the signal (pre-2026-10-30 it was). Its timing is
+        # reported separately (criteria.resolved_before_signal).
+        if e.get("mode") == "correctly_not_taken":
+            continue
         # New schema: absolute branch_addr.
         addr = e.get("branch_addr")
         if addr is None:
@@ -705,16 +900,58 @@ def collect_unresolved_branches(ann_full: dict, binary: Path,
     return out
 
 
+def parse_branch_events(trace_path: Path) -> Dict[int, Dict[int, dict]]:
+    """BR resolve lines (2026-10-30 hooks) -> {pc: {seq: {kind: tick, ...}}}.
+
+    Kinds: predict_force (fetch: forced direction), resolve_hold (IEW schedules
+    the stall), resolve_drop (squashed before release), resolve_release (IEW
+    releases), resolve_bcast (release broadcast the mispredict squash),
+    resolve_visible (commit setCanCommit: the tick the defense sees the branch
+    resolved). Numeric extras (stall, fire, mispred, taken, target, upc) are
+    kept per seq. Empty dict when the binary has no resolve hooks.
+    """
+    out: Dict[int, Dict[int, dict]] = defaultdict(dict)
+    for ev in parse_simspect_events(trace_path):
+        if ev["struct"] != "BR" or ev["pc"] is None or ev["seq"] is None:
+            continue
+        d = out[ev["pc"]].setdefault(ev["seq"], {})
+        d.setdefault(ev["kind"], ev["tick"])
+        for k in ("stall", "fire", "mispred", "taken", "target", "upc"):
+            if isinstance(ev.get(k), str):
+                d[f"{ev['kind']}_{k}"] = int(ev[k], 0)
+    return dict(out)
+
+
+def _resolution_of(seqs: Dict[int, dict]) -> Optional[dict]:
+    """Pick the dynamic instance whose resolution matters: the youngest one that
+    was held or became visible and was not dropped (a dropped instance was
+    squashed before resolving, e.g. a wrong-path copy)."""
+    live = {q: d for q, d in seqs.items() if "resolve_drop" not in d
+            and ("resolve_hold" in d or "resolve_visible" in d)}
+    if live:
+        q = max(live)
+        return dict(seq=q, **live[q])
+    if seqs:
+        q = max(seqs)
+        return dict(seq=q, **seqs[q])
+    return None
+
+
 def check_branch_resolutions(by_pc: Dict[int, list],
                              xmit_complete: int,
                              unresolved: List[dict],
                              ticks_per_cycle: int) -> Tuple[bool, List[dict]]:
-    """For each unresolved branch, prop_tick = complete + stall*ticks/cycle.
+    """Is every unresolved branch still unresolved at `xmit_complete`?
 
-    Returns (all_unresolved_ok, per_branch_details).  A branch counts as
-    "still unresolved at xmit_complete" if either:
-      (a) it was never fetched / never completed (resolution never propagated)
-      (b) xmit_complete < prop_tick
+    Observed (binary with the 2026-10-30 resolve hooks; process_one puts the
+    branch's BR events in u["br"]): resolve_tick = resolve_visible, the commit
+    setCanCommit() tick every defense keys "resolved" on (falls back to
+    resolve_release). A branch held but dropped (squashed first) never
+    resolves. A stalled branch that executed with no resolve_hold means the
+    stall was never registered: reported as stall_applied=False.
+
+    Estimate (older binaries): prop_tick = complete + stall*ticks/cycle, the
+    IEW release tick, valid only if gem5 registered the stall.
     The caller should already have excluded xmit_pc from `unresolved`.
     """
     details: List[dict] = []
@@ -722,18 +959,111 @@ def check_branch_resolutions(by_pc: Dict[int, list],
     for u in unresolved:
         rec = best_record(by_pc.get(u["pc"], []))
         complete = rec.get("complete", 0) if rec else 0
+        br = u.get("br")
+        if br is not None:
+            r = _resolution_of(br)
+            d = dict(pc=hex(u["pc"]), stall=u["stall_cycles"], source="observed",
+                     complete=complete)
+            if r is None:
+                d.update(resolve_tick=0, ok=True, reason="never fetched")
+            else:
+                d.update(seq=r["seq"], hold_tick=r.get("resolve_hold", 0),
+                         release_tick=r.get("resolve_release", 0),
+                         visible_tick=r.get("resolve_visible", 0),
+                         dropped="resolve_drop" in r,
+                         stall_applied=("resolve_hold" in r) or not (
+                             "resolve_visible" in r or "resolve_release" in r),
+                         estimate_tick=(complete + u["stall_cycles"] * ticks_per_cycle
+                                        if complete else 0))
+                tick = d["visible_tick"] or d["release_tick"]
+                d["resolve_tick"] = tick
+                if tick == 0:
+                    d.update(ok=True, reason="never resolved (dropped or sim ended)")
+                else:
+                    d["ok"] = xmit_complete < tick
+            details.append(d)
+            all_ok &= d["ok"]
+            continue
         if complete == 0:
             details.append(dict(pc=hex(u["pc"]), stall=u["stall_cycles"],
-                                complete=0, prop_tick=0, ok=True,
+                                complete=0, prop_tick=0, ok=True, source="estimate",
                                 reason="not completed"))
             continue
         prop_tick = complete + u["stall_cycles"] * ticks_per_cycle
         ok = xmit_complete < prop_tick
         details.append(dict(pc=hex(u["pc"]), stall=u["stall_cycles"],
-                            complete=complete, prop_tick=prop_tick, ok=ok))
+                            complete=complete, prop_tick=prop_tick, ok=ok,
+                            source="estimate"))
         if not ok:
             all_ok = False
     return all_ok, details
+
+
+def execution_validity(ann_entries: List[dict], br_events: Dict[int, Dict[int, dict]],
+                       by_seq: Dict[int, dict], xmit_pc: Optional[int],
+                       plan: Optional[List[dict]]) -> dict:
+    """Did gem5 run the speculation shape the model asked for? (2026-10-30)
+
+    resolved_correct  no correctly_not_taken branch mispredicted on the correct
+                      path (an instance that retired)
+    window_opened     the oldest non-xmit unresolved branch mispredicted on its
+                      correct-path instance (else there was no speculation window)
+    stall_applied     every stalled unresolved branch that resolved was held
+    force_applied     every branch with a planned force got a predict_force line
+                      on each fetched instance
+    Each is True/False, or None when it does not apply or the binary has no
+    resolve hooks (br_events empty). Notes explain any False.
+    """
+    out: dict = dict(resolved_correct=None, window_opened=None, stall_applied=None,
+                     force_applied=None, notes=[])
+    if not br_events:
+        return out
+    retired = {q for q, r in by_seq.items() if r.get("retire", 0) > 0}
+    res, unr = [], []
+    for e in ann_entries:
+        if "branch_addr" not in e:
+            continue
+        pc = int(e["branch_addr"])
+        (res if e.get("mode") == "correctly_not_taken" else unr).append(
+            (pc, int(e.get("resolve_stall_cycles", 0) or 0), e.get("branch_pc", pc)))
+    if res:
+        bad = [hex(pc) for pc, _, _ in res for q, d in br_events.get(pc, {}).items()
+               if q in retired and d.get("resolve_visible_mispred") == 1]
+        out["resolved_correct"] = not bad
+        if bad:
+            out["notes"].append(f"resolved branch mispredicted: {bad}")
+    # Oldest = lowest Alloy pc (program order), not lowest x86 address.
+    nonx = [pc for pc, _, _ in sorted((u for u in unr if u[0] != xmit_pc), key=lambda u: u[2])]
+    if nonx:
+        first = nonx[0]
+        inst = [d for q, d in br_events.get(first, {}).items() if q in retired]
+        out["window_opened"] = any(d.get("resolve_visible_mispred") == 1 for d in inst)
+        if not out["window_opened"]:
+            out["notes"].append(f"oldest unresolved branch {hex(first)} did not mispredict")
+    stalled = [pc for pc, st, _ in unr if st > 0 and pc != xmit_pc]
+    if stalled:
+        miss = [hex(pc) for pc in stalled for q, d in br_events.get(pc, {}).items()
+                if ("resolve_visible" in d or "resolve_release" in d) and "resolve_hold" not in d]
+        out["stall_applied"] = not miss
+        if miss:
+            out["notes"].append(f"resolve stall not registered at {miss}")
+    if plan:
+        want = {p["addr"]: int(p["force"] == "taken") for p in plan
+                if p.get("force") in ("taken", "not_taken")}
+        miss = [hex(pc) for pc, tk in want.items() for q, d in br_events.get(pc, {}).items()
+                if "resolve_visible" in d and ("predict_force" not in d
+                                               or d.get("predict_force_taken") != tk)]
+        out["force_applied"] = not miss
+        if miss:
+            out["notes"].append(f"forced prediction missing or wrong direction at {miss}")
+        inc = [hex(p["addr"]) for p in plan if p.get("consistent_with_arch") is False]
+        if inc:
+            out["force_applied"] = False
+            out["notes"].append(f"force plan contradicts the flags idiom at {inc}")
+        unk = [hex(p["addr"]) for p in plan if p.get("force") == "unknown"]
+        if unk:
+            out["notes"].append(f"no force plan for {unk}")
+    return out
 
 
 # ── Generic process_one ─────────────────────────────────────────────────────
@@ -793,6 +1123,18 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
             # The xmit PC, if itself an annotated unresolved branch, is the
             # event we're conditioning on — exclude it from the bound check.
             unresolved = [u for u in unresolved if u["pc"] != xmit_pc]
+            # Observed branch resolution (binaries with the 2026-10-30 resolve
+            # hooks): hand each unresolved branch its BR events.
+            br_events = parse_branch_events(trace)
+            if br_events:
+                for u in unresolved:
+                    u["br"] = br_events.get(u["pc"], {})
+            plan_f = workdir / "force_plan.json"
+            plan = json.loads(plan_f.read_text()) if plan_f.exists() else None
+            result["force_plan"] = plan
+            result["br_resolve_source"] = "observed" if br_events else "estimate"
+            result["br_events"] = {hex(pc): {str(q): d for q, d in seqs.items()}
+                                   for pc, seqs in br_events.items()}
             if getattr(check_fn, "wants_trace", False):
                 # Additive (2026-10-28): trace-reading checkers such as
                 # check_footprint.py also get the raw trace path.
@@ -804,6 +1146,40 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
                                         unresolved, ticks_per_cycle, lsq_by_pc,
                                         squash_by_pc)
             result.update(check_result)
+            # Execution validity: did gem5 run the speculation shape the model
+            # asked for? A record that fails it is kept (warn) but is not a hit;
+            # the unvalidated verdict stays in issued_in_window_unvalidated.
+            validity = execution_validity(parts["annotations"], br_events,
+                                          parse_pipeview_by_seq(trace) if br_events else {},
+                                          xmit_pc, plan)
+            result["validity"] = validity
+            crit = result.setdefault("criteria", {})
+            # Resolved branches (model: resolved before the leak). Reported, not
+            # gated, so kept OUT of `criteria` (whose non-None values AND to
+            # issued_in_window): True iff every resolved branch's last fetched
+            # instance was visible-resolved before the xmit signal. None
+            # without BR lines or without a signal.
+            sig = result.get("xmit_signal") or 0
+            rb = []
+            for e in parts["annotations"]:
+                if e.get("mode") != "correctly_not_taken" or "branch_addr" not in e:
+                    continue
+                r = _resolution_of(br_events.get(int(e["branch_addr"]), {})) if br_events else None
+                vt = (r or {}).get("resolve_visible", 0)
+                rb.append(dict(pc=hex(int(e["branch_addr"])), visible_tick=vt,
+                               stall=int(e.get("resolve_stall_cycles", 0) or 0),
+                               before_signal=(bool(vt) and sig > 0 and vt < sig)))
+            result["resolved_branches"] = rb
+            result["resolved_before_signal"] = (all(b["before_signal"] for b in rb)
+                                              if (rb and br_events and sig) else None)
+            for k in ("resolved_correct", "window_opened", "stall_applied", "force_applied"):
+                crit[k] = validity[k]
+            if any(validity[k] is False for k in
+                   ("resolved_correct", "window_opened", "stall_applied", "force_applied")):
+                result["issued_in_window_unvalidated"] = result.get("issued_in_window")
+                result["issued_in_window"] = False
+                result["status"] = "invalid"
+                result["error"] = "; ".join(validity["notes"])
 
     except subprocess.CalledProcessError as e:
         result["status"] = "error"

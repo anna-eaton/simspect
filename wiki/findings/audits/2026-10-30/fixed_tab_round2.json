@@ -1,0 +1,203 @@
+{
+ "SPT_6_oneLP_fence_fixed__20261030_214301/mispredict_not_taken": {
+  "by_kind": {
+   "ld": {
+    "records": 10123,
+    "status_ok": 10123,
+    "fail_signal_seen": 2646,
+    "fail_after_lc": 3109,
+    "hits": 1860,
+    "fail_before_fnc": 4302,
+    "fail_lc_retired": 72
+   },
+   "br_x": {
+    "records": 1627,
+    "status_ok": 1627,
+    "fail_signal_seen": 1184,
+    "fail_branch_redirected": 1184,
+    "fail_after_lc": 895,
+    "fail_before_fnc": 247,
+    "hits": 130,
+    "fail_lc_retired": 3
+   }
+  },
+  "validity_notes": {},
+  "one_criterion_fail": {
+   "ld:after_lc": 1252,
+   "ld:signal_seen": 783,
+   "ld:before_fnc": 4299,
+   "ld:lc_retired": 63,
+   "br_x:before_fnc": 247,
+   "br_x:after_lc": 66
+  }
+ },
+ "SPT_6_oneLP_fence_fixed__20261030_214301/mispredict_taken": {
+  "by_kind": {
+   "br_x": {
+    "records": 1477,
+    "status_ok": 1477,
+    "fail_signal_seen": 1123,
+    "fail_branch_redirected": 1126,
+    "fail_after_lc": 858,
+    "hits": 93,
+    "fail_lc_retired": 3,
+    "fail_before_fnc": 181
+   },
+   "ld": {
+    "records": 10123,
+    "status_ok": 10123,
+    "fail_before_fnc": 4963,
+    "fail_signal_seen": 2647,
+    "fail_after_lc": 2853,
+    "hits": 1455,
+    "fail_lc_retired": 72
+   }
+  },
+  "validity_notes": {},
+  "one_criterion_fail": {
+   "br_x:before_fnc": 181,
+   "br_x:after_lc": 77,
+   "br_x:branch_redirected": 3,
+   "ld:before_fnc": 4960,
+   "ld:signal_seen": 783,
+   "ld:after_lc": 995,
+   "ld:lc_retired": 63
+  }
+ },
+ "STT_6_commitsplit_stt_fixed__20261030_214301/mispredict_not_taken": {
+  "by_kind": {
+   "ld": {
+    "records": 6238,
+    "status_ok": 6238,
+    "fail_signal_seen": 6238
+   },
+   "br_x": {
+    "records": 6464,
+    "status_ok": 6464,
+    "fail_before_fnc": 1494,
+    "fail_branches_unresolved": 1494,
+    "fail_signal_seen": 4970,
+    "fail_branch_redirected": 4970
+   }
+  },
+  "validity_notes": {},
+  "one_criterion_fail": {
+   "ld:signal_seen": 6238
+  }
+ },
+ "STT_6_commitsplit_stt_fixed__20261030_214301/mispredict_taken": {
+  "by_kind": {
+   "ld": {
+    "records": 6238,
+    "status_ok": 6238,
+    "fail_signal_seen": 6238
+   },
+   "br_x": {
+    "records": 6464,
+    "status_ok": 6464,
+    "fail_signal_seen": 6464,
+    "fail_branch_redirected": 6464
+   }
+  },
+  "validity_notes": {},
+  "one_criterion_fail": {
+   "ld:signal_seen": 6238
+  }
+ },
+ "STT_6_reconmodded_fixed__20261030_214301/mispredict_not_taken": {
+  "by_kind": {
+   "ld": {
+    "records": 4453,
+    "status_ok": 4453,
+    "fail_before_fnc": 2120,
+    "fail_data_obtained": 4349,
+    "fail_after_lc": 233,
+    "hits": 63
+   },
+   "br_x": {
+    "records": 1340,
+    "status_ok": 1340,
+    "fail_signal_seen": 1337,
+    "fail_branch_redirected": 1337,
+    "fail_after_lc": 787,
+    "fail_before_fnc": 3
+   }
+  },
+  "validity_notes": {},
+  "one_criterion_fail": {
+   "ld:data_obtained": 2074,
+   "br_x:before_fnc": 3,
+   "ld:before_fnc": 41
+  }
+ },
+ "STT_6_reconmodded_fixed__20261030_214301/mispredict_taken": {
+  "by_kind": {
+   "br_x": {
+    "records": 1340,
+    "status_ok": 1340,
+    "fail_signal_seen": 1335,
+    "fail_branch_redirected": 1335,
+    "fail_after_lc": 782,
+    "fail_before_fnc": 5
+   },
+   "ld": {
+    "records": 4453,
+    "status_ok": 4453,
+    "fail_data_obtained": 4349,
+    "fail_before_fnc": 2069,
+    "fail_after_lc": 255,
+    "hits": 63
+   }
+  },
+  "validity_notes": {},
+  "one_criterion_fail": {
+   "br_x:before_fnc": 5,
+   "ld:data_obtained": 2096,
+   "ld:before_fnc": 41
+  }
+ },
+ "STT_6_stt_fixed__20261030_214301/mispredict_not_taken": {
+  "by_kind": {
+   "br_x": {
+    "records": 1340,
+    "status_ok": 1340,
+    "fail_signal_seen": 1304,
+    "fail_branch_redirected": 1304,
+    "fail_before_fnc": 36,
+    "fail_branches_unresolved": 36,
+    "fail_after_lc": 787
+   },
+   "ld": {
+    "records": 4453,
+    "status_ok": 4453,
+    "fail_signal_seen": 4453,
+    "fail_after_lc": 1933
+   }
+  },
+  "validity_notes": {},
+  "one_criterion_fail": {
+   "ld:signal_seen": 2520
+  }
+ },
+ "STT_6_stt_fixed__20261030_214301/mispredict_taken": {
+  "by_kind": {
+   "ld": {
+    "records": 4453,
+    "status_ok": 4453,
+    "fail_signal_seen": 4453,
+    "fail_after_lc": 1933
+   },
+   "br_x": {
+    "records": 1340,
+    "status_ok": 1340,
+    "fail_signal_seen": 1340,
+    "fail_branch_redirected": 1340,
+    "fail_after_lc": 787
+   }
+  },
+  "validity_notes": {},
+  "one_criterion_fail": {
+   "ld:signal_seen": 2520
+  }
+ }
+}
