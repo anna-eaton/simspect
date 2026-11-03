@@ -1,0 +1,111 @@
+% 8pt-minimum version of interleave_v4.tex (all text >= \footnotesize; r0/m0/f0 names without subscripts).
+% Figure (c) v4: Stage 2 interleaving round (parsexml.py:pass_interleave + pass3 shared free pool), in the
+% shared graph notation (VISUAL_LANGUAGE.md "Graph notation"). Body only; caption in captions/interleave_v4.tex.
+% Base rows i0-i5 = a real STT_6 instance: interleave_v4_base_inst-000013.xml (enumerated 2026-11-02 from a
+% scratch copy of STT_6.als plus the otb_shape forcing predicate of OTB_GENERATION_GAP.md; the copy is
+% interleave_v4_base_otb_forcing.als.txt, a 2-line diff). Atoms: Instruction idx IX0..IX5 = i0..i5,
+% Reg_s$0 = r0, Mem_s$0 = m0. Rows c0, c1 = one chain injected by pass_interleave (_build_chain,
+% parsexml.py:211-335: ld then other_n; outputs pinned to free-pool atoms Reg_s$fr0/1 = f0/f1; steps carry
+% resolved/committed False, :200-201), placed in the uncommitted suffix (:1319-1358; this placement is one
+% possible draw). Dashed rf = the merge pass3 can make: i4's unspecified second input draws from free_pool
+% (:1577-1587), whose head holds the chain registers (:1534-1537). Plan: plans/fig_c_interleave.md.
+% Every line ends in % so no stray spaces enter the output. Macros/styles prefixed il.
+{%
+% ============================ TUNING KNOBS ============================
+\def\ilshade{black!12}% gray = defense-specific (m0 is in STT's protection set)
+\def\ilkind{13pt}% x where kinds start (ids at 0)
+\def\ilout{59.5pt}% x of the output operand
+\def\ilarr{72pt}% x of the <- arrow
+\def\ilin{84pt}% x of the (first) input operand
+\def\ilgut{114pt}% x of the gutter carrying the dashed merge edge
+\def\ilflag{120pt}% x where flag words start
+\def\ilnote{168pt}% x where the notes start
+\def\ilnotew{84pt}% note width (\ilnote + \ilnotew <= 252pt)
+\def\ilrow{15pt}% default row pitch
+\def\ilgapA{9pt}% extra space above i3 (its ddi arc + label, under the merge edge)
+\def\ilgapB{14pt}% extra space above i4 (incoming rf over its low ddi arc)
+\def\ilgapC{9pt}% extra space above i5
+\def\illw{1.1pt}% line width of the leak path
+\def\ilpadtop{8pt}% empty space above the first baseline
+\def\ilpadbot{12pt}% empty space below the last baseline
+\def\ilgapD{9pt}% extra space above c1 (room for the chain rf)
+% ======================================================================
+\begin{tikzpicture}[%
+  >=latex,%
+  every node/.style={font=\footnotesize, inner sep=0pt},%
+  execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000},%
+  iltok/.style={anchor=base west, outer sep=0.6pt},%
+  illab/.style={font=\footnotesize\itshape},%
+  ilflagw/.style={font=\footnotesize\itshape, anchor=base west},%
+  ilnote/.style={font=\footnotesize\itshape, anchor=base west, align=left, text width=\ilnotew},%
+  illeak/.style={->, line width=\illw},%
+]%
+\path (0,0) coordinate (y0) (0,-\ilrow) coordinate (y1) (0,-2*\ilrow) coordinate (y2)%
+  (0,-3*\ilrow-\ilgapD) coordinate (y3) (0,-4*\ilrow-\ilgapD) coordinate (y4)%
+  (0,-5*\ilrow-\ilgapD-\ilgapA) coordinate (y5) (0,-6*\ilrow-\ilgapD-\ilgapA-\ilgapB) coordinate (y6)%
+  (0,-7*\ilrow-\ilgapD-\ilgapA-\ilgapB-\ilgapC) coordinate (y7);%
+\path (0,\ilpadtop) ($(y7)+(0,-\ilpadbot)$);% breathing room
+% ids: base rows i*, injected rows c*
+\foreach \r/\n in {0/i0,1/i1,2/c0,3/c1,4/i2,5/i3,6/i4,7/i5} \node[iltok] at (y\r) {\n:};%
+% i0, i1: committed branches
+\node[iltok] at ($(y0)+(\ilkind,0)$) {\texttt{Branch\_n}};%
+\node[ilflagw] at ($(y0)+(\ilflag,0)$) {committed};%
+\node[iltok] at ($(y1)+(\ilkind,0)$) {\texttt{Branch\_n}};%
+\node[ilflagw] at ($(y1)+(\ilflag,0)$) {committed};%
+% c0: Load f0 <- ?   (injected, no flags)
+\node[iltok] at ($(y2)+(\ilkind,0)$) {\texttt{Load}};%
+\node[iltok] (c0o) at ($(y2)+(\ilout,0)$) {$f0$};%
+\node[iltok] at ($(y2)+(\ilarr,0)$) {$\leftarrow$};%
+\node[iltok] at ($(y2)+(\ilin,0)$) {?};%
+% c1: Other_n f1 <- f0   (injected, no flags)
+\node[iltok] at ($(y3)+(\ilkind,0)$) {\texttt{Other\_n}};%
+\node[iltok] (c1o) at ($(y3)+(\ilout,0)$) {$f1$};%
+\node[iltok] at ($(y3)+(\ilarr,0)$) {$\leftarrow$};%
+\node[iltok] (c1i) at ($(y3)+(\ilin,0)$) {$f0$};%
+% i2: Branch_n (unresolved)
+\node[iltok] at ($(y4)+(\ilkind,0)$) {\texttt{Branch\_n}};%
+% i3: Load r0 <- m0   resolved
+\node[iltok] at ($(y5)+(\ilkind,0)$) {\texttt{Load}};%
+\node[iltok] (i3o) at ($(y5)+(\ilout,0)$) {$r0$};%
+\node[iltok] at ($(y5)+(\ilarr,0)$) {$\leftarrow$};%
+\node[iltok, fill=\ilshade, inner xsep=1pt, inner ysep=1.3pt] (i3m) at ($(y5)+(\ilin,0)$) {$m0$};%
+\node[ilflagw] at ($(y5)+(\ilflag,0)$) {resolved};%
+% i4: Other_x r0 <- r0, ?   resolved
+\node[iltok] at ($(y6)+(\ilkind,0)$) {\texttt{Other\_x}};%
+\node[iltok] (i4o) at ($(y6)+(\ilout,0)$) {$r0$};%
+\node[iltok] at ($(y6)+(\ilarr,0)$) {$\leftarrow$};%
+\node[iltok] (i4i) at ($(y6)+(\ilin,0)$) {$r0$};%
+\node[iltok] (i4c) at (i4i.base east) {,};%
+\node[iltok] (i4q) at ($(i4c.base east)+(2.5pt,0)$) {?};%
+\node[ilflagw] at ($(y6)+(\ilflag,0)$) {resolved};%
+% i5: Load ? <- [r0]   resolved, xmit
+\node[iltok] at ($(y7)+(\ilkind,0)$) {\texttt{Load}};%
+\node[iltok] at ($(y7)+(\ilout,0)$) {?};%
+\node[iltok] at ($(y7)+(\ilarr,0)$) {$\leftarrow$};%
+\node[iltok] (i5b) at ($(y7)+(\ilin,0)$) {[};%
+\node[iltok, outer sep=0pt] (i5r) at (i5b.base east) {$r0$};%
+\node[iltok] at (i5r.base east) {]};%
+\node[ilflagw] at ($(y7)+(\ilflag,0)$) {resolved, xmit};%
+% ---- edges ----
+% chain bridge: c0.f0 -rf-> c1.f0
+\draw[->, shorten <=0.6pt, shorten >=1pt] (c0o.south) .. controls +(0,-0.30) and +(-0.20,0.20) .. (c1i.north west)%
+  node[pos=0.5, illab, anchor=south west, xshift=1.5pt] {rf};%
+% merge (dashed): c1.f1 -> i4's ?, through i2's empty operand area and the gutter
+\draw[->, densely dashed, shorten <=0.6pt, shorten >=0.8pt, rounded corners=2pt]%
+  (c1o.south) |- ($(\ilgut,0 |- y4)+(0,2.5pt)$) |- (i4q.east);%
+\node[illab, anchor=base west] at ($(\ilin,0 |- y4)+(4pt,5.5pt)$) {rf};%
+% leak path (thick): m0 -ddi-> r0 (i3) -rf-> r0 (i4) -ddi-> r0 (i4) -rf-> [r0] (i5)
+\draw[illeak, shorten >=1.4pt] ($(i3m.north)+(0,0.3pt)$) to[out=115, in=65, looseness=1.1]%
+  node[pos=0.5, above=1.4pt, illab] {ddi} ($(i3o.north)+(0,0.6pt)$);%
+\draw[illeak, shorten <=0.6pt, shorten >=1pt] (i3o.south) .. controls +(0.15,-0.22) and +(0.08,0.22) .. ($(i4i.north east)+(-0.6pt,1.4pt)$)%
+  node[pos=0.5, illab, anchor=south west, xshift=2pt] {rf};%
+\draw[illeak, shorten >=1.2pt] ($(i4i.north west)+(0.8pt,1.3pt)$) to[out=125, in=55, looseness=0.9]%
+  ($(i4o.north)+(0.5pt,1.6pt)$);%
+\node[illab, anchor=base east] at ($(i4o.base west)+(-1pt,5.5pt)$) {ddi};%
+\draw[illeak, shorten <=0.6pt, shorten >=1.2pt] (i4o.south) .. controls +(0,-0.35) and +(-0.25,0.20) .. (i5b.north west)%
+  node[pos=0.5, illab, anchor=south west, xshift=2pt] {rf};%
+% ---- notes ---- (8pt: the step-5 note is centred on i4's row so its last line clears i5's flags)
+\node[ilnote] at ($(y2)+(\ilnote,0)$) {step 4 injects chain c0, c1 after the committed prefix, with no flags};%
+\node[ilnote, anchor=west] at ($(y6)+(\ilnote,0.5ex)$) {step 5 fills ? from the shared free pool and can pick $f1$'s register};%
+\end{tikzpicture}%
+}%

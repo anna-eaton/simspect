@@ -1,0 +1,9 @@
+% Preview of figure (b) v4. Caption not rendered (text in captions/relaxation_v4_8pt.tex); the bottom border
+% leaves room for it. Build: pdflatex _standalone_relaxation_v4_8pt.tex && pdftoppm -png -r 300 -singlefile _standalone_relaxation_v4_8pt.pdf _standalone_relaxation_v4_8pt-1
+\documentclass[tikz,border={2pt 24pt 2pt 2pt}]{standalone}
+\usepackage{newtxtext,newtxmath} % preview only (the paper is Times)
+\renewcommand{\ttdefault}{pcr}   % the paper's typewriter (IEEEtran.cls:496)
+\usetikzlibrary{calc}
+\begin{document}
+\input{relaxation_v4_8pt}
+\end{document}

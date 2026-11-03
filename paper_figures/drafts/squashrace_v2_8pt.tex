@@ -1,0 +1,116 @@
+% Results figure, 8pt version (every text >= 8pt, \footnotesize; derived from squashrace_v2.tex): the STT visibility-point <-> squash race, on a real gem5 trace.%
+% Body only (goes into the paper's tikz/). Wrapped in { }; all helper names are prefixed \sr.%
+% Needs TikZ libraries calc + shapes.geometric (the paper preamble loads both).%
+% Data: wiki/findings/bug/stt_slowcomm_vp_squash_race/ (inst-047231, STT_6 mispredict_not_taken,%
+% /work/stt --scheme=2, se_slowcomm.py: commitToIEWDelay=4; experiment slow_comm_squash1, 2026-06-02).%
+% Ticks: provenance.json "evidence" + example_inst-047231.md:46-50,96-98. Program: inst-047231.s.%
+% Cycle c = (tick - 2907000)/500, i.e. 0 = lc retires. Provenance + caveats: plans/RESULTS_FIGURES.md.%
+{%
+% ============================ TUNING KNOBS ============================%
+\def\srcyc{12}%          pt per simulated cycle (same scale in every axis segment)%
+\def\srbrk{12}%         pt width of each elided stretch (dotted)%
+\def\srtl{56}%          pt, x of the time axis origin; left of it: label column%
+\def\srrowh{30}%        pt between instruction rows%
+\def\srbarh{4}%         pt height of an instruction bar%
+\def\srright{250}%      pt, right edge of the figure%
+\def\srcodeh{10.5}%      pt between listing lines%
+\def\srstar{8.5pt}%     outer diameter of the transmission star%
+\def\srwinlw{0.9pt}%    line width of the window frame%
+\def\srdefshade{black!12}% fill marking defense-specific elements (the only gray)%
+\def\srfs{\footnotesize}% the one font size (8pt)%
+% axis segments [start,end] in cycles after lc retires; elided stretches between them%
+\def\srsA{-1}\def\sreA{1}%       lc retires at 0%
+\def\srsB{45.5}\def\sreB{49.5}%      xmit dispatched 46, first issue 49%
+\def\srsC{76.5}\def\sreC{82.5}%      branch resolves 77, re-issue 78, packet 79, squash 81%
+\def\srsD{260.5}\def\sreD{261.5}%    fnc retires 261%
+% ======================================================================%
+\pgfmathsetmacro\sroA{0}%
+\pgfmathsetmacro\sroB{(\sreA-\srsA)*\srcyc+\srbrk}%
+\pgfmathsetmacro\sroC{\sroB+(\sreB-\srsB)*\srcyc+\srbrk}%
+\pgfmathsetmacro\sroD{\sroC+(\sreC-\srsC)*\srcyc+\srbrk}%
+\newcommand\srx[2]{(\srtl+\csname sro#1\endcsname+(#2-\csname srs#1\endcsname)*\srcyc)}%
+\newcommand\srab[1]{\textup{#1}}%
+\newcommand\sredges[4]{\draw[#4] (#2,#1+\srbarh/2) -- (#3,#1+\srbarh/2) (#2,#1-\srbarh/2) -- (#3,#1-\srbarh/2);}%
+\newcommand\srtck[2]{\draw (#2,#1-\srbarh/2) -- (#2,#1+\srbarh/2);}%
+\newcommand\srstg[3]{\node[anchor=south] at (#2,#1+\srbarh/2+1.6) {#3};}%
+\newcommand\srsq[2]{\draw[line width=0.6pt] ({#2-2},{#1-2}) -- ++(4,4) ({#2-2},{#1+2}) -- ++(4,-4);}%
+% elided stretch after segment #2 (B, C or D = the segment it leads into), row y=#1%
+\newcommand\srgap[2]{\sredges{#1}{{\srtl+\csname sro#2\endcsname-\srbrk}}{{\srtl+\csname sro#2\endcsname}}{densely dotted}}%
+\begin{tikzpicture}[x=1pt, y=1pt, >=latex,%
+  every node/.style={font=\srfs, inner sep=0pt, execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000\relax}},%
+  srann/.style={font=\srfs\itshape},%
+  srcode/.style={font=\srfs\ttfamily, anchor=base west},%
+  srrow/.style={anchor=base west},%
+  srgloss/.style={font=\srfs\itshape, anchor=base west},%
+]%
+% ------------------------------ legend line ------------------------------%
+\node[anchor=base west] at (0,0) {N: dispatch\quad E: issue\quad Dotted: elided cycles};%
+\node[anchor=base east] (srlg) at (\srright,0) {Defense-specific};%
+\draw[fill=\srdefshade] ($(srlg.west)+(-9.5,-0.5)$) rectangle ++(6,6);%
+% ------------------- program fragment (inst-047231, wrong path) -------------------%
+\pgfmathsetmacro\srcy{-17.5}%
+\def\sropx{17}\def\srargx{41}\def\srnotex{132}%
+\foreach \sri/\srid/\srop/\srarg/\srnote in {%
+  0/i2/jne/.end/{Mispredicted: wrong path below},%
+  1//leaq/{48(\%rsp), \%rdi}/{},%
+  2/i3/movq/{(\%rdi), \%rax}/{Speculative load: \%rax tainted},%
+  3/i4/jne/.end/{Correctly predicted},%
+  4//leaq/{64(\%rsp), \%rdi}/{},%
+  5/i5/movq/{(\%rdi,\%rax), \%r15}/{xmit: tainted address}}{%
+  \node[anchor=base west] at (0,\srcy-\sri*\srcodeh) {\srid};%
+  \node[srcode] at (\sropx,\srcy-\sri*\srcodeh) {\srop};%
+  \node[srcode] at (\srargx,\srcy-\sri*\srcodeh) {\srarg};%
+  \node[srgloss] at (\srnotex,\srcy-\sri*\srcodeh) {\srnote};%
+}%
+% ------------------------------ timeline rows ------------------------------%
+\pgfmathsetmacro\sryA{\srcy-5*\srcodeh-38}% i0 lc%
+\pgfmathsetmacro\sryB{\sryA-\srrowh}%      i2 branch%
+\pgfmathsetmacro\sryC{\sryB-\srrowh}%      i5 xmit%
+\pgfmathsetmacro\srwT{\sryA+13}%           window frame top%
+\pgfmathsetmacro\srwB{\sryC-34}%           window frame bottom%
+\pgfmathsetmacro\sryT{\srwB-3.5}%          top of the cycle numbers%
+\node[srrow] at (0,\sryA-2.7) {i0: \srab{lc}};%
+\node[srgloss] at (0,\sryA-12.2) {Last committed};%
+\node[srrow] at (0,\sryB-2.7) {i2: branch};%
+\node[srgloss] at (0,\sryB-12.2) {Mispredicted};%
+\node[srrow] at (0,\sryC-2.7) {i5: \srab{xmit}};%
+\node[srgloss] at (0,\sryC-12.2) {Transmitter};%
+% i0: lc retires at 0 (window opens); earlier cycles elided%
+\sredges{\sryA}{{\srx{A}{-1}}}{{\srx{A}{0}}}{}%
+\srtck{\sryA}{{\srx{A}{0}}}%
+\node[srann, anchor=west] at ({\srx{A}{0}+3},\sryA) {Retires};%
+% i2: the mispredicted branch, resolves at 77%
+\sredges{\sryB}{{\srx{A}{-1}}}{{\srx{B}{45.5}-\srbrk}}{}%
+\srgap{\sryB}{B}%
+\sredges{\sryB}{{\srx{B}{45.5}}}{{\srx{C}{76.5}-\srbrk}}{}%
+\srgap{\sryB}{C}%
+\sredges{\sryB}{{\srx{C}{76.5}}}{{\srx{C}{77}}}{}%
+\srtck{\sryB}{{\srx{C}{77}}}%
+\node[srann, anchor=south] at ({\srx{C}{77}},\sryB+\srbarh/2+2) {Resolves};%
+% resolution releases the protection on i5 (dashed drop line)%
+\draw[densely dashed] ({\srx{C}{77}},\sryB-\srbarh/2) -- ({\srx{C}{77}},\sryC+\srbarh/2+9);%
+% i5: dispatched 46, first issue 49, held while its address is tainted, re-issue 78, packet 79, squashed 81%
+\sredges{\sryC}{{\srx{B}{46}}}{{\srx{C}{76.5}-\srbrk}}{}%
+\srgap{\sryC}{C}%
+\sredges{\sryC}{{\srx{C}{76.5}}}{{\srx{C}{81}}}{}%
+\srtck{\sryC}{{\srx{B}{46}}} \srtck{\sryC}{{\srx{B}{49}}} \srtck{\sryC}{{\srx{C}{78}}}%
+\srstg{\sryC}{{\srx{B}{46}}}{N} \srstg{\sryC}{{\srx{B}{49}}}{E} \srstg{\sryC}{{\srx{C}{78}}}{E}%
+\node[srann, anchor=north west] at ({\srx{B}{49}+2.5},\sryC-\srbarh/2-2.5) {Held: tainted};%
+\srsq{\sryC}{\srx{C}{81}}%
+\node[star, star points=5, star point ratio=2.4, fill=black, draw=white, line width=0.5pt, minimum size=\srstar, inner sep=0pt] (srtx) at ({\srx{C}{79}},\sryC) {};%
+\node[srann, anchor=south west] at ($(srtx.north east)+(-1,2.2)$) {Cache packet};%
+\node[srann, anchor=north west] at ({\srx{C}{81}+1},\sryC-\srbarh/2-2.5) {Squashed};%
+% squash propagation gap, resolve 77 -> squash 81%
+\draw ({\srx{C}{77}},\sryC-15) -- ++(0,-3) -- ({\srx{C}{81}},\sryC-18) -- ++(0,3);%
+\node[srann, anchor=north east] at ({\srx{C}{81}},\sryC-20.5) {Squash in flight: 4 cycles};%
+% ------------------------- the committed window -------------------------%
+\draw[line width=\srwinlw] ({\srx{D}{261}},\srwT) -- ({\srx{A}{0}},\srwT) -- ({\srx{A}{0}},\srwB) -- ({\srx{D}{261}},\srwB) -- cycle;%
+\node[anchor=base] at ({(\srx{A}{0}+\srx{D}{261})/2},\srwT+4) {Committed window (\srab{lc} retires to \srab{fnc} retires)};%
+% ------------------------------ time axis ------------------------------%
+\node[anchor=north west] at (0,\sryT) {Cycle};%
+\foreach \src/\srs in {0/A, 46/B, 49/B, 77/C, 79/C, 81/C, 261/D} \node[anchor=north] at ({\srx{\srs}{\src}},\sryT) {\src};%
+% ------------- the defense-specific rule the trace exposes -------------%
+\pgfmathsetmacro\sryK{\sryT-8-9}%
+\node[draw, fill=\srdefshade, anchor=north west, align=left, inner sep=3pt, text width=244pt] at (0,\sryK) {\raggedright\textit{STT rule:} a load's result stops tainting younger instructions once every older branch has resolved. On a mispredict that is also the moment the squash starts, and the squash needs commitToIEWDelay cycles to reach the load queue.};%
+\end{tikzpicture}%
+}%

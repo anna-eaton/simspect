@@ -1,0 +1,71 @@
+% Table (d), v2, 8pt version (every text >= 8pt, \footnotesize; derived from instrtable_v2.tex): how concretization instruments each execution-graph element (one column, 252pt).%
+% Body only: \input this inside a table float; the caption lives in captions/instrtable_v2.tex.%
+% Source of truth for every cell (file:line citations): paper_figures/plans/fig_d_instrtable.md%
+%   (fact table, rows 1-5; its "v2" section maps each v2 cell to it and lists what moved to the caption).%
+% Visual language: paper_figures/plans/VISUAL_LANGUAGE.md (this 8pt variant: one size, \footnotesize = 8pt; no colour).%
+% Needs (all already in the paper preamble): tikz, booktabs, array.%
+% Exec-graph column: plain placeholder notation (kind in code font as in the Alloy model, lowercase%
+% row-local ids, flags as words). It follows whatever notation the graph figures (a)-(c) settle on.%
+% Every line below ends in % so no stray spaces enter the output.%
+{%
+\footnotesize%
+\hyphenpenalty=10000\exhyphenpenalty=10000%
+% ============================ TUNING KNOBS ============================%
+\def\gw{86pt}%            execution-graph column%
+\def\pw{75pt}%            Stage 2 column (program)%
+\def\hw{75pt}%            Stage 3 column (gem5 harness); \gw+\pw+\hw+4\tabcolsep = 252pt%
+\setlength{\tabcolsep}{4pt}%       half the gap between columns%
+\setlength{\aboverulesep}{4pt}%    space above each rule%
+\setlength{\belowrulesep}{4pt}%    space below each rule%
+\def\egid{9pt}%           glyph: x of the kind (after the id)%
+\def\egfl{51pt}%          glyph: x of the flag word (rows whose kind is code)%
+\def\eglh{9.5pt}%         glyph: line pitch (= \footnotesize baselineskip)%
+\def\egsp{1.5pt}%         glyph: space between the row name and the glyph%
+% ======================================================================%
+% one glyph line: #1 line number (0,1,...), #2 id, #3 kind or role, #4 flag word%
+\def\egl#1#2#3#4{%
+  \node (id#1) at (0,-#1*\eglh) {#2};%
+  \node (k#1) at (\egid,-#1*\eglh) {#3};%
+  \node (f#1) at (\egfl,-#1*\eglh) {\itshape #4};}%
+% glyph: program order top to bottom; baseline = first line%
+\def\eg#1{\par\vspace{\egsp}\begin{tikzpicture}[baseline=0pt, >=latex,%
+    every node/.style={inner sep=0pt, anchor=base west, font=\footnotesize}]#1\end{tikzpicture}}%
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{\gw}>{\raggedright\arraybackslash}p{\pw}>{\raggedright\arraybackslash}p{\hw}@{}}%
+\toprule%
+Execution graph & \textbf{Stage 2:} program & \textbf{Stage 3:} gem5 harness\\%
+\midrule%
+% ---- row 1: store bypass (plan fact table, Row 1) ----%
+Store bypass%
+\eg{\egl{0}{i0}{\texttt{Store}}{unresolved}\egl{1}{i1}{\texttt{Load}}{}%
+  \draw[->, rounded corners=1.2pt] ([xshift=1pt,yshift=2.2pt]k0.base east) -| ++(3pt,-\eglh)%
+    node[pos=0.75, anchor=west, xshift=1pt, font=\footnotesize\itshape] {rf}%
+    -- ([xshift=1pt,yshift=2.2pt]k1.base east);}%
+& i0 and i1 share an address; inline asm, so no compiler forwarding.%
+& i0's address held 5000 cycles; i1 forced to predict no alias.\\%
+\midrule%
+% ---- row 2: unresolved branch (Row 2) ----%
+Unresolved branch, mispredicted either way%
+\eg{\egl{0}{i0}{\texttt{Branch\_n}}{unresolved}}%
+& Constant condition: exits architecturally, so the rest runs only speculatively.%
+& Forced to mispredict; resolution held 5000 cycles; still unresolved at the xmit.\\%
+\midrule%
+% ---- row 3: resolved branch (Row 3) ----%
+Resolved branch, not taken%
+\eg{\egl{0}{i0}{\texttt{Branch\_n}}{resolved}}%
+& Zeroed condition: falls through, never taken.%
+& Forced correct; resolution delayed 0, 500 or 2500 cycles (all combinations).\\%
+\midrule%
+% ---- row 4: commit boundary (Row 4) ----%
+Commit boundary%
+\eg{\def\egfl{25pt}\egl{0}{i0}{lc}{committed}\egl{1}{i1}{fnc}{uncommitted}}%
+& Global labels on lc and fnc (Alloy instructions only).%
+& Window: lc retired~$<$ xmit~$<$ fnc retires (measured); no commit stall.\\%
+\midrule%
+% ---- row 5: target transmitter (Row 5) ----%
+Target transmitter%
+\eg{\egl{0}{i0}{\texttt{Branch\_x}}{xmit}\egl{1}{\itshape or}{\texttt{Other\_x}}{xmit}}%
+& \texttt{Branch\_x}: \texttt{testq}+\texttt{jz} on its operand, architecturally taken. Divide: unguarded, so a zero divisor faults.%
+& \texttt{Branch\_x}: forced to mispredict, no hold. Divide: a fault after a mispredict is a transmission.\\%
+\bottomrule%
+\end{tabular}%
+}%

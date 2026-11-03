@@ -1,0 +1,27 @@
+% Intro figure v2 (one column): the problem SimSpect addresses. Redraw of the paper's tikz/threelayer.tex
+% in the shared visual language (paper_figures/plans/VISUAL_LANGUAGE.md), keeping all of its labels.
+% Gray = defense-specific (the guarantee and the implementation). Body only; wrapped in { }.
+{%
+\def\itlw{162pt}%      layer box width
+\def\itgap{17pt}%      vertical gap between layers
+\def\itshade{black!12}%
+\tikzset{%
+  itlayer/.style={draw, rounded corners=4pt, line width=0.6pt, text width=\itlw-6pt, align=center, inner xsep=3pt, inner ysep=2.5pt, font=\footnotesize},%
+  itlab/.style={font=\scriptsize, align=left, inner sep=1pt},%
+}%
+\begin{tikzpicture}[>=latex, every node/.style={execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000\relax}}]%
+\node[itlayer, anchor=north west] (P) at (0,0) {\textbf{Generic security property}\\[-0.5pt]{\scriptsize\itshape e.g.\ speculative non-interference}};%
+\node[itlayer, fill=\itshade, anchor=north] (G) at ($(P.south)+(0,-\itgap)$) {\textbf{Defense security guarantee}\\[-0.5pt]{\scriptsize\itshape e.g.\ ``block memory from leaking through (load, addr) transmitters under mispredicted branch speculation''}};%
+\node[itlayer, fill=\itshade, anchor=north] (I) at ($(G.south)+(0,-\itgap)$) {\textbf{Defense mechanism implementation}\\[-0.5pt]{\scriptsize\itshape e.g.\ gem5 simulator prototype}};%
+% guarantee -> property: handwritten proof
+\draw[->, line width=0.6pt] ($(G.north west)+(40pt,0)$) -- ($(P.south west)+(40pt,0)$) node[midway, right=4pt, itlab, text width=112pt] {handwritten proof {\itshape (in the proposing paper; sometimes exists)}};%
+% implementation -> guarantee: the gap
+\draw[->, line width=1.1pt, dash pattern=on 3pt off 2pt] ($(I.north west)+(40pt,0)$) -- ($(G.south west)+(40pt,0)$) coordinate[midway] (gm);%
+\node[circle, draw, line width=0.9pt, fill=white, inner sep=0.6pt, font=\footnotesize\bfseries] at (gm) {?};%
+\node[itlab, anchor=west, font=\scriptsize\bfseries] at ($(gm)+(7pt,0)$) {no existing method {\mdseries\itshape (this work)}};%
+% implementation -> property: prior work (e.g. AMuLeT)
+\draw[->, dashed, line width=0.5pt] (I.east) .. controls ($(I.east)+(26pt,4pt)$) and ($(P.east)+(26pt,-4pt)$) .. (P.east);%
+\node[itlab, anchor=west, align=left] at ($(G.east)+(28pt,0)$) {\textbf{Prior work}\\[-0.5pt]{\itshape probes whether}\\[-0.5pt]{\itshape the defense}\\[-0.5pt]{\itshape satisfies a broad}\\[-0.5pt]{\itshape property}};%
+\path (0,0) -- (250pt,0);%
+\end{tikzpicture}%
+}%

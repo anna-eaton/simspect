@@ -1,4 +1,5 @@
 {
+  "schema": "simspect.transmission_criterion/v1",
   "_doc": "Recon leakage: loads + branches.",
   "defense": "Recon",
   "transmitters": [
@@ -9,5 +10,183 @@
     "ld": "check_ld.py",
     "br_x": "check_br.py"
   },
-  "alloy_leakage_function": "Loads.inaddr+(Branchxs).inreg"
+  "alloy_leakage_function": "Loads.inaddr+(Branchxs).inreg",
+  "builds": [
+    "/work/gem5-recon-modded (units recon_on_recon, recon_otb; specs/defense_units.json)"
+  ],
+  "status": "v1 2026-11-02 (criteria-from-code session): encodes exactly what check_ld / check_br / check_other + gem5_common decide today; no checker reads this file yet (see wiki/design/TRANSMISSION_CRITERIA_FORMAT.md, 2026-11-02 section).",
+  "encoded_from": "The per_kind / window / gates blocks are descriptive: the run is decided by the per-kind checker chosen in pipeline.py:_checker_for, which does not read this JSON.",
+  "window": {
+    "_doc": "Shared by check_ld / check_br / check_other; each computes it on its own signal tick S (per-kind 'signal' below). All ticks from one gem5 run of one test.",
+    "speculative": {
+      "from": "lc_retire",
+      "to": "fnc_retire",
+      "branches_unresolved": true,
+      "impl": "lc_fnc_unresolved",
+      "text": "(lc_retire == 0 ∨ S > lc_retire) ∧ (fnc_retire == 0 ∨ S < fnc_retire) ∧ S > 0 ∧ branches_unresolved(S). lc/fnc ticks = pipeview retire of best_record at the annotated lc/fnc PC (gem5_common.py:739-754: highest stage reached, latest retire). fnc_retire == 0 (fnc squashed) → no upper bound; no lc annotated → no lower bound.",
+      "code": [
+        "STAGE3_gem5/check_ld.py:108-114",
+        "STAGE3_gem5/check_br.py:90-99",
+        "STAGE3_gem5/check_other.py:36-42"
+      ]
+    },
+    "branches_unresolved": {
+      "impl": "gem5_common.check_branch_resolutions",
+      "code": "STAGE3_gem5/gem5_common.py:940-999",
+      "text": "every annotated unresolved branch other than the xmit (excluded at gem5_common.py:1125) is still unresolved at S. observed (binary has BR resolve hooks): resolve_tick = resolve_visible else resolve_release of the youngest held/visible, not-dropped dynamic instance (_resolution_of, :925-937); ok ⇔ resolve_tick == 0 (dropped / never resolved / never fetched) ∨ S < resolve_tick. estimate (older binary, no BR lines): prop_tick = pipeview complete + resolve_stall_cycles × ticks_per_cycle; ok ⇔ complete == 0 ∨ S < prop_tick."
+    }
+  },
+  "gates": {
+    "_doc": "Applied to every test regardless of kind, in gem5_common.process_one (STAGE3_gem5/gem5_common.py:1083-1209) and in each checker.",
+    "lc_retired": {
+      "text": "disqualify if an lc PC is annotated but its pipeview retire is 0: issued_in_window = False, criteria.lc_retired = False",
+      "code": [
+        "STAGE3_gem5/check_ld.py:98-99",
+        "STAGE3_gem5/check_br.py:87-88",
+        "STAGE3_gem5/check_other.py:34"
+      ]
+    },
+    "execution_validity": {
+      "code": "STAGE3_gem5/gem5_common.py:1002-1068 (computed), :1152-1183 (applied)",
+      "checks": {
+        "resolved_correct": "no correctly_not_taken branch mispredicted on a retired instance",
+        "window_opened": "the oldest (lowest Alloy pc) non-xmit unresolved branch mispredicted on a retired instance",
+        "stall_applied": "every stalled unresolved branch that resolved has a resolve_hold",
+        "force_applied": "every planned BTB force got a predict_force of the right direction; force plan consistent with the flags idiom"
+      },
+      "text": "each is True/False, or None when it does not apply or the binary has no BR resolve hooks. Any False → status = 'invalid', issued_in_window = False, the checker's verdict kept in issued_in_window_unvalidated, error = notes."
+    },
+    "resolved_before_signal": {
+      "text": "reported only, NOT gated: every correctly_not_taken branch visible-resolved before S. Kept out of criteria.",
+      "code": "STAGE3_gem5/gem5_common.py:1157-1175"
+    },
+    "status": {
+      "ok": "checker ran; issued_in_window is the verdict",
+      "warn": "no xmit x86 PC resolved; gem5 not run (gem5_common.py:1112-1114)",
+      "invalid": "execution_validity failed (above)",
+      "error": "build / gem5 / parse failure (gem5_common.py:1184-1200); see divide_fault for the one promoted case"
+    },
+    "verdict": "issued_in_window == AND of the non-None values in criteria (each checker's criteria dict + the four validity keys)"
+  },
+  "per_kind": {
+    "ld": {
+      "checker": "STAGE3_gem5/check_ld.py",
+      "signal": {
+        "text": "S = latest LSQ 'Executing load PC (0x<xmit>' tick over all records at xmit_pc (_xmit_execute_tick, check_ld.py:30-36); if none, S = pipeview complete of best_record(xmit_pc) (check_ld.py:85-87).",
+        "trace": "LSQUnit debug lines parsed by gem5_common.parse_lsq (STAGE3_gem5/gem5_common.py:575-718)"
+      },
+      "data_obtained": {
+        "impl": "check_ld._xmit_cache_fate + pipeview complete",
+        "code": "STAGE3_gem5/check_ld.py:39-75 (fate), :130-146 (gate)",
+        "fates": {
+          "reached_cache": {
+            "counts": true,
+            "text": "some executed LSQ record at xmit_pc has packet_tick > 0 ('successfully sent out packet(s) for inst [sn:N]')"
+          },
+          "store_forward": {
+            "counts": true,
+            "text": "fate executed_no_packet ∧ xmit pipeview complete > 0 (value forwarded from a store in the LSQ; never touches cache). Relabelled from executed_no_packet at check_ld.py:138-141."
+          },
+          "spec_read_only": {
+            "counts": false,
+            "text": "executed, no packet, spec_read_tick > 0 ('send a spec read for inst [sn:N]'): invisible spec read"
+          },
+          "executed_no_packet": {
+            "counts": false,
+            "text": "executed, no packet, no spec read, xmit never completed in pipeview: delay-unit bounce (defense held)"
+          },
+          "never_executed": {
+            "counts": false,
+            "text": "LSQ records at xmit_pc exist but none has execute_tick > 0"
+          }
+        },
+        "squash": "load_squash_tick is reported only; squash timing never gates",
+        "applies_when": "in_window ∧ xmit_execute > 0 ∧ fate is not None (LSQ records exist at xmit_pc). Otherwise ungated: issued_in_window = in_window (never hide a possible leak on a build without LSQUnit logging)."
+      },
+      "leak": {
+        "form": "exists",
+        "text": "issued_in_window ⇔ lc_retired ∧ S > 0 ∧ after_lc ∧ before_fnc ∧ branches_unresolved ∧ (gate applies ⇒ fate ∈ {reached_cache, store_forward})"
+      },
+      "reported_not_gated": [
+        "xmit_retired_in_window (xmit retire > 0)",
+        "load_squash_tick",
+        "packet_tick",
+        "spec_read_tick"
+      ]
+    },
+    "br_x": {
+      "checker": "STAGE3_gem5/check_br.py",
+      "signal": {
+        "text": "commit_traced = squash_by_pc non-empty (any 'Squashing due to branch mispred PC:' line in the run; Commit flag is always added, gem5_common.py:370-376). If commit_traced: S = earliest Commit mispredict-squash tick at xmit_pc (0 if it never redirected). Else: S = xmit pipeview complete.",
+        "code": "STAGE3_gem5/check_br.py:59-76; parser gem5_common.parse_commit_squashes (:720-736)"
+      },
+      "branch_redirected": {
+        "text": "commit_traced: S > 0 ∧ (no fall-through record ∨ fall-through retire == 0). Else: fall-through and xmit records exist ∧ xmit complete > 0 ∧ fall-through retire == 0. Fall-through = smallest traced PC > xmit_pc (check_br.py:39-45).",
+        "code": "STAGE3_gem5/check_br.py:66-76"
+      },
+      "leak": {
+        "form": "exists",
+        "text": "issued_in_window ⇔ lc_retired ∧ branch_redirected ∧ S > 0 ∧ after_lc ∧ before_fnc ∧ branches_unresolved",
+        "code": "STAGE3_gem5/check_br.py:96-99"
+      }
+    },
+    "other_x": {
+      "checker": "STAGE3_gem5/check_other.py",
+      "signal": {
+        "text": "S = pipeview complete of best_record(xmit_pc)",
+        "code": "STAGE3_gem5/check_other.py:26-27"
+      },
+      "leak": {
+        "form": "exists",
+        "text": "issued_in_window ⇔ lc_retired ∧ S > 0 ∧ after_lc ∧ before_fnc ∧ branches_unresolved",
+        "code": "STAGE3_gem5/check_other.py:40-42"
+      },
+      "divide_fault": {
+        "text": "a gem5 'panic: fault (Divide-Error)' whose faulting PC is the xmit div (Alloy pc) and the xmit sits after the lowest mispredict branch pc is promoted from status 'error' to status 'ok', issued_in_window = True, hit_kind = 'div_fault'. Only for kind other_x.",
+        "code": "STAGE3_gem5/gem5_common.py:819-851, applied at :1194-1197"
+      }
+    }
+  },
+  "known_issues": [
+    {
+      "id": "ld_data_obtained_not_windowed",
+      "kind": "ld",
+      "text": "The data-obtained fate is not tied to the window. _xmit_cache_fate looks at every LSQ record at xmit_pc (any dynamic instance) and takes the earliest packet_tick / spec_read_tick, and store_forward uses pipeview complete > 0 at any time; none of these ticks is compared with lc_retire, fnc_retire or branch resolution. The window is checked on S (the LATEST 'Executing load' tick), so the in-window instance and the instance that obtained data need not be the same, and the packet may fall outside the window.",
+      "code": "STAGE3_gem5/check_ld.py:56-75 (fate), :85-87 (S = max execute_tick), :130-146",
+      "status": "recorded, not fixed"
+    },
+    {
+      "id": "br_legacy_fallback_when_no_squash",
+      "kind": "br_x",
+      "text": "commit_traced is bool(squash_by_pc), i.e. whether ANY branch broadcast a mispredict squash in the run, not whether the Commit trace was enabled. A run with no squash at all falls back to the legacy pipeview-complete signal, which a delay defense (branch completes but never redirects) can false-positive.",
+      "code": "STAGE3_gem5/check_br.py:59-76",
+      "status": "recorded, not fixed"
+    },
+    {
+      "id": "unknown_kind_routes_to_check_ld",
+      "kind": "*",
+      "text": "A transmitter kind with no entry in _KIND_TO_CHECKER (ld, br_x, other_x) is checked by check_ld.py (_DEFAULT_CHECKER).",
+      "code": "pipeline.py:296-302, :306-314",
+      "status": "recorded, not fixed"
+    },
+    {
+      "id": "estimate_branch_resolution",
+      "kind": "*",
+      "text": "On a binary without the 2026-10-30 BR resolve hooks, branch resolution is an estimate (complete + stall × ticks/cycle, valid only if gem5 registered the stall) and all four execution_validity checks are None (not gated).",
+      "code": "STAGE3_gem5/gem5_common.py:982-996, :1019-1020",
+      "status": "recorded, not fixed"
+    },
+    {
+      "id": "recon_reached_cache_never_fires",
+      "kind": "ld",
+      "applies_to_builds": [
+        "/work/gem5-recon",
+        "/work/gem5-recon-modded"
+      ],
+      "text": "On the Recon builds, reached_cache can never fire: parse_lsq sets packet_tick only from 'successfully sent out packet(s) for inst [sn:N]', which those builds do not print (their send line is 'Memory request (pkt: …) from inst [sn:N] was sent', lsq_unit.cc:1546). Every executed xmit load is executed_no_packet, so it counts only if pipeview complete > 0 (labelled store_forward). A load that sent a real read packet and was squashed before completing is scored NOT a leak, and kept leaks are mislabelled store_forward. Checker bug, not a gem5 bug. Proposed additive parse_lsq regex not applied (needs Anna).",
+      "code": "STAGE3_gem5/gem5_common.py:575-718 (parse_lsq packet_re), STAGE3_gem5/check_ld.py:138-141",
+      "doc": "wiki/findings/bug/recon_cache_reach_gate/README.md",
+      "status": "recorded, not fixed"
+    }
+  ]
 }

@@ -1,5 +1,15 @@
 # SimSpect paper figures: shared visual language
 
+## CURRENT RULES (2026-11-02; supersede anything older below)
+
+- **Size:** one column (252pt) by default; full width (516pt) only for wide tables. Anna rejected a double-wide pipeline. **All text at least 8pt** (`\footnotesize`), including arc/edge labels, qualifiers, icon glyphs (draw them as paths), and sub/superscripts (write `r0`, not `$r_0$`). Squeeze spacing; never cut words.
+- **Color:** black on white; one gray (`black!12`) = defense-specific; red only for redundant parts in the relaxation figure and the red `[TODO: edit caption]` markers; pink `\figtodo{}` (color `C2185B`) marks paper TODOs. Results plots are grayscale via the preamble color macros.
+- **Shapes (shape = type):** rounded stage blobs with the title on the border; stacked slabs for constraints (dashed ghost slab = "same as Stage 1", prime = changed clause, `+` = added clause); stadium for a solver; numbered nested chevrons for ordered passes; card stacks for data sets, with the multiplicity in italics under the caption; gem5 = rounded container with the logo and "processor model", a gray "Defense implementation under test" die, and a thin harness ring (`+ Non-invasive harness`); single bold bug icon.
+- **Sources of truth:** gray document icons in a left lane under a small italic "Defense sources of truth" header, each with one short arrow into what it feeds; dashed "SimSpect goal" arrow from specification to implementation. No legend box; the caption explains the gray.
+- **Graph figures:** lowercase ids `i0:`; kinds in code font; flags as italic words on the row; every edge labelled (rf, ddi); leak path thick; legend in the caption (see "Graph notation" below).
+- **Files:** body `<name>.tex` in `{ }`; caption text in `captions/<name>.tex` and `FIGURES.md`; preview `_standalone_<name>.tex` without the caption; `_8pt` versions are what the paper uses; new paper figures are new files plus `\input` swaps, captions pasted with a red TODO.
+
+
 Every paper figure (the vertical pipeline figure plus minifigs a–e) follows these rules so the paper reads as one system. Anna's direction (2026-11-02): minimal colors, minimal fonts, very professional, use defaults as much as possible, dense without looking cramped or overlapping, items of a list inside one box (not separate boxes).
 
 Reference implementation: the vertical pipeline figure, `/private/tmp/claude-501/-Users-annaeaton-Documents-stanford-trippel-simspect/15c53160-c914-4164-9142-cacfcd307bbc/scratchpad/fig/_standalone_pipeline.tex` (a draft; will move to `paper_figures/drafts/`).
@@ -36,6 +46,16 @@ The paper (`test-paper`, `\documentclass[conference]{IEEEtran}`) has `\columnwid
 - A list goes in **one** box with numbered rows (`1.~…`); a shaded row marks a defense-specific item. No separate box per item.
 - Outputs passed between stages use the same treatment everywhere: an arrow, a small drawn icon, then a caption in 8pt with its multiplicity on the next line in 7pt italics.
 
+## Graph notation (execution graphs in (b), (c), and the (a) vocab table; 2026-11-02)
+
+- **Rows, not boxes.** One text row per instruction in program order (spo), top to bottom, as in LCM/Clou Fig. 1–2 (`reference_papers/crops/lcm_clou_isca22_p4.png`, `_p5.png`): lowercase id `i0:` (roman), kind in code font as in the model (`Load`, `Store`, `Branch_n`, `Branch_x`, `Other_n`, `Other_x`), then operands `out ← in` with registers $r_k$, memory $m_k$, `[r]` for an address and `?` for an unspecified operand. Injected Stage 2 chain steps use ids `c0:` and free-pool registers $f_k$.
+- **Flags are short italic words on the row** (*resolved*, *committed*, *xmit*), written only when set; *committed* implies resolved, so it is written alone; a row without a word is unresolved and uncommitted. Why words and not subscripts: LCM's subscript S works for one flag, but we have three, and three letter subscripts are the r/c/t code Anna found "entirely unclear"; at an 8pt base a subscript prints at 6pt, under our 7pt floor; CheckMate already writes flags as words on the instruction text (`B PNT, T`, see `TRIPPEL_FIGURE_STYLE.md` CheckMate (b)); and table (d) already uses flag words.
+- **Every edge is labelled** in 7pt italics, *rf* or *ddi*, as in TransForm and LCM. ddi is an arc above the row (input → output); rf runs from an output to a later row's input, through empty space or a gutter right of the operands. No edge crosses text.
+- **The leak path is thick** (1.1pt, `latex` tips), not colored: LCM marks its leak edges with a line style (dashed), and we keep dashed for the one Stage 2 edge that may or may not form (the free-pool merge in (c)).
+- **Gray** (`black!12` behind the token) only for defense-specific state, i.e. protected memory in STT's protection set. **Red** (`#B3322C`, = the preamble's `ctarget`) only in (b), for the parts minimization removes; explanations stay black.
+- **Legend in the caption, not a key box** (TransForm, CheckMate, LCM all do this). The (a) vocab table is the full key; each graph caption repeats the minimum needed to read it alone.
+- Body text 8pt (`\footnotesize`), labels/flags/notes 7pt italic (`\scriptsize\itshape`). Each picture pads itself (empty `\path` above and below) so nothing touches the frame.
+
 ## Captions and file layout (Anna, 2026-11-02)
 
 - Every figure has a proposed caption, written in `paper_figures/FIGURES.md` (Captions section) and in `captions/<name>.tex`. Previews do NOT render the caption (Anna, 2026-11-02: the minipage wrapper misaligned the figure); they leave blank space where it will go (standalone `border` padding). In the paper the caption goes separately into `\caption{}` (paper text; Anna pastes it).
@@ -52,3 +72,8 @@ The paper (`test-paper`, `\documentclass[conference]{IEEEtran}`) has `\columnwid
 ## Provenance
 
 Every label, number, pass name and mechanism in a figure must come from the codebase, an md note, or a paper, with the source recorded in that figure's plan file. Anything uncertain goes into the plan's "Decisions for Anna" list instead of into the figure.
+
+
+## 8pt minimum, including arc labels (Anna, 2026-11-02)
+
+- Every figure has an 8pt-minimum version (`<name>_8pt`), and that is what goes in the paper. **All** text is at least 8pt (`\footnotesize`), explicitly including annotations on arcs and edges (rf, ddi, "selects hooks", "speculation directives", "labels"), multiplicities, qualifiers, glyphs inside icons (draw them as paths, not `\tiny` text), and math sub/superscripts (write `r0`, not `$r_0$`, since subscripts render at about 6pt). Check by grepping each body for `\scriptsize`, `\tiny`, `scale=0`, `_digit` and `^` outside comments, and by confirming every edge-label style resolves to `\footnotesize`. Basis: ISCA states no number ("legible"); ASPLOS 2024 asks for at least 8pt.

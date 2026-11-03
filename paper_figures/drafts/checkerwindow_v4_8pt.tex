@@ -1,0 +1,161 @@
+% Figure (e) v4, 8pt version (every text >= 8pt, \footnotesize; derived from checkerwindow_v4.tex): the checker's unresolved window on a real gem5 trace.%
+% Body only (goes into the paper's tikz/). Everything is wrapped in { } so no%
+% macro or style leaks into other figures; all helper names are prefixed \cw.%
+% Needs TikZ libraries calc + shapes.geometric (the paper preamble loads both).%
+% Data: STAGE3_gem5/tests/fixtures/inv_uv1.pipeview.txt.gz (STT_6%
+% mispredict_not_taken/inst-002014, amulet InvisiSpec, --ruby%
+% --scheme=SpectreSafeInvisibleSpec, resolve stall 5000). Cycle c = (tick - 3157000)/500.%
+% Every number, label and source: paper_figures/plans/fig_e_checkerwindow.md.%
+% Text convention (see the plan): sentence case for prose; lc, fnc, xmit are fixed%
+% lowercase abbreviations set with \cwab (one font everywhere, upright even in italics).%
+{%
+% ============================ TUNING KNOBS ============================%
+\def\cwcyc{6.7}%        pt per simulated cycle (same scale in every axis segment)%
+\def\cwbrk{16.2}%         pt width of each elided stretch (dotted)%
+\def\cwtl{62}%          pt, x of the time axis origin (cycle -0.5); left of it: label column%
+\def\cwrowh{32}%        pt between instruction rows%
+\def\cwbarh{4}%         pt height of an instruction bar%
+\def\cwbusx{1.5}%       pt, x of the Alloy-label bus line%
+\def\cwlabx{6}%         pt, left edge of the row labels%
+\def\cwiconx{3.85}%     pt, centre x of the source icons%
+\def\cwicongap{11}%     pt, left edge of a source icon's label%
+\def\cwright{250}%      pt, right edge of the criterion box (figure is <= 252pt wide)%
+\def\cwwinlw{0.9pt}%    line width of the window frame%
+\def\cwstar{8.5pt}%     outer diameter of the transmission star%
+\def\cwwtop{13}%        pt, window frame top above row i0%
+\def\cwwbot{29}%        pt, window frame bottom below row i2%
+\def\cwgap{10}%         pt between the cycle numbers and the criterion box%
+\def\cwdefshade{black!12}%  fill marking defense-specific elements (the only gray)%
+\def\cwfs{\footnotesize}%   the one font size (8pt)%
+% axis segments [start,end], in cycles after i0's fetch; elided stretches between them%
+\def\cwsA{-0.5}\def\cweA{8.5}%        front end; lc retires at 8%
+\def\cwsB{39.5}\def\cweB{41.5}%       xmit issues at 40%
+\def\cwsC{68.5}\def\cweC{71.5}%       transmission (L1D eviction) at 70%
+\def\cwsE{5006.5}\def\cweE{5008.5}%   branch resolves 5007, squash 5008%
+\def\cwsF{5012.5}\def\cweF{5013.5}%   fnc retires 5013 (8pt version: 5009-5012 elided too, to make room)%
+\def\cwboxx{72}%       pt, left edge of the criterion box (8pt version)%
+% ======================================================================%
+\pgfmathsetmacro\cwoA{0}%
+\pgfmathsetmacro\cwoB{(\cweA-\cwsA)*\cwcyc+\cwbrk}%
+\pgfmathsetmacro\cwoC{\cwoB+(\cweB-\cwsB)*\cwcyc+\cwbrk}%
+\pgfmathsetmacro\cwoE{\cwoC+(\cweC-\cwsC)*\cwcyc+\cwbrk}%
+\pgfmathsetmacro\cwoF{\cwoE+(\cweE-\cwsE)*\cwcyc+\cwbrk}%
+% x (pt) of cycle #2 in segment #1 (A, B, C, E or F)%
+\newcommand\cwx[2]{(\cwtl+\csname cwo#1\endcsname+(#2-\csname cws#1\endcsname)*\cwcyc)}%
+% fixed abbreviation (lc, fnc, xmit): always upright roman, never capitalized%
+\newcommand\cwab[1]{\textup{#1}}%
+% bar edges from x=#2 to x=#3 at row y=#1; #4 = extra draw options%
+\newcommand\cwedges[4]{\draw[#4] (#2,#1+\cwbarh/2) -- (#3,#1+\cwbarh/2) (#2,#1-\cwbarh/2) -- (#3,#1-\cwbarh/2);}%
+% vertical tick across a bar at x=#2, row y=#1%
+\newcommand\cwtck[2]{\draw (#2,#1-\cwbarh/2) -- (#2,#1+\cwbarh/2);}%
+% stage letter #3 above the bar at x=#2, row y=#1%
+\newcommand\cwstg[3]{\node[anchor=south] at (#2,#1+\cwbarh/2+1.6) {#3};}%
+% bar from x=#2 (in segment A) through every elided stretch to x=#3 (in segment E), row y=#1%
+\newcommand\cwlongbar[3]{%
+  \cwedges{#1}{#2}{\cwtl+\cwoB-\cwbrk}{}%
+  \cwedges{#1}{\cwtl+\cwoB-\cwbrk}{\cwtl+\cwoB}{densely dotted}%
+  \cwedges{#1}{\cwtl+\cwoB}{\cwtl+\cwoC-\cwbrk}{}%
+  \cwedges{#1}{\cwtl+\cwoC-\cwbrk}{\cwtl+\cwoC}{densely dotted}%
+  \cwedges{#1}{\cwtl+\cwoC}{\cwtl+\cwoE-\cwbrk}{}%
+  \cwedges{#1}{\cwtl+\cwoE-\cwbrk}{\cwtl+\cwoE}{densely dotted}%
+  \cwedges{#1}{\cwtl+\cwoE}{#3}{}}%
+% the same bar continued through the E-F elided stretch to x=#3 (in segment F)%
+\newcommand\cwlongbarF[3]{%
+  \cwlongbar{#1}{#2}{\cwtl+\cwoF-\cwbrk}%
+  \cwedges{#1}{\cwtl+\cwoF-\cwbrk}{\cwtl+\cwoF}{densely dotted}%
+  \cwedges{#1}{\cwtl+\cwoF}{#3}{}}%
+% document icon centred at (#1,#2), fill #3; #4 empty = text lines, else drawn braces { } (paths, no font glyph); 7.7 x 10 pt%
+\newcommand\cwdoc[4]{%
+  \begin{scope}[shift={(#1,#2)}]%
+    \draw[fill=#3] (-3.85,-5) -- (3.85,-5) -- (3.85,2.95) -- (1.8,5) -- (-3.85,5) -- cycle;%
+    \draw (1.8,5) -- (1.8,2.95) -- (3.85,2.95);%
+    \if\relax\detokenize{#4}\relax%
+      \foreach \cwyy in {1.4,-0.7,-2.8} \draw[line width=0.3pt] (-2.3,\cwyy) -- (2.3,\cwyy);%
+    \else%
+      \draw[line width=0.35pt] (-0.7,1.4) .. controls (-1.5,1.4) and (-1.1,-0.6) .. (-1.9,-0.9) .. controls (-1.1,-1.2) and (-1.5,-3.2) .. (-0.7,-3.2);%
+      \draw[line width=0.35pt] (0.7,1.4) .. controls (1.5,1.4) and (1.1,-0.6) .. (1.9,-0.9) .. controls (1.1,-1.2) and (1.5,-3.2) .. (0.7,-3.2);\fi%
+  \end{scope}}%
+\begin{tikzpicture}[x=1pt, y=1pt, >=latex,%
+  every node/.style={font=\cwfs, inner sep=0pt,%
+    execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000\relax}},%
+  cwann/.style={font=\cwfs\itshape},%
+  cwrow/.style={anchor=base west},%
+  cwgloss/.style={font=\cwfs\itshape, anchor=base west},%
+]%
+\pgfmathsetmacro\cwyA{0}%
+\pgfmathsetmacro\cwyB{-\cwrowh}%
+\pgfmathsetmacro\cwyC{-2*\cwrowh}%
+\pgfmathsetmacro\cwwT{\cwyA+\cwwtop}%       window frame top%
+\pgfmathsetmacro\cwwB{\cwyC-\cwwbot}%       window frame bottom%
+\pgfmathsetmacro\cwyT{\cwwB-3.5}%           top of the cycle numbers%
+\pgfmathsetmacro\cwyK{\cwyT-8-\cwgap}%      top of the criterion box%
+\pgfmathsetmacro\cwyS{\cwwT+8}%           centre line of the window title / Alloy labels%
+\pgfmathsetmacro\cwyL{\cwyS+14.5}%            legend line%
+
+% ------------------------------ legend line ------------------------------%
+\node[anchor=west] at (0,\cwyL) {F: fetch\quad D: decode\quad E: issue\quad Dotted: elided cycles};%
+\node[anchor=east] (cwlg) at (\cwright,\cwyL) {Defense-specific};%
+\draw[fill=\cwdefshade] ($(cwlg.west)+(-9.5,-3)$) rectangle ++(6,6);%
+
+% ------------- left column: the roles come from the Alloy instance -------------%
+\cwdoc{\cwiconx}{\cwyS}{white}{$\{\,\}$}%
+\node[anchor=base west] at (\cwicongap,\cwyS-2.7) {Role labels from the Alloy instance};%
+\draw (\cwbusx,\cwyS-5) -- (\cwbusx,\cwyC);%
+\foreach \cwy in {\cwyA,\cwyB,\cwyC} \draw (\cwbusx,\cwy) -- (\cwlabx-2,\cwy);%
+% the id sits level with its bar; the gloss goes underneath%
+% (one 9.5pt baseline grid: id baseline = bar centre - 2.7pt, glosses 9.5pt and 19pt lower)%
+\node[cwrow] at (\cwlabx,\cwyA-2.7) {i0: \cwab{lc}};%
+\node[cwgloss] at (\cwlabx,\cwyA-12.2) {Last committed};%
+\node[cwrow] at (\cwlabx,\cwyB-2.7) {i1: \cwab{fnc}};%
+\node[cwgloss] at (\cwlabx,\cwyB-12.2) {First non-committed};%
+\node[cwgloss] at (\cwlabx,\cwyB-21.7) {(unresolved branch)};%
+\node[cwrow] at (\cwlabx,\cwyC-2.7) {i2: \cwab{xmit}};%
+\node[cwgloss] at (\cwlabx,\cwyC-12.2) {Transmitter};%
+
+% ------------------- i0: last committed (retires at 8) -------------------%
+\cwedges{\cwyA}{{\cwx{A}{0}}}{{\cwx{A}{8}}}{}%
+\cwtck{\cwyA}{{\cwx{A}{0}}} \cwtck{\cwyA}{{\cwx{A}{1}}} \cwtck{\cwyA}{{\cwx{A}{4}}} \cwtck{\cwyA}{{\cwx{A}{8}}}%
+\cwstg{\cwyA}{{\cwx{A}{0}}}{F} \cwstg{\cwyA}{{\cwx{A}{1}}}{D} \cwstg{\cwyA}{{\cwx{A}{4}}}{E}%
+\node[cwann, anchor=west] at ({\cwx{A}{8}+3.5},\cwyA) {Retires (window opens)};%
+
+% ------------- i1: first non-committed = the unresolved branch -------------%
+\cwlongbarF{\cwyB}{{\cwx{A}{1}}}{{\cwx{F}{5013}}}%
+\cwtck{\cwyB}{{\cwx{A}{1}}} \cwtck{\cwyB}{{\cwx{A}{2}}} \cwtck{\cwyB}{{\cwx{A}{6}}} \cwtck{\cwyB}{{\cwx{E}{5007}}} \cwtck{\cwyB}{{\cwx{F}{5013}}}%
+\cwstg{\cwyB}{{\cwx{A}{1}}}{F} \cwstg{\cwyB}{{\cwx{A}{2}}}{D} \cwstg{\cwyB}{{\cwx{A}{6}}}{E}%
+\node[cwann, anchor=south] at ({(\cwx{A}{8}+\cwx{E}{5007})/2},\cwyB+\cwbarh/2+2) {5000-cycle resolve stall};%
+\node[cwann, anchor=north east] at ({\cwx{E}{5007}-3},\cwyB-\cwbarh/2-2.5) {Resolves (window closes)};%
+\node[cwann, anchor=south east] at ({\cwx{F}{5013}+0.5},\cwyB+\cwbarh/2+2) {Retires};%
+
+% ------------------- i2: the transmitter (a load), squashed -------------------%
+\cwlongbar{\cwyC}{{\cwx{A}{2}}}{{\cwx{E}{5008}}}%
+\cwtck{\cwyC}{{\cwx{A}{2}}} \cwtck{\cwyC}{{\cwx{A}{3}}} \cwtck{\cwyC}{{\cwx{B}{40}}}%
+\cwstg{\cwyC}{{\cwx{A}{2}}}{F} \cwstg{\cwyC}{{\cwx{A}{3}}}{D} \cwstg{\cwyC}{{\cwx{B}{40}}}{E}%
+\draw[line width=0.6pt] ({\cwx{E}{5008}-2},\cwyC-2) -- ++(4,4) ({\cwx{E}{5008}-2},\cwyC+2) -- ++(4,-4);%
+\node[cwann, anchor=west] at ({\cwx{E}{5008}+4.5},\cwyC) {Squashed};%
+% the transmission: the one star in the figure%
+\node[star, star points=5, star point ratio=2.4, fill=black, draw=white, line width=0.5pt,%
+      minimum size=\cwstar, inner sep=0pt] (cwtx) at ({\cwx{C}{70}},\cwyC) {};%
+\node[cwann, anchor=north, align=center] at ($(cwtx.south)+(0,-2.5)$) {Transmission\\[1pt](L1D eviction)};%
+
+% ------------------------- the unresolved window -------------------------%
+\draw[line width=\cwwinlw] ({\cwx{A}{8}},\cwwT) rectangle ({\cwx{E}{5007}},\cwwB);%
+\node[anchor=base east] at ({\cwx{E}{5007}},\cwyS-2.7) {Unresolved window};% 8pt version: right-aligned to the frame so it stays clear of the role-label line%
+
+% ------------------------------ time axis ------------------------------%
+\node[anchor=north west] at (0,\cwyT) {Cycle};%
+\foreach \cwc/\cws in {0/A, 8/A, 40/B, 70/C, 5007/E, 5013/F}%
+  \node[anchor=north] at ({\cwx{\cws}{\cwc}},\cwyT) {\cwc};%
+
+% ------ defense-specific transmission criterion, checked inside the window ------%
+\pgfmathsetmacro\cwcw{\cwright-\cwboxx-6}%
+\node[draw, fill=\cwdefshade, anchor=north west, align=left, inner sep=3pt,%
+      text width=\cwcw pt] (cwcrit) at (\cwboxx,\cwyK)%
+  {\raggedright\textit{InvisiSpec, checked inside the window:} a fill, eviction, invalidation, coherence or replacement update in the L1D, L2, directory or D-TLB by a squashed instruction younger than \cwab{lc}. Speculative-buffer fills do not count.};%
+\draw[->] ({(\cwx{B}{40}+\cwx{C}{70})/2},\cwyK) -- ({(\cwx{B}{40}+\cwx{C}{70})/2},\cwwB);%
+\path (cwcrit.center); \pgfgetlastxy{\cwqx}{\cwqy}%
+\cwdoc{\cwiconx}{\cwqy}{\cwdefshade}{}%
+\node[anchor=west, align=left] (cwcl) at (\cwicongap,\cwqy) {Defense\\transmission\\criterion};%
+\draw[->] ($(cwcl.east |- cwcrit.west)+(2,0)$) -- (cwcrit.west);%
+
+\end{tikzpicture}%
+}%

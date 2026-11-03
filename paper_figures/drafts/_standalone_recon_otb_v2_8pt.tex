@@ -1,0 +1,9 @@
+\documentclass[tikz,border={2pt 24pt 2pt 2pt}]{standalone}
+\usepackage{newtxtext,newtxmath} % preview only (matches the paper's Times); when \input'd the figure inherits the paper font
+\renewcommand{\ttdefault}{pcr}   % the paper's typewriter (IEEEtran.cls:496), so code widths match
+\usetikzlibrary{arrows.meta,positioning,calc,bending,fit,backgrounds,shapes.geometric} % = the paper preamble's list
+% Preview of recon_otb_v2_8pt. Body: recon_otb_v2_8pt.tex. Proposed caption (not rendered here): captions/recon_otb_v2_8pt.tex.
+% Build: pdflatex _standalone_recon_otb_v2_8pt.tex && pdftoppm -png -r 300 -singlefile _standalone_recon_otb_v2_8pt.pdf _standalone_recon_otb_v2_8pt-1
+\begin{document}
+\input{recon_otb_v2_8pt}
+\end{document}

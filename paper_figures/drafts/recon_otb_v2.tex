@@ -1,0 +1,150 @@
+% Results figure: the Recon-STT getOldestTaint (OTB) bug, hand-built test, real gem5 pipeview.%
+% Body only (goes into the paper's tikz/). Wrapped in { }; helper names are prefixed \ro / ro.%
+% Needs TikZ libraries calc + shapes.geometric (the paper preamble loads both).%
+% Listing = oldest_taint_bug/debug_out/inst-oldest-taint-bug.xml (xml_readable.txt): idx IX0..IX5 =%
+%   i0..i5; Reg_s$0 = r0, Reg_s$1 = r1, Mem_s$0 = m0; kinds, flags, rf and ddi edges as in the XML.%
+%   Omitted: the XML's rf i1 -> i2 (the hand-built asm replaces both branch conditions with slow%
+%   pointer-chase loads, run.py custom_pass25; inst-oldest-taint-bug.s) and i5's inmem m0.%
+%   i4's input order (r1, r0) is a drawing choice; the XML's two inputs are unordered.%
+% Trace = oldest_taint_bug/debug_out/pipeview_scheme2.txt (/work/gem5-recon --scheme=2,%
+%   wiki/results/reconresults.md "Bug 1"). Cycle c = (tick - 2803000)/500:%
+%   i0 = seq 562 (jne uop .2) complete 2803000 -> 0; i5 = seq 575 issue 2807000 -> 8 (complete 0,%
+%   retire 0: no completion recorded before the squash); i2 = seq 571 complete 2849000 -> 92.%
+% Mechanism: taint_tracker.cc getOldestTaint 119-131, propagateTaints 108-116, freeTaints 134-155%
+%   (reconresults.md "Source references"). Plan + caveats: paper_figures/plans/RESULTS_FIGURES.md.%
+{%
+% ============================ TUNING KNOBS ============================%
+\def\roshade{black!12}%  gray = defense-specific (Recon's taint rule)%
+\def\rokind{13pt}%       x where kinds start (ids at 0)%
+\def\roout{61pt}%        x of the output operand%
+\def\roarr{72pt}%        x of the <- arrow%
+\def\roin{84pt}%         x of the first input operand%
+\def\rogut{116pt}%       x of the gutter carrying i1's rf edge%
+\def\roflag{124pt}%      x where flag words start%
+\def\ronote{168pt}%      x where notes start%
+\def\ronotew{82pt}%      note width (\ronote + \ronotew <= 252pt)%
+\def\rorow{15pt}%        default row pitch%
+\def\rogA{9pt}%          extra space above i1 (its ddi arc)%
+\def\rogC{9pt}%          extra space above i3 (its ddi arc)%
+\def\rogD{14pt}%         extra space above i4 (incoming rf over its ddi arc)%
+\def\rogE{14pt}%         extra space above i5 (i4's lower ddi arc)%
+\def\rolw{1.1pt}%        line width of the leak path%
+\def\rocyc{11}%          pt per cycle on the timeline%
+\def\rotx{64}%           pt, x of cycle -2 (timeline start)%
+\def\rotxb{212}%         pt, x of cycle 90 (after the elision)%
+\def\rorowh{17}%         pt between timeline rows%
+\def\robarh{4}%          pt height of a bar%
+\def\rostar{8.5pt}%      outer diameter of the transmission star%
+\def\rowinlw{0.9pt}%     line width of the window frame%
+% ======================================================================%
+\newcommand\rox[1]{(\rotx+(#1+2)*\rocyc)}% cycles -2..10%
+\newcommand\roxb[1]{(\rotxb+(#1-90)*\rocyc)}% cycles 90..93%
+\begin{tikzpicture}[x=1pt, y=1pt, >=latex,%
+  every node/.style={font=\footnotesize, inner sep=0pt},%
+  execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000},%
+  rotok/.style={anchor=base west, outer sep=0.6pt},%
+  rolab/.style={font=\scriptsize\itshape},%
+  roflagw/.style={font=\scriptsize\itshape, anchor=base west},%
+  ronote/.style={font=\scriptsize\itshape, anchor=base west, align=left, text width=\ronotew},%
+  roleak/.style={->, line width=\rolw},%
+  rorowl/.style={font=\scriptsize, anchor=base west},%
+]%
+\path (0,0) coordinate (y0) (0,-\rorow-\rogA) coordinate (y1) (0,-2*\rorow-\rogA) coordinate (y2)%
+  (0,-3*\rorow-\rogA-\rogC) coordinate (y3) (0,-4*\rorow-\rogA-\rogC-\rogD) coordinate (y4)%
+  (0,-5*\rorow-\rogA-\rogC-\rogD-\rogE) coordinate (y5);%
+\path (0,8pt);% breathing room above%
+% ------------------------------ listing ------------------------------%
+\foreach \r in {0,...,5} \node[rotok] at (y\r) {i\r:};%
+% i0: Branch_x  committed%
+\node[rotok] at ($(y0)+(\rokind,0)$) {\texttt{Branch\_x}};%
+\node[roflagw] at ($(y0)+(\roflag,0)$) {committed};%
+% i1: Load r0 <- m0  committed  (load A, older)%
+\node[rotok] at ($(y1)+(\rokind,0)$) {\texttt{Load}};%
+\node[rotok] (i1o) at ($(y1)+(\roout,0)$) {$r_0$};%
+\node[rotok] at ($(y1)+(\roarr,0)$) {$\leftarrow$};%
+\node[rotok] (i1m) at ($(y1)+(\roin,0)$) {$m_0$};%
+\node[roflagw] at ($(y1)+(\roflag,0)$) {committed};%
+% i2: Branch_x  (unresolved)%
+\node[rotok] at ($(y2)+(\rokind,0)$) {\texttt{Branch\_x}};%
+% i3: Load r1 <- m0  (load B, younger)%
+\node[rotok] at ($(y3)+(\rokind,0)$) {\texttt{Load}};%
+\node[rotok] (i3o) at ($(y3)+(\roout,0)$) {$r_1$};%
+\node[rotok] at ($(y3)+(\roarr,0)$) {$\leftarrow$};%
+\node[rotok] (i3m) at ($(y3)+(\roin,0)$) {$m_0$};%
+% i4: Other_n r0 <- r1, r0  (the merge)%
+\node[rotok] at ($(y4)+(\rokind,0)$) {\texttt{Other\_n}};%
+\node[rotok] (i4o) at ($(y4)+(\roout,0)$) {$r_0$};%
+\node[rotok] at ($(y4)+(\roarr,0)$) {$\leftarrow$};%
+\node[rotok] (i4a) at ($(y4)+(\roin,0)$) {$r_1$};%
+\node[rotok] (i4c) at (i4a.base east) {,};%
+\node[rotok] (i4b) at ($(i4c.base east)+(2.5pt,0)$) {$r_0$};%
+% i5: Load r0 <- [r0]  xmit%
+\node[rotok] at ($(y5)+(\rokind,0)$) {\texttt{Load}};%
+\node[rotok] at ($(y5)+(\roout,0)$) {$r_0$};%
+\node[rotok] at ($(y5)+(\roarr,0)$) {$\leftarrow$};%
+\node[rotok] (i5b) at ($(y5)+(\roin,0)$) {[};%
+\node[rotok, outer sep=0pt] (i5r) at (i5b.base east) {$r_0$};%
+\node[rotok] at (i5r.base east) {]};%
+\node[roflagw] at ($(y5)+(\roflag,0)$) {xmit};%
+% ---- edges: the older source (thin) ----%
+\draw[->, shorten >=1.2pt] ($(i1m.north)+(0,0.3pt)$) to[out=115, in=65, looseness=1.1]%
+  node[pos=0.5, above=1.4pt, rolab] {ddi} ($(i1o.north)+(0,0.6pt)$);%
+\draw[->, shorten <=0.6pt, shorten >=0.8pt, rounded corners=2pt]%
+  (i1o.south) |- ($(\rogut,0 |- y2)+(0,2.5pt)$) |- (i4b.east);%
+\node[rolab, anchor=base west] at ($(\roin,0 |- y2)+(4pt,4.5pt)$) {rf};%
+\draw[->, shorten <=0.4pt, shorten >=1pt] ($(i4b.south)+(0,-0.2pt)$) .. controls +(0,-7pt) and +(4pt,-7pt) ..%
+  ($(i4o.south east)+(-0.8pt,-0.2pt)$);%
+\node[rolab, anchor=north west] at ($(i4b.south)+(1.5pt,-2.5pt)$) {ddi};%
+% ---- edges: the younger source = the leak path (thick) ----%
+\draw[roleak, shorten >=1.4pt] ($(i3m.north)+(0,0.3pt)$) to[out=115, in=65, looseness=1.1]%
+  node[pos=0.5, above=1.4pt, rolab] {ddi} ($(i3o.north)+(0,0.6pt)$);%
+\draw[roleak, shorten <=0.6pt, shorten >=1pt] (i3o.south) .. controls +(0.15,-0.22) and +(0.08,0.22) .. ($(i4a.north east)+(-0.6pt,0.4pt)$)%
+  node[pos=0.5, rolab, anchor=south west, xshift=2pt] {rf};%
+\draw[roleak, shorten >=1.2pt] ($(i4a.north west)+(0.8pt,0.3pt)$) to[out=125, in=55, looseness=0.9]%
+  ($(i4o.north)+(0.5pt,0.6pt)$);%
+\node[rolab, anchor=base east] at ($(i4o.base west)+(-1pt,5.5pt)$) {ddi};%
+\draw[roleak, shorten <=0.6pt, shorten >=1.2pt] ($(i4o.south west)+(0.8pt,0)$) .. controls +(-1pt,-14pt) and +(-8pt,5pt) .. (i5b.north west)%
+  node[pos=0.3, rolab, anchor=east, xshift=-4pt] {rf};%
+% ---- notes ----%
+\node[ronote] at ($(y0)+(\ronote,0)$) {resolves first};%
+\node[ronote] at ($(y1)+(\ronote,0)$) {older tainted source};%
+\node[ronote] at ($(y2)+(\ronote,0)$) {mispredicted; resolves last};%
+\node[ronote] at ($(y3)+(\ronote,0)$) {younger tainted source};%
+\node[ronote] at ($(y4)+(\ronote,0)$) {Recon keeps only i1's taint};%
+% ------------------------------ timeline ------------------------------%
+\pgfmathsetmacro\roTa{-4*\rorow-\rogA-\rogC-\rogD-\rogE-1*\rorow-30}% i0 row%
+\pgfmathsetmacro\roTb{\roTa-\rorowh}% i2 row%
+\pgfmathsetmacro\roTc{\roTb-\rorowh}% i5 row%
+\pgfmathsetmacro\rowT{\roTa+12}% frame top%
+\pgfmathsetmacro\rowB{\roTc-9}%  frame bottom%
+\pgfmathsetmacro\roAx{\rowB-3.5}% top of the cycle numbers%
+\node[rorowl] at (0,\roTa-2.4) {i0: branch};%
+\node[rorowl] at (0,\roTb-2.4) {i2: branch};%
+\node[rorowl] at (0,\roTc-2.4) {i5: xmit};%
+% bars: dotted lead-in = earlier history elided; solid = in flight; end tick = the event%
+\foreach \roy in {\roTa,\roTb,\roTc} \draw[densely dotted] ({\rotx-12},\roy) -- (\rotx,\roy);%
+% i0: resolves at 0%
+\draw (\rotx,\roTa-\robarh/2) rectangle ({\rox{0}},\roTa+\robarh/2);%
+\node[rolab, anchor=east] at ({\rox{0}-3},\roTa+\robarh/2+4.5) {resolves};%
+% i2: unresolved through the elision, resolves at 92%
+\draw (\rotx,\roTb-\robarh/2) -- ({\rox{10}},\roTb-\robarh/2) (\rotx,\roTb+\robarh/2) -- ({\rox{10}},\roTb+\robarh/2) (\rotx,\roTb-\robarh/2) -- (\rotx,\roTb+\robarh/2);%
+\draw[densely dotted] ({\rox{10}},\roTb-\robarh/2) -- ({\roxb{90}},\roTb-\robarh/2) ({\rox{10}},\roTb+\robarh/2) -- ({\roxb{90}},\roTb+\robarh/2);%
+\draw ({\roxb{90}},\roTb-\robarh/2) rectangle ({\roxb{92}},\roTb+\robarh/2);%
+\node[rolab, anchor=east] at ({\roxb{92}-3},\roTb+\robarh/2+4.5) {resolves};%
+% i5: held since dispatch, issues at 8 (the one star)%
+\draw (\rotx,\roTc-\robarh/2) rectangle ({\rox{8}},\roTc+\robarh/2);%
+\node[star, star points=5, star point ratio=2.4, fill=black, draw=white, line width=0.5pt, minimum size=\rostar, inner sep=0pt] (rostx) at ({\rox{8}},\roTc) {};%
+\node[rolab, anchor=west] at ($(rostx.east)+(2pt,0)$) {issues};%
+% the window: i0 resolved, i2 not yet%
+\draw[line width=\rowinlw] ({\rox{0}},\rowT) rectangle ({\roxb{92}},\rowB);%
+\node[font=\scriptsize, anchor=base] at ({(\rox{0}+\roxb{92})/2},\rowT+4) {i0 resolved, i2 unresolved: i3 still speculative};%
+% axis%
+\node[font=\scriptsize, anchor=north west] at (0,\roAx) {Cycle};%
+\foreach \roc in {0,8} \node[font=\scriptsize, anchor=north] at ({\rox{\roc}},\roAx) {\roc};%
+\node[font=\scriptsize, anchor=north] at ({\roxb{92}},\roAx) {92};%
+\node[font=\scriptsize, anchor=north] at ({(\rox{10}+\roxb{90})/2},\roAx) {$\cdots$};%
+% ------------- the defense-specific rule -------------%
+\node[draw, fill=\roshade, anchor=north west, name=rorule, align=left, inner sep=3pt, text width=244pt, font=\scriptsize] at (0,\roAx-14) {\raggedright\textit{Recon-STT rule:} an ALU result keeps the taint of only its oldest tainted source (\texttt{getOldestTaint}), and the taint is freed once that source is no longer speculative (\texttt{freeTaints}). i4 keeps i1's taint, which is freed when i0 resolves, although i3 still feeds i4 under the unresolved i2.};%
+\path ($(rorule.south)+(0,-6pt)$);% breathing room below%
+\end{tikzpicture}%
+}%

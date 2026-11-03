@@ -1,0 +1,13 @@
+% Preview of table (d) v2, 8pt version: the table body only, with blank space on top where the caption goes
+% (IEEE tables put the caption above). The caption is not rendered; its proposed text is in
+% captions/instrtable_v2_8pt.tex. Body: instrtable_v2_8pt.tex (what goes into the paper).
+% Plan + fact table: ../plans/fig_d_instrtable.md. Build from this directory:
+%   pdflatex _standalone_instrtable_v2_8pt.tex && pdftoppm -png -r 300 -singlefile _standalone_instrtable_v2_8pt.pdf _standalone_instrtable_v2_8pt-1
+% border = {left bottom right top}; the 16pt top border is the caption's reserved space.
+\documentclass[border={2pt 2pt 2pt 16pt}]{standalone}
+\usepackage{newtxtext,newtxmath} % preview only (the paper is Times)
+\renewcommand{\ttdefault}{pcr}   % the paper's typewriter (IEEEtran.cls:496), so code widths match
+\usepackage{tikz,booktabs,array}
+\begin{document}
+\input{instrtable_v2_8pt}
+\end{document}

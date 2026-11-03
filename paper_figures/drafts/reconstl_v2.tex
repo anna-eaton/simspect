@@ -1,0 +1,90 @@
+% Results figure: the Recon-STT store-to-load-forwarding bypass, on a real gem5 trace.%
+% Body only (goes into the paper's tikz/). Wrapped in { }; all helper names are prefixed \rs.%
+% Needs TikZ libraries calc + shapes.geometric (the paper preamble loads both).%
+% Data: wiki/findings/bug/recon_SLF_stlf_bypass/ (inst-014912, Recon_6 mispredict_not_taken,%
+% /work/gem5-recon-modded --scheme=2, campaign results/Recon_6__20260602_122016, 2026-06-02).%
+% Program: inst-014912.s lines after the prologue (pc2..pc5). Trace: trace_excerpt_sn600.txt.%
+% Cycle c = (tick - 2679000)/500. Provenance + caveats: paper_figures/plans/RESULTS_FIGURES.md.%
+{%
+% ============================ TUNING KNOBS ============================%
+\def\rscyc{14.5}%       pt per simulated cycle%
+\def\rstl{70}%          pt, x of cycle -0.5 (left of it: label column)%
+\def\rsrowh{32}%        pt between the two timeline rows%
+\def\rsbarh{4}%         pt height of an instruction bar%
+\def\rslabx{0}%         pt, left edge of the row labels%
+\def\rsright{250}%      pt, right edge of the figure%
+\def\rscodeh{9}%        pt between listing lines%
+\def\rsstar{8.5pt}%     outer diameter of the transmission star%
+\def\rswinlw{0.9pt}%    line width of the window frame%
+\def\rsdefshade{black!12}% fill marking defense-specific elements (the only gray)%
+\def\rsfs{\scriptsize}% the one font size (7pt)%
+% ======================================================================%
+\newcommand\rsx[1]{(\rstl+(#1+0.5)*\rscyc)}%
+\newcommand\rsab[1]{\textup{#1}}%
+\newcommand\rsedges[3]{\draw (#2,#1+\rsbarh/2) -- (#3,#1+\rsbarh/2) (#2,#1-\rsbarh/2) -- (#3,#1-\rsbarh/2);}%
+\newcommand\rstck[2]{\draw (#2,#1-\rsbarh/2) -- (#2,#1+\rsbarh/2);}%
+\newcommand\rsstg[3]{\node[anchor=south] at (#2,#1+\rsbarh/2+1.6) {#3};}%
+\newcommand\rssq[2]{\draw[line width=0.6pt] ({#2-2},{#1-2}) -- ++(4,4) ({#2-2},{#1+2}) -- ++(4,-4);}%
+\begin{tikzpicture}[x=1pt, y=1pt, >=latex,%
+  every node/.style={font=\rsfs, inner sep=0pt, execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000\relax}},%
+  rsann/.style={font=\rsfs\itshape},%
+  rscode/.style={font=\rsfs\ttfamily, anchor=base west},%
+  rsrow/.style={anchor=base west},%
+  rsgloss/.style={font=\rsfs\itshape, anchor=base west},%
+]%
+% ------------------------------ legend line ------------------------------%
+\node[anchor=base west] at (0,0) {N: dispatch\quad E: execute\quad C: complete};%
+\node[anchor=base east] (rslg) at (\rsright,0) {Defense-specific};%
+\draw[fill=\rsdefshade] ($(rslg.west)+(-9.5,-0.5)$) rectangle ++(6,6);%
+% ------------------- program fragment (inst-014912, wrong path) -------------------%
+\pgfmathsetmacro\rscy{-16}%
+\def\rsopx{17}\def\rsargx{41}\def\rsnotex{132}%
+\foreach \rsi/\rsid/\rsop/\rsarg/\rsnote in {%
+  0/i2/jne/.end/{Mispredicted: wrong path below},%
+  1/i3/movq/{(\%rsi), \%rax}/{Speculative load: \%rax tainted},%
+  2//leaq/{64(\%rsp), \%rsi}/{},%
+  3/i4/movq/{\%rdi, (\%rsi,\%rax)}/{Store, tainted address},%
+  4/i5/movq/{(\%rsi,\%rax), \%r12}/{xmit: same tainted address}}{%
+  \node[anchor=base west] at (\rslabx,\rscy-\rsi*\rscodeh) {\rsid};%
+  \node[rscode] at (\rsopx,\rscy-\rsi*\rscodeh) {\rsop};%
+  \node[rscode] at (\rsargx,\rscy-\rsi*\rscodeh) {\rsarg};%
+  \node[rsgloss] at (\rsnotex,\rscy-\rsi*\rscodeh) {\rsnote};%
+}%
+% ------------------------------ timeline rows ------------------------------%
+\pgfmathsetmacro\rsyS{\rscy-4*\rscodeh-34}% store row%
+\pgfmathsetmacro\rsyL{\rsyS-\rsrowh}%      xmit row%
+\pgfmathsetmacro\rswT{\rsyS+15}%           window frame top%
+\pgfmathsetmacro\rswB{\rsyL-21}%           window frame bottom%
+\pgfmathsetmacro\rsyT{\rswB-3.5}%          top of the cycle numbers%
+\node[rsrow] at (\rslabx,\rsyS-2.4) {i4: store};%
+\node[rsgloss] at (\rslabx,\rsyS-10.4) {Address 0x35c0};%
+\node[rsrow] at (\rslabx,\rsyL-2.4) {i5: \rsab{xmit}};%
+\node[rsgloss] at (\rslabx,\rsyL-10.4) {Transmitter};%
+% i4 store: dispatch 0, executes 5 (writes addr 0x35c0 into the store queue), complete 6, squashed 9%
+\rsedges{\rsyS}{{\rsx{0}}}{{\rsx{9}}}%
+\rstck{\rsyS}{{\rsx{0}}} \rstck{\rsyS}{{\rsx{5}}} \rstck{\rsyS}{{\rsx{6}}}%
+\rsstg{\rsyS}{{\rsx{0}}}{N} \rsstg{\rsyS}{{\rsx{5}}}{E} \rsstg{\rsyS}{{\rsx{6}}}{C}%
+\rssq{\rsyS}{\rsx{9}}%
+% i5 xmit: dispatch 0, executes 5 (Recon flags it tainted + speculative), completes 7, squashed 9%
+\rsedges{\rsyL}{{\rsx{0}}}{{\rsx{9}}}%
+\rstck{\rsyL}{{\rsx{0}}} \rstck{\rsyL}{{\rsx{5}}}%
+\rsstg{\rsyL}{{\rsx{0}}}{N} \rsstg{\rsyL}{{\rsx{5}}}{E}%
+\rssq{\rsyL}{\rsx{9}}%
+\node[rsann, anchor=west] at ({\rsx{9.5}+3},\rsyL) {Squashed};%
+\node[rsann, anchor=north east] at ({\rsx{4.5}-3},\rsyL-\rsbarh/2-2.5) {Recon: isTainted, isSpeculative};%
+% forwarded store value -> xmit completion (the one star)%
+\node[star, star points=5, star point ratio=2.4, fill=black, draw=white, line width=0.5pt, minimum size=\rsstar, inner sep=0pt] (rstx) at ({\rsx{7}},\rsyL) {};%
+\draw[->, densely dashed] ({\rsx{5.35}},\rsyS-\rsbarh/2) to[out=-80, in=160] (rstx.north west);%
+\node[rsann, anchor=west] at ({\rsx{6.6}},\rsyS-\rsbarh/2-9) {Forwarded};%
+\node[rsann, anchor=north, align=center] at ($(rstx.south)+(0,-2.5)$) {Completes};%
+% the window: Recon itself marks i5 tainted and speculative at 5; the squash at 9 confirms wrong path%
+\draw[line width=\rswinlw] ({\rsx{4.5}},\rswT) rectangle ({\rsx{9.5}},\rswB);%
+\node[anchor=base] at ({\rsx{7}},\rswT+4) {Tainted and speculative until the squash};%
+% ------------------------------ time axis ------------------------------%
+\node[anchor=north west] at (\rslabx,\rsyT) {Cycle};%
+\foreach \rsc in {0,5,6,7,9} \node[anchor=north] at ({\rsx{\rsc}},\rsyT) {\rsc};%
+% ------------- the defense-specific rule the trace violates -------------%
+\pgfmathsetmacro\rsyK{\rsyT-7-9}%
+\node[draw, fill=\rsdefshade, anchor=north west, align=left, inner sep=3pt, text width=244pt] (rscrit) at (0,\rsyK) {\raggedright\textit{Recon-STT rule:} a load whose address is tainted waits in the delay unit until it is no longer speculative. Recon checks taint only on the cache path, after store-to-load forwarding has already returned, so i5 completes at 7 with i4's value.};%
+\end{tikzpicture}%
+}%

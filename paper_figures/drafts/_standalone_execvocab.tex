@@ -1,0 +1,12 @@
+% Preview of table (a), execvocab: the table body only, with blank space on top where the caption goes
+% (IEEE tables put the caption above). The caption is not rendered; its text is in captions/execvocab.tex.
+% Build from this directory:
+%   pdflatex _standalone_execvocab.tex && pdftoppm -png -r 300 -singlefile _standalone_execvocab.pdf _standalone_execvocab-1
+% border = {left bottom right top}; the 24pt top border is the caption's reserved space.
+\documentclass[border={2pt 2pt 2pt 24pt}]{standalone}
+\usepackage{newtxtext,newtxmath} % preview only (the paper is Times)
+\renewcommand{\ttdefault}{pcr}   % the paper's typewriter (IEEEtran.cls:496), so code widths match
+\usepackage{array}
+\begin{document}
+\input{execvocab}
+\end{document}

@@ -65,6 +65,13 @@ When work reaches a genuinely hard decision, Claude brings it to Anna instead of
 - **Bar:** "would deciding this teach Anna something or shape the research outcome?" Routine or mechanical choices with a conventional default still just get done.
 - The final block of a turn lists any hard decisions that are pending or were surfaced.
 
+## Use fewer md files; consolidate when possible (Anna, 2026-11-02)
+
+Before creating a new `.md`, put the content into an existing living doc (the relevant plan/design doc, `STATUS.md`, `URGENT_TODO.md`, `paper_figures/FIGURES.md`, `paper_figures/SESSION_HANDOFF.md`). Create a new md only when no existing doc fits, and when you touch a cluster of small overlapping mds, merge them. Tell subagents the same: one md per task at most, preferably none.
+
+- **Why:** the repo has accumulated many overlapping mds; Anna wants fewer places to look.
+- **Also (usage):** keep agent fan-out small (normally at most 2–3 at once, `effort: low/medium` unless asked) and do small edits directly.
+
 ## Alloy model structure: the defense lives in the defense block; everything else is duplicated (Anna, 2026-10-30)
 
 Every Alloy model is **shared skeleton + a small defense-definition block**. The definition of a defense lives in **three clauses** at the bottom of the model (the "Specific defense model" block, e.g. `STT_6.als:320-332`): (1) the **speculation contract** (`speculation_contract_p` — what is speculative), (2) the **protection set** (`hardware_protection_policy` + `prot_set_propagation_p` — what is protected and how it propagates), and (3) the **leakage / transmitter function** (`leakage_function` — what can transmit). Everything else in the `.als` (sigs, spo/rf/ddi structure, the perturbation machinery, `secure_speculation_scheme_p`, `gen_useful_litmus`, symmetry-breaking, scope) is **duplicated verbatim across all models** — shared boilerplate, not per-model content.

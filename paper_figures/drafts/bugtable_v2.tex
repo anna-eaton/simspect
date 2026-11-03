@@ -1,0 +1,52 @@
+% Bug table v2 (full width, table*): the old tab:bugs (test-paper sections/results.tex:20-55, inside \iffalse)%
+% restyled B&W (no \textcolor; out-of-scope group in italics instead of gray), plus ReCon rows and an Evidence%
+% column that marks evidence predating the 2026-10-30 harness fix ("pre-fix; re-run").%
+% Body only: \input this inside \begin{table*}...\end{table*}; caption in captions/bugtable_v2.tex.%
+% Sources per row (details and caveats: paper_figures/plans/RESULTS_FIGURES.md, sections 3, 4 and 7):%
+%  STT race: old table row; wiki/findings/bug/stt_slowcomm_vp_squash_race/ (commitToIEWDelay 4); pre-fix; window caveat R1.%
+%  Pending-squash, KV3, InvisiSpec/CleanupSpec UV1-UV5/KV1, SpecLFB UV6 (@t6/@t39): old table rows, unchanged.%
+%  SPT-Fence race: old table row; gem5-spt loaded no branch annotations before the fix (BRANCH_ANNOTATION_AND_FORCE.md 5).%
+%  ReCon OTB: wiki/results/reconresults.md Bug 1; oldest_taint_bug/debug_out/ (hand-built); not enumerated (BUGS.md recon).%
+%  ReCon STL: reconresults.md Bug 2; wiki/findings/bug/recon_SLF_stlf_bypass/; 1 of 184 Recon_6 ld hits (claudelog 2026-06-02).%
+% InvisiSpec/CleanupSpec stay an out-of-scope group (Anna's decision, 2026-11-02).%
+% Every line ends in % so no stray spaces enter the output.%
+{%
+\providecommand{\toolname}{SimSpect}%
+\scriptsize%
+\hyphenpenalty=10000\exhyphenpenalty=10000%
+% ============================ TUNING KNOBS ============================%
+\def\btb{158pt}% Bug%
+\def\btk{74pt}%  First known from%
+\def\btf{80pt}%  Found by%
+\def\bts{34pt}%  In scope%
+\def\btv{54pt}%  Verdict%
+\def\bte{76pt}%  Evidence; sum + 10\tabcolsep = 516pt (\textwidth)%
+\setlength{\tabcolsep}{4pt}%
+\renewcommand{\arraystretch}{1.15}%
+% ======================================================================%
+\def\btgrp#1{\multicolumn{6}{@{}l}{\textbf{#1}}\\}%
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{\btb}>{\raggedright\arraybackslash}p{\btk}>{\raggedright\arraybackslash}p{\btf}>{\raggedright\arraybackslash}p{\bts}>{\raggedright\arraybackslash}p{\btv}>{\raggedright\arraybackslash}p{\bte}@{}}%
+\toprule%
+\textbf{Bug} & \textbf{First known from} & \textbf{Found by} & \textbf{In scope} & \textbf{Verdict} & \textbf{Evidence}\\%
+\midrule%
+\btgrp{STT}%
+Visibility-point/squash race (load channel) & This work & \toolname{} & yes & real\,\textdagger & trace at slow commit timing; pre-fix, re-run\\%
+Pending-squash race: secret-dependent squash signal & N.~Mosier (\texttt{cwfletcher/stt} @18e304f) & neither tool & partly & real, fixed upstream & upstream report\\%
+Tainted speculative store $\to$ D-TLB entry (KV3) & DOLMA, via AMuLeT & AMuLeT & no: store/TLB & not a bug\,\textdaggerdbl & AMuLeT\\%
+\addlinespace[2pt]%
+\btgrp{SPT-Fence}%
+Same visibility-point/squash race as STT & This work & \toolname{} & yes & real & pre-fix run without branch forces; re-run\\%
+\addlinespace[2pt]%
+\btgrp{ReCon (STT scheme)}%
+\texttt{getOldestTaint}: an ALU result keeps only its oldest source's taint (OTB) & This work & \toolname{}; re-confirmed by a hand-built test & yes & real, confirmed & hand-built test with trace; pre-fix, re-run\\%
+Store-to-load forwarding skips the taint check (STL) & This work & \toolname{} & yes & candidate & one trace; pre-fix, re-run\\%
+\addlinespace[2pt]%
+\multicolumn{6}{@{}l}{\textbf{InvisiSpec \& CleanupSpec}\quad\textit{collateral transmitter-side channels, out of \toolname{}'s scope}}\\%
+UV1, UV2, KV1: L1D eviction, MSHR contention, L1I speculative fetch & AMuLeT & AMuLeT & no & real & AMuLeT\\%
+UV3--UV5: post-squash L1D residue; cleanup evicts a non-speculative line & AMuLeT & AMuLeT & no & real & AMuLeT\\%
+\addlinespace[2pt]%
+\btgrp{SpecLFB}%
+First speculative load left unprotected (UV6) & AMuLeT & both (AMuLeT at test 39, \toolname{} at test 6) & yes & real & \toolname{} run pre-fix; re-run\\%
+\bottomrule%
+\end{tabular}%
+}%

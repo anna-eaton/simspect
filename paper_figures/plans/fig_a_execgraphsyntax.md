@@ -132,3 +132,12 @@ Inline snippet for option (ii), tested in the paper's `IEEEtran` at `\columnwidt
 ## Side findings (not part of this figure)
 
 - Broken reference in the paper: `sections/pipeline.tex:20` cites `Figure~\ref{fig:relaxation}`, but `tikz/relaxation.tex:161` labels the figure `fig:four-panes`, so the PDF shows "Figure ??". Anna fixes this; paper text is read-only for Claude.
+
+## 2026-11-02: v-table redo (`execvocab`), per Anna's decision "make (a) a vocab table"
+
+- **Files:** `paper_figures/drafts/execvocab.tex` (body, wrapped in `{ }`, every line ends in `%`, macros prefixed `\ev`), `drafts/captions/execvocab.tex`, preview `drafts/_standalone_execvocab.tex` + `-1.png` (300 dpi). Size: 251 x 257pt of table (page 255 x 283pt incl. the 24pt top caption space). One column. No overfull boxes.
+- **Form:** TransForm Table I style (`reference_papers/crops/transform_isca20_p8.png`): full grid, bold header, code names centred, meaning column left-aligned, 7pt throughout. Three columns: **Graph** (how figures (b)/(c) draw the element), **Alloy** (its name in the model), **Meaning** (one line). Four italic group rows: Instructions, Operands and state, Flags, Relations. No gray rows, because gray means defense-specific and nothing in the shared skeleton is.
+- **Sources:** every row comes from the syntax inventory above (`STT_6.als:19-21, 24-26, 30-35, 47-62, 80-92, 129-139, 153-174`; shared by STT_6, Recon_6, SPT_6). The "resolved" meaning uses the generic `oldtechnicaldetails.tex:49` wording ("branch outcome (or memory address) is known"); the per-model meaning is still an open decision (above).
+- **Changes from the old draft (Anna's feedback):** no r/c/t dot columns (flags are now italic words, defined in the table); no example graph and no relation arrows (the graph lives in (b)); lowercase ids. Kind pairs are merged (`Branch_n/_x`, `TBranchn/x`) with a separate `_x` row for "potential transmitter".
+- [ ] DECIDE: is `Other_x` worth a row? It's in the syntax but no current leakage function uses `Otherxs.inreg` (`STT_6.als:327` is commented out). It's merged into the `Other_n/_x` row now.
+- [ ] DECIDE: keep the "Graph" column? It makes the table the legend for (b)/(c), which saves caption text. Without it the table drops to two columns, like TransForm.

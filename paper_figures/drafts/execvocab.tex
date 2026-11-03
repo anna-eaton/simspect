@@ -1,0 +1,42 @@
+% Table (a): execution-graph vocabulary (TransForm Table I style), one column, 252pt.
+% Body only: \input this inside a table float; the caption lives in captions/execvocab.tex.
+% Every cell is sourced in paper_figures/plans/fig_a_execgraphsyntax.md (syntax inventory, STT_6.als
+% line numbers; lines 1-138 are identical in STT_6 / Recon_6 / SPT_6). "Graph" column = how figures
+% (b) relaxation_v4 and (c) interleave_v4 draw the element; "Alloy" column = its name in the model.
+% No gray rows: gray means defense-specific, and nothing here is. Needs: array (paper preamble).
+% Every line ends in % so no stray spaces enter the output. Macros prefixed \ev.
+{%
+\scriptsize%
+\hyphenpenalty=10000\exhyphenpenalty=10000%
+% ============================ TUNING KNOBS ============================
+\def\evgw{46pt}%   Graph column
+\def\evaw{50pt}%   Alloy column
+\setlength{\tabcolsep}{3pt}%
+\def\evmw{\dimexpr252pt-\evgw-\evaw-6\tabcolsep-4\arrayrulewidth\relax}% Meaning column (total = 252pt)
+\renewcommand{\arraystretch}{1.15}%
+% ======================================================================
+\def\evgrp#1{\multicolumn{3}{|l|}{\rule{0pt}{8pt}\textit{#1}}\\\hline}%
+\begin{tabular}{|>{\centering\arraybackslash}p{\evgw}|>{\centering\arraybackslash}p{\evaw}|>{\raggedright\arraybackslash}p{\evmw}|}%
+\hline%
+\textbf{Graph} & \textbf{Alloy} & \textbf{Meaning}\\\hline%
+\evgrp{Instructions: one node each; its kind is one of}%
+\texttt{Load} & \texttt{TLoad} & reads memory at an address into a register\\%
+\texttt{Store} & \texttt{TStore} & writes a register to memory at an address\\%
+\texttt{Branch\_n/\_x} & \texttt{TBranchn/x} & conditional branch on a register\\%
+\texttt{Other\_n/\_x} & \texttt{TOthern/x} & ALU op: up to two registers in, one out\\%
+\texttt{\_x} & & potential transmitter (the defense's leakage function decides)\\\hline%
+\evgrp{Operands and state}%
+$r_0$, $m_0$ & \texttt{Reg\_s}, \texttt{Mem\_s} & an abstract register, memory location\\%
+out $\leftarrow$ in & \texttt{opstate} & operands: inputs \texttt{inreg}, \texttt{inaddr}, \texttt{inmem}; outputs \texttt{outreg}, \texttt{outmem}; each names one location\\%
+$[r_0]$ & \texttt{inaddr} & address operand of a load or store\\%
+? & & operand left unspecified; filled during concretization\\\hline%
+\evgrp{Flags: italic words on an instruction's row}%
+\textit{resolved} & \texttt{isresolved} & branch outcome (or memory address) is known; no word: unresolved\\%
+\textit{committed} & \texttt{iscommitted} & retired, non-speculative; implies resolved; a prefix of program order\\%
+\textit{xmit} & \texttt{isxm} & the test's one target transmitter\\\hline%
+\evgrp{Relations: labelled edges}%
+row order & \texttt{spo} & program order, top to bottom (total)\\%
+\textit{rf} & \texttt{rf} & reads-from: an output operand to an input operand of a later instruction, same location\\%
+\textit{ddi} & \texttt{ddi} & data dependence inside one instruction: input operand to output operand\\\hline%
+\end{tabular}%
+}%
