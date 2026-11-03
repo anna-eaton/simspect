@@ -2,12 +2,17 @@
 % Body only: \input this inside a table float; the caption lives in captions/instrtable_v2.tex.%
 % Source of truth for every cell (file:line citations): paper_figures/plans/fig_d_instrtable.md%
 %   (fact table, rows 1-5; its "v2" section maps each v2 cell to it and lists what moved to the caption).%
-% Visual language: paper_figures/plans/VISUAL_LANGUAGE.md (this 8pt variant: one size, \footnotesize = 8pt; no colour).%
+% Visual language: paper_figures/plans/VISUAL_LANGUAGE.md (this 8pt variant: one size, \footnotesize = 8pt; colour from sscolors.tex: speculation-primitive row names and flags amber, transmitter red).%
 % Needs (all already in the paper preamble): tikz, booktabs, array.%
 % Exec-graph column: plain placeholder notation (kind in code font as in the Alloy model, lowercase%
 % row-local ids, flags as words). It follows whatever notation the graph figures (a)-(c) settle on.%
 % Every line below ends in % so no stray spaces enter the output.%
 {%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}%
+\providecolor{sssrcbg}{gray}{0.90}%
 \footnotesize%
 \hyphenpenalty=10000\exhyphenpenalty=10000%
 % ============================ TUNING KNOBS ============================%
@@ -26,7 +31,7 @@
 \def\egl#1#2#3#4{%
   \node (id#1) at (0,-#1*\eglh) {#2};%
   \node (k#1) at (\egid,-#1*\eglh) {#3};%
-  \node (f#1) at (\egfl,-#1*\eglh) {\itshape #4};}%
+  \node (f#1) at (\egfl,-#1*\eglh) {\itshape #4};}% #4 may carry its own \textcolor%
 % glyph: program order top to bottom; baseline = first line%
 \def\eg#1{\par\vspace{\egsp}\begin{tikzpicture}[baseline=0pt, >=latex,%
     every node/.style={inner sep=0pt, anchor=base west, font=\footnotesize}]#1\end{tikzpicture}}%
@@ -40,19 +45,19 @@ Store bypass%
   \draw[->, rounded corners=1.2pt] ([xshift=1pt,yshift=2.2pt]k0.base east) -| ++(3pt,-\eglh)%
     node[pos=0.75, anchor=west, xshift=1pt, font=\footnotesize\itshape] {rf}%
     -- ([xshift=1pt,yshift=2.2pt]k1.base east);}%
-& i0 and i1 share an address; inline asm, so no compiler forwarding.%
-& i0's address held 5000 cycles; i1 forced to predict no alias.\\%
+& i0 and i1 share an address, so i1 mispredicts no alias. Inline asm: no compiler forwarding.%
+& i0's address held 5000 cycles; i1 forced to mispredict no alias.\\%
 \midrule%
 % ---- row 2: unresolved branch (Row 2) ----%
 Unresolved branch, mispredicted either way%
 \eg{\egl{0}{i0}{\texttt{Branch\_n}}{unresolved}}%
-& Constant condition: exits architecturally, so the rest runs only speculatively.%
+& Mispredicted both ways (taken, mispredicted not taken; or the reverse). Constant condition: the architectural path exits, so the rest runs only speculatively.%
 & Forced to mispredict; resolution held 5000 cycles; still unresolved at the xmit.\\%
 \midrule%
 % ---- row 3: resolved branch (Row 3) ----%
 Resolved branch, not taken%
 \eg{\egl{0}{i0}{\texttt{Branch\_n}}{resolved}}%
-& Zeroed condition: falls through, never taken.%
+& Correctly predicted, not taken: zeroed condition, falls through.%
 & Forced correct; resolution delayed 0, 500 or 2500 cycles (all combinations).\\%
 \midrule%
 % ---- row 4: commit boundary (Row 4) ----%
@@ -62,9 +67,9 @@ Commit boundary%
 & Window: lc retired~$<$ xmit~$<$ fnc retires (measured); no commit stall.\\%
 \midrule%
 % ---- row 5: target transmitter (Row 5) ----%
-Target transmitter%
-\eg{\egl{0}{i0}{\texttt{Branch\_x}}{xmit}\egl{1}{\itshape or}{\texttt{Other\_x}}{xmit}}%
-& \texttt{Branch\_x}: \texttt{testq}+\texttt{jz} on its operand, architecturally taken. Divide: unguarded, so a zero divisor faults.%
+\textcolor{ssxmitink}{Target transmitter}%
+\eg{\egl{0}{i0}{\texttt{Branch\_x}}{\textcolor{ssxmitink}{xmit}}\egl{1}{\itshape or}{\texttt{Other\_x}}{\textcolor{ssxmitink}{xmit}}}%
+& \texttt{Branch\_x}: \texttt{testq}+\texttt{jz} on its operand; architecturally taken, mispredicted not taken. Divide: unguarded, so a zero divisor faults.%
 & \texttt{Branch\_x}: forced to mispredict, no hold. Divide: a fault after a mispredict is a transmission.\\%
 \bottomrule%
 \end{tabular}%

@@ -1,0 +1,10 @@
+% ALTERNATIVE palette (2026-11-03, not in use): one color per defense clause + green sources of truth. Anna preferred one color; to restore, copy this over sscolors.tex.
+% Load once (paper preamble, or a standalone preview) BEFORE any figure body. Each body \providecolor's the same
+% names with the grayscale levels below, so a body without this file renders as its grayscale version.
+% Fill gray levels (0.299R + 0.587G + 0.114B) are all distinct: spec 0.94, srcbg 0.90, prot 0.83, xmit 0.76, src 0.66.
+% Sources of truth: small icons use the dark sssrcfill; large boxes use the light sssrcbg WITH a sssrcink outline.
+\definecolor{ssspecfill}{HTML}{FCEFD6}\definecolor{ssspecink}{HTML}{A35F00}% speculation (3a speculation contract)
+\definecolor{ssprotfill}{HTML}{C2D7EE}\definecolor{ssprotink}{HTML}{2F5F8F}% protection (3b protection set)
+\definecolor{ssxmitfill}{HTML}{EAB0A8}\definecolor{ssxmitink}{HTML}{B3322C}% leakage / transmission (3c leakage function)
+\definecolor{sssrcfill}{HTML}{7FBF94}\definecolor{sssrcink}{HTML}{1F6B3E}% defense sources of truth: icons
+\definecolor{sssrcbg}{HTML}{D8EEDD}% defense sources of truth: large boxes (always with draw=sssrcink)

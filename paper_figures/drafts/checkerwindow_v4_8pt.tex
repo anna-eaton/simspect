@@ -9,6 +9,10 @@
 % Text convention (see the plan): sentence case for prose; lc, fnc, xmit are fixed%
 % lowercase abbreviations set with \cwab (one font everywhere, upright even in italics).%
 {%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}\providecolor{sssrcbg}{gray}{0.90}%
 % ============================ TUNING KNOBS ============================%
 \def\cwcyc{6.7}%        pt per simulated cycle (same scale in every axis segment)%
 \def\cwbrk{16.2}%         pt width of each elided stretch (dotted)%
@@ -25,7 +29,7 @@
 \def\cwwtop{13}%        pt, window frame top above row i0%
 \def\cwwbot{29}%        pt, window frame bottom below row i2%
 \def\cwgap{10}%         pt between the cycle numbers and the criterion box%
-\def\cwdefshade{black!12}%  fill marking defense-specific elements (the only gray)%
+\def\cwdefshade{sssrcfill}%  defense source of truth (palette: paper_figures/drafts/sscolors.tex)%
 \def\cwfs{\footnotesize}%   the one font size (8pt)%
 % axis segments [start,end], in cycles after i0's fetch; elided stretches between them%
 \def\cwsA{-0.5}\def\cweA{8.5}%        front end; lc retires at 8%
@@ -133,13 +137,14 @@
 \draw[line width=0.6pt] ({\cwx{E}{5008}-2},\cwyC-2) -- ++(4,4) ({\cwx{E}{5008}-2},\cwyC+2) -- ++(4,-4);%
 \node[cwann, anchor=west] at ({\cwx{E}{5008}+4.5},\cwyC) {Squashed};%
 % the transmission: the one star in the figure%
-\node[star, star points=5, star point ratio=2.4, fill=black, draw=white, line width=0.5pt,%
+\node[star, star points=5, star point ratio=2.4, fill=ssxmitink, draw=white, line width=0.5pt,%
       minimum size=\cwstar, inner sep=0pt] (cwtx) at ({\cwx{C}{70}},\cwyC) {};%
-\node[cwann, anchor=north, align=center] at ($(cwtx.south)+(0,-2.5)$) {Transmission\\[1pt](L1D eviction)};%
+\node[cwann, anchor=north, align=center] at ($(cwtx.south)+(0,-2.5)$) {\textcolor{ssxmitink}{Transmission}\\[1pt]\textcolor{ssxmitink}{(L1D eviction)}};%
 
 % ------------------------- the unresolved window -------------------------%
-\draw[line width=\cwwinlw] ({\cwx{A}{8}},\cwwT) rectangle ({\cwx{E}{5007}},\cwwB);%
-\node[anchor=base east] at ({\cwx{E}{5007}},\cwyS-2.7) {Unresolved window};% 8pt version: right-aligned to the frame so it stays clear of the role-label line%
+\begin{scope}[on background layer]\fill[ssspecfill] ({\cwx{A}{8}},\cwwT) rectangle ({\cwx{E}{5007}},\cwwB);\end{scope}%
+\draw[line width=\cwwinlw, ssspecink] ({\cwx{A}{8}},\cwwT) rectangle ({\cwx{E}{5007}},\cwwB);%
+\node[anchor=base east] at ({\cwx{E}{5007}},\cwyS-2.7) {\textcolor{ssspecink}{Unresolved window}};% 8pt version: right-aligned to the frame so it stays clear of the role-label line%
 
 % ------------------------------ time axis ------------------------------%
 \node[anchor=north west] at (0,\cwyT) {Cycle};%
@@ -148,14 +153,14 @@
 
 % ------ defense-specific transmission criterion, checked inside the window ------%
 \pgfmathsetmacro\cwcw{\cwright-\cwboxx-6}%
-\node[draw, fill=\cwdefshade, anchor=north west, align=left, inner sep=3pt,%
+\node[draw=sssrcink, fill=sssrcbg, anchor=north west, align=left, inner sep=3pt,%
       text width=\cwcw pt] (cwcrit) at (\cwboxx,\cwyK)%
   {\raggedright\textit{InvisiSpec, checked inside the window:} a fill, eviction, invalidation, coherence or replacement update in the L1D, L2, directory or D-TLB by a squashed instruction younger than \cwab{lc}. Speculative-buffer fills do not count.};%
 \draw[->] ({(\cwx{B}{40}+\cwx{C}{70})/2},\cwyK) -- ({(\cwx{B}{40}+\cwx{C}{70})/2},\cwwB);%
 \path (cwcrit.center); \pgfgetlastxy{\cwqx}{\cwqy}%
 \cwdoc{\cwiconx}{\cwqy}{\cwdefshade}{}%
 \node[anchor=west, align=left] (cwcl) at (\cwicongap,\cwqy) {Defense\\transmission\\criterion};%
-\draw[->] ($(cwcl.east |- cwcrit.west)+(2,0)$) -- (cwcrit.west);%
+\draw[->, sssrcink] ($(cwcl.east |- cwcrit.west)+(2,0)$) -- (cwcrit.west);%
 
 \end{tikzpicture}%
 }%

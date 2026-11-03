@@ -1,0 +1,48 @@
+% Alloy-first syntax table (2026-11-02, Anna: "you arent really focusing on the actual alloy here"). Replaces the
+% Graph | Meaning version (execvocab_v2_8pt.tex): rows are now the model's own sigs and fields, in declaration
+% order, and every relation (field) of the shared skeleton is listed. Source: STAGE1_alloy/models/STT_6.als
+% :19-89 (sigs, fields), :107 (one owner per operand), :110-126 (operand kinds, counts), :129-137 (spo, flags),
+% :155-159 (rf), :171-174 (ddi); identical in Recon_6, SPT_6, SPT_6_oneLP, STT_6_stl. Left out: idx/IX0-IX5
+% (symmetry breaking only) and rf_from_most_recent_writer (STT_6 lineage only, not in Recon_6/SPT_6).
+% "resolved" wording follows Anna 2026-11-02 (meaningful for branches, and stores under STL).
+% Colors (sscolors.tex): tan = speculation status flags, red = transmitter. Needs: array, colortbl (paper preamble).
+% Body only: \input this inside a table float. Every line ends in % so no stray spaces enter the output. Macros \ev.
+{%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}%
+\providecolor{sssrcbg}{gray}{0.90}%
+\footnotesize%
+\hyphenpenalty=10000\exhyphenpenalty=10000%
+% ============================ TUNING KNOBS ============================
+\def\evgw{58pt}%   Alloy column
+\setlength{\tabcolsep}{3pt}%
+\def\evmw{\dimexpr252pt-\evgw-4\tabcolsep-3\arrayrulewidth\relax}% Meaning column (total = 252pt)
+\renewcommand{\arraystretch}{1.15}%
+% ======================================================================
+\def\evgrp#1{\multicolumn{2}{|>{\raggedright\arraybackslash}p{\dimexpr252pt-2\tabcolsep-2\arrayrulewidth\relax}|}{\rule{0pt}{8pt}#1}\\\hline}%
+\def\evt#1{\texttt{#1}}%
+\begin{tabular}{|>{\raggedright\arraybackslash}p{\evgw}|>{\raggedright\arraybackslash}p{\evmw}|}%
+\hline%
+\textbf{Alloy} & \textbf{Meaning}\\\hline%
+\evgrp{\evt{sig Instruction}: one atom per instruction. Its fields:}%
+\evt{kind} & its type: one \evt{InstrType} atom (below)\\%
+\evt{spo} & speculative program order (a total order)\\%
+\evt{inreg}, \evt{inaddr}, \evt{inmem} & input operands, at most two; any may be absent (unspecified, filled in at concretization)\\%
+\evt{outreg}, \evt{outmem} & output operand, at most one\\%
+\cellcolor{ssspecfill}\evt{isresolved} & Boolean: resolved; a branch's outcome (or, with STL, a store's address) is known\\%
+\cellcolor{ssspecfill}\evt{iscommitted} & Boolean: committed (retired); implies resolved; committed instructions are a prefix of \evt{spo}\\%
+\cellcolor{ssxmitfill}\evt{isxm} & Boolean: the test's one target transmitter\\\hline%
+\evgrp{\evt{InstrType}: the values of \evt{kind}}%
+\evt{TLoad} & load: \evt{inaddr}, \evt{inmem} $\rightarrow$ \evt{outreg}\\%
+\evt{TStore} & store: \evt{inreg}, \evt{inaddr} $\rightarrow$ \evt{outmem}\\%
+\evt{TBranchn/x} & conditional branch: \evt{inreg} only, no output\\%
+\evt{TOthern/x} & ALU op: up to two \evt{inreg} $\rightarrow$ \evt{outreg}\\%
+\cellcolor{ssxmitfill}\evt{n} vs.\ \evt{x} & \evt{n} never transmits; \evt{x} (like \evt{TLoad}, \evt{TStore}) may, if the defense's leakage function says so\\\hline%
+\evgrp{\evt{sig Operand}: \evt{Inreg}, \evt{Inaddr}, \evt{Inmem}, \evt{Outreg}, \evt{Outmem}; each belongs to exactly one instruction. Its fields:}%
+\evt{opstate} & the location it names: one \evt{State}, a \evt{Reg\_s} (register operands) or \evt{Mem\_s} (memory)\\%
+\evt{rf} & reads-from: an output to an input of a later instruction on the same location; at most one into each input\\%
+\evt{ddi} & data-dependence internal, input to output: load \evt{inmem}$\rightarrow$\evt{outreg}, store \evt{inreg}$\rightarrow$\evt{outmem}, ALU \evt{inreg}$\rightarrow$\evt{outreg}; none in a branch\\\hline%
+\end{tabular}%
+}%

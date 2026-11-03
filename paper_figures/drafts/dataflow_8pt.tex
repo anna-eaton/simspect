@@ -1,0 +1,74 @@
+% Basic execution-graph example (2026-11-02): redraw of the paper's tikz/alloyviolation.tex (fig:ddi-rf) in the
+% shared graph notation (VISUAL_LANGUAGE.md "Graph notation"), 8pt minimum. Same program, same edges, same flags:
+% i0 Branch_n (unresolved), i1 Load r1 <- m1, i2 Other_n r2 <- r1, r0, i3 Load ? <- [r2]; i1-i3 resolved.
+% Colors are named so one body serves both schemes: the defaults below are the B&W scheme (gray = protected,
+% i.e. defense-specific); a color preamble defines ssprot*/ssspec*/ssxmit* first and \providecolor keeps those.
+% Body only, wrapped in { }; every line ends in % so no stray spaces enter the output. Macros prefixed df.
+{%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}\providecolor{sssrcbg}{gray}{0.90}%
+% ============================ TUNING KNOBS ============================
+\def\dfkind{11pt}% x where kinds start (ids at 0)
+\def\dfout{55pt}% x of the output operand
+\def\dfarr{66pt}% x of the <- arrow
+\def\dfin{77pt}% x of the input operand
+\def\dfflag{110pt}% x where flag words start
+\def\dfnote{166pt}% x where the explanations start
+\def\dfnotew{84pt}% explanation width (\dfnote + \dfnotew <= 252pt)
+\def\dflw{1.1pt}% line width of the leak path
+% ======================================================================
+\begin{tikzpicture}[%
+  >=latex,%
+  every node/.style={font=\footnotesize, inner sep=0pt},%
+  execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000},%
+  dftok/.style={anchor=base west, outer sep=0.6pt},%
+  dflab/.style={font=\footnotesize\itshape},%
+  dfflagw/.style={font=\footnotesize\itshape, anchor=base west},%
+  dfnote/.style={font=\footnotesize\itshape, anchor=base west, align=left, text width=\dfnotew},%
+  dfleak/.style={->, line width=\dflw, draw=ssprotink, preaction={draw=ssprotfill, arrows=-, line width=3.6pt, line cap=round, blend mode=multiply}},%
+]%
+\path (0,0) coordinate (y0) (0,-22pt) coordinate (y1) (0,-49pt) coordinate (y2) (0,-79pt) coordinate (y3);%
+\path (0,12pt) (0,-90pt);% breathing room above and below
+% speculative rows (after the unresolved branch): a light band in the color scheme, nothing in B&W
+\fill[ssspecfill, rounded corners=2pt] (-2pt,-4.5pt) rectangle (\dfnote-4pt,-83pt);%
+\coordinate (spA) at (-2pt,-4.5pt); \coordinate (spB) at (\dfnote-4pt,-83pt);%
+\node[font=\footnotesize\itshape, text=black!55, rotate=90, anchor=south] at ($($(spB)!0.5!(spB |- spA)$)+(-1.2pt,0)$) {speculative};% vertical label along the tan band's right edge
+% ids and kinds
+\foreach \k in {0,1,2,3} \node[dftok] at (y\k) {i\k:};%
+\node[dftok] at ($(y0)+(\dfkind,0)$) {\texttt{Branch\_n}};%
+\node[dftok] at ($(y1)+(\dfkind,0)$) {\texttt{Load}};%
+\node[dftok] at ($(y2)+(\dfkind,0)$) {\texttt{Other\_n}};%
+\node[dftok] at ($(y3)+(\dfkind,0)$) {\texttt{Load}};%
+% i1: Load r1 <- m1; m1 is protected (resolution status is shown only on branches and stores)
+\node[dftok] (i1o) at ($(y1)+(\dfout,0)$) {$r1$};%
+\node[dftok] at ($(y1)+(\dfarr,0)$) {$\leftarrow$};%
+\node[dftok, fill=ssprotfill, inner xsep=1pt, inner ysep=1.3pt] (i1m) at ($(y1)+(\dfin,0)$) {$m1$};%
+% i2: Other_n r2 <- r1, r0
+\node[dftok] (i2o) at ($(y2)+(\dfout,0)$) {$r2$};%
+\node[dftok] at ($(y2)+(\dfarr,0)$) {$\leftarrow$};%
+\node[dftok] (i2i) at ($(y2)+(\dfin,0)$) {$r1$};%
+\node[dftok] at (i2i.base east) {, $r0$};%
+% i3: Load ? <- [r2], the transmitter
+\node[dftok] at ($(y3)+(\dfout,0)$) {?};%
+\node[dftok] at ($(y3)+(\dfarr,0)$) {$\leftarrow$};%
+\node[dftok] (i3b) at ($(y3)+(\dfin,0)$) {[};%
+\node[dftok, outer sep=0pt] (i3r) at (i3b.base east) {$r2$};%
+\node[dftok] at (i3r.base east) {]};%
+\node[dfflagw, text=ssxmitink] at ($(y3)+(\dfflag,0)$) {xmit};%
+% the dataflow (thick): m1 -ddi-> r1 -rf-> r1 -ddi-> r2 -rf-> [r2]
+\draw[dfleak, shorten >=1.4pt] ($(i1m.north)+(0,0.3pt)$) to[out=115, in=65, looseness=1.1]%
+  node[pos=0.5, above=1.4pt, dflab] {ddi} ($(i1o.north)+(0,0.6pt)$);%
+\draw[dfleak, shorten <=0.6pt, shorten >=1.0pt, rounded corners=2pt] (i1o.south) -- ++(0,-4pt) -| ($(i2i.north east)+(-1.2pt,0)$)%
+  node[pos=0.78, anchor=west, xshift=2pt, dflab] {rf};%
+\draw[dfleak, shorten >=1.4pt] ($(i2i.north west)+(1.6pt,0.3pt)$) to[out=120, in=65, looseness=1.1]%
+  node[pos=0.45, above=1.4pt, dflab] {ddi} ($(i2o.north)+(0,0.6pt)$);%
+\draw[dfleak, shorten <=0.6pt, shorten >=1.2pt] (i2o.south) .. controls +(0,-0.42) and +(-0.30,0.18) .. (i3b.north west)%
+  node[pos=0.5, dflab, anchor=south west, xshift=2pt] {rf};%
+% explanations
+\node[dfnote, text=ssspecink] at ($(y0)+(\dfnote,0)$) {unresolved, so i1--i3 are speculative};%
+\node[dfnote, text=ssprotink] at ($(y1)+(\dfnote,0)$) {$m1$: protected state};%
+\node[dfnote, text=ssxmitink] at ($(y3)+(\dfnote,0)$) {leaks its address};%
+\end{tikzpicture}%
+}%

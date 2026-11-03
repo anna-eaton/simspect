@@ -5,9 +5,14 @@
 % Every cell is sourced in paper_figures/plans/fig_a_execgraphsyntax.md (syntax inventory, STT_6.als
 % line numbers; lines 1-138 are identical in STT_6 / Recon_6 / SPT_6). "Graph" column = how figures
 % (b) relaxation_v4 and (c) interleave_v4 draw the element; "Alloy" column = its name in the model.
-% No gray rows: gray means defense-specific, and nothing here is. Needs: array (paper preamble).
+% No gray/green rows: green means defense-specific, and nothing here is. Colors (sscolors.tex): Flags header amber (speculation), _x and xmit cells red (transmitter). Needs: array (paper preamble).
 % Every line ends in % so no stray spaces enter the output. Macros prefixed \ev.
 {%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}%
+\providecolor{sssrcbg}{gray}{0.90}%
 \footnotesize%
 \hyphenpenalty=10000\exhyphenpenalty=10000%
 % ============================ TUNING KNOBS ============================
@@ -17,6 +22,7 @@
 \renewcommand{\arraystretch}{1.15}%
 % ======================================================================
 \def\evgrp#1{\multicolumn{2}{|l|}{\rule{0pt}{8pt}\textit{#1}}\\\hline}%
+\def\evgrpc#1#2{\multicolumn{2}{|>{\columncolor{#1}}l|}{\rule{0pt}{8pt}\textit{#2}}\\\hline}% colored group header (#1 = fill)%
 \begin{tabular}{|>{\centering\arraybackslash}p{\evgw}|>{\raggedright\arraybackslash}p{\evmw}|}%
 \hline%
 \textbf{Graph} & \textbf{Meaning}\\\hline%
@@ -25,19 +31,19 @@
 \texttt{Store} & writes a register to memory at an address\\%
 \texttt{Branch\_n/\_x} & conditional branch on a register\\%
 \texttt{Other\_n/\_x} & ALU op: up to two registers in, one out\\%
-\texttt{\_x} & potential transmitter (the defense's leakage function decides)\\\hline%
+\cellcolor{ssxmitfill}\texttt{\_x} & potential transmitter (the defense's leakage function decides)\\\hline%
 \evgrp{Operands and state}%
 $r0$, $m0$ & an abstract register, memory location\\%
 out $\leftarrow$ in & operands: inputs \texttt{inreg}, \texttt{inaddr}, \texttt{inmem}; outputs \texttt{outreg}, \texttt{outmem}; each names one location\\%
 $[r0]$ & address operand of a load or store\\%
 ? & operand left unspecified; filled during concretization\\\hline%
-\evgrp{Flags: italic words on an instruction's row}%
-\textit{resolved} & branch outcome (or memory address) is known; no word: unresolved\\%
+\evgrpc{ssspecfill}{Flags: italic words on an instruction's row}%
+\textit{resolved} & shown only on branches and stores: the outcome (or store address) is known; no word: unresolved\\%
 \textit{committed} & retired, non-speculative; implies resolved; a prefix of program order\\%
-\textit{xmit} & the test's one target transmitter\\\hline%
+\cellcolor{ssxmitfill}\textit{xmit} & the test's one target transmitter\\\hline%
 \evgrp{Relations: labelled edges}%
 row order & program order, top to bottom (total)\\%
 \textit{rf} & reads-from: an output operand to an input operand of a later instruction, same location\\%
-\textit{ddi} & data dependence inside one instruction: input operand to output operand\\\hline%
+\textit{ddi} & data-dependence internal: input operand to output operand\\\hline%
 \end{tabular}%
 }%

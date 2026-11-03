@@ -14,8 +14,12 @@
 % Mechanism: taint_tracker.cc getOldestTaint 119-131, propagateTaints 108-116, freeTaints 134-155%
 %   (reconresults.md "Source references"). Plan + caveats: paper_figures/plans/RESULTS_FIGURES.md.%
 {%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}\providecolor{sssrcbg}{gray}{0.90}%
 % ============================ TUNING KNOBS ============================%
-\def\roshade{black!12}%  gray = defense-specific (Recon's taint rule)%
+\def\roshade{sssrcbg}%  defense source of truth (Recon's taint rule box: light bg + sssrcink outline)%
 \def\rokind{13pt}%       x where kinds start (ids at 0)%
 \def\roout{61pt}%        x of the output operand%
 \def\roarr{72pt}%        x of the <- arrow%
@@ -47,13 +51,17 @@
   rolab/.style={font=\footnotesize\itshape},%
   roflagw/.style={font=\footnotesize\itshape, anchor=base west},%
   ronote/.style={font=\footnotesize\itshape, anchor=base west, align=left, text width=\ronotew},%
-  roleak/.style={->, line width=\rolw},%
+  roleak/.style={->, line width=\rolw, draw=ssprotink, preaction={draw=ssprotfill, arrows=-, line width=3.6pt, line cap=round, blend mode=multiply}},%
   rorowl/.style={font=\footnotesize, anchor=base west},%
 ]%
 \path (0,0) coordinate (y0) (0,-\rorow-\rogA) coordinate (y1) (0,-2*\rorow-\rogA) coordinate (y2)%
   (0,-3*\rorow-\rogA-\rogC) coordinate (y3) (0,-4*\rorow-\rogA-\rogC-\rogD) coordinate (y4)%
   (0,-5*\rorow-\rogA-\rogC-\rogD-\rogE) coordinate (y5);%
 \path (0,8pt);% breathing room above%
+% speculative rows (after the unresolved i2): a light band behind ids/kinds/operands only, ending before the flag column so no colored text sits on it; drawn first%
+\fill[ssspecfill, rounded corners=2pt] ($(-2pt,0 |- y2)+(0,-4.5pt)$) rectangle ($(\ronote-4pt,0 |- y5)+(0,-4pt)$);%
+\coordinate (spA) at ($(-2pt,0 |- y2)+(0,-4.5pt)$); \coordinate (spB) at ($(\ronote-4pt,0 |- y5)+(0,-4pt)$);%
+\node[font=\footnotesize\itshape, text=black!55, rotate=90, anchor=south] at ($($(spB)!0.5!(spB |- spA)$)+(-1.2pt,0)$) {speculative};% vertical label along the tan band's right edge
 % ------------------------------ listing ------------------------------%
 \foreach \r in {0,...,5} \node[rotok] at (y\r) {i\r:};%
 % i0: Branch_x  committed%
@@ -86,7 +94,7 @@
 \node[rotok] (i5b) at ($(y5)+(\roin,0)$) {[};%
 \node[rotok, outer sep=0pt] (i5r) at (i5b.base east) {$r0$};%
 \node[rotok] at (i5r.base east) {]};%
-\node[roflagw] at ($(y5)+(\roflag,0)$) {xmit};%
+\node[roflagw, text=ssxmitink] at ($(y5)+(\roflag,0)$) {xmit};%
 % ---- edges: the older source (thin) ----%
 \draw[->, shorten >=1.2pt] ($(i1m.north)+(0,0.3pt)$) to[out=115, in=65, looseness=1.1]%
   node[pos=0.5, above=1.4pt, rolab] {ddi} ($(i1o.north)+(0,0.6pt)$);%
@@ -109,7 +117,7 @@
 % ---- notes ----%
 \node[ronote] at ($(y0)+(\ronote,0)$) {resolves first};%
 \node[ronote] at ($(y1)+(\ronote,0)$) {older tainted source};%
-\node[ronote] at ($(y2)+(\ronote,0)$) {mispredicted, resolves last};%
+\node[ronote] at ($(y2)+(\ronote,0)$) {\textcolor{ssspecink}{mispredicted, resolves last}};%
 \node[ronote] at ($(y3)+(\ronote,0)$) {younger tainted source};%
 \node[ronote] at ($(y4)+(\ronote,0)$) {keeps only i1's taint};%
 % ------------------------------ timeline ------------------------------%
@@ -134,7 +142,7 @@
 \node[rolab, anchor=east] at ({\roxb{92}-3},\roTb+\robarh/2+4.5) {resolves};%
 % i5: held since dispatch, issues at 8 (the one star)%
 \draw (\rotx,\roTc-\robarh/2) rectangle ({\rox{8}},\roTc+\robarh/2);%
-\node[star, star points=5, star point ratio=2.4, fill=black, draw=white, line width=0.5pt, minimum size=\rostar, inner sep=0pt] (rostx) at ({\rox{8}},\roTc) {};%
+\node[star, star points=5, star point ratio=2.4, fill=ssxmitink, draw=white, line width=0.5pt, minimum size=\rostar, inner sep=0pt] (rostx) at ({\rox{8}},\roTc) {};%
 \node[rolab, anchor=west] at ($(rostx.east)+(2pt,0)$) {issues};%
 % the window: i0 resolved, i2 not yet%
 \draw[line width=\rowinlw] ({\rox{0}},\rowT) rectangle ({\roxb{92}},\rowB);%
@@ -145,7 +153,7 @@
 \node[font=\footnotesize, anchor=north] at ({\roxb{92}},\roAx) {92};%
 \node[font=\footnotesize, anchor=north] at ({(\rox{10}+\roxb{90})/2},\roAx) {$\cdots$};%
 % ------------- the defense-specific rule -------------%
-\node[draw, fill=\roshade, anchor=north west, name=rorule, align=left, inner sep=3pt, text width=244pt, font=\footnotesize] at (0,\roAx-14) {\raggedright\textit{Recon-STT rule:} an ALU result keeps the taint of only its oldest tainted source (\texttt{getOldestTaint}), and the taint is freed once that source is no longer speculative (\texttt{freeTaints}). i4 keeps i1's taint, which is freed when i0 resolves, although i3 still feeds i4 under the unresolved i2.};%
+\node[draw=sssrcink, fill=\roshade, anchor=north west, name=rorule, align=left, inner sep=3pt, text width=244pt, font=\footnotesize] at (0,\roAx-14) {\raggedright\textit{Recon-STT rule:} an ALU result keeps the taint of only its oldest tainted source (\texttt{getOldestTaint}), and the taint is freed once that source is no longer speculative (\texttt{freeTaints}). i4 keeps i1's taint, which is freed when i0 resolves, although i3 still feeds i4 under the unresolved i2.};%
 \path ($(rorule.south)+(0,-6pt)$);% breathing room below%
 \end{tikzpicture}%
 }%

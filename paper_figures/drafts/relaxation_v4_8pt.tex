@@ -5,13 +5,18 @@
 % wiki/findings/bug/stt_slowcomm_vp_squash_race/inst-047231.xml), rows in spo order (Instruction$5=i0, $4=i1,
 % $3=i2, $2=i3, $1=i4, $0=i5; Reg_s$0=r0, Reg_s$1=r1, Mem_s$0=m0). Same instance and red marks as v3; every
 % red mark was checked with secure_speculation_scheme_p[<perturbation>] against STT_6.als (plans/fig_b_relaxation.md).
-% Black = the violation; thick = the leak path; gray = m0 in STT's protection set (defense-specific);
-% red = components the relaxations remove while the execution still violates.
+% Black = the violation; thick (ssprotink) = the leak path; ssprotfill = m0 in STT's protection set; light ssspecfill
+% band = rows speculative under the unresolved i2; ssxmitink = the xmit flag; gray black!45 text and the dashed
+% black!45 rf edge = components the relaxations remove while the execution still violates (red now means transmission).
 % Every line ends in % so no stray spaces enter the output. Macros/styles prefixed rx.
 {%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}\providecolor{sssrcbg}{gray}{0.90}%
 % ============================ TUNING KNOBS ============================
-\definecolor{rxred}{HTML}{B3322C}% THE red (same hex as the preamble's ctarget, bare_conf_compsoc.tex:347)
-\def\rxshade{black!12}% gray = defense-specific
+\colorlet{rxgone}{black!45}% gray = components the relaxations remove
+\def\rxshade{ssprotfill}% protected state (STT's protection set)
 \def\rxkind{11pt}% x where kinds start (ids at 0)
 \def\rxout{55pt}% x of the output operand
 \def\rxarr{66pt}% x of the <- arrow
@@ -35,27 +40,31 @@
   rxlab/.style={font=\footnotesize\itshape},%
   rxflagw/.style={font=\footnotesize\itshape, anchor=base west},%
   rxnote/.style={font=\footnotesize\itshape, anchor=base west, align=left, text width=\rxnotew},%
-  rxleak/.style={->, line width=\rxlw},%
+  rxleak/.style={->, line width=\rxlw, draw=ssprotink, preaction={draw=ssprotfill, arrows=-, line width=3.6pt, line cap=round, blend mode=multiply}},%
 ]%
 \path (0,0) coordinate (y0) (0,-\rxrow) coordinate (y1) (0,-2*\rxrow) coordinate (y2)%
   (0,-3*\rxrow-\rxgapA) coordinate (y3) (0,-4*\rxrow-\rxgapA) coordinate (y4)%
   (0,-5*\rxrow-\rxgapA-\rxgapB) coordinate (y5);%
 \path (0,\rxpadtop) (0,-5*\rxrow-\rxgapA-\rxgapB-\rxpadbot);% breathing room above and below
+% speculative rows (after the unresolved i2): a light band behind ids/kinds/operands only, ending before the flag column so no colored text sits on it; drawn first
+\fill[ssspecfill, rounded corners=2pt] ($(-2pt,0 |- y2)+(0,-4.5pt)$) rectangle ($(\rxnote-4pt,0 |- y5)+(0,-4pt)$);%
+\coordinate (spA) at ($(-2pt,0 |- y2)+(0,-4.5pt)$); \coordinate (spB) at ($(\rxnote-4pt,0 |- y5)+(0,-4pt)$);%
+\node[font=\footnotesize\itshape, text=black!55, rotate=90, anchor=south] at ($($(spB)!0.5!(spB |- spA)$)+(-1.2pt,0)$) {speculative};% vertical label along the tan band's right edge
 
 % ids
 \foreach \k in {2,3,5} \node[rxtok] at (y\k) {i\k:};%
-\foreach \k in {0,1,4} \node[rxtok, text=rxred] at (y\k) {i\k:};%
+\foreach \k in {0,1,4} \node[rxtok, text=rxgone] at (y\k) {i\k:};%
 % i0: Other_n r1 <- ?    committed                              REDUNDANT (RI)
-\node[rxtok, text=rxred] at ($(y0)+(\rxkind,0)$) {\texttt{Other\_n}};%
-\node[rxtok, text=rxred] (i0o) at ($(y0)+(\rxout,0)$) {$r1$};%
-\node[rxtok, text=rxred] at ($(y0)+(\rxarr,0)$) {$\leftarrow$};%
-\node[rxtok, text=rxred] at ($(y0)+(\rxin,0)$) {?};%
-\node[rxflagw, text=rxred] at ($(y0)+(\rxflag,0)$) {committed};%
+\node[rxtok, text=rxgone] at ($(y0)+(\rxkind,0)$) {\texttt{Other\_n}};%
+\node[rxtok, text=rxgone] (i0o) at ($(y0)+(\rxout,0)$) {$r1$};%
+\node[rxtok, text=rxgone] at ($(y0)+(\rxarr,0)$) {$\leftarrow$};%
+\node[rxtok, text=rxgone] at ($(y0)+(\rxin,0)$) {?};%
+\node[rxflagw, text=rxgone] at ($(y0)+(\rxflag,0)$) {committed};%
 % i1: Other_x r0 <- ?    (no flags: first uncommitted)            REDUNDANT (RI)
-\node[rxtok, text=rxred] at ($(y1)+(\rxkind,0)$) {\texttt{Other\_x}};%
-\node[rxtok, text=rxred] at ($(y1)+(\rxout,0)$) {$r0$};%
-\node[rxtok, text=rxred] at ($(y1)+(\rxarr,0)$) {$\leftarrow$};%
-\node[rxtok, text=rxred] at ($(y1)+(\rxin,0)$) {?};%
+\node[rxtok, text=rxgone] at ($(y1)+(\rxkind,0)$) {\texttt{Other\_x}};%
+\node[rxtok, text=rxgone] at ($(y1)+(\rxout,0)$) {$r0$};%
+\node[rxtok, text=rxgone] at ($(y1)+(\rxarr,0)$) {$\leftarrow$};%
+\node[rxtok, text=rxgone] at ($(y1)+(\rxin,0)$) {?};%
 % i2: Branch_n            (unresolved: opens speculation)
 \node[rxtok] at ($(y2)+(\rxkind,0)$) {\texttt{Branch\_n}};%
 % i3: Load r0 <- m0       resolved; m0 protected (gray)
@@ -63,11 +72,10 @@
 \node[rxtok] (i3o) at ($(y3)+(\rxout,0)$) {$r0$};%
 \node[rxtok] at ($(y3)+(\rxarr,0)$) {$\leftarrow$};%
 \node[rxtok, fill=\rxshade, inner xsep=1pt, inner ysep=1.3pt] (i3m) at ($(y3)+(\rxin,0)$) {$m0$};%
-\node[rxflagw] at ($(y3)+(\rxflag,0)$) {resolved};%
 % i4: Branch_x r1         resolved                              REDUNDANT (RI, RS)
-\node[rxtok, text=rxred] at ($(y4)+(\rxkind,0)$) {\texttt{Branch\_x}};%
-\node[rxtok, text=rxred] (i4i) at ($(y4)+(\rxin,0)$) {$r1$};%
-\node[rxflagw, text=rxred] at ($(y4)+(\rxflag,0)$) {resolved};%
+\node[rxtok, text=rxgone] at ($(y4)+(\rxkind,0)$) {\texttt{Branch\_x}};%
+\node[rxtok, text=rxgone] (i4i) at ($(y4)+(\rxin,0)$) {$r1$};%
+\node[rxflagw, text=rxgone] at ($(y4)+(\rxflag,0)$) {resolved};%
 % i5: Load ? <- [r0]      xmit; unresolved = REDUNDANT (RR)
 \node[rxtok] at ($(y5)+(\rxkind,0)$) {\texttt{Load}};%
 \node[rxtok] at ($(y5)+(\rxout,0)$) {?};%
@@ -75,21 +83,19 @@
 \node[rxtok] (i5b) at ($(y5)+(\rxin,0)$) {[};%
 \node[rxtok, outer sep=0pt] (i5r) at (i5b.base east) {$r0$};%
 \node[rxtok] at (i5r.base east) {]};%
-\node[rxflagw] (i5x) at ($(y5)+(\rxflag,0)$) {xmit,};%
-\node[rxflagw, text=rxred] at ($(i5x.base east)+(2pt,0)$) {unresolved};%
+\node[rxflagw] (i5x) at ($(y5)+(\rxflag,0)$) {\textcolor{ssxmitink}{xmit}};%
 % relations: leak path (thick): m0 -ddi-> r0 (i3) -rf-> [r0] (i5)
 \draw[rxleak, shorten >=1.4pt] ($(i3m.north)+(0,0.3pt)$) to[out=115, in=65, looseness=1.1]%
   node[pos=0.5, above=1.4pt, rxlab] {ddi} ($(i3o.north)+(0,0.6pt)$);%
 \draw[rxleak, shorten <=0.6pt, shorten >=1.2pt] (i3o.south) .. controls +(0,-0.50) and +(-0.30,0.20) .. (i5b.north west)%
   node[pos=0.45, rxlab, anchor=west, xshift=2.5pt] {rf};%
-% redundant rf (red): r1 (i0) -> r1 (i4), through the gutter right of the operands
-\draw[->, draw=rxred, shorten <=1.6pt, shorten >=0.6pt, rounded corners=2pt]%
+% redundant rf (gray, dashed): r1 (i0) -> r1 (i4), through the gutter right of the operands
+\draw[->, densely dashed, draw=rxgone, shorten <=1.6pt, shorten >=0.6pt, rounded corners=2pt]%
   (i0o.north) -- ++(0,4pt) -| ($(\rxgut,0 |- i4i.east)$) -- (i4i.east);%
-\node[rxlab, text=rxred, anchor=west] at ($(\rxgut,0 |- y2)+(2pt,2pt)$) {rf};%
-% explanations (black; they name the relaxation that removes the red part)
+\node[rxlab, text=rxgone, anchor=west] at ($(\rxgut,0 |- y2)+(2pt,2pt)$) {rf};%
+% explanations (black; they name the relaxation that removes the gray part)
 \node[rxnote] at ($(y0)+(\rxnote,0)$) {only feeds i4 (RI)};%
 \node[rxnote] at ($(y1)+(\rxnote,0)$) {i5 reads $r0$ from i3 (RI)};%
 \node[rxnote] at ($(y4)+(\rxnote,0)$) {$r1$ carries no protected data (RI, RS)};%
-\node[rxnote] at ($(y5)+(\rxnote,0)$) {i2 already makes i5 speculative (RR)};%
 \end{tikzpicture}%
 }%

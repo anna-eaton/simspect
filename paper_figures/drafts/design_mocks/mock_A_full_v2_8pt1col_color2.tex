@@ -1,0 +1,176 @@
+% SINGLE-COLUMN 8pt-minimum version of mock_A_full_v2 (2026-11-02): every \scriptsize -> \footnotesize, macros from mock_macros_8pt.tex, spacing squeezed.
+% Direction A, full text, v2 (2026-11-02): + 3-pronged DSL under Stage-1 clause 3; Stage-2 passes as a
+% clear vertical chain of numbered chevron badges (v1 stripes were too subtle). v1 = mock_A_full.tex.
+% Direction A, full text ("A_full"): A's visual language carrying ALL the wording of the main figure
+% (paper_figures/drafts/pipeline_vertical.tex as of 2026-11-02 01:49).
+% Changes from mock_A to make room for the text: every stage flows top-down (clauses stacked
+% full-width, the solver BELOW them), so the data spine runs straight down the left with no
+% return elbows; the Stage-2 passes are full-width downward chevrons ("stripes"), one per line.
+\documentclass[tikz,border=0pt]{standalone}
+\usepackage{newtxtext,newtxmath}
+\usepackage{graphicx}
+\input{mock_macros_8pt_color2}
+\begin{document}
+\begin{tikzpicture}[x=1pt,y=1pt]
+% ---------------- knobs ----------------
+\def\LX{24}      % centre of the sources-of-truth lane
+\def\PL{56.3}    % blob left edge
+\def\PR{251.7}   % blob right edge
+\def\IL{62}      % inner left
+\def\SX{80}      % data spine x
+\def\SLW{171}    % slab text width (slabs span IL .. IL+177)
+\def\CB{243}     % x of the collector bar
+\def\BG{32}      % vertical gap between blobs (holds the output strip)
+\def\BP{2.5}       % padding below the last element of a blob
+\tikzset{
+  fslab/.style={slab, text width=\SLW pt},
+  fghost/.style={ghost, text width=\SLW pt},
+  ftool/.style={draw, rounded rectangle, minimum height=19pt, inner xsep=4pt, align=center, line width=0.6pt, anchor=west},
+  passchev/.style={draw, fill=white, signal, signal to=south, signal from=north, signal pointer angle=100,
+                 minimum width=14pt, minimum height=13pt, inner sep=0pt, font=\footnotesize\bfseries, line width=0.6pt},
+  passtxt/.style={anchor=west, align=left},
+  hdr/.style={font=\footnotesize\itshape, anchor=north west},
+  lang/.style={font=\footnotesize\itshape, anchor=north west},
+  sotl/.style={sm, anchor=north, align=center, text width=47pt},
+  capt/.style={anchor=north west, align=left, text width=148pt},
+}
+\newcommand{\gety}[2]{\path #1; \pgfgetlastxy{\tmpx}{\tmpy}\pgfmathsetmacro#2{\tmpy}}
+\coordinate (lxc) at (\LX,0); \coordinate (spx) at (\SX,0); \coordinate (prx) at (\PR,0);
+\path (0,-22) -- (252,-22); % fixes the width at exactly 252pt; height follows the content
+
+% ---------------- lane header ----------------
+\node[q, text=ssdefink, anchor=north, align=center, text width=47pt] at (\LX,-24) {Defense\\sources of truth};
+
+% ================= Stage 1 =================
+\def\T{-22}
+\node[lang, align=left] at (\IL+4,\T-4.5) {(Alloy relational modeling language):\\[-1.5pt]graph constraints};
+
+\node[fslab] (a1) at (\IL,\T-21.5) {\textbf{1.}~Defense-agnostic execution well-formedness};
+\node[fslab] (a2) at ($(a1.south west)+(0,-1.2)$) {\textbf{2.}~Defense-agnostic minimality requirements (only load-bearing components specified)};
+\node[fslab, dspec] (a3) at ($(a2.south west)+(0,-1.2)$) {\textbf{3.}~Defense-specific leakage predicate:};
+\pgfmathsetmacro\SLWs{\SLW-10}
+\node[slab, dspec, text width=\SLWs pt] (d1) at ($(a3.south west)+(10,-1.2)$) {\textbf{3a.}~Speculation contract: what is speculative};
+\node[slab, dspec, text width=\SLWs pt] (d2) at ($(d1.south west)+(0,-1.2)$) {\textbf{3b.}~Protection set: protected state + propagation};
+\node[slab, dspec, text width=\SLWs pt] (d3) at ($(d2.south west)+(0,-1.2)$) {\textbf{3c.}~Leakage function: which operands transmit};
+\coordinate (tx) at ($(a3.south west)+(6,0)$); \draw (tx) |- (d3.west); \draw (tx |- d1.west) -- (d1.west); \draw (tx |- d2.west) -- (d2.west);
+\node[ftool] (A1) at ($(d3.south west)+(-10,-15)$) {Alloy Analyzer\\[-1.5pt]{\footnotesize (Kodkod model finder + SAT backend) + bound}};
+\draw[line width=0.6pt] (a1.north -| \CB,0) -- (d3.south -| \CB,0);
+\draw[->] (d3.south -| \CB,0) |- (A1.east);
+
+\coordinate (b1) at ($(A1.south)+(0,-\BP)$);
+\draw[blob] (\PL,\T) rectangle (b1 -| prx);
+\node[btitle] at (\IL+2,\T) {\textbf{Stage 1}\enspace Abstract test generation};
+\sot{ds}{(a3.west -| lxc)}{}
+\node[sotl] (dsl) at ($(ds-s)+(0,-1.5)$) {Defense specification\\\textit{manual translation}};
+\draw[->, ssdefink] (ds-e) -- (a3.west);
+
+% ---- output 1 ----
+\gety{(b1)}{\G}
+\draw[->] (A1.south -| spx) -- (\SX,\G-5.6);
+\cardstack{o1}{(\SX-1.8,\G-15.2)}{3}{\gGraph}
+\node[capt] (c1) at (\SX+14,\G-5.5) {Bounded-exhaustive set of defense-specific leaking execution graphs};
+
+% ================= Stage 1.5 =================
+\gety{(c1.south)}{\T}\pgfmathsetmacro\T{\T-5}
+\node[lang, align=left] at (\SX+10,\T-4.5) {(Alloy relational modeling language):\\[-1.5pt]constraints};
+
+\node[fslab, fill=ssours, draw=ssoursink] (b4) at (\IL,\T-21.5) {\textbf{+\,4.}~Pin: graph contains target Stage-1 graph};
+\draw[->] (o1-s) -- (o1-s |- b4.north);
+\node[fghost] (bb1) at ($(b4.south west)+(0,-1.2)$) {\textbf{1.}};
+\node[q, anchor=east] at ($(bb1.east)+(-3,0)$) {Same as Stage 1};
+\node[fslab] (b2) at ($(bb1.south west)+(0,-1.2)$) {\textbf{2'.}~Loosened minimality requirements $\Rightarrow$ more flexible execution graphs};
+\node[fghost, dspec] (bb3) at ($(b2.south west)+(0,-1.2)$) {\textbf{3.}};
+\node[q, anchor=east] at ($(bb3.east)+(-3,0)$) {Same as Stage 1};
+\node[ftool] (A2) at ($(bb3.south west)+(0,-15)$) {Alloy Analyzer\\[-1.5pt]{\footnotesize (Kodkod model finder + SAT backend) + bound}};
+\draw[line width=0.6pt] (b4.north -| \CB,0) -- (bb3.south -| \CB,0);
+\draw[->] (bb3.south -| \CB,0) |- (A2.east);
+
+\coordinate (b2b) at ($(A2.south)+(0,-\BP)$);
+\draw[blob] (\PL,\T) rectangle (b2b -| prx);
+\node[btitle] at (\SX+8,\T) {\textbf{Stage 1.5}\enspace Abstract test enumeration};
+
+% ---- output 2 ----
+\gety{(b2b)}{\G}
+\draw[->] (A2.south -| spx) -- (\SX,\G-5.6);
+\cardstack{o2}{(\SX-2.7,\G-16.4)}{4}{\gGraph}
+\node[capt] (c2) at (\SX+14,\G-5.5) {More flexible defense-specific leaking execution graphs\\[-1pt]{\footnotesize\itshape Non-exhaustive; multiple per Stage-1 graph; parallelizable}};
+
+% ================= Stage 2 =================
+\gety{(c2.south)}{\T}\pgfmathsetmacro\T{\T-5}
+\node[lang] at (\SX+10,\T-4.5) {(Python, LLVM): passes, run per graph};
+
+\coordinate (p0) at (\IL+9,\T-15);
+\foreach \i/\t [count=\k from 0] in {
+   1/{Order instructions ($\rightarrow$ PCs); collect state},
+   2/{Concretize instructions},
+   3/{Concretize speculation primitives (branches, STL)},
+   4/{Interleave instruction chains},
+   5/{Assign registers and memory; reserve registers},
+   6/{SSA + LLVM emission with PC labels},
+   7/{Annotations; LLVM $\rightarrow$ asm; PCs $\rightarrow$ addresses}} {
+  \path ($(p0)+(0,{-(\i-1)*11.9})$) coordinate (n\i-top);
+  \draw[fill=white, line width=0.6pt, line join=miter] ($(n\i-top)+(-7,0)$) -- ($(n\i-top)+(0,-3.6)$) -- ($(n\i-top)+(7,0)$) -- ($(n\i-top)+(7,-10.6)$) -- ($(n\i-top)+(0,-14.2)$) -- ($(n\i-top)+(-7,-10.6)$) -- cycle;
+  \coordinate (n\i-c) at ($(n\i-top)+(0,-7.6)$);
+  \coordinate (n\i-bot) at ($(n\i-top)+(0,-14.2)$);
+  \node[font=\footnotesize\bfseries] at (n\i-c) {\i};
+  \node[passtxt] (p\i) at ($(n\i-c)+(10.5,0)$) {\t};
+}
+\draw[->] (o2-s) |- ($(n1-top)+(0,3)$) -- ($(n1-top)+(0,-3.6)$);
+\coordinate (b3) at ($(n7-bot)+(0,-\BP)$);
+\draw[blob] (\PL,\T) rectangle (b3 -| prx);
+\node[btitle] at (\SX+8,\T) {\textbf{Stage 2}\enspace Concretization};
+
+% ---- output 3 ----
+\gety{(b3)}{\G}
+\draw[->] (n7-bot) |- ($(spx |- n7-bot)+(0,-3)$) -- (\SX,\G-5.6);
+\pairstack{o3}{(\SX+5.8,\G-12.6)}{4}
+\node[capt, text width=140pt] (c3) at (\SX+29,\G-5.5) {Programs (x86 asm) + annotations\\[-1pt]{\footnotesize\itshape One pair per branch mode $\times$ interleave variant}};
+\path let \p1=(o3-ann-s), \p2=(c3.south) in coordinate (jn) at (\x1,{min(\y1-5,\y2-2.5)});
+
+% ================= Stage 3 =================
+\gety{(jn)}{\T}\pgfmathsetmacro\T{\T-7}
+\node[lang] at (\SX+22,\T-4.5) {(gem5)};
+% gem5 container: logo + "processor model"; harness ring around the gray die
+\draw[rounded corners=4pt, line width=0.6pt] (\IL,\T-15) rectangle (232,\T-85) coordinate (gemSE);
+\node[font=\footnotesize\itshape, anchor=north east] (pm) at (228,\T-18.5) {processor model};
+\node[anchor=east] at ($(pm.west)+(-1.5,0.2)$) {\includegraphics[height=6.5pt]{gem5logo.pdf}};
+\draw[rounded corners=3pt, draw=ssoursink, fill=ssours, line width=0.6pt] (68,\T-34) rectangle (226,\T-79);
+\node[draw, rounded corners=2pt, dspec, minimum width=146pt, minimum height=17pt, anchor=north west] (die) at (74,\T-39) {Defense implementation under test};
+\foreach \x in {118,150,182} \draw[line width=0.5pt, ssoursink] (\x,\T-34) -- (\x,\T-39);
+\foreach \y in {-43,-47.5,-52} \draw[line width=0.5pt, ssoursink] (220,\T+\y) -- (226,\T+\y);
+\node[sm, anchor=north west, align=left] (hl) at (74,\T-60) {\textcolor{ssoursink}{+\,Non-invasive harness:} pipeline-stage probes;\\speculation and timing directives};
+% inputs from the program + annotation pairs
+\draw[->] (o3-asm-s) -- (o3-asm-s |- die.north);
+\draw (o3-ann-s) -- (jn);
+\draw[->] (jn) -- (jn |- 0,\T-34);
+\node[dot] at (jn) {};
+\node[q, anchor=north west, align=left] at ($(jn |- 0,\T-16.5)+(2,0)$) {speculation\\[-1.5pt]directives};
+\draw[->] (jn) -- (236,0 |- jn) -- (236,\T-101);
+\node[q, anchor=east] at (234.5,\T-94.5) {labels};
+% pipeline info artifact -> inspector -> bug
+\cardstack{tr}{(170,\T-103)}{1}{\gTrace}
+\draw[->] (170,\T-79) -- (tr-n);
+\node[sm, anchor=east, align=right] at ($(tr-w)+(-2.5,0)$) {Pipeline info\\artifact};
+\node[box, anchor=west, minimum height=15pt, align=left, inner xsep=3pt] (I) at (194,\T-108.5) {\hspace*{8pt}Inspector\hspace*{3pt}};
+\magn{($(I.west)+(6,0.8)$)}{2.5}
+\draw[->] (tr-e) -- (tr-e -| I.west);
+\draw[->, line width=0.7pt, ssleak] (I.south -| 214,0) -- (214,\T-122.5);
+\buggl{(214,\T-131)}{1.6}{ssleak}
+\node[font=\footnotesize\bfseries, text=ssleak, anchor=west] at (222.5,\T-131) {Bug?};
+% sources: defense implementation -> die ; transmission mechanisms -> harness ("selects hooks") + inspector
+\sot{gb}{(die.west -| lxc)}{\textless/\textgreater}
+\node[sotl] (gbl) at ($(gb-s)+(0,-1.5)$) {Defense implementation (gem5)};
+\draw[->, ssdefink] (gb-e) -- (die.west);
+\draw[dashed, ->, ssoursink, line width=0.6pt] ($(dsl.south)+(0,-3)$) -- ($(gb-n)+(0,3)$) coordinate[pos=0.5] (gm);
+\node[q, text=ssoursink, rotate=90, anchor=south] at ($(gm)+(-2,0)$) {\textbf{SimSpect goal:} validate security guarantee on implementation};
+\sot{tm}{(\LX,\T-104)}{}
+\node[sotl] (tml) at ($(tm-s)+(0,-1.5)$) {Defense transmission mechanisms};
+
+\draw[ssdefink] (tm-e) -- (61,0 |- tm-e) |- (200,\T-129);
+\draw[->, ssdefink] (200,\T-129) -- (200,0 |- I.south);
+\draw[->, ssdefink] (96,\T-129) -- (96,\T-79) node[q, text=ssdefink, pos=0.2, anchor=west, xshift=1.5pt] {selects hooks};
+\node[dot, ssdefink] at (96,\T-129) {};
+\draw[blob] (\PL,\T) rectangle (\PR,\T-139);
+\node[btitle] at (\SX+20,\T) {\textbf{Stage 3}\enspace Execution};
+\end{tikzpicture}
+\end{document}

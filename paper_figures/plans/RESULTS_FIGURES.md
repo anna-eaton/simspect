@@ -95,3 +95,8 @@ Drafts in `../drafts/`: `recon_otb_v2` (250 × 261 pt drawn, preview 253 × 287 
 - SPT-Fence race verdict kept as "real" (the old table's verdict), although §3 says the claim needs a re-run because gem5-spt loaded no annotations. The alternative is "candidate".
 - STT race verdict kept as "real" with † (R1 still open).
 - OTB "First known from: This work" rests on "as far as the repo records" (§4). No literature search was done.
+
+## 8. 2026-11-03: bug examples in the paper (test-paper `64c39c1`)
+
+- Results now has four subsubsections under "Bugs found in the gem5 defenses": the visibility-point/squash race (Anna's prose, now a subsubsection, plus a proposed worked example on `fig:race`), ReCon STLF (`sec:bug-stlf`, with `fig:reconstl`), ReCon OTB (`sec:bug-otb`, with `fig:otb`), and a red placeholder for the load-mechanism defenses (`sec:bug-loadmech`: InvisiSpec, SpecLFB UV6, CleanupSpec). Each proposed paragraph is marked with a red TODO and followed by a red `\claudenote` with its status caveat (STLF: strong candidate pending re-run, §1; OTB: issue only, not a cache access, §7; race: R1 open, counts pre-fix).
+- STT's rules are quoted from the paper read locally (`~/Documents/quail/sources/papers/yu-2019-stt.pdf`): store-to-load forwarding as an implicit branch whose resolution waits for an untainted predicate (Sec. 6.4.2); the optimization issues the load once its address is untainted and writes its output only after the memory access completes (Sec. 6.5); untainting by the youngest root of taint (YRoT, Sec. 7.1), which ReCon's `getOldestTaint` violates. Cited as `\cite{stt}` and `\cite{recon}`; the paper elsewhere uses `\cite{STT}`, which does not match the bib key `stt`.

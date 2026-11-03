@@ -6,6 +6,10 @@
 % Ticks: provenance.json "evidence" + example_inst-047231.md:46-50,96-98. Program: inst-047231.s.%
 % Cycle c = (tick - 2907000)/500, i.e. 0 = lc retires. Provenance + caveats: plans/RESULTS_FIGURES.md.%
 {%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}\providecolor{sssrcbg}{gray}{0.90}%
 % ============================ TUNING KNOBS ============================%
 \def\srcyc{12}%          pt per simulated cycle (same scale in every axis segment)%
 \def\srbrk{12}%         pt width of each elided stretch (dotted)%
@@ -16,7 +20,7 @@
 \def\srcodeh{10.5}%      pt between listing lines%
 \def\srstar{8.5pt}%     outer diameter of the transmission star%
 \def\srwinlw{0.9pt}%    line width of the window frame%
-\def\srdefshade{black!12}% fill marking defense-specific elements (the only gray)%
+\def\srdefshade{sssrcfill}% fill marking defense-specific elements (defense source of truth)%
 \def\srfs{\footnotesize}% the one font size (8pt)%
 % axis segments [start,end] in cycles after lc retires; elided stretches between them%
 \def\srsA{-1}\def\sreA{1}%       lc retires at 0%
@@ -46,17 +50,17 @@
 % ------------------------------ legend line ------------------------------%
 \node[anchor=base west] at (0,0) {N: dispatch\quad E: issue\quad Dotted: elided cycles};%
 \node[anchor=base east] (srlg) at (\srright,0) {Defense-specific};%
-\draw[fill=\srdefshade] ($(srlg.west)+(-9.5,-0.5)$) rectangle ++(6,6);%
+\draw[fill=\srdefshade, draw=sssrcink] ($(srlg.west)+(-9.5,-0.5)$) rectangle ++(6,6);%
 % ------------------- program fragment (inst-047231, wrong path) -------------------%
 \pgfmathsetmacro\srcy{-17.5}%
 \def\sropx{17}\def\srargx{41}\def\srnotex{132}%
 \foreach \sri/\srid/\srop/\srarg/\srnote in {%
-  0/i2/jne/.end/{Mispredicted: wrong path below},%
+  0/i2/jne/.end/{\textcolor{ssspecink}{Mispredicted: wrong path below}},%
   1//leaq/{48(\%rsp), \%rdi}/{},%
-  2/i3/movq/{(\%rdi), \%rax}/{Speculative load: \%rax tainted},%
+  2/i3/movq/{(\%rdi), \%rax}/{\textcolor{ssprotink}{Speculative load: \%rax tainted}},%
   3/i4/jne/.end/{Correctly predicted},%
   4//leaq/{64(\%rsp), \%rdi}/{},%
-  5/i5/movq/{(\%rdi,\%rax), \%r15}/{xmit: tainted address}}{%
+  5/i5/movq/{(\%rdi,\%rax), \%r15}/{\textcolor{ssxmitink}{xmit: tainted address}}}{%
   \node[anchor=base west] at (0,\srcy-\sri*\srcodeh) {\srid};%
   \node[srcode] at (\sropx,\srcy-\sri*\srcodeh) {\srop};%
   \node[srcode] at (\srargx,\srcy-\sri*\srcodeh) {\srarg};%
@@ -72,9 +76,9 @@
 \node[srrow] at (0,\sryA-2.7) {i0: \srab{lc}};%
 \node[srgloss] at (0,\sryA-12.2) {Last committed};%
 \node[srrow] at (0,\sryB-2.7) {i2: branch};%
-\node[srgloss] at (0,\sryB-12.2) {Mispredicted};%
+\node[srgloss, text=ssspecink] at (0,\sryB-12.2) {Mispredicted};%
 \node[srrow] at (0,\sryC-2.7) {i5: \srab{xmit}};%
-\node[srgloss] at (0,\sryC-12.2) {Transmitter};%
+\node[srgloss, text=ssxmitink] at (0,\sryC-12.2) {Transmitter};%
 % i0: lc retires at 0 (window opens); earlier cycles elided%
 \sredges{\sryA}{{\srx{A}{-1}}}{{\srx{A}{0}}}{}%
 \srtck{\sryA}{{\srx{A}{0}}}%
@@ -95,9 +99,9 @@
 \sredges{\sryC}{{\srx{C}{76.5}}}{{\srx{C}{81}}}{}%
 \srtck{\sryC}{{\srx{B}{46}}} \srtck{\sryC}{{\srx{B}{49}}} \srtck{\sryC}{{\srx{C}{78}}}%
 \srstg{\sryC}{{\srx{B}{46}}}{N} \srstg{\sryC}{{\srx{B}{49}}}{E} \srstg{\sryC}{{\srx{C}{78}}}{E}%
-\node[srann, anchor=north west] at ({\srx{B}{49}+2.5},\sryC-\srbarh/2-2.5) {Held: tainted};%
+\node[srann, anchor=north west] at ({\srx{B}{49}+2.5},\sryC-\srbarh/2-2.5) {\textcolor{ssprotink}{Held: tainted}};%
 \srsq{\sryC}{\srx{C}{81}}%
-\node[star, star points=5, star point ratio=2.4, fill=black, draw=white, line width=0.5pt, minimum size=\srstar, inner sep=0pt] (srtx) at ({\srx{C}{79}},\sryC) {};%
+\node[star, star points=5, star point ratio=2.4, fill=ssxmitink, draw=white, line width=0.5pt, minimum size=\srstar, inner sep=0pt] (srtx) at ({\srx{C}{79}},\sryC) {};%
 \node[srann, anchor=south west] at ($(srtx.north east)+(-1,2.2)$) {Cache packet};%
 \node[srann, anchor=north west] at ({\srx{C}{81}+1},\sryC-\srbarh/2-2.5) {Squashed};%
 % squash propagation gap, resolve 77 -> squash 81%
@@ -111,6 +115,6 @@
 \foreach \src/\srs in {0/A, 46/B, 49/B, 77/C, 79/C, 81/C, 261/D} \node[anchor=north] at ({\srx{\srs}{\src}},\sryT) {\src};%
 % ------------- the defense-specific rule the trace exposes -------------%
 \pgfmathsetmacro\sryK{\sryT-8-9}%
-\node[draw, fill=\srdefshade, anchor=north west, align=left, inner sep=3pt, text width=244pt] at (0,\sryK) {\raggedright\textit{STT rule:} a load's result stops tainting younger instructions once every older branch has resolved. On a mispredict that is also the moment the squash starts, and the squash needs commitToIEWDelay cycles to reach the load queue.};%
+\node[draw=sssrcink, fill=sssrcbg, anchor=north west, align=left, inner sep=3pt, text width=244pt] at (0,\sryK) {\raggedright\textit{STT rule:} a load's result stops tainting younger instructions once every older branch has resolved. On a mispredict that is also the moment the squash starts, and the squash needs commitToIEWDelay cycles to reach the load queue.};%
 \end{tikzpicture}%
 }%

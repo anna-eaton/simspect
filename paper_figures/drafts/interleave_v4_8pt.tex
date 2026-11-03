@@ -11,8 +11,12 @@
 % (:1577-1587), whose head holds the chain registers (:1534-1537). Plan: plans/fig_c_interleave.md.
 % Every line ends in % so no stray spaces enter the output. Macros/styles prefixed il.
 {%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}\providecolor{sssrcbg}{gray}{0.90}%
 % ============================ TUNING KNOBS ============================
-\def\ilshade{black!12}% gray = defense-specific (m0 is in STT's protection set)
+\def\ilshade{ssprotfill}% protected state (m0 is in STT's protection set)
 \def\ilkind{13pt}% x where kinds start (ids at 0)
 \def\ilout{59.5pt}% x of the output operand
 \def\ilarr{72pt}% x of the <- arrow
@@ -38,13 +42,17 @@
   illab/.style={font=\footnotesize\itshape},%
   ilflagw/.style={font=\footnotesize\itshape, anchor=base west},%
   ilnote/.style={font=\footnotesize\itshape, anchor=base west, align=left, text width=\ilnotew},%
-  illeak/.style={->, line width=\illw},%
+  illeak/.style={->, line width=\illw, draw=ssprotink, preaction={draw=ssprotfill, arrows=-, line width=3.6pt, line cap=round, blend mode=multiply}},%
 ]%
 \path (0,0) coordinate (y0) (0,-\ilrow) coordinate (y1) (0,-2*\ilrow) coordinate (y2)%
   (0,-3*\ilrow-\ilgapD) coordinate (y3) (0,-4*\ilrow-\ilgapD) coordinate (y4)%
   (0,-5*\ilrow-\ilgapD-\ilgapA) coordinate (y5) (0,-6*\ilrow-\ilgapD-\ilgapA-\ilgapB) coordinate (y6)%
   (0,-7*\ilrow-\ilgapD-\ilgapA-\ilgapB-\ilgapC) coordinate (y7);%
 \path (0,\ilpadtop) ($(y7)+(0,-\ilpadbot)$);% breathing room
+% speculative rows (after the unresolved i2): a light band behind ids/kinds/operands only, ending before the flag column so no colored text sits on it; drawn first
+\fill[ssspecfill, rounded corners=2pt] ($(-2pt,0 |- y4)+(0,-4.5pt)$) rectangle ($(\ilnote-4pt,0 |- y7)+(0,-4pt)$);%
+\coordinate (spA) at ($(-2pt,0 |- y4)+(0,-4.5pt)$); \coordinate (spB) at ($(\ilnote-4pt,0 |- y7)+(0,-4pt)$);%
+\node[font=\footnotesize\itshape, text=black!55, rotate=90, anchor=south] at ($($(spB)!0.5!(spB |- spA)$)+(-1.2pt,0)$) {speculative};% vertical label along the tan band's right edge
 % ids: base rows i*, injected rows c*
 \foreach \r/\n in {0/i0,1/i1,2/c0,3/c1,4/i2,5/i3,6/i4,7/i5} \node[iltok] at (y\r) {\n:};%
 % i0, i1: committed branches
@@ -64,28 +72,26 @@
 \node[iltok] (c1i) at ($(y3)+(\ilin,0)$) {$f0$};%
 % i2: Branch_n (unresolved)
 \node[iltok] at ($(y4)+(\ilkind,0)$) {\texttt{Branch\_n}};%
-% i3: Load r0 <- m0   resolved
+% i3: Load r0 <- m0
 \node[iltok] at ($(y5)+(\ilkind,0)$) {\texttt{Load}};%
 \node[iltok] (i3o) at ($(y5)+(\ilout,0)$) {$r0$};%
 \node[iltok] at ($(y5)+(\ilarr,0)$) {$\leftarrow$};%
 \node[iltok, fill=\ilshade, inner xsep=1pt, inner ysep=1.3pt] (i3m) at ($(y5)+(\ilin,0)$) {$m0$};%
-\node[ilflagw] at ($(y5)+(\ilflag,0)$) {resolved};%
-% i4: Other_x r0 <- r0, ?   resolved
+% i4: Other_x r0 <- r0, ?
 \node[iltok] at ($(y6)+(\ilkind,0)$) {\texttt{Other\_x}};%
 \node[iltok] (i4o) at ($(y6)+(\ilout,0)$) {$r0$};%
 \node[iltok] at ($(y6)+(\ilarr,0)$) {$\leftarrow$};%
 \node[iltok] (i4i) at ($(y6)+(\ilin,0)$) {$r0$};%
 \node[iltok] (i4c) at (i4i.base east) {,};%
 \node[iltok] (i4q) at ($(i4c.base east)+(2.5pt,0)$) {?};%
-\node[ilflagw] at ($(y6)+(\ilflag,0)$) {resolved};%
-% i5: Load ? <- [r0]   resolved, xmit
+% i5: Load ? <- [r0]   xmit
 \node[iltok] at ($(y7)+(\ilkind,0)$) {\texttt{Load}};%
 \node[iltok] at ($(y7)+(\ilout,0)$) {?};%
 \node[iltok] at ($(y7)+(\ilarr,0)$) {$\leftarrow$};%
 \node[iltok] (i5b) at ($(y7)+(\ilin,0)$) {[};%
 \node[iltok, outer sep=0pt] (i5r) at (i5b.base east) {$r0$};%
 \node[iltok] at (i5r.base east) {]};%
-\node[ilflagw] at ($(y7)+(\ilflag,0)$) {resolved, xmit};%
+\node[ilflagw] at ($(y7)+(\ilflag,0)$) {\textcolor{ssxmitink}{xmit}};%
 % ---- edges ----
 % chain bridge: c0.f0 -rf-> c1.f0
 \draw[->, shorten <=0.6pt, shorten >=1pt] (c0o.south) .. controls +(0,-0.30) and +(-0.20,0.20) .. (c1i.north west)%

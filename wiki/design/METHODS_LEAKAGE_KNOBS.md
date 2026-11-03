@@ -41,7 +41,7 @@ the actual definition of leakage; the gem5 side is just ground truth for it. Lin
 | `tBool` (`xm`), `cBool` (`committed`), `rBool` (`resolved`) | 19–21, 66–68 | per-instruction booleans: is this the flagged transmitter / has it committed / has its branch resolved | these three booleans **are** the speculative state of an instruction; the whole leak predicate is phrased over them |
 | `IX0…IX5` + `spo` | 38–43, 129–131 | up to **6** program-order positions; `spo` is the total order | bounds gadget length at 6 instructions — long enough for `br → load → ALU → xmit` shapes, short enough to enumerate |
 | `Operand` = `Inreg`/`Inaddr`/`Inmem`/`Outreg`/`Outmem`; `State` = `Reg_s`/`Mem_s`; `opstate` | 85–93, 24–26 | operands and the abstract register/memory *state* they read/write | the abstraction that makes dataflow *symbolic*: two operands sharing an `opstate` is a data dependency without committing to a physical register |
-| `rf`, `ddi`, `spo` edges | 155–174 | reaching-definition (`rf`), direct-data-influence (`ddi`), program-order (`spo`) | `rf` is the dataflow edge the leak predicate chases from a transmitter back to a speculative source |
+| `rf`, `ddi`, `spo` edges | 155–174 | reaching-definition (`rf`), data-dependence internal (`ddi`), program-order (`spo`) | `rf` is the dataflow edge the leak predicate chases from a transmitter back to a speculative source |
 
 These are not "knobs" you turn per run — they are the model's type system. But they are the surface
 every Tier-1 predicate is written against, so the catalog needs them.

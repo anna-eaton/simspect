@@ -3,6 +3,11 @@
 % Visual language: paper_figures/plans/VISUAL_LANGUAGE.md. Full text width: use inside a table* (516pt wide = \textwidth).%
 % Needs booktabs, array, colortbl (all already in the paper preamble). Everything is local to the outer group.%
 {%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}%
+\providecolor{sssrcbg}{gray}{0.90}%
 % ============================ TUNING KNOBS ============================%
 \def\xcwA{76pt}%  defense + gem5 build%
 \def\xcwB{93pt}%  criterion source (JSON file + key fields)%
@@ -19,7 +24,7 @@
 \def\xs#1{\texttt{#1}}% signal / code names%
 \def\xpad{\rule{0pt}{9.4pt}}% strut at the top of each row (room above the first line)%
 \def\xbot{\rule[-\xcRowGap]{0pt}{0pt}}% strut at the bottom of each row%
-\def\xgray{\cellcolor{black!12}}%
+\def\xgray{\cellcolor{sssrcbg}}% defense-specific criterion JSON (large text cell: light green sssrcbg; the small legend swatch uses dark sssrcfill)%
 \hyphenpenalty=10000\exhyphenpenalty=10000%
 \begin{tabular}{@{}%
   >{\raggedright\arraybackslash}p{\xcwA}%
@@ -29,7 +34,7 @@
   >{\raggedright\arraybackslash}p{\xcwE}%
   >{\raggedright\arraybackslash}p{\xcwF}@{}}%
 \toprule%
-\xpad Defense (gem5 build) & Criterion source & Counts as a transmission & Does not count & Trace signal & Window\xbot\\%
+\xpad Defense (gem5 build) & Criterion source & \cellcolor{ssxmitfill}Counts as a transmission & Does not count & Trace signal & \multicolumn{1}{>{\columncolor{ssspecfill}[\tabcolsep][0pt]\raggedright\arraybackslash}p{\xcwF}@{}}{Window\xbot}\\% fill stops at the table edge%
 \midrule%
 % ---------------------------- STT-Spectre ----------------------------%
 \xpad STT-Spectre\newline \xs{/work/stt}\newline scheme~2, Spectre threat model%
@@ -69,7 +74,7 @@
 \midrule%
 \multicolumn{6}{@{}>{\raggedright\arraybackslash}p{\dimexpr\xcwA+\xcwB+\xcwC+\xcwD+\xcwE+\xcwF+10\tabcolsep\relax}@{}}{\xpad%
 $W$: \xs{lc\_retire} $<t<$ \xs{fnc\_retire}, and every branch the model marks unresolved is still unresolved at $t$ (SimSpect \xs{BR:resolve\_visible} hook line). A specified lc that never retires disqualifies the test; a run that did not realize the modeled speculation (mispredict, stall, forced prediction) is invalid, never a hit.\hfill%
-{\setlength{\fboxsep}{0pt}\fcolorbox{black}{black!12}{\rule{0pt}{5pt}\rule{5pt}{0pt}}}\,defense-specific criterion JSON\xbot}\\%
+{\setlength{\fboxsep}{0pt}\fcolorbox{sssrcink}{sssrcbg}{\rule{0pt}{5pt}\rule{5pt}{0pt}}}\,defense-specific criterion JSON\xbot}\\%
 \bottomrule%
 \end{tabular}%
 }%

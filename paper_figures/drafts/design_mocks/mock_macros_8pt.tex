@@ -3,7 +3,9 @@
 % Shared shape vocabulary for the big-figure design mocks (BIGFIG_SHAPE_DESIGN.md).
 % Every tikzpicture that uses these must set [x=1pt,y=1pt]: all numbers below are pt.
 \usetikzlibrary{calc,fit,shapes.symbols,shapes.misc,shapes.geometric,decorations.pathmorphing,arrows.meta}
-\def\defshade{black!12}   % the one gray: defense-specific
+\providecolor{sssrcfill}{gray}{0.88}\providecolor{sssrcbg}{gray}{0.88}\providecolor{sssrcink}{gray}{0}\providecolor{ssxmitink}{gray}{0}
+\providecolor{ssspecfill}{gray}{0.95}\providecolor{ssprotfill}{gray}{0.86}\providecolor{ssxmitfill}{gray}{0.9}
+\def\defshade{sssrcbg}   % the one color: defense-specific / sources of truth (palette ../sscolors.tex)
 \tikzset{
   >=latex,
   every node/.style={font=\footnotesize, inner sep=0pt,

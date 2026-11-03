@@ -1,0 +1,27 @@
+% Simple syntax table (2026-11-02, Anna: "a section for each": instruction types, Booleans on an instruction,
+% operands, state, relations; "doesnt need to be a big table, can be simpler"). Replaces v2 (Graph | Meaning)
+% and v3 (Alloy-first). Names as in the paper prose (sections/pipeline.tex) and the graph figures; source:
+% STAGE1_alloy/models/STT_6.als :19-35 (Booleans, kinds), :24-26 (State), :53-57 + :85-89 (operands), :50 (spo),
+% :81-82 (rf, ddi); shared by Recon_6, SPT_6, SPT_6_oneLP, STT_6_stl. ddi = data-dependence internal (Anna).
+% Color (sscolors.tex): red ink on xmit only. Needs: array (paper preamble).
+% Body only: \input this inside a table float. Every line ends in % so no stray spaces enter the output. Macros \ev.
+{%
+\providecolor{ssxmitink}{gray}{0}%
+\footnotesize%
+\hyphenpenalty=10000\exhyphenpenalty=10000%
+% ============================ TUNING KNOBS ============================
+\def\evgw{46pt}%   section-name column
+\setlength{\tabcolsep}{3pt}%
+\def\evmw{\dimexpr252pt-\evgw-4\tabcolsep-3\arrayrulewidth\relax}% items column (total = 252pt)
+\renewcommand{\arraystretch}{1.2}%
+% ======================================================================
+\def\evt#1{\texttt{#1}}%
+\begin{tabular}{|>{\raggedright\arraybackslash\itshape}p{\evgw}|>{\raggedright\arraybackslash}p{\evmw}|}%
+\hline%
+Instructions & \evt{Load}, \evt{Store}, \evt{Branch\_n}, \evt{Branch\_x}, \evt{Other\_n}, \evt{Other\_x} (Other: ALU op; \evt{\_n}: never transmits)\\\hline%
+Booleans & \evt{resolved}, \evt{committed} (retired; implies resolved), \textcolor{ssxmitink}{\evt{xmit}} (the target transmitter)\\\hline%
+Operands & inputs \evt{inreg}, \evt{inaddr}, \evt{inmem}; outputs \evt{outreg}, \evt{outmem}\\\hline%
+State & \evt{Reg}, \evt{Mem}; each operand names one\\\hline%
+Relations & \evt{spo} (speculative program order), \evt{rf} (reads-from: an output to a later input), \evt{ddi} (data-dependence internal: an input to an output of the same instruction)\\\hline%
+\end{tabular}%
+}%

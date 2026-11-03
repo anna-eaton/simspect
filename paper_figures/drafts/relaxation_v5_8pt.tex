@@ -1,0 +1,107 @@
+% Relaxation figure v5 (2026-11-03, Anna: "match my instances of variants that relax to one instance, as per my
+% old figure"). Redraw of the paper's original tikz/relaxation.tex (fig:four-panes) in the shared graph notation
+% (VISUAL_LANGUAGE.md), 8pt minimum, one column. Same four panes as the original: (d) the backbone
+% Branch_n; Load r0 <- m0; Load ? <- [r0] (branch unresolved, nothing committed), and three violating variants
+% that relax to it: (a) the transmitter names an unneeded output r1 (RO), (b) a second transmitting load i3 (RI),
+% (c) load i1 also unresolved (RR). reg0 -> r0, reg1 -> r1, mem 0 -> m0, I -> i.
+% Gray (rlgone) = the part the relaxation removes; dashed = a removed edge; thick + purple highlighter = the leak
+% path; purple fill = protected m0; tan band = rows after the unresolved branch; red = the xmit flag.
+% Body only, wrapped in { }; every line ends in % so no stray spaces enter the output. Macros prefixed rl.
+{%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}\providecolor{sssrcbg}{gray}{0.90}%
+\colorlet{rlgone}{black!45}% gray = what the relaxation removes
+% ============================ TUNING KNOBS ============================
+\def\rlid{15pt}% x of ids (pane labels at 0)
+\def\rlkind{27pt}% x of kinds
+\def\rlout{58pt}% x of the output operand
+\def\rlarr{69pt}% x of the <- arrow
+\def\rlin{80pt}% x of the input operand
+\def\rlgut{102pt}% x of the gutter for (b)'s second rf
+\def\rlflag{112pt}% x of flag words and pane notes
+\def\rlbandr{150pt}% right edge of the tan band
+\def\rlbox{184pt}% right edge of the box around (d)
+\def\rlgo{160pt}% x where the relaxation arrows start
+\def\rlrailA{246pt}\def\rlrailB{231pt}\def\rlrailC{216pt}% x of the arrow rails
+\def\rllw{1.1pt}% line width of the leak path
+% ======================================================================
+\begin{tikzpicture}[%
+  >=latex,%
+  every node/.style={font=\footnotesize, inner sep=0pt},%
+  execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000},%
+  rltok/.style={anchor=base west, outer sep=0.6pt},%
+  rllab/.style={font=\footnotesize\itshape},%
+  rlnote/.style={font=\footnotesize\itshape, anchor=base west},%
+  rlpanel/.style={font=\footnotesize\bfseries, anchor=base west},%
+  rlleak/.style={->, line width=\rllw, draw=ssprotink, preaction={draw=ssprotfill, arrows=-, line width=3.6pt, line cap=round, blend mode=multiply}},%
+  rlgoneedge/.style={->, densely dashed, draw=rlgone},%
+  rlrelax/.style={->, line width=0.8pt, draw=black!45, rounded corners=4pt},%
+  rlrlab/.style={font=\footnotesize, anchor=south west},%
+]%
+% ---- row macros: #1 = node prefix, y in pt ----
+\def\rlband#1#2{\fill[ssspecfill, rounded corners=2pt] (\rlid-2pt,#1-4.5pt) rectangle (\rlbandr,#2-4pt);}% #1 = y of i0, #2 = y of the last row
+\def\rlbranch#1#2#3{% #1 pane letter, #2 y, #3 pane note
+  \node[rlpanel] at (0,#2) {(#1)};%
+  \node[rltok] at (\rlid,#2) {i0:};%
+  \node[rltok] at (\rlkind,#2) {\texttt{Branch\_n}};%
+  \node[rlnote] at (\rlflag,#2) {#3};}%
+\def\rlload#1#2{% i1: Load r0 <- m0 (m0 protected)
+  \node[rltok] at (\rlid,#2) {i1:};%
+  \node[rltok] at (\rlkind,#2) {\texttt{Load}};%
+  \node[rltok] (#1o) at (\rlout,#2) {$r0$};%
+  \node[rltok] at (\rlarr,#2) {$\leftarrow$};%
+  \node[rltok, fill=ssprotfill, inner xsep=1pt, inner ysep=1.3pt] (#1m) at (\rlin,#2) {$m0$};}%
+\def\rlldx#1#2#3#4#5{% Load <out> <- [r0]: #1 prefix, #2 id, #3 y, #4 output token, #5 text color
+  \node[rltok, text=#5] at (\rlid,#3) {i#2:};%
+  \node[rltok, text=#5] at (\rlkind,#3) {\texttt{Load}};%
+  \node[rltok, text=#5] (#1o) at (\rlout,#3) {#4};%
+  \node[rltok, text=#5] at (\rlarr,#3) {$\leftarrow$};%
+  \node[rltok, text=#5] (#1b) at (\rlin,#3) {[};%
+  \node[rltok, text=#5, outer sep=0pt] (#1r) at (#1b.base east) {$r0$};%
+  \node[rltok, text=#5] (#1c) at (#1r.base east) {]};}%
+\def\rlxmit#1{\node[rlnote, text=ssxmitink] at (\rlflag,#1) {xmit};}%
+\def\rlleak#1#2{% the leak path: ddi m0 -> r0 in #1, rf r0 -> [r0] of #2
+  \draw[rlleak, shorten >=1.4pt] ($(#1m.north)+(0,0.3pt)$) to[out=115, in=65, looseness=1.1]%
+    node[pos=0.5, above=1.4pt, rllab] {ddi} ($(#1o.north)+(0,0.6pt)$);%
+  \draw[rlleak, shorten <=0.6pt, shorten >=1.0pt, rounded corners=2pt] (#1o.south) -- ++(0,-4pt) -| ($(#2r.north)+(0,0.2pt)$)%
+    node[pos=0.78, anchor=west, xshift=2pt, rllab] {rf};}%
+% ============================ (a) unneeded output r1: RO ============================
+\rlband{0pt}{-46pt}%
+\rlbranch{a}{0pt}{unneeded output $r1$}%
+\rlload{a1}{-22pt}%
+\rlldx{a2}{2}{-46pt}{\textcolor{rlgone}{$r1$}}{black}\rlxmit{-46pt}%
+\rlleak{a1}{a2}%
+% ============================ (b) a second transmitter i3: RI ============================
+\rlband{-72pt}{-142pt}%
+\rlbranch{b}{-72pt}{second transmitter i3}%
+\rlload{b1}{-94pt}%
+\rlldx{b2}{2}{-118pt}{?}{black}\rlxmit{-118pt}%
+\rlldx{b3}{3}{-142pt}{?}{rlgone}%
+\draw[rlgoneedge, rounded corners=2pt, shorten >=0.8pt] ($(b1o.south)+(0,-4pt)$) -| ($(\rlgut,0 |- b3c.east)$) -- (b3c.east);%
+\node[rllab, text=rlgone, anchor=east] at ($(\rlgut-2pt,0)+(0,-130pt)$) {rf};%
+\rlleak{b1}{b2}%
+% ============================ (c) i1 also unresolved: RR ============================
+\rlband{-168pt}{-214pt}%
+\rlbranch{c}{-168pt}{i1 also unresolved}%
+\rlload{c1}{-190pt}\node[rlnote, text=rlgone] at (\rlflag,-190pt) {unresolved};%
+\rlldx{c2}{2}{-214pt}{?}{black}\rlxmit{-214pt}%
+\rlleak{c1}{c2}%
+% ============================ (d) the backbone (boxed) ============================
+\rlband{-246pt}{-292pt}%
+\rlbranch{d}{-246pt}{the backbone}%
+\rlload{d1}{-268pt}%
+\rlldx{d2}{2}{-292pt}{?}{black}\rlxmit{-292pt}%
+\rlleak{d1}{d2}%
+\draw[rounded corners=3pt] (-3pt,-235pt) rectangle (\rlbox,-300pt);%
+% ============================ relaxation arrows: (a), (b), (c) -> (d) ============================
+\draw[rlrelax] (\rlgo,-24pt) -- (\rlrailA,-24pt) -- (\rlrailA,-284pt) -- (\rlbox+0.6pt,-284pt);%
+\node[rlrlab] at (\rlgo+2pt,-23pt) {RO};%
+\draw[rlrelax] (\rlgo,-108pt) -- (\rlrailB,-108pt) -- (\rlrailB,-268pt) -- (\rlbox+0.6pt,-268pt);%
+\node[rlrlab] at (\rlgo+2pt,-107pt) {RI};%
+\draw[rlrelax] (\rlgo,-192pt) -- (\rlrailC,-192pt) -- (\rlrailC,-252pt) -- (\rlbox+0.6pt,-252pt);%
+\node[rlrlab] at (\rlgo+2pt,-191pt) {RR};%
+\path (0,12pt) (0,-306pt);% breathing room above and below
+\end{tikzpicture}%
+}%

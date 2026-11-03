@@ -12,6 +12,11 @@
 % InvisiSpec/CleanupSpec stay an out-of-scope group (Anna's decision, 2026-11-02).%
 % Every line ends in % so no stray spaces enter the output.%
 {%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}%
+\providecolor{sssrcbg}{gray}{0.90}%
 \providecommand{\toolname}{SimSpect}%
 \footnotesize%
 \hyphenpenalty=10000\exhyphenpenalty=10000%
@@ -25,29 +30,29 @@
 \setlength{\tabcolsep}{4pt}%
 \renewcommand{\arraystretch}{1.15}%
 % ======================================================================%
-\def\btgrp#1{\multicolumn{6}{@{}l}{\textbf{#1}}\\}%
+\def\btgrp#1{\multicolumn{6}{@{}l}{\textbf{#1}}\\}% group headers (black)%
 \begin{tabular}{@{}>{\raggedright\arraybackslash}p{\btb}>{\raggedright\arraybackslash}p{\btk}>{\raggedright\arraybackslash}p{\btf}>{\raggedright\arraybackslash}p{\bts}>{\raggedright\arraybackslash}p{\btv}>{\raggedright\arraybackslash}p{\bte}@{}}%
 \toprule%
 \textbf{Bug} & \textbf{First known from} & \textbf{Found by} & \textbf{In scope} & \textbf{Verdict} & \textbf{Evidence}\\%
 \midrule%
 \btgrp{STT}%
-Visibility-point/squash race (load channel) & This work & \toolname{} & yes & real\,\textdagger & trace at slow commit timing; pre-fix, re-run\\%
-Pending-squash race: secret-dependent squash signal & N.~Mosier (\texttt{cwfletcher/stt} @18e304f) & neither tool & partly & real, fixed upstream & upstream report\\%
+Visibility-point/squash race (load channel) & This work & \toolname{} & yes & \textcolor{ssxmitink}{real\,\textdagger} & trace at slow commit timing; pre-fix, re-run\\%
+Pending-squash race: secret-dependent squash signal & N.~Mosier (\texttt{cwfletcher/stt} @18e304f) & neither tool & partly & \textcolor{ssxmitink}{real, fixed upstream} & upstream report\\%
 Tainted speculative store $\to$ D-TLB entry (KV3) & DOLMA, via AMuLeT & AMuLeT & no: store/TLB & not a bug\,\textdaggerdbl & AMuLeT\\%
 \addlinespace[2pt]%
 \btgrp{SPT-Fence}%
-Same visibility-point/squash race as STT & This work & \toolname{} & yes & real & pre-fix run without branch forces; re-run\\%
+Same visibility-point/squash race as STT & This work & \toolname{} & yes & \textcolor{ssxmitink}{real} & pre-fix run without branch forces; re-run\\%
 \addlinespace[2pt]%
 \btgrp{ReCon (STT scheme)}%
-\texttt{getOldestTaint}: an ALU result keeps only its oldest source's taint (OTB) & This work & \toolname{}; re-confirmed by a hand-built test & yes & real, confirmed & hand-built test with trace; pre-fix, re-run\\%
+\texttt{getOldestTaint}: an ALU result keeps only its oldest source's taint (OTB) & This work & \toolname{}; re-confirmed by a hand-built test & yes & \textcolor{ssxmitink}{real, confirmed} & hand-built test with trace; pre-fix, re-run\\%
 Store-to-load forwarding skips the taint check (STL) & This work & \toolname{} & yes & candidate & one trace; pre-fix, re-run\\%
 \addlinespace[2pt]%
 \multicolumn{6}{@{}l}{\textbf{InvisiSpec \& CleanupSpec}\quad\textit{collateral transmitter-side channels, out of \toolname{}'s scope}}\\%
-UV1, UV2, KV1: L1D eviction, MSHR contention, L1I speculative fetch & AMuLeT & AMuLeT & no & real & AMuLeT\\%
-UV3--UV5: post-squash L1D residue; cleanup evicts a non-speculative line & AMuLeT & AMuLeT & no & real & AMuLeT\\%
+UV1, UV2, KV1: L1D eviction, MSHR contention, L1I speculative fetch & AMuLeT & AMuLeT & no & \textcolor{ssxmitink}{real} & AMuLeT\\%
+UV3--UV5: post-squash L1D residue; cleanup evicts a non-speculative line & AMuLeT & AMuLeT & no & \textcolor{ssxmitink}{real} & AMuLeT\\%
 \addlinespace[2pt]%
 \btgrp{SpecLFB}%
-First speculative load left unprotected (UV6) & AMuLeT & both (AMuLeT at test 39, \toolname{} at test 6) & yes & real & \toolname{} run pre-fix; re-run\\%
+First speculative load left unprotected (UV6) & AMuLeT & both (AMuLeT at test 39, \toolname{} at test 6) & yes & \textcolor{ssxmitink}{real} & \toolname{} run pre-fix; re-run\\%
 \bottomrule%
 \end{tabular}%
 }%

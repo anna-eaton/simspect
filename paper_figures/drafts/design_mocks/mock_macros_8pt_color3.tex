@@ -1,0 +1,94 @@
+% 8pt-minimum variant of mock_macros.tex (2026-11-02): every text style is \footnotesize (8pt);
+% icon glyphs that were \tiny text ({ } and </>) are drawn as paths instead.
+% Shared shape vocabulary for the big-figure design mocks (BIGFIG_SHAPE_DESIGN.md).
+% Every tikzpicture that uses these must set [x=1pt,y=1pt]: all numbers below are pt.
+\usetikzlibrary{calc,fit,shapes.symbols,shapes.misc,shapes.geometric,decorations.pathmorphing,arrows.meta}
+\definecolor{ssspecfill}{HTML}{FCEFD6}\definecolor{ssspecink}{HTML}{A35F00}\definecolor{ssprotfill}{HTML}{DCE8F4}\definecolor{ssprotink}{HTML}{2F5F8F}\definecolor{ssxmitfill}{HTML}{F7DEDB}\definecolor{ssxmitink}{HTML}{B3322C}\def\defshade{black!12}   % the one gray: defense-specific
+\tikzset{
+  >=latex,
+  every node/.style={font=\footnotesize, inner sep=0pt,
+     execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000\relax}},
+  q/.style={font=\footnotesize\itshape},             % qualifier: multiplicity, mode, arrow label
+  sm/.style={font=\footnotesize},                    % small roman label
+  blob/.style={draw, rounded corners=7pt, line width=0.6pt},          % stage container
+  btitle/.style={fill=white, inner xsep=2pt, inner ysep=1pt, anchor=west}, % title sitting on the blob border
+  slab/.style={draw, rounded corners=2.5pt, minimum height=10.5pt, inner xsep=3pt, align=left, anchor=north west},
+  ghost/.style={slab, dash pattern=on 1.4pt off 1.1pt},               % "same as Stage 1"
+  pill/.style={draw, rounded corners=4.5pt, minimum height=10.5pt, inner xsep=3.5pt, align=center},  % formula pill
+  tool/.style={draw, rounded rectangle, minimum height=17pt, inner xsep=5pt, align=center, line width=0.6pt},  % solver / engine
+  chev/.style={draw, signal, signal to=east, signal from=west, signal pointer angle=125,
+               minimum height=19pt, align=center, inner xsep=1pt, font=\footnotesize},
+  chevL/.style={draw, signal, signal to=west, signal from=east, signal pointer angle=125,
+               minimum height=19pt, align=center, inner xsep=1pt, font=\footnotesize},
+  chevD/.style={draw, signal, signal to=south, signal from=north, signal pointer angle=140,
+               minimum width=15pt, minimum height=10pt, align=center, inner sep=0pt, font=\footnotesize\bfseries},
+  dspec/.style={fill=\defshade},
+  dot/.style={circle, fill, inner sep=0.75pt},
+  station/.style={circle, draw, fill=white, minimum size=8.5pt, inner sep=0pt, font=\footnotesize\bfseries},
+  box/.style={draw, rounded corners=3pt, align=center, inner xsep=3pt, inner ysep=2.2pt},
+}
+
+% ---------- glyphs drawn inside a card centered at the scope origin (card 11 x 14) ----------
+\newcommand{\gGraph}{% execution graph: 3 instruction nodes in spo + one rf arc (matches fig a)
+  \draw[line width=0.3pt] (-1.8,3.6) -- (-1.8,-3.6);
+  \fill (-1.8,3.6) circle (0.95) (-1.8,0) circle (0.95) (-1.8,-3.6) circle (0.95);
+  \draw[line width=0.35pt, -{Latex[length=1.5pt,width=1.5pt]}] (-1.0,3.8) .. controls (3.6,3.2) and (3.6,-3.2) .. (-0.9,-3.5);}
+\newcommand{\gAsm}{% program text
+  \foreach \y/\l in {4/5.2,2/3.8,0/5.2,-2/2.8,-4/4.4} \draw[line width=0.35pt] (-3,\y) -- ++(\l,0);}
+\newcommand{\gAnn}{% annotation: a pair of curly braces, drawn (no text)
+  \draw[line width=0.4pt, line join=round] (-1.2,3.8) .. controls (-2.4,3.8) and (-2.0,1.0) .. (-2.4,0.3) -- (-3.1,0) -- (-2.4,-0.3) .. controls (-2.0,-1.0) and (-2.4,-3.8) .. (-1.2,-3.8);
+  \draw[line width=0.4pt, line join=round] (1.2,3.8) .. controls (2.4,3.8) and (2.0,1.0) .. (2.4,0.3) -- (3.1,0) -- (2.4,-0.3) .. controls (2.0,-1.0) and (2.4,-3.8) .. (1.2,-3.8);}
+\newcommand{\gCode}{% source code: </> drawn (no text)
+  \draw[line width=0.45pt, line join=miter] (-1.9,0.6) -- (-4.0,-1.2) -- (-1.9,-3.0) (1.9,0.6) -- (4.0,-1.2) -- (1.9,-3.0) (0.9,1.0) -- (-0.9,-3.4);}
+\newcommand{\gTrace}{% pipeline trace: staggered stage bars (O3PipeView-like)
+  \foreach \y/\a/\b in {4/-3.6/0.4,1.6/-2.4/1.6,-0.8/-1.2/2.8,-3.2/0/3.6} \draw[line width=0.9pt] (\a,\y) -- (\b,\y);}
+
+% ---------- card stack: #1 name, #2 (x,y) of the front card's center, #3 number of cards, #4 glyph macro ----------
+% back cards sit up-right of the front card; anchors #1-n (top of the whole stack), #1-s, #1-e, #1-w
+\def\cw{11}\def\ch{14}\def\co{1.8}
+\newcommand{\cardstack}[4]{%
+  \begin{scope}[shift={#2}]
+    \foreach \k in {#3,...,1} {\pgfmathsetmacro\o{\co*(\k-1)}
+      \draw[fill=white, rounded corners=0.9pt] (-\cw/2+\o,-\ch/2+\o) rectangle ++(\cw,\ch);}
+    #4
+    \pgfmathsetmacro\top{\ch/2+\co*(#3-1)}\pgfmathsetmacro\rgt{\cw/2+\co*(#3-1)}
+    \path (\co*#3/2-\co/2,\top) coordinate (#1-n) (0,-\ch/2) coordinate (#1-s)
+          (\rgt,\co*#3/2-\co/2) coordinate (#1-e) (-\cw/2,0) coordinate (#1-w);
+  \end{scope}}
+% stack of program + annotation PAIRS: each card is two half-cards clipped together
+\newcommand{\pairstack}[3]{% #1 name, #2 (x,y), #3 n
+  \begin{scope}[shift={#2}]
+    \foreach \k in {#3,...,1} {\pgfmathsetmacro\o{\co*(\k-1)}
+      \draw[fill=white, rounded corners=0.9pt] (-11+\o,-7+\o) rectangle ++(10.4,14);
+      \draw[fill=white, rounded corners=0.9pt] (0.6+\o,-7+\o) rectangle ++(10.4,14);
+      \draw[line width=0.5pt] (-1.4+\o,4.5+\o) -- (1.4+\o,4.5+\o);}  % clip joining the two halves
+    \begin{scope}[shift={(-5.8,0)}]\gAsm\end{scope}
+    \begin{scope}[shift={(5.8,0)}]\gAnn\end{scope}
+    \pgfmathsetmacro\top{7+\co*(#3-1)}
+    \path (-5.8,7) coordinate (#1-asm-n) (5.8,7) coordinate (#1-ann-n) (-5.8,-7) coordinate (#1-asm-s) (5.8,-7) coordinate (#1-ann-s)
+          (11,0) coordinate (#1-e) (-11,0) coordinate (#1-w) (0,\top) coordinate (#1-n) (0,-7) coordinate (#1-s);
+  \end{scope}}
+
+% ---------- defense-specific source of truth: gray folded document; #1 name, #2 (x,y), #3 glyph or empty ----------
+\newcommand{\sot}[3]{%
+  \begin{scope}[shift={#2}]
+    \draw[fill=\defshade] (-5.5,-7) -- (5.5,-7) -- (5.5,4) -- (2.5,7) -- (-5.5,7) -- cycle;
+    \draw (2.5,7) -- (2.5,4) -- (5.5,4);
+    \if\relax\detokenize{#3}\relax
+      \foreach \y in {1.8,-0.8,-3.4} \draw[line width=0.3pt] (-3.2,\y) -- (3.2,\y);
+    \else #3\fi
+    \path (0,7) coordinate (#1-n) (0,-7) coordinate (#1-s) (5.5,0) coordinate (#1-e) (-5.5,0) coordinate (#1-w);
+  \end{scope}}
+
+% ---------- bug glyph (#1 position, #2 scale, #3 color) ----------
+\newcommand{\buggl}[3]{%
+  \begin{scope}[shift={#1}, scale=#2, line width=0.45pt, draw=#3, fill=#3]
+    \foreach \y in {1.0,0,-1.0} {\draw (-2.6,\y-0.45) -- (2.6,\y+0.45); \draw (-2.6,\y+0.45) -- (2.6,\y-0.45);}
+    \fill (0,-0.2) ellipse (1.35 and 1.9);
+    \fill (0,2.15) circle (0.8);
+    \draw (-0.35,2.7) -- (-1.2,3.7) (0.35,2.7) -- (1.2,3.7);
+  \end{scope}}
+% magnifier (#1 center of lens, #2 radius)
+\newcommand{\magn}[2]{\draw[line width=0.6pt] #1 circle (#2); \draw[line width=1.1pt] ($#1+(-45:#2)$) -- ++(-45:#2*0.9);}
+% legend swatch
+\newcommand{\swatch}[1]{\draw[fill=\defshade] #1 rectangle ++(6,6);}
