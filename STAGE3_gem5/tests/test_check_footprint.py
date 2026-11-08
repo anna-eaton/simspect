@@ -103,6 +103,25 @@ class TestParser(unittest.TestCase):
         self.assertEqual(by_seq[11]["retire"], 5000); self.assertEqual(by_seq[12]["retire"], 0)
         shutil.rmtree(d)
 
+    def test_glued_native_print_residue_is_ignored(self):
+        """Native formats such as CleanupSpec lsq_unit.hh:1257 ("...\\n.") and
+        RubyPort.cc:272 ("...\\n ") glue text onto the next line (2026-11-08)."""
+        t = Trace().base(); t.squash(); t.ev(2000, "L1D", "fill", line=0x40, seq=12)
+        d = Path(tempfile.mkdtemp()); p = d / "pv.txt"; q = d / "pv_glued.txt"
+        p.write_text("\n".join(t.lines) + "\n")
+        glued = ["." + l if l.startswith("O3PipeView:simspect:") else " " + l if l.startswith("O3PipeView:fetch:")
+                 else l for l in t.lines]
+        glued.append(".   7000: system.cpu.commit: Committing instruction with [sn:11] PC (0x401000=>0x401004)")
+        q.write_text("\n".join(glued) + "\n")
+        strip = lambda evs: [{k: v for k, v in e.items() if k != "order"} for e in evs]
+        self.assertEqual(strip(gc.parse_simspect_events(q)), strip(gc.parse_simspect_events(p)))
+        self.assertEqual(gc.parse_pipeview(q), gc.parse_pipeview(p))
+        self.assertEqual(gc.parse_pipeview_by_seq(q), gc.parse_pipeview_by_seq(p))
+        self.assertEqual(gc.parse_commit_ticks(q), {0x401000: [7000]})
+        self.assertEqual(gc.parse_simspect_line(".O3PipeView:simspect:5:ROB:squash:line=-:seq=0:pc=-:"
+                                                "victim=-:cause=-:sq=1:id=2")["sq"], 1)
+        shutil.rmtree(d)
+
     def test_scheme_selection(self):
         self.assertEqual(cf.scheme_name_from_args(["--ruby", "--scheme=SpectreSafeInvisibleSpec",
                                                    "--scheme=FuturisticSafeInvisibleSpec"]),
@@ -274,6 +293,84 @@ class TestCleanupSpec(unittest.TestCase):
         self.assertTrue(r["leak"]); self.assertEqual(r["offending"][0]["line"], "0xc000")
 
 
+class TestCleanupSpecOwnership(unittest.TestCase):
+    """Ownership transfer, "count as both" (Anna 2026-11-08; CleanupSpec §3.4 p7,
+    specs/leakage/cleanupspec.json "ownership"). The older access A is the lc
+    (seq 10, a committed store whose write hits after it retires); the squashed
+    actor S is seq 12, which fills 0xA000 and evicts committed 0xB000."""
+
+    def shape(self, older_hit=True, l2=False):
+        t = Trace().base(); t.ev(300, "L1D", "fill", line=0xB000, seq=5)
+        f = t.ev(2000, "L1D", "fill", line=0xA000, seq=12)
+        t.ev(2000, "L1D", "evict", line=0xA000, seq=12, victim=0xB000, cause=f)
+        if l2:
+            t.ev(2000, "L2", "fill", line=0xA000, seq=12)
+        if older_hit:
+            t.ev(2100, "L1D", "hit", line=0xA000, seq=10)
+        t.squash()
+        return t
+
+    def line(self, r, ln, st="L1D"):
+        return [p for p in r["per_line"] if p["struct"] == st and p["line"] == ln][0]
+
+    def test_a_older_hit_then_cleanup_inv_is_over_clean(self):
+        t = self.shape()
+        t.ev(3200, "L1D", "cleanup_inv", line=0xA000, seq=12, sq=1)
+        t.ev(3300, "L1D", "cleanup_restore", line=0xB000, seq=12, sq=1)
+        t.ev(3400, "L1D", "cleanup_done", seq=11, sq=1)
+        r = t.run("cleanupspec")
+        self.assertTrue(r["leak"]); self.assertEqual(r["terms_fired"], ["over_clean"])
+        pa = self.line(r, "0xa000")
+        self.assertEqual((pa["claimed_by_older"], pa["d_install"]), (1, -1))
+        self.assertEqual(pa["claims"][0]["owner_seq"], 10)
+        self.assertEqual([o["line"] for o in r["offending"]], ["0xa000"])
+        self.assertFalse(r["inconsistent"]); self.assertTrue(r["net_state"]["leak"])
+
+    def test_b_older_hit_kept_and_victim_restored_no_leak(self):
+        t = self.shape(l2=True)                    # the L1D hit also claims S's L2 install
+        t.ev(3200, "L1D", "cleanup_skip", line=0xA000, seq=12, sq=1)
+        t.ev(3300, "L1D", "cleanup_restore", line=0xB000, seq=12, sq=1)
+        t.ev(3400, "L1D", "cleanup_done", seq=11, sq=1)
+        r = t.run("cleanupspec")
+        self.assertFalse(r["leak"]); self.assertFalse(r["inconsistent"]); self.assertTrue(r["decided"])
+        self.assertFalse(r["net_state"]["leak"])
+        self.assertEqual(self.line(r, "0xa000", "L2")["claimed_by_older"], 1)
+
+    def test_c_victim_not_restored_leaks_on_victim_only(self):
+        t = self.shape()
+        t.ev(3200, "L1D", "cleanup_skip", line=0xA000, seq=12, sq=1)
+        t.ev(3400, "L1D", "cleanup_done", seq=11, sq=1)
+        r = t.run("cleanupspec")
+        self.assertTrue(r["leak"]); self.assertEqual(r["terms_fired"], ["under_clean"])
+        self.assertEqual([o["line"] for o in r["offending"]], ["0xb000"])
+        self.assertEqual(self.line(r, "0xb000")["d_victim"], 1)
+        self.assertEqual(self.line(r, "0xa000")["d_install"], 0)
+        self.assertFalse(r["inconsistent"])
+
+    def test_d_post_squash_younger_hit_never_claims(self):
+        t = self.shape(older_hit=False)
+        t.inst(20, 0x1010, 3500, 6000)             # correct-path probe after the squash
+        t.ev(3200, "L1D", "cleanup_skip", line=0xA000, seq=12, sq=1)
+        t.ev(3300, "L1D", "cleanup_restore", line=0xB000, seq=12, sq=1)
+        t.ev(3400, "L1D", "cleanup_done", seq=11, sq=1)
+        t.ev(3600, "L1D", "hit", line=0xA000, seq=20)
+        r = t.run("cleanupspec")
+        self.assertTrue(r["leak"]); self.assertEqual(r["terms_fired"], ["under_clean"])
+        pa = self.line(r, "0xa000")
+        self.assertEqual((pa["claimed_by_older"], pa["d_install"]), (0, 1))
+        self.assertFalse(r["inconsistent"])
+
+    def test_squashed_older_access_never_claims(self):
+        t = Trace().base()
+        t.ev(2000, "L1D", "fill", line=0xA000, seq=13)
+        t.ev(2100, "L1D", "hit", line=0xA000, seq=12)   # older than S but squashed too
+        t.squash()
+        t.ev(3200, "L1D", "cleanup_skip", line=0xA000, seq=13, sq=1)
+        t.ev(3400, "L1D", "cleanup_done", seq=11, sq=1)
+        r = t.run("cleanupspec")
+        self.assertTrue(r["leak"]); self.assertEqual(self.line(r, "0xa000")["claimed_by_older"], 0)
+
+
 class TestRealTraces(unittest.TestCase):
     """Hooked-build traces (fixtures/, from cafe2 simspect_hooks_verify)."""
     CASES = [("inv_uv1", "invisispec", True), ("lfb_uv6x", "speclfb", True),
@@ -316,6 +413,79 @@ class TestRealTraces(unittest.TestCase):
         pl = {(p["struct"], p["line"]): p for p in r["per_line"]}
         self.assertEqual(pl[("L1D", "0x3000")]["restored"], 1)
         self.assertEqual(pl[("L1D", "0x4000")]["invalidated"], 1)
+
+
+class TestRealTracesV2(TestRealTraces):
+    """Same cases and assertions on the hooks-v2 traces (fixtures/<case>.v2.pipeview.txt.gz,
+    from cafe2 /work/amulet/simspect_hooks_verify_v2/<case>/new/pipeview.txt, 2026-11-07,
+    gem5-hooks/verify/run_all_verify_v2.sh). Same binaries and PCs as the v1 fixtures, so
+    the v1 meta.json applies; v2 only appends fields and adds kinds the criteria ignore."""
+
+    def _run(self, case, crit):
+        meta = json.loads((HERE / "fixtures" / f"{case}.meta.json").read_text())
+        d = Path(tempfile.mkdtemp())
+        try:
+            p = d / "pipeview.txt"
+            with gzip.open(HERE / "fixtures" / f"{case}.v2.pipeview.txt.gz", "rb") as g, open(p, "wb") as o:
+                shutil.copyfileobj(g, o)
+            scheme = cf.scheme_name_from_args(meta["cmd"].split())
+            return cf.evaluate_trace(p, CRIT[crit], meta["lc_pc"], meta["fnc_pc"], meta["unresolved"],
+                                     meta["ticks_per_cycle"], scheme_name=scheme)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_caller_by_pc_is_used(self):
+        """check_footprint passes process_one's by_pc (lc/fnc retire filled from the
+        Commit trace) through evaluate_trace instead of re-parsing (2026-11-08)."""
+        meta = json.loads((HERE / "fixtures" / "inv_uv1.meta.json").read_text())
+        d = Path(tempfile.mkdtemp())
+        try:
+            p = d / "pipeview.txt"
+            with gzip.open(HERE / "fixtures" / "inv_uv1.v2.pipeview.txt.gz", "rb") as g, open(p, "wb") as o:
+                shutil.copyfileobj(g, o)
+            scheme = cf.scheme_name_from_args(meta["cmd"].split())
+            full = gc.parse_pipeview(p)
+            lc_retire = gc.best_record(full[meta["lc_pc"]])["retire"]
+            run = lambda by_pc: cf.evaluate_trace(p, CRIT["invisispec"], meta["lc_pc"], meta["fnc_pc"],
+                                                  meta["unresolved"], meta["ticks_per_cycle"],
+                                                  scheme_name=scheme, by_pc=by_pc)
+            no_lc = {pc: r for pc, r in full.items() if pc != meta["lc_pc"]}
+            self.assertTrue(run(no_lc)["lc_unretired_but_specified"])
+            filled = dict(no_lc)
+            gc.fill_retire_from_commit(filled, {meta["lc_pc"]: [lc_retire]}, [meta["lc_pc"]])
+            r = run(filled)
+            self.assertFalse(r["lc_unretired_but_specified"])
+            self.assertEqual(r["lc_retire"], lc_retire)
+            self.assertTrue(r["leak"])
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_uv5ro_over_clean(self):
+        """CleanupSpec UV5 demo (fixtures/cln_uv5ro.*, cafe2 STT_6_cleanupspec_v2hooks__20261107
+        demos/campaign/uv5ro, 2026-11-07): older committed load seq 30 hits 0x1040, which
+        squashed seq 36 installed; cleanup invalidates it in L1D and L2 → over_clean."""
+        r = self._run("cln_uv5ro", "cleanupspec")
+        self.assertTrue(r["leak"]); self.assertEqual(r["terms_fired"], ["over_clean"])
+        self.assertFalse(r["inconsistent"])
+        self.assertEqual(sorted(f'{o["struct"]}:{o["line"]}' for o in r["offending"]),
+                         ["L1D:0x1040", "L2:0x1040"])
+        old = dict(CRIT["cleanupspec"]); old.pop("ownership")
+        self.assertFalse(cf.evaluate_trace(*self._args("cln_uv5ro"), old)["leak"])
+
+    def _args(self, case):
+        d = Path(tempfile.mkdtemp()); self.addCleanup(shutil.rmtree, d, True)
+        p = d / "pipeview.txt"
+        with gzip.open(HERE / "fixtures" / f"{case}.v2.pipeview.txt.gz", "rb") as g, open(p, "wb") as o:
+            shutil.copyfileobj(g, o)
+        return (p,)
+
+    def test_v2_lines_parse(self):
+        for case, _, _ in self.CASES:
+            with self.subTest(case=case):
+                with gzip.open(HERE / "fixtures" / f"{case}.v2.pipeview.txt.gz", "rt") as g:
+                    evs = [gc.parse_simspect_line(l) for l in g if l.startswith(gc.SIMSPECT_PREFIX)]
+                self.assertEqual((evs[0]["struct"], evs[0]["kind"], evs[0]["ver"]), ("META", "hooks", "2"))
+                self.assertTrue(all(e is not None for e in evs))
 
 
 if __name__ == "__main__":

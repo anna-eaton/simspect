@@ -1,0 +1,51 @@
+--- se.py	2026-05-28 10:10:42.403035085 +0000
++++ se_exp.py	2026-06-03 01:34:02.413283980 +0000
+@@ -350,5 +350,26 @@
+             cpu.fncCommitStallPC     = options.fnc_commit_stall_pc
+             cpu.fncCommitStallCycles = options.fnc_commit_stall_cycles
+ 
++    # [SimSpect slow-comm experiment] Stretch IEW<->commit communication and
++    # drain squash one inst/cycle to widen the observable speculative window
++    # (faithful port of /work/stt/configs/example/se_slowcomm.py). Runtime
++    # params only — same binary. backComSize/forwardComSize MUST exceed the
++    # delays (timebuffer read at getWire(-delay)). commitToIEWDelay LIVELOCKED
++    # the STT O3 model at >=5 (capped at 4); gem5-spt is DerivO3CPU+Ruby — its
++    # ceiling is UNVERIFIED, smoke-test before a full corpus run. See claudelog.
++    # [SimSpect paper_fragility] env-driven so commitToIEWDelay can be SWEPT
++    # (additive copy of se_slowcomm.py; se.py/se_slowcomm.py untouched). Only
++    # applies a param when its SIMSPECT_* env var is set.
++    import os as _os
++    def _envi(n):
++        v = _os.environ.get(n)
++        return int(v) if v not in (None, "") else None
++    for cpu in system.cpu:
++        if _envi("SIMSPECT_IEW_COMMIT_DELAY") is not None: cpu.iewToCommitDelay = _envi("SIMSPECT_IEW_COMMIT_DELAY")
++        if _envi("SIMSPECT_COMMIT_IEW_DELAY") is not None: cpu.commitToIEWDelay = _envi("SIMSPECT_COMMIT_IEW_DELAY")
++        if _envi("SIMSPECT_BACK_COM_SIZE")    is not None: cpu.backComSize      = _envi("SIMSPECT_BACK_COM_SIZE")
++        if _envi("SIMSPECT_FWD_COM_SIZE")     is not None: cpu.forwardComSize   = _envi("SIMSPECT_FWD_COM_SIZE")
++        if _envi("SIMSPECT_SQUASH_WIDTH")     is not None: cpu.squashWidth      = _envi("SIMSPECT_SQUASH_WIDTH")
++
+ root = Root(full_system = False, system = system)
+ Simulation.run(options, root, system, FutureClass)
+--- se.py	2026-05-28 10:10:42.403035085 +0000
++++ se_slowcomm.py	2026-06-02 12:09:02.854213817 +0000
+@@ -350,5 +350,19 @@
+             cpu.fncCommitStallPC     = options.fnc_commit_stall_pc
+             cpu.fncCommitStallCycles = options.fnc_commit_stall_cycles
+ 
++    # [SimSpect slow-comm experiment] Stretch IEW<->commit communication and
++    # drain squash one inst/cycle to widen the observable speculative window
++    # (faithful port of /work/stt/configs/example/se_slowcomm.py). Runtime
++    # params only — same binary. backComSize/forwardComSize MUST exceed the
++    # delays (timebuffer read at getWire(-delay)). commitToIEWDelay LIVELOCKED
++    # the STT O3 model at >=5 (capped at 4); gem5-spt is DerivO3CPU+Ruby — its
++    # ceiling is UNVERIFIED, smoke-test before a full corpus run. See claudelog.
++    for cpu in system.cpu:
++        cpu.iewToCommitDelay = 30
++        cpu.commitToIEWDelay = 4
++        cpu.backComSize      = 40
++        cpu.forwardComSize   = 40
++        cpu.squashWidth      = 1
++
+ root = Root(full_system = False, system = system)
+ Simulation.run(options, root, system, FutureClass)

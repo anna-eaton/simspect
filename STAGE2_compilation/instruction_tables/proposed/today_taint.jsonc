@@ -1,0 +1,50 @@
+// DRAFT (2026-11-07, vocab-tables session) — NOT used by any run config. Review doc: wiki/design/VOCAB_TABLES.md
+//
+// Same as today_superset.jsonc minus "div" in other_n. For the taint-tracking defenses: STT (STT_6 on /work/stt,
+// gem5-recon --scheme=2, gem5-spt STT sub-impl), ReCon (Recon_6), SPT (SPT_6_oneLP) and the STL variant (STT_6_stl).
+// Every name is already emitted by pass5_emit_llvm, so no parsexml.py change is needed.
+//
+// Why div is left out of other_n here: STT lists "variable latency arithmetic instructions" as explicit channels
+// (Yu 2019 p4 §5.1) and SPT counts "variable time arithmetic instructions" as transmitters (Choudhary 2021 p2), so a
+// divide may not "never transmit" on these builds. zsm (imul) IS kept in other_n: the gem5-recon STT build delays
+// only tainted loads and tainted conditional branches (gem5-recon src/cpu/o3/lsq_unit.cc:2079-2090,
+// inst_queue.cc:1450-1456, local copy), and for SPT imul is the only emittable NON-invertible ALU op (no backward
+// untaint allowed through it, Choudhary 2021 p7). This is an open decision (VOCAB_TABLES.md, DECIDE V3): STT p10 names
+// "a multiplier" as a possible transmitter, and /work/stt's choice was not checked.
+{
+  "kind_categories": {
+    "ld":      "ld",
+    "str":     "str",
+    "br_n":    "br",
+    "br_x":    "br",
+    "other_n": "other_n",
+    "other_x": "other_x",
+    "unknown": "other_n"
+  },
+  "instructions": {
+    "ld": [
+      { "name": "load",  "llvm_op": "load volatile i64",  "uses": ["inaddr", "inmem", "outreg"], "comment": "64-bit load (movq)" }
+    ],
+    "str": [
+      { "name": "store", "llvm_op": "store volatile i64", "uses": ["inreg0", "inaddr", "outmem"], "comment": "64-bit store (movq)" }
+    ],
+    "br": [
+      // pass2_5 overrides the pick (xmit -> br_bez, others -> br_cond), parsexml.py:754-836.
+      { "name": "br_uncond", "llvm_op": "br label", "uses": [],         "comment": "upgraded to br_cond by pass2_5" },
+      { "name": "br_cond",   "llvm_op": "br i1",    "uses": ["inreg0"], "comment": "testq+jne" },
+      { "name": "br_bez",    "llvm_op": "testq+jz", "uses": ["inreg0"], "comment": "xmit branch only" }
+    ],
+    "other_n": [
+      { "name": "bitnot", "llvm_op": "xor i64", "uses": ["inreg0", "outreg"],
+        "comment": "notq — invertible unary (SPT backward-untaint rule 2 applies)" },
+      { "name": "add",    "llvm_op": "add i64", "uses": ["inreg0", "inreg1", "outreg"],
+        "comment": "emitted as leaq (a,b),d — LEA, not ADD (parsexml.py:2296); how gem5-spt classifies LEA for untaint is unknown" },
+      { "name": "zsm",    "llvm_op": "mul i64", "uses": ["inreg0", "inreg1", "outreg"],
+        "comment": "REUSED as non-transmitter: imulq — non-invertible, so SPT must NOT backward-untaint through it" }
+    ],
+    "other_x": [
+      { "name": "zsm", "llvm_op": "mul i64",  "uses": ["inreg0", "inreg1", "outreg"], "comment": "unchanged" },
+      { "name": "div", "llvm_op": "sdiv i64", "uses": ["inreg0", "inreg1", "outreg"], "comment": "unchanged" }
+    ]
+  }
+}

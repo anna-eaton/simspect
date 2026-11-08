@@ -42,11 +42,11 @@
 ]%
 % ---- row macros: #1 = node prefix, y in pt ----
 \def\rlband#1#2{\fill[ssspecfill, rounded corners=2pt] (\rlid-2pt,#1-4.5pt) rectangle (\rlbandr,#2-4pt);}% #1 = y of i0, #2 = y of the last row
-\def\rlbranch#1#2#3{% #1 pane letter, #2 y, #3 pane note
-  \node[rlpanel] at (0,#2) {(#1)};%
+\def\rlbranch#1#2#3{% #1 pane letter, #2 y of i0, #3 pane note (on a header line above i0)
+  \node[rlpanel] at (0,#2+13pt) {(#1)\enspace{\normalfont\itshape #3}};%
   \node[rltok] at (\rlid,#2) {i0:};%
   \node[rltok] at (\rlkind,#2) {\texttt{Branch\_n}};%
-  \node[rlnote] at (\rlflag,#2) {#3};}%
+  \node[rlnote] at (\rlflag,#2) {unresolved};}% the branch is unresolved in every pane
 \def\rlload#1#2{% i1: Load r0 <- m0 (m0 protected)
   \node[rltok] at (\rlid,#2) {i1:};%
   \node[rltok] at (\rlkind,#2) {\texttt{Load}};%
@@ -74,6 +74,7 @@
 \rlldx{a2}{2}{-46pt}{\textcolor{rlgone}{$r1$}}{black}\rlxmit{-46pt}%
 \rlleak{a1}{a2}%
 % ============================ (b) a second transmitter i3: RI ============================
+\begin{scope}[yshift=-13pt]% room for the pane header
 \rlband{-72pt}{-142pt}%
 \rlbranch{b}{-72pt}{second transmitter i3}%
 \rlload{b1}{-94pt}%
@@ -82,26 +83,31 @@
 \draw[rlgoneedge, rounded corners=2pt, shorten >=0.8pt] ($(b1o.south)+(0,-4pt)$) -| ($(\rlgut,0 |- b3c.east)$) -- (b3c.east);%
 \node[rllab, text=rlgone, anchor=east] at ($(\rlgut-2pt,0)+(0,-130pt)$) {rf};%
 \rlleak{b1}{b2}%
+\end{scope}%
 % ============================ (c) i1 also unresolved: RR ============================
+\begin{scope}[yshift=-26pt]%
 \rlband{-168pt}{-214pt}%
 \rlbranch{c}{-168pt}{i1 also unresolved}%
 \rlload{c1}{-190pt}\node[rlnote, text=rlgone] at (\rlflag,-190pt) {unresolved};%
 \rlldx{c2}{2}{-214pt}{?}{black}\rlxmit{-214pt}%
 \rlleak{c1}{c2}%
+\end{scope}%
 % ============================ (d) the backbone (boxed) ============================
+\begin{scope}[yshift=-39pt]%
 \rlband{-246pt}{-292pt}%
 \rlbranch{d}{-246pt}{the backbone}%
 \rlload{d1}{-268pt}%
 \rlldx{d2}{2}{-292pt}{?}{black}\rlxmit{-292pt}%
 \rlleak{d1}{d2}%
-\draw[rounded corners=3pt] (-3pt,-235pt) rectangle (\rlbox,-300pt);%
+\draw[rounded corners=3pt] (-3pt,-222pt) rectangle (\rlbox,-300pt);% top clears the (d) header
+\end{scope}%
 % ============================ relaxation arrows: (a), (b), (c) -> (d) ============================
-\draw[rlrelax] (\rlgo,-24pt) -- (\rlrailA,-24pt) -- (\rlrailA,-284pt) -- (\rlbox+0.6pt,-284pt);%
+\draw[rlrelax] (\rlgo,-24pt) -- (\rlrailA,-24pt) -- (\rlrailA,-323pt) -- (\rlbox+0.6pt,-323pt);%
 \node[rlrlab] at (\rlgo+2pt,-23pt) {RO};%
-\draw[rlrelax] (\rlgo,-108pt) -- (\rlrailB,-108pt) -- (\rlrailB,-268pt) -- (\rlbox+0.6pt,-268pt);%
-\node[rlrlab] at (\rlgo+2pt,-107pt) {RI};%
-\draw[rlrelax] (\rlgo,-192pt) -- (\rlrailC,-192pt) -- (\rlrailC,-252pt) -- (\rlbox+0.6pt,-252pt);%
-\node[rlrlab] at (\rlgo+2pt,-191pt) {RR};%
-\path (0,12pt) (0,-306pt);% breathing room above and below
+\draw[rlrelax] (\rlgo,-121pt) -- (\rlrailB,-121pt) -- (\rlrailB,-307pt) -- (\rlbox+0.6pt,-307pt);%
+\node[rlrlab] at (\rlgo+2pt,-120pt) {RI};%
+\draw[rlrelax] (\rlgo,-218pt) -- (\rlrailC,-218pt) -- (\rlrailC,-291pt) -- (\rlbox+0.6pt,-291pt);%
+\node[rlrlab] at (\rlgo+2pt,-217pt) {RR};%
+\path (0,25pt) (0,-345pt);% breathing room above and below
 \end{tikzpicture}%
 }%

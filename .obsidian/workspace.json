@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "wiki/design/SPECULATION_MODELING_SURVEY.md",
+                "file": "wiki/design/MANIFEST_BRIEF_amulet_hooks.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "SPECULATION_MODELING_SURVEY"
+              "title": "MANIFEST_BRIEF_amulet_hooks"
             }
           }
         ]
@@ -190,27 +190,36 @@
   },
   "active": "347a9dc0eec19401",
   "lastOpenFiles": [
-    "paper_figures/drafts/captions/relaxation_v5_8pt.tex",
+    "STAGE3_gem5/triage/diag/diag_uv3_rmw.md",
+    "STAGE3_gem5/triage/diag/diag_uv3_rmw.py",
+    "STAGE3_gem5/triage/uv3_rmw_evidence.py",
+    "STAGE2_compilation/make_rmw_corpus.py",
+    "results/spt_v2_20261108/tiny/v2_core_ri_but4.out",
+    "results/spt_v2_20261108/tiny/v2_core_ri_but3.out",
+    "results/spt_v2_20261108/tiny/v2_core_ri_but4.als",
+    "results/spt_v2_20261108/tiny/v2_core_ri_but3.als",
+    "STAGE1_alloy/models/proposed_twophase/SPT_6_oneLP_v2_core_ri.als",
+    "wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md",
+    "wiki/design/MANIFEST_BRIEF_amulet_hooks.md",
+    "results/twophase_stage1_2026-11-03/probe_spt_seed_20261107/differential_20261108/proposed_SPT_6_oneLP_seed.diff",
+    "results/twophase_stage1_2026-11-03/probe_spt_seed_20261107/differential_20261108/SPT_6_oneLP.proposed.als",
+    "wiki/findings/bug/speclfb_jmp_shadow/README.md",
+    "wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md",
+    "wiki/state/EVAL_MANIFEST.md",
+    "STAGE3_gem5/triage/diag/README.md",
+    "wiki/design/VOCAB_TABLES.md",
+    "wiki/findings/audits/2026-11-07/HOOK_AUDIT.md",
+    "wiki/design/TWO_PHASE_MODELS.md",
+    "paper_figures/drafts/_standalone_bugtable_v3_8pt-1.png",
+    "paper_figures/drafts/_standalone_resolutiontiming_v3_8pt-1.png",
+    "paper_figures/drafts/_standalone_squashrace_v3_8pt-1.png",
+    "paper_figures/drafts/_standalone_reconstl_v3_8pt-1.png",
     "paper_figures/drafts/_standalone_relaxation_v5_8pt-1.png",
-    "paper_figures/drafts/_standalone_relaxation_v5_8pt.pdf",
-    "paper_figures/drafts/_standalone_relaxation_v5_8pt.aux",
-    "paper_figures/drafts/_standalone_relaxation_v5_8pt.log",
-    "paper_figures/drafts/_standalone_relaxation_v5_8pt.tex",
-    "paper_figures/drafts/relaxation_v5_8pt.tex",
     "paper_figures/drafts/_standalone_execvocab_v4_8pt-1.png",
-    "paper_figures/drafts/_standalone_execvocab_v4_8pt.pdf",
-    "paper_figures/drafts/_standalone_execvocab_v4_8pt.aux",
-    "paper_figures/drafts/_standalone_execvocab_v4_8pt.log",
-    "paper_figures/drafts/_standalone_execvocab_v4_8pt.tex",
-    "paper_figures/drafts/execvocab_v4_8pt.tex",
     "paper_figures/drafts/_standalone_execvocab_v3_8pt-1.png",
     "paper_figures/drafts/design_mocks/mock_A_full_v2_8pt1col-gray-1.png",
     "paper_figures/drafts/design_mocks/pipe_opt3-gray-1.png",
     "paper_figures/drafts/design_mocks/pipe_opt3-1.png",
-    "paper_figures/drafts/design_mocks/pipe_opt2-gray-1.png",
-    "paper_figures/drafts/design_mocks/pipe_opt2-1.png",
-    "paper_figures/drafts/design_mocks/pipe_opt1-gray-1.png",
-    "paper_figures/drafts/design_mocks/pipe_opt1-1.png",
     "wiki/design/SPECULATION_MODELING_SURVEY.md",
     "paper_figures/plans/RESULTS_FIGURES.md",
     "paper_figures/SESSION_HANDOFF.md",
@@ -226,15 +235,6 @@
     "paper_figures/plans/fig_c_interleave.md",
     "paper_figures/plans/fig_e_checkerwindow.md",
     "paper_figures/plans/fig_a_execgraphsyntax.md",
-    "paper_figures/plans/fig_d_instrtable.md",
-    "paper_figures/plans/VISUAL_LANGUAGE.md",
-    "wiki/design/CONCRETIZATION_PASSES.md",
-    "wiki/design/STT_VS_RECON_STT.md",
-    "wiki/findings/audits/2026-10-30/RESOLVE_HOOKS_CODE_AUDIT.md",
-    "wiki/findings/audits/2026-10-30/HARNESS_CODE_AUDIT.md",
-    "wiki/design/FUTURISTIC_MODEL.md",
-    "wiki/findings/bug/recon_cache_reach_gate/README.md",
-    "wiki/findings/bug/BRANCH_ANNOTATION_AND_FORCE.md",
-    "wiki/design/RESOLUTION_HOOKS.md"
+    "paper_figures/plans/fig_d_instrtable.md"
   ]
 }

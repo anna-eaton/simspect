@@ -1,0 +1,547 @@
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/BaseCPU.py /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/BaseCPU.py
+--- amulet-gem5-STT_AE-v1.1/src/cpu/BaseCPU.py	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/BaseCPU.py	2026-05-27 17:40:18.718588309 +0000
+@@ -283,8 +283,6 @@
+     def addPrivateSplitL1Caches(self, ic, dc, iwc = None, dwc = None, imonitor = None, dmonitor = None):
+         self.icache = ic
+         self.dcache = dc
+-        self.icache_port = ic.cpu_side
+-        self.dcache_port = dc.cpu_side
+         # self.icache_port = ic.cpu_side
+         # self.dcache_port = dc.cpu_side
+         self._cached_ports = ['icache.mem_side', 'dcache.mem_side']
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/o3/O3CPU.py /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/O3CPU.py
+--- amulet-gem5-STT_AE-v1.1/src/cpu/o3/O3CPU.py	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/O3CPU.py	2026-05-21 06:08:47.452398026 +0000
+@@ -172,6 +172,9 @@
+     ifPrintROB = Param.Bool(False, "If print all ROBs with DDIFT info")
+     moreTransmitInsts = Param.Int(0, "More transmit instruction types")
+ 
++    fncCommitStallPC     = Param.Addr(0, "PC of first-noncommitted insn to stall at ROB head (0 = disabled)")
++    fncCommitStallCycles = Param.Int(0,  "Cycles to hold that insn at ROB head before committing")
++
+     def addCheckerCpu(self):
+         if buildEnv['TARGET_ISA'] in ['arm']:
+             from ArmTLB import ArmTLB
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/o3/commit.hh /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/commit.hh
+--- amulet-gem5-STT_AE-v1.1/src/cpu/o3/commit.hh	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/commit.hh	2026-05-21 06:08:55.123122073 +0000
+@@ -469,6 +469,9 @@
+     InstSeqNum lastCommitedSeqNum[Impl::MaxThreads];
+     Tick lastCommitTick;
+ 
++    InstSeqNum fncStallSeqNum  = 0;
++    int        fncStallCycles  = 0;
++
+     /** Records if there is a trap currently in flight. */
+     bool trapInFlight[Impl::MaxThreads];
+ 
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/o3/commit_impl.hh /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/commit_impl.hh
+--- amulet-gem5-STT_AE-v1.1/src/cpu/o3/commit_impl.hh	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/commit_impl.hh	2026-10-30 19:33:20.485257062 +0000
+@@ -1205,6 +1205,22 @@
+         DPRINTF(Commit, "Trying to commit head instruction, [sn:%i] [tid:%i]\n",
+                 head_inst->seqNum, tid);
+ 
++        // First-noncommitted commit stall: hold the annotated branch at the
++        // ROB head for fncCommitStallCycles cycles before allowing it to
++        // retire.  Squashed instructions are never stalled.
++        if (!head_inst->isSquashed()
++                && cpu->fncCommitStallPC != 0
++                && head_inst->instAddr() == cpu->fncCommitStallPC) {
++            if (head_inst->seqNum != fncStallSeqNum) {
++                fncStallSeqNum = head_inst->seqNum;
++                fncStallCycles = 0;
++            }
++            if (fncStallCycles < cpu->fncCommitStallCycles) {
++                ++fncStallCycles;
++                break;
++            }
++        }
++
+         // If the head instruction is squashed, it is ready to retire
+         // (be removed from the ROB) at any time.
+         if (head_inst->isSquashed()) {
+@@ -1582,6 +1598,16 @@
+ 
+             // Mark the instruction as ready to commit.
+             fromIEW->insts[inst_num]->setCanCommit();
++            // SimSpect resolve hooks (2026-10-30)
++            if (fromIEW->insts[inst_num]->isControl()) {
++                DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_visible:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:upc=%d:mispred=%d:stall=%llu\n",
++                         (unsigned long long)curTick(),
++                         (unsigned long long)fromIEW->insts[inst_num]->seqNum,
++                         (unsigned long long)fromIEW->insts[inst_num]->pcState().instAddr(),
++                         (int)fromIEW->insts[inst_num]->pcState().microPC(),
++                         (int)fromIEW->insts[inst_num]->mispredicted(),
++                         (unsigned long long)(cpu->getBranchPred() ? (uint64_t)cpu->getBranchPred()->getResolveStallCyclesFor(fromIEW->insts[inst_num]->pcState().instAddr()) : 0));
++            }
+         }
+     }
+ 
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/o3/cpu.cc /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/cpu.cc
+--- amulet-gem5-STT_AE-v1.1/src/cpu/o3/cpu.cc	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/cpu.cc	2026-05-21 06:08:35.596278902 +0000
+@@ -444,6 +444,8 @@
+     impChannel = params->implicitChannel;
+     ifPrintROB = params->ifPrintROB;
+     moreTransmitInsts = params->moreTransmitInsts;
++    fncCommitStallPC     = params->fncCommitStallPC;
++    fncCommitStallCycles = params->fncCommitStallCycles;
+     cprintf("applySTT = %d, implicit_channel = %d, ifPrintROB = %d, moreTransmitInsts = %d\n",
+             STT, impChannel, ifPrintROB, moreTransmitInsts);
+ 
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/o3/cpu.hh /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/cpu.hh
+--- amulet-gem5-STT_AE-v1.1/src/cpu/o3/cpu.hh	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/cpu.hh	2026-05-21 06:08:30.804826622 +0000
+@@ -715,6 +715,8 @@
+         return thread[tid]->getTC();
+     }
+ 
++    BPredUnit *getBranchPred() { return fetch.getBranchPred(); }
++
+     /** The global sequence number counter. */
+     InstSeqNum globalSeqNum;//[Impl::MaxThreads];
+ 
+@@ -827,6 +829,9 @@
+ 
+     // whether consider more transmit instructions
+     int moreTransmitInsts;
++
++    Addr fncCommitStallPC;
++    int  fncCommitStallCycles;
+ };
+ 
+ #endif // __CPU_O3_CPU_HH__
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/o3/fetch.hh /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/fetch.hh
+--- amulet-gem5-STT_AE-v1.1/src/cpu/o3/fetch.hh	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/fetch.hh	2026-05-21 05:29:39.486465290 +0000
+@@ -635,6 +635,9 @@
+ 
+     DelayedSquashReqList delayedSquashReqList;
+ 
++  public:
++    BPredUnit *getBranchPred() { return branchPred; }
++
+ };
+ 
+ #endif //__CPU_O3_FETCH_HH__
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/o3/iew_impl.hh /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/iew_impl.hh
+--- amulet-gem5-STT_AE-v1.1/src/cpu/o3/iew_impl.hh	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/iew_impl.hh	2026-10-30 21:26:33.642089106 +0000
+@@ -56,6 +56,7 @@
+ #include "cpu/o3/fu_pool.hh"
+ #include "cpu/o3/iew.hh"
+ #include "cpu/timebuf.hh"
++#include "sim/eventq.hh"
+ #include "debug/Activity.hh"
+ #include "debug/Drain.hh"
+ #include "debug/IEW.hh"
+@@ -1331,6 +1332,57 @@
+                     inst->forwardOldRegs();
+             }
+ 
++            Cycles stall = (inst->isControl() && cpu->getBranchPred())
++                ? cpu->getBranchPred()->getResolveStallCyclesFor(inst->pcState().instAddr())
++                : Cycles(0);
++            if (stall > 0) {
++                ThreadID stall_tid = inst->threadNumber;
++                DynInstPtr stall_inst = inst;
++                // SimSpect resolve hooks (2026-10-30)
++                DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_hold:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:stall=%llu:fire=%llu:mispred=%d\n",
++                         (unsigned long long)curTick(),
++                         (unsigned long long)inst->seqNum,
++                         (unsigned long long)inst->pcState().instAddr(),
++                         (unsigned long long)stall,
++                         (unsigned long long)cpu->clockEdge(stall),
++                         (int)inst->mispredicted());
++                cpu->schedule(new EventFunctionWrapper(
++                    [this, stall_inst, stall_tid]() mutable {
++                        if (stall_inst->isSquashed()) {
++                            DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_drop:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-\n",
++                                     (unsigned long long)curTick(),
++                                     (unsigned long long)stall_inst->seqNum,
++                                     (unsigned long long)stall_inst->pcState().instAddr());
++                            return;
++                        }
++                        // SimSpect resolve wake (2026-10-30): wake the CPU, as a late memory response does.
++                        wakeCPU();
++                        stall_inst->setExecuted(); instToCommit(stall_inst);
++                        activityThisCycle();
++                        DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_release:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:mispred=%d\n",
++                                 (unsigned long long)curTick(),
++                                 (unsigned long long)stall_inst->seqNum,
++                                 (unsigned long long)stall_inst->pcState().instAddr(),
++                                 (int)stall_inst->mispredicted());
++                        if (!fetchRedirect[stall_tid] || !toCommit->squash[stall_tid] ||
++                                toCommit->squashedSeqNum[stall_tid] > stall_inst->seqNum) {
++                            if (stall_inst->mispredicted()) {
++                                fetchRedirect[stall_tid] = true;
++                                squashDueToBranch(stall_inst, stall_tid);
++                                DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:resolve_bcast:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-\n",
++                                         (unsigned long long)curTick(),
++                                         (unsigned long long)stall_inst->seqNum,
++                                         (unsigned long long)stall_inst->pcState().instAddr());
++                                ppMispredict->notify(stall_inst);
++                                stall_inst->readPredTaken() ? predictedTakenIncorrect++
++                                                            : predictedNotTakenIncorrect++;
++                            }
++                        }
++                    }, "stallBcast", true), cpu->clockEdge(stall));
++                updateExeInstStats(inst);
++                continue;
++            }
++
+             inst->setExecuted();
+ 
+             instToCommit(inst);
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/o3/rob_impl.hh /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/rob_impl.hh
+--- amulet-gem5-STT_AE-v1.1/src/cpu/o3/rob_impl.hh	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/o3/rob_impl.hh	2026-05-27 20:32:11.043976983 +0000
+@@ -272,7 +272,7 @@
+     // Get the head ROB instruction.
+     InstIt head_it = instList[tid].begin();
+ 
+-    const DynInstPtr &head_inst = (*head_it);
++    DynInstPtr head_inst = (*head_it);
+ 
+     assert(head_inst->readyToCommit());
+ 
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/pred/BranchPredictor.py /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/pred/BranchPredictor.py
+--- amulet-gem5-STT_AE-v1.1/src/cpu/pred/BranchPredictor.py	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/pred/BranchPredictor.py	2026-05-21 05:29:30.610624857 +0000
+@@ -42,6 +42,10 @@
+     RASSize = Param.Unsigned(16, "RAS size")
+     instShiftAmt = Param.Unsigned(2, "Number of bits to shift instructions by")
+ 
++    annotationBranchPCs         = VectorParam.Addr([], "Branch PCs to annotate")
++    annotationForcedTargets     = VectorParam.Addr([], "Forced BTB target per entry")
++    annotationResolveStallCycles = VectorParam.UInt64([], "Resolve stall cycles per entry")
++
+     useIndirect = Param.Bool(True, "Use indirect branch predictor")
+     indirectHashGHR = Param.Bool(True, "Hash branch predictor GHR")
+     indirectHashTargets = Param.Bool(True, "Hash path history targets")
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/pred/bpred_unit.cc /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/pred/bpred_unit.cc
+--- amulet-gem5-STT_AE-v1.1/src/cpu/pred/bpred_unit.cc	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/pred/bpred_unit.cc	2026-10-30 19:33:20.469255627 +0000
+@@ -52,6 +52,8 @@
+ #include "base/trace.hh"
+ #include "config/the_isa.hh"
+ #include "debug/Branch.hh"
++#include "debug/O3PipeView.hh"  // SimSpect resolve hooks (2026-10-30)
++#include "sim/core.hh"
+ #include "debug/AnalyseIPC.hh"
+ 
+ BPredUnit::BPredUnit(const Params *params)
+@@ -76,6 +78,15 @@
+ {
+     for (auto& r : RAS)
+         r.init(params->RASSize);
++
++    for (size_t i = 0; i < params->annotationBranchPCs.size(); ++i) {
++        Addr br = params->annotationBranchPCs[i];
++        Addr tgt = params->annotationForcedTargets[i];
++        if (tgt != 0) btbForcedTargets[br] = tgt;
++        if (i < params->annotationResolveStallCycles.size() &&
++            params->annotationResolveStallCycles[i] > 0)
++            branchResolveStallCycles[br] = Cycles(params->annotationResolveStallCycles[i]);
++    }
+ }
+ 
+ void
+@@ -311,6 +322,30 @@
+         TheISA::advancePC(target, inst);
+     }
+     DPRINTF(AnalyseIPC, "analyse_ipc_violation: predicting branch at %#lx to go to %#lx\n", pc.instAddr(), target.instAddr());
++
++    if (!btbForcedTargets.empty()) {
++        auto it = btbForcedTargets.find(pc.instAddr());
++        if (it != btbForcedTargets.end()) {
++            // SimSpect resolve hooks (2026-10-30): forced target 1 = predict not-taken (fall-through).
++            if (it->second == 1) {
++                target = pc;
++                TheISA::advancePC(target, inst);
++                pred_taken = false;
++                predict_record.predTaken = false;
++            } else {
++                target.set(it->second);
++                pred_taken = true;
++                predict_record.predTaken = true;
++            }
++            DPRINTFR(O3PipeView, "O3PipeView:simspect:%llu:BR:predict_force:line=-:seq=%llu:pc=%#llx:victim=-:cause=-:sq=-:id=-:taken=%d:target=%#llx\n",
++                     (unsigned long long)curTick(),
++                     (unsigned long long)seqNum,
++                     (unsigned long long)pc.instAddr(),
++                     (int)pred_taken,
++                     (unsigned long long)target.instAddr());
++        }
++    }
++
+     pc = target;
+ 
+     predHist[tid].push_front(predict_record);
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/cpu/pred/bpred_unit.hh /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/pred/bpred_unit.hh
+--- amulet-gem5-STT_AE-v1.1/src/cpu/pred/bpred_unit.hh	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/cpu/pred/bpred_unit.hh	2026-05-21 05:28:47.798581031 +0000
+@@ -48,6 +48,7 @@
+ #define __CPU_PRED_BPRED_UNIT_HH__
+ 
+ #include <deque>
++#include <unordered_map>
+ 
+ #include "base/statistics.hh"
+ #include "base/types.hh"
+@@ -303,7 +304,16 @@
+     /** Stat for the number of indirect target mispredictions.*/
+     Stats::Scalar indirectMispredicted;
+ 
++  public:
++    Cycles getResolveStallCyclesFor(Addr pc) const {
++        auto it = branchResolveStallCycles.find(pc);
++        return it != branchResolveStallCycles.end() ? it->second : Cycles(0);
++    }
++
+   protected:
++    std::unordered_map<Addr, Addr>   btbForcedTargets;
++    std::unordered_map<Addr, Cycles> branchResolveStallCycles;
++
+     /** Number of bits to shift instructions by for predictor addresses. */
+     const unsigned instShiftAmt;
+ 
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/mem/protocol/MESI_Three_Level-L0cache.sm /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MESI_Three_Level-L0cache.sm
+--- amulet-gem5-STT_AE-v1.1/src/mem/protocol/MESI_Three_Level-L0cache.sm	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MESI_Three_Level-L0cache.sm	2026-05-21 04:26:10.381697086 +0000
+@@ -439,7 +439,7 @@
+   action(forward_eviction_to_cpu, "\cc", desc="sends eviction information to the processor") {
+     if (send_evictions) {
+       DPRINTF(RubySlicc, "Sending invalidation for %#x to the CPU\n", address);
+-      sequencer.evictionCallback(address);
++      sequencer.evictionCallback(address, true);
+     }
+   }
+ 
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/mem/protocol/MI_example-cache.sm /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MI_example-cache.sm
+--- amulet-gem5-STT_AE-v1.1/src/mem/protocol/MI_example-cache.sm	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MI_example-cache.sm	2026-05-21 04:26:10.386697554 +0000
+@@ -398,7 +398,7 @@
+   action(forward_eviction_to_cpu, "\cc", desc="sends eviction information to the processor") {
+     if (send_evictions) {
+       DPRINTF(RubySlicc, "Sending invalidation for %#x to the CPU\n", address);
+-      sequencer.evictionCallback(address);
++      sequencer.evictionCallback(address, true);
+     }
+   }
+ 
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_AMD_Base-CorePair.sm /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_AMD_Base-CorePair.sm
+--- amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_AMD_Base-CorePair.sm	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_AMD_Base-CorePair.sm	2026-05-21 04:26:10.384697367 +0000
+@@ -1000,14 +1000,14 @@
+   action(forward_eviction_to_cpu0, "fec0", desc="sends eviction information to processor0") {
+     if (send_evictions) {
+       DPRINTF(RubySlicc, "Sending invalidation for %s to the CPU\n", address);
+-      sequencer.evictionCallback(address);
++      sequencer.evictionCallback(address, true);
+     }
+   }
+ 
+   action(forward_eviction_to_cpu1, "fec1", desc="sends eviction information to processor1") {
+     if (send_evictions) {
+       DPRINTF(RubySlicc, "Sending invalidation for %s to the CPU\n", address);
+-      sequencer1.evictionCallback(address);
++      sequencer1.evictionCallback(address, true);
+     }
+   }
+ 
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_AMD_Base-Region-CorePair.sm /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_AMD_Base-Region-CorePair.sm
+--- amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_AMD_Base-Region-CorePair.sm	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_AMD_Base-Region-CorePair.sm	2026-05-21 04:26:10.387697648 +0000
+@@ -1085,14 +1085,14 @@
+   action(forward_eviction_to_cpu0, "fec0", desc="sends eviction information to processor0") {
+     if (send_evictions) {
+       DPRINTF(RubySlicc, "Sending invalidation for %s to the CPU\n", address);
+-      sequencer.evictionCallback(address);
++      sequencer.evictionCallback(address, true);
+     }
+   }
+ 
+   action(forward_eviction_to_cpu1, "fec1", desc="sends eviction information to processor1") {
+     if (send_evictions) {
+       DPRINTF(RubySlicc, "Sending invalidation for %s to the CPU\n", address);
+-      sequencer1.evictionCallback(address);
++      sequencer1.evictionCallback(address, true);
+     }
+   }
+ 
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_CMP_directory-L1cache.sm /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_CMP_directory-L1cache.sm
+--- amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_CMP_directory-L1cache.sm	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_CMP_directory-L1cache.sm	2026-05-21 04:26:10.380696992 +0000
+@@ -890,7 +890,7 @@
+   action(forward_eviction_to_cpu, "\cc", desc="sends eviction information to the processor") {
+     if (send_evictions) {
+       DPRINTF(RubySlicc, "Sending invalidation for %#x to the CPU\n", address);
+-      sequencer.evictionCallback(address);
++      sequencer.evictionCallback(address, true);
+     }
+   }
+ 
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_CMP_token-L1cache.sm /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_CMP_token-L1cache.sm
+--- amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_CMP_token-L1cache.sm	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_CMP_token-L1cache.sm	2026-05-21 04:26:10.385697461 +0000
+@@ -1546,7 +1546,7 @@
+   action(forward_eviction_to_cpu, "\cc", desc="sends eviction information to the processor") {
+     if (send_evictions) {
+       DPRINTF(RubySlicc, "Sending invalidation for %#x to the CPU\n", address);
+-      sequencer.evictionCallback(address);
++      sequencer.evictionCallback(address, true);
+     }
+   }
+ 
+diff -ruN -x '*.pyc' -x __pycache__ -x build -x m5out -x parsetab.py amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_hammer-cache.sm /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_hammer-cache.sm
+--- amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_hammer-cache.sm	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/src/mem/protocol/MOESI_hammer-cache.sm	2026-05-21 04:26:10.391698022 +0000
+@@ -1260,7 +1260,7 @@
+   action(forward_eviction_to_cpu, "\cc", desc="sends eviction information to the processor") {
+     if (send_evictions) {
+       DPRINTF(RubySlicc, "Sending invalidation for %#x to the CPU\n", address);
+-      sequencer.evictionCallback(address);
++      sequencer.evictionCallback(address, true);
+     }
+   }
+ 
+diff -ruN -x '*.pyc' -x __pycache__ amulet-gem5-STT_AE-v1.1/configs/common/Options.py /work/amulet/amulet-gem5-STT_AE-v1.1/configs/common/Options.py
+--- amulet-gem5-STT_AE-v1.1/configs/common/Options.py	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/configs/common/Options.py	2026-05-21 06:09:32.408641388 +0000
+@@ -307,6 +307,12 @@
+     parser.add_option("--arm-iset", default="arm", type="choice",
+                       choices=["arm", "thumb", "aarch64"],
+                       help="ARM instruction set.")
++    parser.add_option("--branch-ann-file", default="", action="store", type="string",
++            help="JSON branch-annotation file for BTB override and resolve stalls")
++    parser.add_option("--branch-ann-base", default=0, action="store", type="long",
++            help="Base address added to relative offsets in the annotation file")
++    parser.add_option("--scheme", default=None, action="store", type="int",
++            help="Security scheme: 2=STT (sets cpu.STT directly, no threat_model/needsTSO required)")
+     # [SafeSpec] add options to configure needsTSO and scheme
+     parser.add_option("--threat_model", default=None, action="store", type="choice",
+             choices=["UnsafeBaseline", "Spectre", "Futuristic"],
+@@ -322,6 +328,10 @@
+             help="Enable printing ROB content at every cycle")
+     parser.add_option("--moreTransmitInsts", default=None, action="store", type="int",
+             help="Include more transmit instruction types.")
++    parser.add_option("--fnc-commit-stall-pc", default=0, action="store", type="long",
++            help="Absolute PC of first-noncommitted insn to stall at ROB head (0 = disabled)")
++    parser.add_option("--fnc-commit-stall-cycles", default=0, action="store", type="int",
++            help="Cycles to hold that insn at ROB head before committing")
+ 
+ 
+ def addSEOptions(parser):
+diff -ruN -x '*.pyc' -x __pycache__ amulet-gem5-STT_AE-v1.1/configs/example/se.py /work/amulet/amulet-gem5-STT_AE-v1.1/configs/example/se.py
+--- amulet-gem5-STT_AE-v1.1/configs/example/se.py	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/configs/example/se.py	2026-05-28 17:54:06.280747047 +0000
+@@ -63,6 +63,40 @@
+ from common.Caches import *
+ from common.cpu2000 import *
+ 
++import json
++
++def load_branch_annotations(path, base):
++    with open(path, 'r') as f:
++        data = json.load(f)
++    if 'annotations' not in data:
++        fatal("branch annotation file %s has no 'annotations' key" % path)
++    branch_pcs, forced_targets, stall_cycles = [], [], []
++    for e in data['annotations']:
++        br_abs = e.get('branch_addr_hex') or e.get('branch_addr') or \
++                 e.get('branch_pc_addr_hex') or e.get('branch_pc_addr')
++        if br_abs is not None:
++            br = int(str(br_abs), 0)
++        else:
++            rel = e.get('x86_branch_offset_hex') or e.get('x86_branch_offset') or \
++                  e.get('x86_pc_offset_hex')      or e.get('x86_pc_offset')
++            if rel is None: continue
++            br = int(str(rel), 0) + base
++        mode = e.get('mode', '')
++        if mode in ('correctly_not_taken', 'mispredict_not_taken'):
++            tgt = 0
++        else:
++            tgt_abs = e.get('btb_forced_target_addr_hex') or e.get('btb_forced_target_addr')
++            if tgt_abs is not None:
++                tgt = int(str(tgt_abs), 0)
++            else:
++                tgt_rel = e.get('btb_forced_target_x86_offset_hex') or e.get('btb_forced_target_x86_offset')
++                if tgt_rel is None: continue
++                tgt = int(str(tgt_rel), 0) + base
++        branch_pcs.append(br)
++        forced_targets.append(tgt)
++        stall_cycles.append(int(e.get('resolve_stall_cycles', 0)))
++    return branch_pcs, forced_targets, stall_cycles
++
+ # Check if KVM support has been enabled, we might need to do VM
+ # configuration if that's the case.
+ have_kvm_support = 'BaseKvmCPU' in globals()
+@@ -253,6 +287,18 @@
+     if options.checker:
+         system.cpu[i].addCheckerCpu()
+ 
++    if options.branch_ann_file:
++        bpcs, btgts, bstall = load_branch_annotations(
++            options.branch_ann_file, options.branch_ann_base)
++        system.cpu[i].branchPred.annotationBranchPCs = bpcs
++        system.cpu[i].branchPred.annotationForcedTargets = btgts
++        system.cpu[i].branchPred.annotationResolveStallCycles = bstall
++
++    if options.scheme == 2:
++        system.cpu[i].STT = True
++        system.cpu[i].threatModel = "Spectre"
++        system.cpu[i].implicitChannel = True
++
+     system.cpu[i].createThreads()
+ 
+ if options.ruby:
+@@ -299,7 +345,11 @@
+ 
+ # [SafeSpec] Configure simulation scheme
+ if CPUClass == DerivO3CPU:
+-    CpuConfig.config_scheme(CPUClass, system.cpu, options)
++    if options.scheme is None:
++        CpuConfig.config_scheme(CPUClass, system.cpu, options)
++    for cpu in system.cpu:
++        cpu.fncCommitStallPC     = options.fnc_commit_stall_pc
++        cpu.fncCommitStallCycles = options.fnc_commit_stall_cycles
+ 
+ root = Root(full_system = False, system = system)
+ if __name__ == "__m5_main__":
+--- amulet-gem5-STT_AE-v1.1/SConstruct	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/SConstruct	2026-05-21 04:47:47.748070434 +0000
+@@ -368,6 +368,14 @@
+     main.Append(CCFLAGS=['-Werror',
+                          '-Wno-error=deprecated-declarations',
+                          '-Wno-error=deprecated',
++                         '-Wno-error=cast-function-type',
++                         '-Wno-error=deprecated-copy',
++                         '-Wno-error=class-memaccess',
++                         '-Wno-error=address-of-packed-member',
++                         '-Wno-error=implicit-fallthrough',
++                         '-Wno-error=array-bounds',
++                         '-Wno-error=stringop-overflow',
++                         '-Wno-error=stringop-truncation',
+                         ])
+ else:
+     print termcap.Yellow + termcap.Bold + 'Error' + termcap.Normal,
+@@ -427,7 +435,7 @@
+     # assemblers detect this as an error, "Error: expecting string
+     # instruction after `rep'"
+     as_version_raw = readCommand([main['AS'], '-v', '/dev/null',
+-                                  '-o', '/dev/null'],
++                                  '-o', '/tmp/_as_version_check.o'],
+                                  exception=False).split()
+ 
+     # version strings may contain extra distro-specific
+diff -ruN amulet-gem5-STT_AE-v1.1/build_opts/X86 /work/amulet/amulet-gem5-STT_AE-v1.1/build_opts/X86
+--- amulet-gem5-STT_AE-v1.1/build_opts/X86	2025-02-06 05:06:14.000000000 +0000
++++ /work/amulet/amulet-gem5-STT_AE-v1.1/build_opts/X86	2026-05-21 04:39:19.545555709 +0000
+@@ -1,3 +1,3 @@
+ TARGET_ISA = 'x86'
+ CPU_MODELS = 'AtomicSimpleCPU,O3CPU,TimingSimpleCPU'
+-PROTOCOL = 'MI_example'
++PROTOCOL = 'MESI_Two_Level'

@@ -4,8 +4,121 @@
 **Purpose:** for EVERY bug AMuLeT reports in the four defenses, either detect it with our
 pipeline+watchers (and show it) or give the **precise reason our formulation can't** — even
 with all the new tools (Ruby, rebuild permission, small caches, ProtocolTrace watchers).
-Companion to `INVISISPEC_UV1_CONFIRMED.md`, `docs/COMPOUND_TRANSMISSION_CRITERION.md`,
+Companion to `INVISISun PEC_UV1_CONFIRMED.md`, `docs/COMPOUND_TRANSMISSION_CRITERION.md`,
 `docs/AMULET_VS_SIMSPECT_SCOPE.md`.
+
+## ⚡ CURRENT (2026-11-08, hooks-v2 session): what we learned running the AMuLeT defenses through SimSpect hooks v2
+
+This section supersedes the June material below for InvisiSpec, CleanupSpec and SpecLFB. The June numbers came from DPRINTF checkers on the old STT_6 testset. Everything here comes from the SimSpect hook lines (`wiki/design/SIMSPECT_HOOKS.md`) scored by `STAGE3_gem5/check_footprint.py` + `specs/leakage/<defense>.json`. Durable log entries are under `claudelog.md` 2026-11-07/08 `hooks-v2*`; open decisions are in `URGENT_TODO.md`.
+
+### 1. What the hooks are, and how a verdict is made on these builds
+
+- **The hooks.** Hooks v2 are print-only lines (`O3PipeView:simspect:…`) for every cache, buffer, TLB, LSQ, ROB and branch event, plus each defense's own decisions:
+  - InvisiSpec: spec-buffer fills and releases, expose/validate;
+  - SpecLFB: per-load unsafe flags;
+  - CleanupSpec: cleanup requests, skips, restores and one `cleanup_done` per squash.
+- **Verification.** On 10 cases the hooks were verified against reference binaries with the same non-print code: identical sim ticks and identical pipeline records.
+- **InvisiSpec crash fixed.** A half-finished hook converted the cache-level ID on L1 hits, causing `Invalid range for type MachineType`. Fixed by `simspectLvlOf` in `Sequencer.cc`.
+- **How a verdict is made.** On these builds the STT_6 testset is only the stimulus. The verdict comes from the hook lines: a footprint in a protected structure by any squashed load, inside the speculative window. The model's transmitter does not decide it (D2); per-hit attribution says whether the leaking load is the transmitter.
+- **Structures are chosen only from what each paper claims to protect.** Each claim is quoted in the criterion JSON; nothing is added or removed to hit or avoid a bug.
+  - **InvisiSpec:** the data-cache hierarchy (L1D, L2, directory: occupancy, replacement, coherence) and the D-TLB (§III-B p3). Not the I-cache/ITLB (fn. 2 p3). Not MSHRs: "contention on other resources, such as MSHRs … considered out of scope in this paper" (§VII p10).
+  - **SpecLFB:** L1D + L2 presence (§1 p632, §7 p640). Not TLB or port contention (§4 p635), and not hits (§9 p643).
+  - **CleanupSpec:** L1D + L2 presence (§2.1 p3). L2 victims and replacement state are by design (§1 p2). The directory is not observed: in this MESI_Two_Level build it is capacity-free `DirectoryMemory` (`MESI_Two_Level-dir.sm:30`), so it never evicts, and its only replacement event mirrors an L2 eviction (`:72,:518`). Reason recorded in `cleanupspec.json` `why_not_observed`.
+  - **Not checked now (Anna 2026-11-08):** timing channels (unXpec cleanup latency, UV2 contention), since each is a different side channel.
+
+### 2. Every AMuLeT bug, by layer
+
+| bug | defense | in v2 trace? | checker flags it? | reached by STT_6 tests? | status |
+|---|---|---|---|---|---|
+| UV1 spec L1D eviction | InvisiSpec | yes (`L1D:evict req=specld` + `L2:coh` PUTX; gone with `--apply-spec-eviction-patch`) | yes, Spectre and Futuristic | yes: 2995 / 3000 tests (after the by_pc fix) | found |
+| UV2 same-core MSHR interference | InvisiSpec | partly (MSHR `buf_fill` timing, no stall line) | no | not tested | **out of scope:** InvisiSpec §VII p10 |
+| KV1 spec instruction fetch | InvisiSpec | yes (`L1I:fill` of the wrong-path line) | no | no | **out of scope:** InvisiSpec fn. 2 p3. Fetch events also carry no seq |
+| UV3 spec store not cleaned | CleanupSpec | yes, through a read-modify-write (`req=st` fill, then `cleanup_skip why=nohitinfo`) | yes | no: STT_6 has 0 RMWs | needs RMW stimulus (decision V7) |
+| UV4 split request not cleaned | CleanupSpec | yes (`cleanup_skip why=split`) | yes | yes: 38 tests (TBEs 8) | found |
+| UV5 too much cleaning | CleanupSpec | yes (an older committed hit, then `cleanup_inv`) | **yes since 2026-11-08** (ownership rule, §3.4 p7) | not seen in the sample | caught by the checker on the demo |
+| KV2 unXpec | CleanupSpec | yes (squash→`cleanup_done` 43 cycles after a miss vs 1 after a hit) | no | — | timing channel, not checked now |
+| UV6 first spec load unprotected | SpecLFB | yes (`LSQ:unsafe unsafe=0 … lqhead=1`, then a fill) | yes | yes: 1143 / 1142 of 1500 tests per mode | found |
+| walk-order (sticky PrevNoUnsafe) | SpecLFB | yes | yes | yes: 157 + 162 tests where it is the only cause | DECIDE: UV6 with a wider scope, or a separate bug? |
+| **jmp-shadow (NEW, verified)** | SpecLFB | yes | yes | yes: 148 taken-mode tests | **real bug**; see §3 |
+| KV3 spec store → D-TLB | STT | — | — | not targeted: our STT leakage function has load addresses and branch predicates, not store addresses | STT does not explicitly exclude stores (STT fn. 2 ties TLB protection to delaying loads); paper paragraph frames it as our model's choice |
+
+### 3. New SpecLFB bug: jmp-shadow (review: `wiki/findings/bug/speclfb_jmp_shadow/README.md`)
+
+- **The mechanism.** `ROB::updateSafeState` keeps one rolling `prevBrsResolved`. An unresolved conditional branch sets it false. A younger direct `jmp`/`call` then assigns it `isDirectCtrl && isUncondCtrl` = true (upstream `SpecLFB-gem5/src/cpu/o3/rob.cc:501`, the simple path that actually runs). That erases the older branch's shadow, so every later load skips CUSL and fills L1D/L2 speculatively.
+- **Provenance.** The same code is in upstream `smallcute123/SpecLFB` and in AMuLeT's copy. DOLMA, which the comment cites, computes a per-instruction `isControlInducer` instead (`dolma/src/cpu/o3/rob_impl.hh:308-348`). So this is a porting bug.
+- **Ruled out as our artifact:** it reproduces on a pristine build with zero SimSpect changes and a natural misprediction, using SpecLFB's native prints as the oracle.
+- **Relational leak:** secrets 2/4/7 install different lines only with the jmp.
+- **Variant matrix:**
+  - leak: jmp, call+ret, call-pop, far jmp;
+  - protected: a same-length nop, an indirect jmp, a conditional branch, ret, a jmp before the branch, a jmp after the transmitter.
+- **Counterfactual:** a one-line fix removes it, and the UV6 path is unchanged.
+- **Not in AMuLeT:** its Fig. 8b PoC contains a jmp, but AMuLeT attributes that leak to UV6.
+- **Impact:** if/else joins and calls compile to direct jumps, so ordinary code substantially weakens the defense.
+
+### 4. Other per-defense findings
+
+- **SpecLFB.**
+  - *Walk-order:* the ROB sees a load one cycle before the LQ (`renameToROBDelay=1` < `renameToIEWDelay=2`), and `PrevNoUnsafe` is never cleared. The native trace lines up exactly with the hook lines.
+  - *LFB parking never happens in this build:* a HitUSL miss is refused at the port and replayed. So the "parks unsafe misses in the LFB" claim in `PROTECTION_SCOPE_TABLE.md` / `speclfb.json` is wrong for this build (correction pending approval).
+  - *Old numbers:* "68/300" counted cache hits, which SpecLFB scopes out. The install-keyed rates are 86.7% / 96.8% at 1 kB L1D (D3).
+- **CleanupSpec.**
+  - *TBEs:* with `--L1_TBEs=2` (accidentally inherited from the tree default; AMuLeT 256, paper 64), 62% of STT_6 tests deadlock with or without cleanup, and the completed ones never run a cleanup. At 8 there are no errors.
+  - *Ownership rule ("count as both", Anna 2026-11-08):*
+    - a line a squashed load installed belongs to an older non-squashed access that hits it, so cleaning it is over_clean (UV5);
+    - the squashed load's evicted victim must still be restored;
+    - post-squash or squashed accesses never claim a line.
+    - On the kept traces, the 2 earlier NEW hits (`inst-101824`, `inst-102050`) are now victim-only under_clean.
+  - *Never fired:* `cleanup_wait`, `cleanup_drop_data`, `evict req=rollback` and `inv why=clusivity` did not fire in about 6100 runs.
+- **InvisiSpec.**
+  - *D-1:* the DTLB replacement-on-hit deviation is in every hit. The paper claims D-TLB protection, so it is a genuine deviation, bucketed separately (D-1).
+  - *Who leaks (D2):* in 802 of 2883 UV1 hits only non-transmitter loads leak, mostly the wrong-path epilogue `POP_R`.
+  - *Window (C-2):* `inst-031760` has a real UV1 eviction just before the window opens, behind a late-committing lc load.
+
+### 5. RMW instructions (`wiki/design/VOCAB_TABLES.md` "RMW agent findings")
+
+- **Protection:** a speculative RMW's load half (`ldst`) is protected like a plain load on InvisiSpec, SpecLFB, STT and Recon-STT. Only CleanupSpec skips the undo, which is UV3; it is in scope because CleanupSpec assumes RFOs are non-speculative (p8 §4).
+- **Never speculative:** `lock`/`xchg` (`ldstl nonSpec`).
+- **Why we generate none:** pass 5 emits each ld/str as separate inline asm, and STT_6 has no ld→op→str chain.
+- **Options (V7):** the recommended one is (d), a value-neutral RMW as an opt-in ld-transmitter variant.
+- **Untested hypothesis:** a speculative GETX invalidating another core's copy needs a 2-core test.
+
+### 6. Configurations vs AMuLeT (`wiki/findings/audits/2026-10-28/full_configs.md`, last section)
+
+- **No build matched AMuLeT.**
+  - *AMuLeT's defaults:* 32kB/8 L1D, 256 TBEs, a 2GHz clock and `--access-backing-store`. It shrank structures only for InvisiSpec-Patched (§4.5.1 Table 6: 2-way L1D, 2 MSHRs).
+  - *Ours:* shrunk caches (1kB/2 or 2kB/4) on all footprint defenses.
+- **Decisions (Anna 2026-11-08).**
+  - Keep shrinking for footprint runs (`runconfigs/footprint/`; CleanupSpec `--L1_TBEs=8`).
+  - Use AMuLeT's exact flags for every AMuLeT comparison and all timing (`runconfigs/amulet_parity/`, all four AMuLeT builds).
+  - Two STTs: `/work/stt` for SimSpect's STT results, and amulet-STT only for AMuLeT comparisons.
+- **amulet-STT glue fixed.** Its `se.py` now honours `--threat_model`/`--needsTSO`/`--STT`/`--implicit_channel` (`gem5-hooks/amulet-STT/se_py_threatmodel_glue_20261108.diff`; smoke-tested Futuristic + TSO).
+- **Remaining harness differences** (no AMuLeT equivalent, stated in the paper notes): the forced branch prediction, the 5000-cycle resolve stall, a cold cache per test, and a one-run footprint verdict instead of AMuLeT's 140-input relational one.
+- **Still open:** InvisiSpec TSO/spec-buffer-hit, clock and predictor for the footprint arm; the "configuration of record" for the paper.
+
+### 7. Checker and parser fixes made
+
+- **`check_footprint` by_pc (2026-11-08).** The checker re-parsed the trace and dropped the Commit-trace lc retire fill. That wrongly disqualified 114/3000 InvisiSpec tests per scheme and 202 CleanupSpec records. Fixed and tested.
+- **Glued debug-print residue (`gem5_common._unglue`).** CleanupSpec `lsq_unit.hh:1257` (`\n.`) and `RubyPort.cc:272` (`\n `) glue text onto the next line, which made a hook line drop. Every parser now strips it; fixture parses are unchanged.
+- **Ownership rule** (§4 above).
+- **Deployment:** all deployed to the cafe2 harness `/tests/simspect_fixed_20261030/` (2026-11-08, md5-verified). Footprint tests pass 37/37 on both machines.
+
+### 8. Hook gaps (none blocks a finding; full list in `SIMSPECT_HOOKS.md` "Gaps found by the first STT_6 runs")
+
+- Ruby resource/protocol stalls print nothing (`StateMachine.py` ~1273-1295).
+- Instruction fetches have no seq.
+- `cleanup_drop` has no seq/sq.
+- An RMW read prints `req=st`.
+- SpecLFB's `prevBrsResolved`, `PrevStoreResolved` and `SpeclfbStalled` changes are not printed directly.
+
+### 9. Where everything is
+
+- **cafe2 runs:** `/tests/simspect_fixed_20261030/results/STT_6_{invisispec_v2hooks_spectre,invisispec_v2hooks_futuristic,cleanupspec_v2hooks,speclfb_v2hooks}__20261107/` (READMEs; pipeviews of every hit).
+- **Probes:**
+  - `/work/amulet/jmpshadow_probe/`: pristine and counterfactual builds, about 2 GB each, deletable after review;
+  - `/work/amulet/rmw_probe/`;
+  - upstream clones in `/work/amulet/upstream/`.
+- **Paper:** three proposed paragraphs as `\reviewnote` in ISCA-27 `sections/discussion.tex` (checked guarantees and scope, STT and stores, structure sizes). Uncommitted.
+
 
 > ## ⚡ UPDATE 2026-06-08 (cont.) — gate un-cheated; fnc-stall hook ported; 2 bugs strict-confirmed; CleanupSpec reclassified
 > 1. **Gate cheat reverted.** I had widened the lc/fnc upper bound (`OR branches_unresolved`) to fit the

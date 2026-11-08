@@ -1,0 +1,105 @@
+% Bug table v3 (8pt minimum: all text \footnotesize; full width, table*). Anna, 2026-11-03: "make a new bug table and remove the column of who found what and put everything that we think vaguely could be a bug for now".%
+% Lists every confirmed, candidate, suspected, untriaged or AMuLeT-reported bug the simspect repo records in a gem5 defense build we ran, plus the items some doc calls a bug that are filed as "not a bug".%
+% Changes from bugtable_v2_8pt: the "First known from", "Found by" and "In scope" columns are gone; new Mechanism and Status columns. Defense (gem5 build) is the group header row: defense name in bold, then the build id from specs/gem5_builds.json.%
+% (A per-row build column was tried first and made the table 705pt tall; every row in a group shares its build except ReCon's hand-built OTB test, which the ReCon header names.)%
+% Status vocabulary: confirmed / strong candidate / suspected / untriaged / AMuLeT-reported, not reproduced / not a bug. Red ink (ssxmitink) only on "confirmed".%
+% dagger: counts as a violation only if the window ends when fnc retires, not if it ends when the guarding branch resolves (decision R1, URGENT_TODO.md; paper_figures/plans/RESULTS_FIGURES.md sec 5).%
+% ddagger: real leak, but through a channel the defense's own paper leaves out of its protection (scope rule, Anna 2026-10-28: wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md).%
+% "post-fix" marks results from the fixed harness (2026-10-30, wiki/findings/bug/BRANCH_ANNOTATION_AND_FORCE.md); every other row's evidence predates that fix.%
+% Source paths below are relative to the simspect repo root, /Users/annaeaton/Documents/stanford/trippel/simspect; "claudelog.md <date>" means the claudelog.md entry with that date and label.%
+% Left out because the repo rules them pipeline, checker, concretization, model or harness artifacts (see the session reply for sources): check_ld exec-tick FPs (183 of 184 Recon_6 hits),%
+%  check_br resolve-tick FPs (old STT br_x "leaks"), the Recon "OTB" classifier matches, diag cache-reach repro bug, the check_ld send-line gap on Recon builds, the STT branch-channel race (fnc-stall hook),%
+%  SPT const-addr / rf-clobber / no_hold / OtherLoad STLF / retq-loop re-speculation hits, dup-PC, pipeview blowup, idivq noise, amulet caches:true, sweep error rows, branch-annotation loader / BTB force / stall freeze,%
+%  SPT freeParam=0, InvisiSpec on classic caches, the amulet-InvisiSpec panic after the 10-30 rebuild, InvisiSpec Futuristic store-actor events, the CleanupSpec "3 RESIDUE" FP, the l1d_assoc 4-hit diff.%
+% Also left out (generic gem5, not defense, and no doc calls them a defense bug): O3 livelock at commitToIEWDelay >= 5, CleanupSpec Ruby assoc-2 deadlock and TBE stall storm (ON == OFF), gem5-spt --trackInstsFile abort,%
+%  the ruled-out STT "taint not yet set" window, and gem5-spt's untaintTier option (unsafe but off in every config).%
+% Body only: \input this inside \begin{table*}...\end{table*}; caption in captions/bugtable_v3_8pt.tex. Every line ends in % so no stray spaces enter the output.%
+{%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}%
+\providecolor{sssrcbg}{gray}{0.90}%
+\providecommand{\toolname}{SimSpect}%
+\footnotesize%
+\hyphenpenalty=10000\exhyphenpenalty=10000%
+% ============================ TUNING KNOBS ============================%
+\def\btn{116pt}% Bug or candidate%
+\def\btm{188pt}% Mechanism%
+\def\bts{64pt}%  Status%
+\def\bte{124pt}% Evidence; sum + 6\tabcolsep = 516pt (\textwidth)%
+\setlength{\tabcolsep}{4pt}%
+\renewcommand{\arraystretch}{1.1}%
+% ======================================================================%
+\def\btgrp#1#2{\multicolumn{4}{@{}l}{\textbf{#1}\quad #2}\\}% group header: defense (gem5 build), black%
+\def\btC{\textcolor{ssxmitink}{confirmed}}% the only red ink%
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{\btn}>{\raggedright\arraybackslash}p{\btm}>{\raggedright\arraybackslash}p{\bts}>{\raggedright\arraybackslash}p{\bte}@{}}%
+\toprule%
+\textbf{Bug or candidate} & \textbf{Mechanism} & \textbf{Status} & \textbf{Evidence}\\%
+\midrule%
+\btgrp{STT}{\texttt{stt}}%
+% src: wiki/findings/bug/stt_slowcomm_vp_squash_race/BUG_EXPLAINER.md; wiki/findings/bug/stt_slowcomm_vp_squash_race/provenance.json; wiki/findings/bug/BUG_TAXONOMY.md (A4); paper_figures/plans/RESULTS_FIGURES.md (sec 2, R1); URGENT_TODO.md (DECIDE R1)%
+Visibility-point/squash race & Taint clears when the branch resolves, so the wrong-path transmitter issues before the squash arrives & \btC\,\textdagger & one trace at slow commit timing; none at stock timing\\%
+% src: wiki/results/results.md (Bug 3); bugsynth/NMOSIER_PENDING_SQUASH_BUG.md; bugsynth/FINDINGS_SUMMARY.md; claudelog.md 2026-06-04 (8:alloyCheckUpdated: /work/stt HEAD e3283b9 predates fix 18e304f); claudelog.md 2026-06-09 (bugsynth: value-flip 0/12)%
+Pending-squash race & An untainted branch's squash waits behind an older tainted one's, so its timing reveals the secret & \btC & upstream fix not in our build; our gadget does not show it\\%
+% src: wiki/results/results.md (Bugs 1 and 2); wiki/findings/bug/BUG_TAXONOMY.md (A3); bugsynth/FINDINGS_SUMMARY.md; claudelog.md 2026-06-09 13:01 and 13:56 (bugsynth: check_br_ni 42/42 sound, channel D closed)%
+Implicit-channel defense inert & \texttt{hasImplicitFlow} is computed but never reaches the taint check & suspected & code read; our branch audits find no leak (42/42 sound)\\%
+% src: wiki/findings/bug/STT_KV3_TLB_REVIEW.md; wiki/findings/bug/kv3_demo/; wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md (KV3, STT p5 and p10); wiki/findings/mdsToRead/AMULET_LOAD_DEFENSES_PROJECT_LOG.md (sec 1, 4)%
+Speculative store fills the D-TLB (KV3) & Stores never get the speculative flag, so a wrong-path store walks and fills the D-TLB & not a bug\,\textdaggerdbl & our gadget shows it; the load control is protected\\%
+% src: wiki/findings/bug/BUG_TAXONOMY.md (D7, AUDIT #20)%
+Excess mispredict-taken hits & 6--7$\times$ more hits in taken than in not-taken mode, on this build only & untriaged & audit note; predates the checker and harness fixes\\%
+\addlinespace[2pt]%
+\btgrp{SPT-Fence}{\texttt{gem5-spt}}%
+% src: wiki/findings/bug/BUG_TAXONOMY.md (A5); claudelog.md 2026-06-03 09:30 (2a:inspectSPT: ~3807 genuine race hits); claudelog.md 2026-06-02 23:55 (2a:inspectSPT: 0/230 at stock); wiki/findings/bug/BRANCH_ANNOTATION_AND_FORCE.md (sec 5); paper_figures/plans/RESULTS_FIGURES.md (sec 3, 7)%
+Same visibility-point/squash race & The fence lifts at branch resolution; the transmitter sends a packet before the squash & strong candidate\,\textdagger & $\approx$3,800 slow-timing hits, none at stock; no branch annotations loaded\\%
+% src: STATUS.md (HARNESS FIXED, Round 2); claudelog.md 2026-11-02 (resolve-hooks: round 2); wiki/findings/audits/2026-10-30/fixed_tab_round2.json; claudelog.md 2026-06-03 10:30 (2a:inspectSPT: 80 NEW gap-band br_x); paper_figures/plans/RESULTS_FIGURES.md (sec 4); URGENT_TODO.md (which round-2 hits to triage)%
+Branch-transmitter hits & Transmitter branches redirect inside the window; not yet bucketed & untriaged & post-fix: 28 and 22 tests; 80 earlier hits unexplained\\%
+% src: STATUS.md (Round 2); claudelog.md 2026-11-02 (resolve-hooks: 336/1697 and 264/1697); wiki/findings/audits/2026-10-30/fixed_tab_round2.json; URGENT_TODO.md%
+Load-transmitter hits & In-window loads, mixed with the known constant-address model artifact & untriaged & post-fix: 336 and 264 of 1,697 tests\\%
+% src: claudelog.md 2026-06-10 (sptDiscrepancy: 24 str hits untriaged); paper_figures/plans/RESULTS_FIGURES.md (sec 4: needs a store checker, specs/defense_units.json spt_fence)%
+Store-address transmitter hits & In-window stores, scored by the load checker (no store checker yet) & untriaged & 24 hits on the regenerated testset\\%
+\addlinespace[2pt]%
+\btgrp{ReCon (STT scheme)}{\texttt{gem5-recon-modded}; the OTB hand-built test ran on \texttt{gem5-recon}}%
+% src: wiki/findings/bug/recon_SLF_stlf_bypass/NOTE.md; wiki/findings/bug/recon_SLF_stlf_bypass/provenance.json; wiki/findings/bug/recon_SLF_stlf_bypass/trace_excerpt_sn600.txt; wiki/results/reconresults.md (Bug 2); wiki/findings/bug/BUGS.md (confirmed by Anna 2026-11-03); paper_figures/plans/RESULTS_FIGURES.md (sec 1, 9)%
+Store-to-load forwarding skips the taint check (STL) & The forwarding path returns before the taint check, so a load with a tainted address completes & \btC & generated test \texttt{inst-014912} with trace; hand-built tests\\%
+% src: wiki/results/reconresults.md (Bug 1); wiki/findings/bug/BUG_TAXONOMY.md (A1, C3); bugsynth/OTB_BUG_REVIEW.md; bugsynth/FINDINGS_SUMMARY.md; paper_figures/plans/RESULTS_FIGURES.md (sec 4, 7: hand-built pipeview shows issue, no completion)%
+\texttt{getOldestTaint} keeps only the oldest taint (OTB) & An ALU result is untainted once its older source resolves, though a younger source is still speculative & \btC & hand-built test; 30/30 Alloy-forced gadgets; not enumerated\\%
+% src: STATUS.md (Round 2); claudelog.md 2026-11-02 (resolve-hooks: 7/1323 both modes, not checked against recon_cache_reach_gate); wiki/findings/bug/recon_cache_reach_gate/README.md; URGENT_TODO.md%
+Load-transmitter hits & The same 7 tests hit in both modes; not checked against the send-line gap & untriaged & post-fix: 7 of 1,323 tests\\%
+\addlinespace[2pt]%
+\btgrp{InvisiSpec}{\texttt{amulet-InvisiSpec}}%
+% src: wiki/findings/mdsToRead/INVISISPEC_UV1_CONFIRMED.md; wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md (sec 2); wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md (UV1 in scope)%
+Speculative load evicts an L1D line (UV1) & A speculative miss evicts a live L1D line before the load is squashed & \btC & 29/30 tests; AMuLeT's patch removes it\\%
+% src: wiki/findings/audits/2026-10-28/invisispec_flagged_events_triage.md (sec 1); wiki/findings/mdsToRead/PROTECTION_SCOPE_TABLE.md (mismatch 2); wiki/findings/audits/2026-10-28/APPROVALS.md (D-1); claudelog.md 2026-10-28 (scope-table)%
+D-TLB hit updates replacement state & A speculative D-TLB hit updates LRU at once; the paper delays it to the visibility point & strong candidate & code read (\texttt{tlb.cc:146}); events in our UV1 trace\\%
+% src: wiki/findings/mdsToRead/PROTECTION_SCOPE_TABLE.md (mismatch 1); wiki/findings/audits/2026-10-28/invisispec_flagged_events_triage.md (sec 5); wiki/findings/audits/2026-10-28/scope_claims_verification.md (b)%
+Directory invalidates on a speculative fetch & A speculative fetch to a line held in M invalidates its owner & suspected & code read (``Is it secure?'' comment); not seen in traces\\%
+% src: wiki/findings/mdsToRead/AMULET_LOAD_DEFENSES_PROJECT_LOG.md (sec 1, 4); wiki/findings/bug/uv2_demo/; wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md (UV2, InvisiSpec sec VII p10); wiki/findings/mdsToRead/FOOTPRINT_DEFENSES_PAPER_AUDIT.md (item 5)%
+MSHR/TBE contention (UV2) & Speculative misses hold both TBEs, so later accesses stall & not a bug\,\textdaggerdbl & our gadget shows it (2 vs.\ 8 TBEs)\\%
+% src: wiki/findings/mdsToRead/AMULET_LOAD_DEFENSES_PROJECT_LOG.md (sec 1, 4); wiki/findings/bug/kv1_demo/; wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md (KV1, InvisiSpec fn. 2 p3)%
+Speculative fetch fills L1I (KV1) & A wrong-path fetch installs an L1I line; only data loads are protected & not a bug\,\textdaggerdbl & our gadget shows it; the control does not\\%
+\addlinespace[2pt]%
+\btgrp{CleanupSpec}{\texttt{amulet-CleanupSpec}}%
+% src: wiki/findings/mdsToRead/AMULET_LOAD_DEFENSES_PROJECT_LOG.md (sec 1, 4; demo results/STT_6_cleanupspec_residue/uv4_demo/ on cafe2); wiki/findings/audits/2026-10-28/hooks_cleanupspec.md (finding 8); wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md (UV4 in scope)%
+Split load not cleaned (UV4) & A line-crossing load installs two lines; cleanup undoes neither & \btC & our gadget; the aligned control is cleaned\\%
+% src: wiki/findings/mdsToRead/AMULET_LOAD_DEFENSES_PROJECT_LOG.md (sec 0, 1, 4, log 2026-06-09); wiki/findings/mdsToRead/FOOTPRINT_DEFENSES_PAPER_AUDIT.md (item 6, CleanupSpec p7); wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md (UV5 in scope)%
+Over-cleaning (UV5) & Cleanup evicts a line that a correct-path load installed & AMuLeT-\allowbreak reported, not reproduced & invalidate-before-restore order prevents it in our gadgets\\%
+% src: wiki/findings/mdsToRead/AMULET_LOAD_DEFENSES_PROJECT_LOG.md (sec 0, 1, 4: uv3/uv3.s); wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md (UV3); wiki/findings/mdsToRead/FOOTPRINT_DEFENSES_PAPER_AUDIT.md (stores, CleanupSpec p8)%
+Speculative store not cleaned (UV3) & Cleanup undoes loads only, so a speculative store's cache change would stay & AMuLeT-\allowbreak reported, not reproduced & unreachable here: squashed stores never touch the cache\\%
+% src: wiki/findings/mdsToRead/UNXPEC_MISS.md; wiki/findings/mdsToRead/AMULET_LOAD_DEFENSES_PROJECT_LOG.md (sec 4; demo results/STT_6_cleanupspec_residue/unxpec_demo/ on cafe2); wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md (unXpec out of scope for now, Anna); wiki/findings/mdsToRead/FOOTPRINT_DEFENSES_PAPER_AUDIT.md (sec 4b)%
+Cleanup timing reveals hit or miss (unXpec) & Cleanup does 7 events after a speculative miss and none after a hit & not a bug\,\textdaggerdbl & our gadget shows it\\%
+% src: wiki/findings/mdsToRead/PROTECTION_SCOPE_TABLE.md (mismatch 7); claudelog.md 2026-10-28 (scope-table, build-vs-paper finding 4)%
+Directory not randomized; no M/E$\to$S delay & Two mechanisms the paper lists are absent from the build & suspected & code read (grep)\\%
+\addlinespace[2pt]%
+\btgrp{SpecLFB}{\texttt{amulet-SpecLFB}}%
+% src: wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md (sec 2 and the 2026-06-08 update); wiki/findings/mdsToRead/AMULET_LOAD_DEFENSES_PROJECT_LOG.md (sec 1); claudelog.md 2026-06-03 (5:invisispec RE-CORRECTION: 68 hits valid); wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md (UV6 in scope)%
+First speculative load unprotected (UV6) & The first speculative load is not held in the LFB and fills L1D & \btC & 11/12 tests in the strict window; 68/300 in a sweep\\%
+% src: wiki/findings/audits/2026-10-28/hooks_speclfb_and_uv6.md (Part 2); claudelog.md 2026-10-28 16:40 (audit-sweep, item 3); claudelog.md 2026-10-28 (simspect-hooks: uv6x second load isUnsafe=0)%
+Second speculative load also unprotected & The queue head is never flagged and \texttt{PrevNoUnsafe} never clears, so the next load passes & strong candidate & code read; seen in one trace (\texttt{uv6x})\\%
+% src: wiki/findings/audits/2026-10-28/hooks_speclfb_and_uv6.md (Part 1, finding 2); claudelog.md 2026-10-28 (simspect-hooks: LFB path never exercised)%
+Squashed load's LFB entry kept & A parked line is not dropped at the squash and can fill L1D later & suspected & code read; path never exercised\\%
+% src: wiki/findings/audits/2026-10-28/hooks_speclfb_and_uv6.md (Part 1, finding 1)%
+LFB refill reads a freed packet & The refill reuses a packet deleted when the line was parked & suspected & code read (\texttt{base.cc:838})\\%
+\bottomrule%
+\end{tabular}%
+}%

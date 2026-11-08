@@ -25,7 +25,7 @@ Status: ✅ verified · 🛠 fixed · ⏳ open/pending owner.
 - **Signature:** a tainted *speculative* load whose address comes from a speculative source, with a
   prior store to the same address; the LSQ forwards the store data and the load is marked **ready
   within ROB** (completes) inside the speculative window, *before* its squash — no cache packet.
-- **Verdict:** REAL defense bug. **Representative:** `bug/recon_SLF_stlf_bypass/` (`inst-014912`).
+- **Verdict:** REAL defense bug. **Representative:** `bug/recon_SLF_stlf_bypass/` (`inst-014912`). Confirmed by Anna 2026-11-03.
 - **Provenance:** `results/Recon_6__20260602_122016` mispredict_not_taken/ld; build mtime 2026-05-21;
   repo `d8b6caa-dirty`. 1 of 184 ld hits is real; see `claudelog` 2026-06-02 19:22 (VERDICT 20:40).
 - **Correct leak criterion:** *data obtained (completes) before squash*, NOT cache-reach — a cache
@@ -40,6 +40,13 @@ Status: ✅ verified · 🛠 fixed · ⏳ open/pending owner.
   `claudelog` 19:22, and `results/Recon_6__20260602_122016/diagnostics/`.
 
 ---
+
+## /work/amulet/amulet-gem5-SpecLFB_AE-v1.1 — SpecLFB (also upstream smallcute123/SpecLFB)
+
+- **jmp-shadow (NEW, 2026-11-08):** a direct jmp/call after an unresolved branch re-sets `prevBrsResolved` in `ROB::updateSafeState` (`rob.cc:501`), so younger loads skip CUSL and fill L1D/L2 speculatively.
+  - **Verdict:** REAL defense bug, very high confidence. It is a porting bug from DOLMA (which is correct) and independent of AMuLeT's UV6. Awaiting Anna's call on counting it.
+  - **Review:** [`speclfb_jmp_shadow/README.md`](speclfb_jmp_shadow/README.md).
+  - **Found by:** the STT_6 v2-hooks run, 148 mispredict_taken tests, cafe2 `/tests/simspect_fixed_20261030/results/STT_6_speclfb_v2hooks__20261107/`.
 
 ## /work/stt — STT build
 

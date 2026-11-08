@@ -159,7 +159,7 @@
 \buggl{(214,\T-131)}{1.6}{ssxmitink}
 \node[font=\footnotesize\bfseries, text=ssxmitink, anchor=west] at (222.5,\T-131) {Bug?};
 % sources: defense implementation -> die ; transmission mechanisms -> harness ("selects hooks") + inspector
-\sot{gb}{(die.west -| lxc)}{\textless/\textgreater}
+\sot{gb}{(die.west -| lxc)}{\gCode}% was </> text typeset outside a node (printed a stray "<>"), fixed 2026-11-03
 \node[sotl] (gbl) at ($(gb-s)+(0,-1.5)$) {Defense implementation (gem5)};
 \draw[->] (gb-e) -- (die.west);
 \draw[dashed, ->] ($(dsl.south)+(0,-3)$) -- ($(gb-n)+(0,3)$) coordinate[pos=0.5] (gm);

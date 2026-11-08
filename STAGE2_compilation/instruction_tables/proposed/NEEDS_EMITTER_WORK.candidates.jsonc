@@ -1,0 +1,145 @@
+// DRAFT (2026-11-07, vocab-tables session). Review doc: wiki/design/VOCAB_TABLES.md
+//
+// NOT AN INSTRUCTION TABLE. Deliberately has no "kind_categories"/"instructions" keys, so pointing
+// paths.instruction_tables at it fails loudly (KeyError in parsexml._load_instruction_tables) instead of
+// silently emitting "unknown concrete_instruction — skipped" markers (parsexml.py:2535-2537).
+//
+// Every candidate below needs an approval-gated change before it can be used:
+//   emitter   = a new branch in pass5_emit_llvm (parsexml.py:2144-2537 dispatches on the concrete NAME)
+//   stl_eval  = a case in _stl_arch_values (parsexml.py:1131-1168), else stl_bypass raises ValueError and skips the test
+//   pass2_5   = the branch override (parsexml.py:754-836) currently forces br_bez / br_cond, so br candidates are ignored
+//   marker    = the transmitting instruction must carry the __litmus_<stem>_pc<N> label: compile_annotate.py:269-281
+//               uses the marker offset as xmit.addr (only br_x is re-located to the jcc). Put any prelude (zeroing,
+//               flag setup) BEFORE the label, as in the scratch probe (VOCAB_TABLES.md "Emitter gaps").
+// "asm" strings were compiled with clang 21 for x86_64-unknown-linux-gnu (-O2, -S and -c) in a scratch probe; they assemble.
+// "defenses" = which per-defense table should carry it (VOCAB_TABLES.md has the per-defense reasons and citations).
+// "sources" keys: STT=Yu 2019, SPT=Choudhary 2021, RECON=Aimoniotis 2023, INVISI=Yan 2018, CLEANUP=Saileshwar 2019,
+//   SPECLFB=Cheng 2024, AMULET=Fu 2025, NDA=Weisse 2019, DOM=Sakalis 2019, DOPPEL=Kvalsvik 2023 (all PDF page numbers;
+//   RECON is an HTML print so sections only); G5=local gem5-recon source copy at
+//   ~/Documents/stanford/trippel/spectre-verify/run_asm/gem5-recon (path relative to src/arch/x86/isa/insts/general_purpose/).
+{
+  "schema": "simspect.vocab_candidates/v0-draft",
+  "candidates": {
+    "ld": [
+      { "name": "load_zx8", "asm": "movzbq (%probe,%idx,1), %dst   |   movzbq disp(%mem_base), %dst",
+        "uses": ["inaddr", "inmem", "outreg"], "status": "needs emitter + stl_eval",
+        "defenses": ["STT", "ReCon", "SPT", "InvisiSpec", "CleanupSpec", "SpecLFB", "DoM", "Delay", "STL"],
+        "sources": ["NDA p8 Fig.6 (movzx eax,[rax]; movzx edx,[rdx+rax*1])", "SPT p8 §7.2 (4 partial-register taint bits), p9 §7.5 (byte-granular shadow L1)",
+                    "RECON §4.4 (reveal only aligned, word granularity)", "INVISI p1 (1-byte value V)", "G5 data_transfer/move.py:148-151 (ld dataSize=1 + zexti)"],
+        "emitter_change": "copy of the 'load' branch with mnemonic movzbq", "stl_eval": "read 1 byte, zero-extend" },
+      { "name": "load_zx16", "asm": "movzwq (%probe,%idx,1), %dst", "uses": ["inaddr", "inmem", "outreg"], "status": "needs emitter + stl_eval",
+        "defenses": ["STT", "ReCon", "SPT", "InvisiSpec", "CleanupSpec", "SpecLFB", "DoM", "Delay", "STL"],
+        "sources": ["AMULET p10 Fig.4 (CMOVNBE SI, word ptr [R14+RAX])", "SPT p8 §7.2 (R[15:0] access mode)"],
+        "emitter_change": "copy of 'load' with movzwq", "stl_eval": "read 2 bytes, zero-extend" },
+      { "name": "load_32", "asm": "movl (%probe,%idx,1), ${0:k}   (32-bit name of the pinned outreg; zero-extends)", "uses": ["inaddr", "inmem", "outreg"],
+        "status": "needs emitter + stl_eval", "defenses": ["STT", "ReCon", "SPT", "InvisiSpec", "CleanupSpec", "SpecLFB", "DoM", "Delay", "STL"],
+        "sources": ["AMULET p11 Fig.6 (CMOVL EAX, dword ptr [...]; OR EDI, dword ptr [R14+RAX])", "SPT p8 §7.2 (R[31:0])"],
+        "emitter_change": "copy of 'load' with movl and the ${0:k} operand modifier", "stl_eval": "read 4 bytes, zero-extend" },
+      { "name": "load_sx32", "asm": "movslq (%probe,%idx,1), %dst", "uses": ["inaddr", "inmem", "outreg"], "status": "needs emitter + stl_eval; LOW priority",
+        "defenses": ["SPT"], "sources": ["G5 data_transfer/move.py:97-100 (ld dataSize=4 + sexti)", "SPT p8 §7.2 (byte-level register taint: a sign-extension spreads 1 byte's taint to the upper bytes) — inference, not a paper statement"],
+        "emitter_change": "copy of 'load' with movslq", "stl_eval": "read 4 bytes, sign-extend" },
+      { "name": "load_disp", "asm": "movq D(%probe,%idx,1), %dst  with constant D != 0 (e.g. 64)", "uses": ["inaddr", "inmem", "outreg"],
+        "status": "needs emitter + stl_eval (displacement in _mem_addr_of)", "defenses": ["ReCon", "Doppelganger", "STT", "SPT"],
+        "sources": ["RECON §4.3 (load addresses derived from a load with an immediate offset still form a valid load pair)"],
+        "emitter_change": "'load' with a nonzero displacement; keep D inside probe_mem bounds" },
+      { "name": "load_idx8", "asm": "movq (%probe,%idx,8), %dst", "uses": ["inaddr", "inmem", "outreg"], "status": "needs emitter + stl_eval (scale)",
+        "defenses": ["ReCon", "Doppelganger", "STT"],
+        "sources": ["RECON §1 (a 'pointer' is an 8-byte address OR an 8-byte integer index added to a constant base address)"],
+        "emitter_change": "'load' with SIB scale 8" },
+      { "name": "load_op_add", "asm": "movq $0, %dst ; <marker> ; addq (%probe,%idx,1), %dst", "uses": ["inaddr", "inmem", "outreg"],
+        "status": "needs emitter + stl_eval + marker placement", "defenses": ["ReCon", "NDA", "Delay", "STT", "SPT", "InvisiSpec", "CleanupSpec", "SpecLFB", "DoM"],
+        "sources": ["RECON §4.3 (x86 arithmetic with a memory operand splits into micro-ops, one a load, which can form a load pair)",
+                    "NDA p7 §5.1 (NDA marks micro-ops unsafe)", "AMULET p11 Fig.6 (OR EDI, dword ptr [R14+RAX])", "G5 arithmetic/add_and_subtract.py:120-124 (ld t1 + add reg,reg,t1)",
+                    "gem5-recon STT taints at micro-op level: src/cpu/o3/rename.cc:715 (isLoad && isSpeculative)"],
+        "emitter_change": "zero dst with an immediate first (so dst = mem, matching the Alloy ld) and put the pc marker on the addq",
+        "semantics_note": "Without the zeroing, dst would also depend on its old value, a data edge Alloy did not generate. Owner decision (DECIDE V5)." },
+      { "name": "load_cmov", "asm": "xorl %vpoolCond, %vpoolCond ; movq $0, %dst ; <marker> ; cmovzq (%probe,%idx,1), %dst", "uses": ["inaddr", "inmem", "outreg"],
+        "status": "needs emitter + stl_eval + marker placement", "defenses": ["InvisiSpec", "STT", "SpecLFB", "CleanupSpec"],
+        "sources": ["AMULET p10 Fig.4, p11 Fig.6, p13 Fig.9 (every InvisiSpec and STT violation shown uses CMOVcc with a memory source)",
+                    "G5 data_transfer/conditional_move.py:43-48 (CMOVZ_R_M always issues the ld micro-op, then two predicated movs)"],
+        "emitter_change": "set flags from the reserved cond vpool register (parsexml.py:1425) so ZF=1 and the move happens; marker on the cmov" },
+      { "name": "prefetch", "asm": "prefetcht0 (%probe,%idx,1)", "uses": ["inaddr", "inmem"],
+        "status": "needs emitter + checker verification", "defenses": ["STT", "InvisiSpec", "DoM", "CleanupSpec", "SpecLFB"],
+        "sources": ["STT p4 §5.1 (explicit channels include 'prefetch instructions')", "INVISI p8 §VI-B (software prefetch: invisible prefetch to the SB, exposure later)",
+                    "DOM p2 (speculative hits must not 'perform any prefetches')", "G5 cache_and_memory_management.py:48-51 (PREFETCH_T0_M = ld t0 ... dataSize=1, prefetch=True)"],
+        "emitter_change": "new branch; no outreg, so pass2's uses filter (parsexml.py:574) only offers it when Alloy left outreg unspecified (typical for the xmit load)",
+        "checker_note": "check_ld's data-obtained gate expects an LSQ 'Executing load' + packet/complete; a prefetch has no consumer. Verify on gem5 before trusting verdicts." }
+    ],
+    "str": [
+      { "name": "store8",  "asm": "movb ${0:b}, (%probe,%idx,1)", "uses": ["inreg0", "inaddr", "outmem"], "status": "needs emitter + stl_eval (+ stl retarget path)",
+        "defenses": ["ReCon", "SPT", "STL", "DoM", "STT"],
+        "sources": ["RECON §4.4 (conceal works at any granularity; a write to any part of a revealed word conceals the whole word)",
+                    "SPT p9 §7.5 (store data taint overwrites the written bytes' shadow-L1 taint)", "SPT p10 (SPT's transmitters are loads AND stores); SPT_6_oneLP.als:344 (Stores.inaddr in the leakage function)",
+                    "DOM p3 (D-shadow from stores with unresolved addresses)"],
+        "emitter_change": "copy of the 'store' branches (plain + stl_bypass retarget, parsexml.py:2185-2256) with movb and ${n:b}",
+        "stl_eval": "write 1 byte; partial overlap with a wider load = partial store-to-load forwarding (gem5 behaviour there not checked)" },
+      { "name": "store16", "asm": "movw ${0:w}, (%probe,%idx,1)", "uses": ["inreg0", "inaddr", "outmem"], "status": "needs emitter + stl_eval",
+        "defenses": ["ReCon", "SPT", "STL"], "sources": ["as store8"], "emitter_change": "as store8 with movw / ${n:w}" },
+      { "name": "store32", "asm": "movl ${0:k}, (%probe,%idx,1)", "uses": ["inreg0", "inaddr", "outmem"], "status": "needs emitter + stl_eval",
+        "defenses": ["ReCon", "SPT", "STL"], "sources": ["as store8"], "emitter_change": "as store8 with movl / ${n:k}" },
+      { "name": "store_imm", "asm": "movq $0, (%probe,%idx,1)", "uses": ["inaddr", "outmem"], "status": "needs a one-line emitter alias",
+        "defenses": ["SPT", "STL", "ReCon"],
+        "sources": ["SPT p8 §6.8 rule 1 (untainted store data written to L1D clears the written range's taint)", "RECON §4.4.1 (a performed store conceals the address)"],
+        "emitter_change": "route the name to the existing 'store' branch: its immediate path already exists (parsexml.py:2235-2238, 2254-2256) and fires when inreg0 has no SSA name, which is what uses=[inaddr,outmem] produces" }
+    ],
+    "br": [
+      { "name": "br_cmp", "asm": "<marker> cmpq $1, %cond ; jb <taken>   (needs LLVM callbr / asm goto)", "uses": ["inreg0"],
+        "status": "needs pass2_5 + emitter (asm goto) ", "defenses": ["SPT", "STT", "ReCon", "NDA"],
+        "sources": ["NDA p8 Fig.6 (cmp r12,rax ; jae — the Spectre-v1 bounds check)", "STT p2 Fig.1 (if (addr < 10))",
+                    "SPT p6 §6.6 (branch operands are declassified when the branch becomes non-speculative) + p7 (backward untaint only through MOV and invertible ops — a cmp is neither)"],
+        "emitter_change": "an IR icmp+br is canonicalized by LLVM (scratch probe: icmp ult x,1 became testq+je), so the cmp+jcc must be inline asm goto; compile_annotate.find_branch_at_pc already accepts jb (COND_JUMPS)",
+        "why_it_matters": "today every branch is testq+jcc on one register (parsexml.py:2416-2427, 2474-2484); a flags-producing cmp between the tainted value and the jcc is the shape on which an over-eager SPT untaint would show" },
+      { "name": "br_indirect", "asm": "jmpq *%target  (target computed from the tainted value via a 2-entry table)", "uses": ["inreg0"],
+        "status": "needs pass2_5 + emitter + gem5 hook support (BTB force for an indirect target) + check_br", "defenses": ["STT", "ReCon", "DoM", "NDA", "SpecLFB"],
+        "sources": ["NDA p6 §4 ('Branch instructions include all variants of jmp, call, and ret')", "DOM p3 §3 (C-shadow: branches and jumps with unknown condition or target)",
+                    "SPECLFB p8 §6.1 (branch/jump instructions set the unsafe bit)", "STT p7 §6.4.1 (explicit branches = control-flow instructions)",
+                    "gem5-recon STT delays only isCondCtrl() tainted branches: src/cpu/o3/inst_queue.cc:1450-1456 — a tainted indirect jump is not held",
+                    "G5 control_transfer/jump.py:49-53 (JMP_R .control_indirect)"],
+        "emitter_change": "large; out of scope for a first vocabulary pass" }
+    ],
+    "other_n": [
+      { "name": "mov", "asm": "movq %a, %d", "uses": ["inreg0", "outreg"], "status": "needs emitter (+ stl_eval: copy)",
+        "defenses": ["SPT", "STT", "ReCon", "InvisiSpec", "CleanupSpec", "SpecLFB", "DoM", "STL"], "sources": ["SPT p7 backward rule 1 (register MOV: untainted output untaints the operand)"] },
+      { "name": "addq", "asm": "movq %a, %d ; addq %b, %d", "uses": ["inreg0", "inreg1", "outreg"], "status": "needs emitter (+ stl_eval: add)",
+        "defenses": ["SPT", "STT", "ReCon", "STL"], "sources": ["SPT p7 backward rule 2 (invertible arithmetic, e.g. ADD)", "today's 'add' is really leaq (parsexml.py:2296), so no flag-setting ADD exists yet"] },
+      { "name": "sub", "asm": "movq %a, %d ; subq %b, %d", "uses": ["inreg0", "inreg1", "outreg"], "status": "needs emitter (+ stl_eval)",
+        "defenses": ["SPT"], "sources": ["SPT p7 (r0 = r1 + r2 lets the attacker learn r1 = r0 - r2: invertible)"] },
+      { "name": "xor", "asm": "movq %a, %d ; xorq %b, %d", "uses": ["inreg0", "inreg1", "outreg"], "status": "needs emitter (+ stl_eval)",
+        "defenses": ["SPT", "STT", "ReCon"], "sources": ["SPT p2 and p5 §5 (the untaint algebra generalizes to OR, XOR, NOT, ADD)"] },
+      { "name": "and", "asm": "movq %a, %d ; andq %b, %d", "uses": ["inreg0", "inreg1", "outreg"], "status": "needs emitter (+ stl_eval)",
+        "defenses": ["SPT", "STT"], "sources": ["SPT p4-5 §5 Fig.2 (AND is the GLIFT example) + p7 (the evaluated rules 'do not apply the GLIFT insights': no backward untaint through AND)"] },
+      { "name": "or", "asm": "movq %a, %d ; orq %b, %d", "uses": ["inreg0", "inreg1", "outreg"], "status": "needs emitter (+ stl_eval)",
+        "defenses": ["SPT"], "sources": ["as and"] },
+      { "name": "shl_imm", "asm": "movq %a, %d ; shlq $9, %d", "uses": ["inreg0", "outreg"], "status": "needs emitter (+ stl_eval)",
+        "defenses": ["SPT", "STT", "ReCon", "NDA", "InvisiSpec"], "sources": ["NDA p8 Fig.6 line 10 (shl eax,0x9 — the Spectre-v1 preprocess step)"] },
+      { "name": "lea_scaled", "asm": "leaq (%a,%b,8), %d", "uses": ["inreg0", "inreg1", "outreg"], "status": "needs emitter (+ stl_eval)",
+        "defenses": ["STT", "ReCon", "SPT", "NDA"],
+        "sources": ["NDA p8 Fig.6 line 8 (lea rax,[r12+rbx*1] — address calculation)", "G5 load_effective_address.py:37-39 (LEA is one lea micro-op)",
+                    "parsexml.py:2042-2045 (gem5 Lea-merge 'Data = merge(Data, ea, dataSize)' creates taint — LEA is already special in gem5 taint)"] },
+      { "name": "mov_imm", "asm": "movq $17, %d", "uses": ["outreg"], "status": "needs emitter (+ stl_eval: constant)",
+        "defenses": ["SPT"], "sources": ["SPT p6 §6.5 (SPT untaints the output of 'load immediate' instructions)", "G5 data_transfer/move.py:74-76 (MOV_R_I = limm)"],
+        "note": "only valid when Alloy specified no input register (uses filter)" },
+      { "name": "zero_idiom", "asm": "xorq %d, %d", "uses": ["inreg0", "outreg"], "status": "needs emitter; NOT RECOMMENDED by default (DECIDE V6)",
+        "defenses": [], "sources": ["SPT p6 §6.5 (r1 = r1 - r1 could be untainted regardless of input taint; 'which we do not currently exploit')"],
+        "note": "the output is constant, so any gem5 untaint here is correct behaviour that the conservative model would flag: a model-conservatism false positive generator" },
+      { "name": "cmov_rr", "asm": "cmovzq %a, %d (flags from the cond vpool reg)", "uses": ["inreg0", "inreg1", "outreg"], "status": "needs emitter; LOW priority, from memory, unverified as defense-relevant",
+        "defenses": [], "sources": ["no defense paper read here singles out register-register cmov"] }
+    ],
+    "other_x": [
+      { "name": "zsm/div marker fix", "asm": "put the pc marker on imulq / idivq instead of the leading movq", "uses": ["inreg0", "inreg1", "outreg"],
+        "status": "emitter fix needed before other_x is ever a transmitter",
+        "sources": ["parsexml.py:2321 and 2376 prepend the marker to the 'movq' prelude; compile_annotate.py:280 uses the marker as xmit.addr; check_other.py:22 reads the pipeview record at that address"],
+        "note": "dormant today: no model's leakage_function contains Otherxs (STT_6.als:327-328, Recon_6.als:319-320, SPT_6_oneLP.als:342-344)" },
+      { "name": "div32 / udiv", "asm": "idivl / divq", "uses": ["inreg0", "inreg1", "outreg"], "status": "needs emitter; LOW priority",
+        "sources": ["STT p4 §5.1 and SPT p2 call variable-latency arithmetic a transmitter; width/sign latency differences are from memory, unverified"] }
+    ],
+    "not_single_kind": [
+      { "name": "rmw / lock_rmw", "asm": "xorq %r, (mem) ; lock andl %r, (mem) ; orb %al, (mem)",
+        "sources": ["AMULET p10 Fig.4 (XOR qword ptr [R14+RBX], RDI ; OR byte ptr [R14+RDX], AL)", "AMULET p11 Fig.6 (LOCK AND dword ptr [R14+RCX], EDI)"],
+        "note": "one x86 instruction = load + ALU + store; does not fit one Alloy kind. Needs a model-level decision (DECIDE V7)." },
+      { "name": "clflush", "asm": "clflush (mem)",
+        "sources": ["CLEANUP p7 §3.5 (a transient clflush can leak; CleanupSpec delays it until unsquashable)", "G5 cache_and_memory_management.py:59-62 (CLFLUSH_M = clflushopt + mfence)"],
+        "note": "NOT RECOMMENDED: the gem5 macro-op includes an mfence, which serializes and would close the speculative window" }
+    ]
+  }
+}

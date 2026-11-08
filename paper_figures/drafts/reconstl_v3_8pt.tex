@@ -1,0 +1,119 @@
+% Results figure, 8pt version (every text >= 8pt, \footnotesize; derived from reconstl_v2.tex): the Recon-STT store-to-load-forwarding bypass, on a real gem5 trace.%
+% Body only (goes into the paper's tikz/). Wrapped in { }; all helper names are prefixed \rs.%
+% Needs TikZ libraries calc + shapes.geometric (the paper preamble loads both).%
+% Data: wiki/findings/bug/recon_SLF_stlf_bypass/ (inst-014912, Recon_6 mispredict_not_taken,%
+% /work/gem5-recon-modded --scheme=2, campaign results/Recon_6__20260602_122016, 2026-06-02).%
+% v3 (2026-11-03): top = execution graph of inst-014912.xml in the shared graph notation (was the x86 listing). Trace: trace_excerpt_sn600.txt.%
+% Cycle c = (tick - 2679000)/500. Provenance + caveats: paper_figures/plans/RESULTS_FIGURES.md.%
+{%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}\providecolor{sssrcbg}{gray}{0.90}%
+% ============================ TUNING KNOBS ============================%
+\def\rscyc{13}%       pt per simulated cycle%
+\def\rstl{84}%          pt, x of cycle -0.5 (left of it: label column)%
+\def\rsrowh{32}%        pt between the two timeline rows%
+\def\rsbarh{4}%         pt height of an instruction bar%
+\def\rslabx{0}%         pt, left edge of the row labels%
+\def\rsright{250}%      pt, right edge of the figure%
+\def\rsstar{8.5pt}%     outer diameter of the transmission star%
+\def\rswinlw{0.9pt}%    line width of the window frame%
+\def\rsdefshade{sssrcfill}% fill marking defense-specific elements (defense source of truth)%
+\def\rsfs{\footnotesize}% the one font size (8pt)%
+% ======================================================================%
+\newcommand\rsx[1]{(\rstl+(#1+0.5)*\rscyc)}%
+\newcommand\rsab[1]{\textup{#1}}%
+\newcommand\rsedges[3]{\draw (#2,#1+\rsbarh/2) -- (#3,#1+\rsbarh/2) (#2,#1-\rsbarh/2) -- (#3,#1-\rsbarh/2);}%
+\newcommand\rstck[2]{\draw (#2,#1-\rsbarh/2) -- (#2,#1+\rsbarh/2);}%
+\newcommand\rsstg[3]{\node[anchor=south] at (#2,#1+\rsbarh/2+1.6) {#3};}%
+\newcommand\rssq[2]{\draw[line width=0.6pt] ({#2-2},{#1-2}) -- ++(4,4) ({#2-2},{#1+2}) -- ++(4,-4);}%
+\begin{tikzpicture}[x=1pt, y=1pt, >=latex,%
+  every node/.style={font=\rsfs, inner sep=0pt, execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000\relax}},%
+  rsann/.style={font=\rsfs\itshape},%
+  rscode/.style={font=\rsfs\ttfamily, anchor=base west},%
+  rsrow/.style={anchor=base west},%
+  rsgloss/.style={font=\rsfs\itshape, anchor=base west},%
+  rstok/.style={anchor=base west, outer sep=0.6pt},%
+  rsleak/.style={->, line width=1.1pt, draw=ssprotink, preaction={draw=ssprotfill, arrows=-, line width=3.6pt, line cap=round, blend mode=multiply}},%
+]%
+% ------------------------------ legend line ------------------------------%
+\node[anchor=base west] at (0,0) {N: dispatch\quad E: execute\quad C: complete};%
+\node[anchor=base east] (rslg) at (\rsright,0) {Defense-specific};%
+\draw[fill=\rsdefshade, draw=sssrcink] ($(rslg.west)+(-9.5,-0.5)$) rectangle ++(6,6);%
+% ------------- execution graph of the Alloy instance (inst-014912.xml; i0..i5 = pc0..pc5) -------------%
+% Exactly the XML: kinds, opstate (Reg_s$0 = r0, Mem_s$0 = m0), one ddi (i3 m0 -> r0), one rf (i3 r0 -> i5 [r0]),%
+% isresolved on i0,i1,i3,i4,i5 (shown only on branches + store), iscommitted on i0, isxm on i5. The store has no%
+% outmem and the xmit no inmem in the XML, so no store->load memory edge is drawn; i4 [r0] has no incoming rf.%
+\def\rskind{11}\def\rsout{55}\def\rsarr{66}\def\rsin{77}\def\rsflag{118}\def\rsnotex{166}\def\rsbandr{162}%
+\pgfmathsetmacro\rsgA{-17.5}\pgfmathsetmacro\rsgB{-31}\pgfmathsetmacro\rsgC{-44.5}%
+\pgfmathsetmacro\rsgD{-62}\pgfmathsetmacro\rsgE{-77}\pgfmathsetmacro\rsgF{-93}%
+\fill[ssspecfill, rounded corners=2pt] (-2,\rsgC-5) rectangle (\rsbandr,\rsgF-4.5);%
+\node[rsgloss, anchor=south, text=black!55, rotate=90] at (\rsbandr-1.2,{(\rsgC+\rsgF)/2-4.7}) {speculative};%
+\foreach \rsi/\rsy/\rsk in {0/\rsgA/Other\_x,1/\rsgB/Branch\_n,2/\rsgC/Branch\_n,3/\rsgD/Load,4/\rsgE/Store,5/\rsgF/Load}{%
+  \node[rsrow] at (\rslabx,\rsy) {i\rsi:};%
+  \node[rsrow] at (\rskind,\rsy) {\texttt{\rsk}};}%
+% i0: Other_x r0 <- ?   committed%
+\node[rstok] at (\rsout,\rsgA) {$r0$};\node[rstok] at (\rsarr,\rsgA) {$\leftarrow$};\node[rstok] at (\rsin,\rsgA) {?};%
+\node[rsgloss] at (\rsflag,\rsgA) {committed};%
+% i1, i2: branches%
+\node[rsgloss] at (\rsflag,\rsgB) {resolved};%
+\node[rsgloss] at (\rsflag,\rsgC) {unresolved};%
+\node[rsgloss, text=ssspecink] at (\rsnotex,\rsgC) {mispredicted};%
+% i3: Load r0 <- m0 (m0 protected: STT protects all memory)%
+\node[rstok] (rsg3o) at (\rsout,\rsgD) {$r0$};\node[rstok] at (\rsarr,\rsgD) {$\leftarrow$};%
+\node[rstok, fill=ssprotfill, inner xsep=1pt, inner ysep=1.3pt] (rsg3m) at (\rsin,\rsgD) {$m0$};%
+\node[rsgloss, text=ssprotink] at (\rsnotex,\rsgD) {$m0$: protected};%
+% i4: Store ? <- [r0]   resolved%
+\node[rstok] at (\rsout,\rsgE) {?};\node[rstok] at (\rsarr,\rsgE) {$\leftarrow$};%
+\node[rstok] (rsg4b) at (\rsin,\rsgE) {[};\node[rstok, outer sep=0pt] (rsg4r) at (rsg4b.base east) {$r0$};\node[rstok] at (rsg4r.base east) {]};%
+\node[rsgloss] at (\rsflag,\rsgE) {resolved};%
+\node[rsgloss] at (\rsnotex,\rsgE) {address $r0$, as i5};%
+% i5: Load ? <- [r0]   xmit%
+\node[rstok] at (\rsout,\rsgF) {?};\node[rstok] at (\rsarr,\rsgF) {$\leftarrow$};%
+\node[rstok] (rsg5b) at (\rsin,\rsgF) {[};\node[rstok, outer sep=0pt] (rsg5r) at (rsg5b.base east) {$r0$};\node[rstok] (rsg5c) at (rsg5r.base east) {]};%
+\node[rsgloss, text=ssxmitink] at (\rsflag,\rsgF) {xmit};%
+\node[rsgloss, text=ssxmitink] at (\rsnotex,\rsgF) {leaks its address};%
+% the leak path (thick): m0 -ddi-> r0 (i3) -rf-> [r0] (i5), the rf through the gutter right of the operands%
+\draw[rsleak, shorten >=1.4pt] ($(rsg3m.north)+(0,0.3)$) to[out=115, in=65, looseness=1.1]%
+  node[pos=0.5, above=1.4pt, rsann] {ddi} ($(rsg3o.north)+(0,0.6)$);%
+\draw[rsleak, shorten <=0.6pt, shorten >=1.0pt, rounded corners=2pt] (rsg3o.south) -- ++(0,-3.5) -- (102,\rsgD-3.5-1.6)%
+  -- (102,\rsgF+9) node[pos=0.5, anchor=west, xshift=2pt, rsann] {rf} -| (rsg5r.north);%
+% ------------------------------ timeline rows ------------------------------%
+\pgfmathsetmacro\rsyS{\rsgF-36}% store row (36pt below the last graph row)%
+\pgfmathsetmacro\rsyL{\rsyS-\rsrowh}%      xmit row%
+\pgfmathsetmacro\rswT{\rsyS+16}%           window frame top%
+\pgfmathsetmacro\rswB{\rsyL-24}%           window frame bottom%
+\pgfmathsetmacro\rsyT{\rswB-3.5}%          top of the cycle numbers%
+\node[rsrow] at (\rslabx,\rsyS-2.7) {i4: store};%
+\node[rsgloss] at (\rslabx,\rsyS-12.2) {Address 0x35c0};%
+\node[rsrow] at (\rslabx,\rsyL-2.7) {i5: \rsab{xmit}};%
+\node[rsgloss, text=ssxmitink] at (\rslabx,\rsyL-12.2) {Transmitter};%
+% i4 store: dispatch 0, executes 5 (writes addr 0x35c0 into the store queue), complete 6, squashed 9%
+\rsedges{\rsyS}{{\rsx{0}}}{{\rsx{9}}}%
+\rstck{\rsyS}{{\rsx{0}}} \rstck{\rsyS}{{\rsx{5}}} \rstck{\rsyS}{{\rsx{6}}}%
+\rsstg{\rsyS}{{\rsx{0}}}{N} \rsstg{\rsyS}{{\rsx{5}}}{E} \rsstg{\rsyS}{{\rsx{6}}}{C}%
+\rssq{\rsyS}{\rsx{9}}%
+% i5 xmit: dispatch 0, executes 5 (Recon flags it tainted + speculative), completes 7, squashed 9%
+\rsedges{\rsyL}{{\rsx{0}}}{{\rsx{9}}}%
+\rstck{\rsyL}{{\rsx{0}}} \rstck{\rsyL}{{\rsx{5}}}%
+\rsstg{\rsyL}{{\rsx{0}}}{N} \rsstg{\rsyL}{{\rsx{5}}}{E}%
+\rssq{\rsyL}{\rsx{9}}%
+\node[rsann, anchor=west] at ({\rsx{9.5}+3},\rsyL) {Squashed};%
+\node[rsann, anchor=north east] at ({\rsx{4.5}-3},\rsyL-\rsbarh/2-2.5) {Recon: isTainted, isSpeculative};%
+% forwarded store value -> xmit completion (the one star)%
+\node[star, star points=5, star point ratio=2.4, fill=ssxmitink, draw=white, line width=0.5pt, minimum size=\rsstar, inner sep=0pt] (rstx) at ({\rsx{7}},\rsyL) {};%
+\draw[->, densely dashed] ({\rsx{5.35}},\rsyS-\rsbarh/2) to[out=-80, in=160] (rstx.north west);%
+\node[rsann, anchor=west] at ({\rsx{6.15}},\rsyS-\rsbarh/2-9) {Forwarded};% 8pt: x 6.6 -> 6.15 to clear the window frame%
+\node[rsann, anchor=north, align=center] at ($(rstx.south)+(0,-2.5)$) {Completes};%
+% the window: Recon itself marks i5 tainted and speculative at 5; the squash at 9 confirms wrong path%
+\draw[line width=\rswinlw] ({\rsx{4.5}},\rswT) rectangle ({\rsx{9.5}},\rswB);%
+\node[anchor=base] at ({\rsx{7}},\rswT+4) {Tainted and speculative until the squash};%
+% ------------------------------ time axis ------------------------------%
+\node[anchor=north west] at (\rslabx,\rsyT) {Cycle};%
+\foreach \rsc in {0,5,6,7,9} \node[anchor=north] at ({\rsx{\rsc}},\rsyT) {\rsc};%
+% ------------- the defense-specific rule the trace violates -------------%
+\pgfmathsetmacro\rsyK{\rsyT-8-9}%
+\node[draw=sssrcink, fill=sssrcbg, anchor=north west, align=left, inner sep=3pt, text width=244pt] (rscrit) at (0,\rsyK) {\raggedright\textit{Recon-STT rule:} a load whose address is tainted waits in the delay unit until it is no longer speculative. Recon checks taint only on the cache path, after store-to-load forwarding has already returned, so i5 completes at 7 with i4's value.};%
+\end{tikzpicture}%
+}%

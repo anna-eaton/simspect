@@ -39,7 +39,19 @@
 \toprule%
 Execution graph & \textbf{Stage 2:} program & \textbf{Stage 3:} gem5 harness\\%
 \midrule%
-% ---- row 1: store bypass (plan fact table, Row 1) ----%
+% ---- row 1: unresolved branch (plan Row 2) ----%
+Unresolved branch, mispredicted either way%
+\eg{\egl{0}{i0}{\texttt{Branch\_n}}{unresolved}}%
+& Mispredicted both ways (taken, mispredicted not taken; or the reverse). Constant condition: the architectural path exits, so the rest runs only speculatively.%
+& Forced to mispredict; resolution held 5000 cycles; still unresolved at the xmit.\\%
+\midrule%
+% ---- row 2: resolved branch (plan Row 3) ----%
+Resolved branch, not taken%
+\eg{\egl{0}{i0}{\texttt{Branch\_n}}{resolved}}%
+& Correctly predicted, not taken: zeroed condition, falls through.%
+& Forced correct; resolution delayed 0, 500 or 2500 cycles (all combinations).\\%
+\midrule%
+% ---- row 3: store bypass (plan fact table, Row 1) ----%
 Store bypass%
 \eg{\egl{0}{i0}{\texttt{Store}}{unresolved}\egl{1}{i1}{\texttt{Load}}{}%
   \draw[->, rounded corners=1.2pt] ([xshift=1pt,yshift=2.2pt]k0.base east) -| ++(3pt,-\eglh)%
@@ -47,18 +59,6 @@ Store bypass%
     -- ([xshift=1pt,yshift=2.2pt]k1.base east);}%
 & i0 and i1 share an address, so i1 mispredicts no alias. Inline asm: no compiler forwarding.%
 & i0's address held 5000 cycles; i1 forced to mispredict no alias.\\%
-\midrule%
-% ---- row 2: unresolved branch (Row 2) ----%
-Unresolved branch, mispredicted either way%
-\eg{\egl{0}{i0}{\texttt{Branch\_n}}{unresolved}}%
-& Mispredicted both ways (taken, mispredicted not taken; or the reverse). Constant condition: the architectural path exits, so the rest runs only speculatively.%
-& Forced to mispredict; resolution held 5000 cycles; still unresolved at the xmit.\\%
-\midrule%
-% ---- row 3: resolved branch (Row 3) ----%
-Resolved branch, not taken%
-\eg{\egl{0}{i0}{\texttt{Branch\_n}}{resolved}}%
-& Correctly predicted, not taken: zeroed condition, falls through.%
-& Forced correct; resolution delayed 0, 500 or 2500 cycles (all combinations).\\%
 \midrule%
 % ---- row 4: commit boundary (Row 4) ----%
 Commit boundary%

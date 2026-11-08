@@ -1,6 +1,8 @@
 # STT Futuristic model (`STT_6_futuristic.als`)
 
-*Living doc. Written 2026-10-30 by the `stl-spec` session. Model status: written, SAT, **not yet reviewed by Anna**, no concretization mode, not run on gem5.*
+> **PARKED 2026-11-07 (Anna): not doing Futuristic for now.** Futuristic is not STT's only mode: `/work/stt` takes `threatModel` = UnsafeBaseline, Spectre or Futuristic (`cpu.cc:422-439`), and the harness runs Spectre (`gem5-hooks/stt/se_exp.py:332`). The STT work goes to STT-Spectre (`STT_6`) and Recon-STT (`STT_6_shadows`). Everything below is kept as it was for pickup: the model `STAGE1_alloy/models/STT_6_futuristic.als` (unreviewed), the config `/work/stt/configs/example/se_futuristic.py` (repo copy `gem5-hooks/stt/se_futuristic.py`), the branch-only gem5 check (cafe2 `results/STT_6_futuristic_draftcheck/`), and the two open decisions (visibility point completed vs committed; completion-hold hook), which are parked in `URGENT_TODO.md`.
+
+*Living doc. Written 2026-10-30 by the `stl-spec` session. Model status: written, SAT, **not yet reviewed by Anna**. 2026-11-07: every source kind is SAT, branch-only tests run on gem5 (STT-Futuristic 0/60 hits, Unsafe 43/60), load and ALU sources still have no concretization mode. Details: [`STT_VS_RECON_STT.md`](STT_VS_RECON_STT.md), section "One Alloy model per threat model".*
 
 ## Three threat models, three builds
 
@@ -44,4 +46,4 @@ Speculation source kind per instance: unresolved `other` with xmit flag 409, `ot
 1. **Visibility point: completed vs committed.** Completed matches `/work/stt` and InvisiSpec's "speculative non-squashable". Committed (ROB head) is stricter and simpler. Recommendation: completed (as written).
 2. **Squash sources: any kind vs branch + store only.** Any kind is Futuristic proper. Branch + store is what the Recon builds protect: that is a separate model (`STT_6_shadows`) and the one their STT results should be judged against. Recommendation: keep this file as Futuristic, and also make `STT_6_shadows` for the Recon builds.
 3. **Concretization.** A non-branch, non-store source (an ALU op, a load) has to be held incomplete in gem5 for the window to exist: either a new completion-hold hook by PC (like the STL store hold), or naturally slow instructions (a chain of `div`s, a cache-missing load). No mode is built yet. Recommendation: the hook, because it gives a known window length, the same as the branch and store holds.
-4. **Run against `/work/stt` with `threatModel = Futuristic`.** The harness pins Spectre today. Futuristic results on the Recon builds would be "leaks" by design.
+4. **Run against `/work/stt` with `threatModel = Futuristic`.** Done for branch-only tests on 2026-11-07: `/work/stt/configs/example/se_futuristic.py` (repo copy `gem5-hooks/stt/se_futuristic.py`) is `se.py` with only the scheme-2 `threatModel` string changed to `'Futuristic'`, a runtime value the build supports (`src/cpu/o3/cpu.cc:426-429`). Set `gem5.config_script` to it. Futuristic results on the Recon builds would be "leaks" by design.

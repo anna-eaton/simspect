@@ -1,0 +1,104 @@
+% Resolution-timing figure (2026-11-03): Anna's original tikz/resolutiontiming.tex (fig:resolutiontiming) redrawn in the
+% shared graph notation, 8pt minimum, one column. Same program: i0 Branch_n (committed), i1 Load r0 <- m0 (committed),
+% i2 Branch_n (unresolved), i3 Load r1 <- m1, i4 Other_n r2 <- r1, r0, i5 Load ? <- [r2] (the transmitter); reg->r, mem->m.
+% Her two annotations (i0 resolution option 1: no violation; option 2: violation) are the notes on i4 and i5.
+% m1 is protected (read after the unresolved i2); m0 is not (i1 is committed, STT_6.als:331). Graph drawing reused from
+% recon_otb_v2_8pt.tex (the same two-branch merge shape; it is the ReCon getOldestTaint bug). Body only; macros prefixed rt.
+{%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}\providecolor{sssrcbg}{gray}{0.90}%
+% ============================ TUNING KNOBS ============================%
+\def\rtkind{13pt}%       x where kinds start (ids at 0)%
+\def\rtout{61pt}%        x of the output operand%
+\def\rtarr{72pt}%        x of the <- arrow%
+\def\rtin{84pt}%         x of the first input operand%
+\def\rtgut{116pt}%       x of the gutter carrying i1's rf edge%
+\def\rtflag{119pt}%      x where flag words start%
+\def\rtnote{162pt}%      x where notes start%
+\def\rtnotew{88pt}%      note width (\rtnote + \rtnotew <= 252pt)%
+\def\rtrow{15pt}%        default row pitch%
+\def\rtgA{9pt}%          extra space above i1 (its ddi arc)%
+\def\rtgC{9pt}%          extra space above i3 (its ddi arc)%
+\def\rtgD{14pt}%         extra space above i4 (incoming rf over its ddi arc)%
+\def\rtgE{14pt}%         extra space above i5 (i4's lower ddi arc)%
+\def\rtlw{1.1pt}%        line width of the leak path%
+% ======================================================================%
+\begin{tikzpicture}[x=1pt, y=1pt, >=latex,%
+  every node/.style={font=\footnotesize, inner sep=0pt},%
+  execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000},%
+  rttok/.style={anchor=base west, outer sep=0.6pt},%
+  rtlab/.style={font=\footnotesize\itshape},%
+  rtflagw/.style={font=\footnotesize\itshape, anchor=base west},%
+  rtnote/.style={font=\footnotesize\itshape, anchor=base west, align=left, text width=\rtnotew},%
+  rtleak/.style={->, line width=\rtlw, draw=ssprotink, preaction={draw=ssprotfill, arrows=-, line width=3.6pt, line cap=round, blend mode=multiply}},%
+  rtrowl/.style={font=\footnotesize, anchor=base west},%
+]%
+\path (0,0) coordinate (y0) (0,-\rtrow-\rtgA) coordinate (y1) (0,-2*\rtrow-\rtgA) coordinate (y2)%
+  (0,-3*\rtrow-\rtgA-\rtgC) coordinate (y3) (0,-4*\rtrow-\rtgA-\rtgC-\rtgD) coordinate (y4)%
+  (0,-5*\rtrow-\rtgA-\rtgC-\rtgD-\rtgE) coordinate (y5);%
+\path (0,10pt) (0,-5*\rtrow-\rtgA-\rtgC-\rtgD-\rtgE-12pt);% breathing room above and below%
+% speculative rows (after the unresolved i2): a light band behind ids/kinds/operands only, ending before the flag column so no colored text sits on it; drawn first%
+\fill[ssspecfill, rounded corners=2pt] ($(-2pt,0 |- y2)+(0,-4.5pt)$) rectangle ($(\rtnote-4pt,0 |- y5)+(0,-4pt)$);%
+\coordinate (spA) at ($(-2pt,0 |- y2)+(0,-4.5pt)$); \coordinate (spB) at ($(\rtnote-4pt,0 |- y5)+(0,-4pt)$);%
+\node[font=\footnotesize\itshape, text=black!55, rotate=90, anchor=south] at ($($(spB)!0.5!(spB |- spA)$)+(-1.2pt,0)$) {speculative};% vertical label along the tan band's right edge
+% ------------------------------ rows (your original's program) ------------------------------%
+\foreach \r in {0,...,5} \node[rttok] at (y\r) {i\r:};%
+% i0: Branch_n  committed%
+\node[rttok] at ($(y0)+(\rtkind,0)$) {\texttt{Branch\_n}};%
+\node[rtflagw] at ($(y0)+(\rtflag,0)$) {committed};%
+% i1: Load r0 <- m0  committed  (load A, older)%
+\node[rttok] at ($(y1)+(\rtkind,0)$) {\texttt{Load}};%
+\node[rttok] (i1o) at ($(y1)+(\rtout,0)$) {$r0$};%
+\node[rttok] at ($(y1)+(\rtarr,0)$) {$\leftarrow$};%
+\node[rttok] (i1m) at ($(y1)+(\rtin,0)$) {$m0$};%
+\node[rtflagw] at ($(y1)+(\rtflag,0)$) {committed};%
+% i2: Branch_n  unresolved%
+\node[rttok] at ($(y2)+(\rtkind,0)$) {\texttt{Branch\_n}};%
+\node[rtflagw] at ($(y2)+(\rtflag,0)$) {unresolved};%
+% i3: Load r1 <- m1  (m1 protected: read after the unresolved i2)%
+\node[rttok] at ($(y3)+(\rtkind,0)$) {\texttt{Load}};%
+\node[rttok] (i3o) at ($(y3)+(\rtout,0)$) {$r1$};%
+\node[rttok] at ($(y3)+(\rtarr,0)$) {$\leftarrow$};%
+\node[rttok, fill=ssprotfill, inner xsep=1pt, inner ysep=1.3pt] (i3m) at ($(y3)+(\rtin,0)$) {$m1$};%
+% i4: Other_n r2 <- r1, r0  (the merge)%
+\node[rttok] at ($(y4)+(\rtkind,0)$) {\texttt{Other\_n}};%
+\node[rttok] (i4o) at ($(y4)+(\rtout,0)$) {$r2$};%
+\node[rttok] at ($(y4)+(\rtarr,0)$) {$\leftarrow$};%
+\node[rttok] (i4a) at ($(y4)+(\rtin,0)$) {$r1$};%
+\node[rttok] (i4c) at (i4a.base east) {,};%
+\node[rttok] (i4b) at ($(i4c.base east)+(2.5pt,0)$) {$r0$};%
+% i5: Load ? <- [r2]  xmit%
+\node[rttok] at ($(y5)+(\rtkind,0)$) {\texttt{Load}};%
+\node[rttok] at ($(y5)+(\rtout,0)$) {?};%
+\node[rttok] at ($(y5)+(\rtarr,0)$) {$\leftarrow$};%
+\node[rttok] (i5b) at ($(y5)+(\rtin,0)$) {[};%
+\node[rttok, outer sep=0pt] (i5r) at (i5b.base east) {$r2$};%
+\node[rttok] at (i5r.base east) {]};%
+\node[rtflagw, text=ssxmitink] at ($(y5)+(\rtflag,0)$) {xmit};%
+% ---- edges: the older source (thin; m0 is not protected: i1 is committed) ----%
+\draw[->, shorten >=1.2pt] ($(i1m.north)+(0,0.3pt)$) to[out=115, in=65, looseness=1.1]%
+  node[pos=0.5, above=1.4pt, rtlab] {ddi} ($(i1o.north)+(0,0.6pt)$);%
+\draw[->, shorten <=0.6pt, shorten >=0.8pt, rounded corners=2pt]%
+  (i1o.south) |- ($(\rtgut,0 |- y2)+(0,2.5pt)$) |- (i4b.east);%
+\node[rtlab, anchor=base west] at ($(\rtin,0 |- y2)+(4pt,4.5pt)$) {rf};%
+\draw[->, shorten <=0.4pt, shorten >=1pt] ($(i4b.south)+(0,-0.2pt)$) .. controls +(0,-7pt) and +(4pt,-7pt) ..%
+  ($(i4o.south east)+(-0.8pt,-0.2pt)$);%
+\node[rtlab, anchor=north west] at ($(i4b.south)+(1.5pt,-2.5pt)$) {ddi};%
+% ---- edges: the younger source = the leak path (thick) ----%
+\draw[rtleak, shorten >=1.4pt] ($(i3m.north)+(0,0.3pt)$) to[out=115, in=65, looseness=1.1]%
+  node[pos=0.5, above=1.4pt, rtlab] {ddi} ($(i3o.north)+(0,0.6pt)$);%
+\draw[rtleak, shorten <=0.6pt, shorten >=1pt] (i3o.south) .. controls +(0.15,-0.22) and +(0.08,0.22) .. ($(i4a.north east)+(-0.6pt,0.4pt)$)%
+  node[pos=0.5, rtlab, anchor=south west, xshift=2pt] {rf};%
+\draw[rtleak, shorten >=1.2pt] ($(i4a.north west)+(0.8pt,0.3pt)$) to[out=125, in=55, looseness=0.9]%
+  ($(i4o.north)+(0.5pt,0.6pt)$);%
+\node[rtlab, anchor=base east] at ($(i4o.base west)+(-1pt,5.5pt)$) {ddi};%
+\draw[rtleak, shorten <=0.6pt, shorten >=1.2pt] ($(i4o.south west)+(0.8pt,0)$) .. controls +(-1pt,-14pt) and +(-8pt,5pt) .. (i5b.north west)%
+  node[pos=0.3, rtlab, anchor=east, xshift=-4pt] {rf};%
+% ---- notes: the two times i0 can resolve (your original's options 1 and 2) ----%
+\node[rtnote] at ($(y0)+(\rtnote,0)$) {resolves at a swept time};%
+\node[rtnote] at ($(y4)+(\rtnote,0)$) {(1) i0 resolves before i4 executes: no violation};%
+\node[rtnote] at ($(y5)+(\rtnote,0)$) {\textcolor{ssxmitink}{(2) i0 resolves after i4 executes: violation}};%
+\end{tikzpicture}%
+}%

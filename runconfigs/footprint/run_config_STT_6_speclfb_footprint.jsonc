@@ -1,0 +1,64 @@
+{
+  // CANONICAL footprint-run config (2026-11-08), tracked copy of results/STT_6_speclfb_full/run_config.jsonc.
+  // Changed vs that file ONLY in the run glue: (1) paths.alloy_stage/models_dir/stage2_dir/stage3_dir/instruction_tables
+  // added (without them pipeline.py raises KeyError: CleanupSpec v2 run README on cafe2,
+  // /tests/simspect_fixed_20261030/results/STT_6_cleanupspec_v2hooks__20261107/README.md "Deviations" (1));
+  // (2) testset_dir = testsets_latest; (3) debug_flags = ["O3PipeView"] only (check_footprint reads only that;
+  // ProtocolTrace filled 15 GB on 40 pilot traces, and CleanupSpec's LSQUnit print corrupts hook lines);
+  // (4) results_name STT_6_speclfb_footprint.
+  // Anna 2026-11-08: keep the shrunk (amplified) caches for all footprint runs; never use a deadlocking setting.
+  // TSO, sys clock and branch predictor are NOT decided for these runs and are left exactly as in the old file.
+  // Run: make run MODEL=STT_6 RUNCONFIG=runconfigs/footprint/run_config_STT_6_speclfb_footprint.jsonc (on cafe2, tree /tests/simspect_fixed_20261030).
+  // AMuLeT head-to-head comparisons use runconfigs/amulet_parity/ instead (wiki/findings/audits/2026-10-28/full_configs.md).
+  // SpecLFB, FULL configuration (classic caches, LFB check at BOTH L1D and L2 as in the paper's gem5 evaluation).
+  // Written 2026-10-28 (scope-table session). NOT LAUNCHED. Every flag is justified in results/STT_6_speclfb_full/README.md.
+  // Differs from STT_6_speclfb (run_speclfb.py:96-103: no extra args -> no L2, L1D 64kB/2 defaults) by adding
+  // --l2cache and the paper's Table 2 L1I/L2 geometry, and by shrinking L1D like the other footprint campaigns.
+  // Pipeline path: make run MODEL=STT_6 RUNCONFIG=results/<this dir>/run_config.jsonc (gem5.checker/criterion below).
+  "paths": {
+    "testset_dir":  "testsets_latest",
+    "results_dir":  "results",
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "results_name": "STT_6_speclfb_footprint",
+    "model":        "STT_6"
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_not_taken", "mispredict_taken"]
+  },
+  "filter": { "xmit_kind": "ld" },   // read by the launchers only, not by pipeline.py
+  "gem5": {
+    "binary":        "/work/amulet/amulet-gem5-SpecLFB_AE-v1.1/build/X86/gem5.opt",   // classic-cache build (no Ruby protocol)
+    "config_script": "/work/amulet/amulet-gem5-SpecLFB_AE-v1.1/configs/example/se.py",
+    "branch_ann_enable":       true,               // as run_speclfb.py:100
+    "cpu_type":                "DerivO3CPU",
+    "scheme":                  2,                  // se.py:333-334 maps "2" -> Speclfb; extra_args repeats it explicitly
+    "jobs":                    8,                  // as run_speclfb.py default
+    "debug_flags":             ["O3PipeView"],   // check_footprint reads only O3PipeView (Commit is auto-added by gem5_common)
+    "debug_file":              "pipeview.txt",
+    "checker":                 "check_footprint.py",   // pipeline.py:304-312 override; reads only the O3PipeView simspect: lines
+    "criterion":               "specs/leakage/speclfb.json",   // footprint criterion (criteria session); pipeline.py:599-614 -> SIMSPECT_CRITERION
+    "fnc_commit_stall_cycles": 0,                  // as run_speclfb.py:101
+    // gem5_common.py:167 always adds --caches (classic L1I+L1D). --l2cache adds system.l2 (CacheConfig.py:133-145).
+    "extra_args": [
+      "--scheme=Speclfb",                          // the defense (Options.py:566-573; gates lsq_unit.cc:228, commit.cc:134, iew.cc:106, inst_queue.cc:164)
+      "--l2cache",                                 // paper p640 "applied to both levels of the cache"; AMuLeT executor.py:220-221
+      "--l1d_size=1kB", "--l1d_assoc=2",           // SimSpect amplification; paper Table 2 p640 = 32KB/8 (UNTESTED on this classic build)
+      "--l1i_size=32kB", "--l1i_assoc=8",          // paper Table 2 p640 (gem5 column)
+      "--l2_size=2MB",  "--l2_assoc=16"            // paper Table 2 p640
+      // MSHRs need no flag: Caches.py:58 L1 mshrs=4, Caches.py:78 L2 mshrs=20 = paper Table 2 p640.
+      // NOT passed: --bp-type=BiModeBP (authors' Makefile:10, AMuLeT executor.py:283) - predictor choice, not defense;
+      //             branch-ann forcing was validated on the default TournamentBP (BaseO3CPU.py:196). --needsTSO: unset as before.
+    ]
+  },
+  // 1-point sweep = the launchers' inject_stalls (mispredict branches held 5000 cyc, xmit branch 0): pipeline.py:402-426.
+  // enabled:true is required on the pipeline path; with false, pipeline.py injects no stall (the old configs relied on the launcher).
+  "sweep": { "enabled": true, "points": [0], "unresolved_stall_cycles": 5000 },
+  "legacy_checker": "STAGE3_gem5/check_ld_speclfb.py",   // the earlier direct-checker path (needs debug flags this config no longer sets: add them back to use it); for comparison only
+  "pipeline": { "check": "per_type", "keep_tmp": false }
+}

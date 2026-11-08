@@ -1,0 +1,64 @@
+{
+  // CANONICAL footprint-run config (2026-11-08), tracked copy of results/STT_6_invisispec_full_futuristic/run_config.jsonc.
+  // Changed vs that file ONLY in the run glue: (1) paths.alloy_stage/models_dir/stage2_dir/stage3_dir/instruction_tables
+  // added (without them pipeline.py raises KeyError: CleanupSpec v2 run README on cafe2,
+  // /tests/simspect_fixed_20261030/results/STT_6_cleanupspec_v2hooks__20261107/README.md "Deviations" (1));
+  // (2) testset_dir = testsets_latest; (3) debug_flags = ["O3PipeView"] only (check_footprint reads only that;
+  // ProtocolTrace filled 15 GB on 40 pilot traces, and CleanupSpec's LSQUnit print corrupts hook lines);
+  // (4) results_name STT_6_invisispec_futuristic_footprint.
+  // Anna 2026-11-08: keep the shrunk (amplified) caches for all footprint runs; never use a deadlocking setting.
+  // TSO, sys clock and branch predictor are NOT decided for these runs and are left exactly as in the old file.
+  // Run: make run MODEL=STT_6 RUNCONFIG=runconfigs/footprint/run_config_STT_6_invisispec_futuristic_footprint.jsonc (on cafe2, tree /tests/simspect_fixed_20261030).
+  // AMuLeT head-to-head comparisons use runconfigs/amulet_parity/ instead (wiki/findings/audits/2026-10-28/full_configs.md).
+  // InvisiSpec-FUTURISTIC, FULL configuration (Ruby MESI_Two_Level). Identical to
+  // results/STT_6_invisispec_full_spectre/run_config.jsonc except --scheme=FuturisticSafeInvisibleSpec
+  // (the mode AMuLeT tested: AMuLeT paper p8 "For InvisiSpec and STT, we run them in their Futuristic mode";
+  // executor.py:300-301). Written 2026-10-28 (scope-table session). NOT LAUNCHED. Justification: results/STT_6_invisispec_full_futuristic/README.md.
+  // Caveat: the Futuristic window (any squashable load, InvisiSpec p4) is BROADER than STT_6's Spectre contract,
+  // so tests stay valid but the model window and the defense window no longer coincide (paper audit §6 option 5).
+  "paths": {
+    "testset_dir":  "testsets_latest",
+    "results_dir":  "results",
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "results_name": "STT_6_invisispec_futuristic_footprint",
+    "model":        "STT_6"
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_not_taken", "mispredict_taken"]
+  },
+  "filter": { "xmit_kind": "ld" },   // read by the launchers only, not by pipeline.py
+  "gem5": {
+    "binary":        "/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1/build/X86_MESI_Two_Level/gem5.opt",
+    "config_script": "/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1/configs/example/se.py",
+    "branch_ann_enable":       true,
+    "cpu_type":                "DerivO3CPU",
+    "scheme":                  2,
+    "jobs":                    6,
+    "debug_flags":             ["O3PipeView"],   // check_footprint reads only O3PipeView (Commit is auto-added by gem5_common)
+    "debug_file":              "pipeview.txt",
+    "checker":                 "check_footprint.py",   // pipeline.py:304-312 override; reads only the O3PipeView simspect: lines
+    "criterion":               "specs/leakage/invisispec.json",   // footprint criterion (criteria session); pipeline.py:599-614 -> SIMSPECT_CRITERION
+    "fnc_commit_stall_cycles": 0,
+    "extra_args": [
+      "--ruby",
+      "--scheme=FuturisticSafeInvisibleSpec",      // IS-Futuristic (lsq_unit_impl.hh:240-245): visible only when unsquashable
+      "--needsTSO=1",
+      "--allowSpecBuffHit=1",
+      "--l1d_size=1kB", "--l1d_assoc=2",
+      "--l1i_size=32kB", "--l1i_assoc=4",
+      "--l2_size=2MB",  "--l2_assoc=16",
+      "--L1_TBEs=2", "--L2_TBEs=2", "--DC_TBEs=2"
+    ]
+  },
+  // 1-point sweep = the launchers' inject_stalls (mispredict branches held 5000 cyc, xmit branch 0): pipeline.py:402-426.
+  // enabled:true is required on the pipeline path; with false, pipeline.py injects no stall (the old configs relied on the launcher).
+  "sweep": { "enabled": true, "points": [0], "unresolved_stall_cycles": 5000 },
+  "legacy_checker": "STAGE3_gem5/check_ld_invisispec_compound.py",   // the earlier direct-checker path (needs debug flags this config no longer sets: add them back to use it); for comparison only
+  "pipeline": { "check": "per_type", "keep_tmp": false }
+}

@@ -1,0 +1,734 @@
+--- upstream22/lsq_unit.cc	2026-11-07 16:59:42
++++ reconbase/lsq_unit.cc	2026-11-07 16:59:51
+@@ -49,6 +49,8 @@
+ #include "cpu/o3/limits.hh"
+ #include "cpu/o3/lsq.hh"
+ #include "debug/Activity.hh"
++#include "debug/AddrPrediction.hh"
++#include "debug/DelayDebug.hh"
+ #include "debug/HtmCpu.hh"
+ #include "debug/IEW.hh"
+ #include "debug/LSQUnit.hh"
+@@ -99,6 +101,11 @@
+     if (!request->isReleased()) {
+         ret = request->recvTimingResp(pkt);
+     }
++
++    if (request->isReleased() &&
++        request->isPredict) {
++        request->_inst->predInst.predCompleteCycle = cpu->curCycle();
++    }
+     return ret;
+ }
+ 
+@@ -170,13 +177,79 @@
+             // after receving the response from the memory
+             assert(inst->isLoad() || inst->isStoreConditional() ||
+                    inst->isAtomic());
++            
++            // [Pavlos] implementation requests
++            //if(pkt->req->revealBit && pkt->req->fromCache){
++            if(pkt->req->revealBit){
++              inst->revealBit = 1;
++            }
+ 
++            inst->loadCompleted = true;
++
+             // hardware transactional memory
+             if (pkt->htmTransactionFailedInCache()) {
+                 request->mainPacket()->setHtmTransactionFailedInCache(
+                     pkt->getHtmTransactionFailedInCacheRC() );
++            }
++            if (cpu->scheme == CPU::Scheme::Delay &&
++                 inst->isLoad() &&
++                 inst->isSpeculative()) {
++                      assert(!inst->isAtomic());
++                      // [Pavlos]
++                      if(cpu->allowLeaked){
++                        if(!inst->revealBit || inst->stlForw){
++                          cpu->delayUnit.insertDelayedMem(inst);
++                          return;
++                        }
++                        else{
++                          stats.allowlistedLoadsFromLSQU++;
++                        }
++                      }
++                      else{
++                        cpu->delayUnit.insertDelayedMem(inst);
++                        return;
++                      }
++            }
++
++            // Stat only for dom
++            // This flag is set from lsq.cc if it
++            // is allowlisted
++            // It is only for DoM.
++            // This counts all allowlisted (both hits
++            // and misses). That means that the real stat
++            // at the end is
++            if (cpu->scheme == CPU::Scheme::DoM){
++              if(inst->allowlistedDoM){
++                // this can be changed according to cache level
++                int l1hit = 5;
++                pkt->req->setAccessLatency();
++                //printf("%lu\n", pkt->req->getAccessLatency());
++                // try to exclude hits
++                if(pkt->req->getAccessLatency() / 333 > l1hit){
++//                  stats.allowlistedLoadsFromLSQU++;
++                }
++              }
+             }
+ 
++            // [Pavlos]
++            // This is speculative load that puts
++            // the value in a register and never
++            // wakes up any instruction
++            // This helps hits that write a register
++            // LD1(addr) -> write register
++            // LD2 after some time gets in pipeline and takes it 
++            // from register. The value is updated in LD pair table
++            if(cpu->allowLeaked && cpu->scheme == CPU::Scheme::DoM){
++              int destIdx = inst->renamedDestIdx(0)->flatIndex();
++              // if you are still the owner -- update it
++              if(cpu->loadPair[destIdx].getLoad() == inst->seqNum){
++                cpu->loadPair[destIdx].setPointer(inst->physEffAddr);
++                if (cpu->scheme == CPU::Scheme::DoM){
++                  cpu->loadPair[destIdx].setProdRevealBit(inst->revealBit);
++                  cpu->loadPair[destIdx].setStlForw(inst->stlForw);
++                }
++              }
++            }
+             writeback(inst, request->mainPacket());
+             if (inst->isStore() || inst->isAtomic()) {
+                 request->writebackDone();
+@@ -218,6 +291,7 @@
+     depCheckShift = params.LSQDepCheckShift;
+     checkLoads = params.LSQCheckLoads;
+     needsTSO = params.needsTSO;
++//    needsTSO = true;
+ 
+     resetState();
+ }
+@@ -270,11 +344,65 @@
+       ADD_STAT(blockedByCache, statistics::units::Count::get(),
+                "Number of times an access to memory failed due to the cache "
+                "being blocked"),
++      ADD_STAT(issuedPredictions, statistics::units::Count::get(),
++               "Number of predictions issued to memory"),
++      ADD_STAT(blockedPredictions, statistics::units::Count::get(),
++               "Number of predictions blocked by cache"),
++      ADD_STAT(delayedTranslationPredictions, statistics::units::Count::get(),
++               "Number of predictions dropped due to delayed translation"),
++      ADD_STAT(committedCorrectPredictions, statistics::units::Count::get(),
++               "Number of correct predictions committed"),
++      ADD_STAT(committedIncorrectPredictions, statistics::units::Count::get(),
++               "Number of incorrect predictions committed"),
++      ADD_STAT(storeMemoryVariance, statistics::units::Count::get(),
++               "Number of predictions with different store and memory data"),
++      ADD_STAT(wrongDataPredictions, statistics::units::Count::get(),
++               "Number of predictions with wrong data from memory"),
++      ADD_STAT(sttLoadBypasses, statistics::units::Count::get(),
++               "Number of STT accesses that skipped taints"),
++      ADD_STAT(L1CacheRuns, statistics::units::Count::get(),
++               "Number of predicted loads that hit in L1 cache"),
++      ADD_STAT(deepCacheRuns, statistics::units::Count::get(),
++               "Number of predicted loads that went beyond L1 cache"),
+       ADD_STAT(loadToUse, "Distribution of cycle latency between the "
+-                "first time a load is issued and its completion")
++                "first time a load is issued and its completion"),
++      ADD_STAT(loadDecodeToComplete, "Distribution of cycle latency between "
++                "the time a load is decoded and marked as completed"),
++      ADD_STAT(loadDecodeToAddress, "Distribution of cycle latency between "
++                "the time a load is decoded and completes translation"),
++      ADD_STAT(loadLatencyCorrect, "Distribution of cycle latency for loads "
++                "which were correctly predicted"),
++      ADD_STAT(loadLatencyIncorrect, "Distribution of cycle latency for loads "
++                "which were incorrectly predicted"),
++      ADD_STAT(allowlistedLoadsFromLSQU, statistics::units::Count::get(),
++                "Loads allowlisted from lsq unit because they were safe"),
++      ADD_STAT(requestsFromTimingSendReq, statistics::units::Count::get(),
++                "Total requests send from TimingSendReq"),
++      ADD_STAT(revealRequests, statistics::units::Count::get(),
++                "Total reveal requests"),
++      ADD_STAT(readRequestsFromTimingSendReq, statistics::units::Count::get(),
++                "Total read requests that pass through timingsendreq"),
++      ADD_STAT(writeRequestsFromTimingSendReq, statistics::units::Count::get(),
++                "Total write requests that pass through timingsendreq")
+ {
+     loadToUse
+         .init(0, 299, 10)
++        .flags(statistics::nozero);
++
++    loadDecodeToComplete
++        .init(0, 299, 5)
++        .flags(statistics::nozero);
++
++    loadDecodeToAddress
++        .init(0, 299, 5)
++        .flags(statistics::nozero);
++
++    loadLatencyCorrect
++        .init(0, 299, 5)
++        .flags(statistics::nozero);
++
++    loadLatencyIncorrect
++        .init(0, 299, 5)
+         .flags(statistics::nozero);
+ }
+ 
+@@ -590,6 +718,7 @@
+ Fault
+ LSQUnit::executeLoad(const DynInstPtr &inst)
+ {
++
+     // Execute a specific load.
+     Fault load_fault = NoFault;
+ 
+@@ -600,6 +729,8 @@
+ 
+     load_fault = inst->initiateAcc();
+ 
++    // readMemAccPredicate is true by default, use to indicate
++    // that commit has to clean up
+     if (load_fault == NoFault && !inst->readMemAccPredicate()) {
+         assert(inst->readPredicate());
+         inst->setExecuted();
+@@ -735,8 +866,154 @@
+                     inst->lastWakeDependents - inst->firstIssue));
+     }
+ 
++    // [Pavlos]
++    if(cpu->allowLeaked){
++      //for(int i =0; i < inst->numSrcs(); i++){
++      for(int i =1; i >= 0; i--){
++        int srcIdx_orig = inst->renamedSrcIdx(i)->flatIndex();
++//        int srcIdx_orig = inst->renamedSrcIdx(1)->flatIndex();
++        int srcIdx = srcIdx_orig % (PL_SIZE / cpu->loadPairUsage);
++        if(cpu->loadPair[srcIdx].isValid()){
++          if(srcIdx_orig == cpu->loadPair[srcIdx].getRegister()){
++            if(cpu->loadPair[srcIdx].getPointer() != -1){
++              // disable for parallel
++              inst->valueFromAddr = cpu->loadPair[srcIdx].getPointer();
++//              printf("Matched in id %d (with original %d) and address 0x%x\n", srcIdx, srcIdx_orig, inst->valueFromAddr);
++            }
++          }
++        }
++//      }
++
++      if(inst->valueFromAddr != -1){
++          const Addr addr = inst->valueFromAddr;
++          const int size = 64;
++          const Request::Flags flags = Request::REVEAL;
++
++          RequestPtr req =
++              std::make_shared<Request>(addr, size, flags, inst->requestorId());
++
++          req->setPaddr(inst->valueFromAddr);
++          PacketPtr pkt = new Packet(req, MemCmd::Reveal);
++
++
++          // [Pavlos] implementation requests
++          // classical memory system
++          //inst->savedRequest->mainReq()->valueFromAddr = inst->valueFromAddr;
++          //PacketPtr pkt = new Packet(inst->savedRequest->mainReq(), MemCmd::Reveal);
++
++
++          if(pkt->isRequest()){
++            if (!lsq->cacheBlocked() &&
++              lsq->cachePortAvailable(1)) {
++              if (dcachePort->sendTimingReq(pkt)) {
++                //check here if needed
++//                printf("Revealed address 0x%x\n", inst->valueFromAddr);
++                stats.revealRequests++;
++              }
++              else {
++                // too lazy to create new stat variable
++                // for now. use this instead
++                // temporary for expiremental reasons
++                //
++                //stats.allowlistedLoadsFromLSQU++;
++              }
++            }
++            else {
++              // too lazy to create new stat variable
++              // for now. use this instead
++              // temporary for expiremental reasons
++              //
++              //stats.allowlistedLoadsFromLSQU++;
++            }
++          }
++
++
++          // do only one of the sources
++          break;
++        }
++    }
++//        delete pkt;
++    }
++
+     loadQueue.front().clear();
+     loadQueue.pop_front();
++
++    // [Pavlos]
++    // Write addr to load pairs
++    // for future loads that will take
++    // value from the register
++    // see explanation on rename.cc
++    if(cpu->allowLeaked){
++      int destIdx_orig = inst->renamedDestIdx(0)->flatIndex();
++      // map destIdx to reducedPhysicalRegisters load pair table
++      int destIdx = destIdx_orig % (PL_SIZE / cpu->loadPairUsage);
++//      int destIdx = destIdx_orig;
++
++        if(!inst->revealBit){
++          cpu->loadPair[destIdx].setValid(true);
++          cpu->loadPair[destIdx].setPointer(inst->physEffAddr);
++          cpu->loadPair[destIdx].setRegister(destIdx_orig);
++//          printf("Updating %d (with original %d) with addr 0x%x\n", destIdx, destIdx_orig, inst->physEffAddr);
++        }
++        else{
++          cpu->loadPair[destIdx].setValid(false);
++//          printf("Disabling %d (with original %d) with addr 0x%x\n", destIdx, destIdx_orig, inst->physEffAddr);
++        }
++//        printf("Committing address 0x%x on entry with id %d\n", inst->physEffAddr, destIdx);
++    }
++
++    if (cpu->addressPrediction) {
++        cpu->predictionUnit.completeLoad(inst);
++        if (inst->predInst.successfulPred)
++            ++stats.committedCorrectPredictions;
++        else if (inst->predInst.predictedAddress != 0)
++            ++stats.committedIncorrectPredictions;
++    }
++
++    if (inst->predInst.cacheLevels == 1) {
++        ++stats.L1CacheRuns;
++    } else if (inst->predInst.cacheLevels > 1) {
++        ++stats.deepCacheRuns;
++    }
++
++    if (cpu->addressPrediction){
++      assert(inst->predInst.loadCompleteCycle > inst->predInst.decodedCycle);
++
++      stats.loadDecodeToComplete.sample(
++          inst->predInst.loadCompleteCycle - inst->predInst.decodedCycle);
++
++      assert(inst->predInst.addressCalculatedCycle >
++             inst->predInst.decodedCycle);
++
++      stats.loadDecodeToAddress.sample(
++          inst->predInst.addressCalculatedCycle - inst->predInst.decodedCycle);
++    }
++
++    if (cpu->addressPrediction &&
++        inst->predInst.hasPred) {
++
++            if (inst->predInst.wrotePredictedData) {
++
++                assert(inst->predInst.predCompleteCycle >
++                       inst->predInst.predIssuedCycle);
++
++                stats.loadLatencyCorrect.sample(
++                        inst->predInst.predCompleteCycle -
++                        inst->predInst.predIssuedCycle
++                );
++            } else {
++                if (inst->predInst.predCompleteCycle == 0) {
++                    stats.loadLatencyIncorrect.sample(
++                        (cpu->curCycle()+1) - inst->predInst.predIssuedCycle
++                    );
++                } else {
++                    stats.loadLatencyIncorrect.sample(
++                        inst->predInst.predCompleteCycle -
++                        inst->predInst.predIssuedCycle
++                    );
++                }
++            }
++    }
+ }
+ 
+ void
+@@ -953,6 +1230,7 @@
+             DPRINTF(HtmCpu, ">> htmStarts (%d) : htmStops-- (%d)\n",
+               htmStarts, htmStops);
+         }
++
+         // Clear the smart pointer to make sure it is decremented.
+         loadQueue.back().instruction()->setSquashed();
+         loadQueue.back().clear();
+@@ -1067,6 +1345,9 @@
+     if (needsTSO) {
+         storeInFlight = true;
+     }
++
++    cpu->predictionUnit.checkForStores(storeWBIt->instruction(),
++                                       storeWBIt->data());
+ 
+     storeWBIt++;
+ }
+@@ -1083,6 +1364,17 @@
+         return;
+     }
+ 
++    if (inst->isLoad()) {
++        DPRINTF(DelayDebug, "Writing loaded data for inst [sn:%llu]\n",
++                inst->seqNum);
++        std::string val = "";
++        for (int i = 0; i < inst->effSize; i++) {
++            val += std::to_string(inst->memData[i]);
++            val += ":";
++        }
++        DPRINTF(DelayDebug, "%s \n", val);
++    }
++
+     if (!inst->isExecuted()) {
+         inst->setExecuted();
+ 
+@@ -1127,6 +1419,17 @@
+     // Need to insert instruction into queue to commit
+     iewStage->instToCommit(inst);
+ 
++#if TRACING_ON
++    if (debug::O3PipeView) {
++        // Record the tick at which the load's data actually arrived from
++        // cache (or store-to-load forwarding).  This overwrites the
++        // placeholder set by updateExeInstStats so that the O3PipeView
++        // "complete" timestamp reflects real cache completion, not just
++        // when executeLoad() was called.
++        inst->completeTick = curTick() - inst->fetchTick;
++    }
++#endif
++
+     iewStage->activityThisCycle();
+ 
+     // see if this load changed the PC
+@@ -1220,6 +1523,15 @@
+         }
+         lsq->cachePortBusy(isLoad);
+         request->packetSent();
++
++        // Pavlos
++        stats.requestsFromTimingSendReq++; 
++        if(isLoad){
++          stats.readRequestsFromTimingSendReq++;
++        }
++        else if(!isLoad){
++          stats.writeRequestsFromTimingSendReq++;
++        }
+     } else {
+         if (cache_got_blocked) {
+             lsq->cacheBlocked(true);
+@@ -1304,6 +1616,192 @@
+     cprintf("\n");
+ }
+ 
++void
++LSQUnit::predictLoad(const DynInstPtr &load_inst)
++{
++    assert(load_inst->predInst.predictedAddress != 0);
++
++    if (load_inst->isSquashed()) return;
++
++    Addr pred = load_inst->predInst.predictedAddress;
++    uint32_t packetSize = load_inst->predInst.predictedSize;
++
++    if (packetSize == 0) return;
++
++    auto flags = LSQRequest::Flag::IsLoad;
++    LSQRequest *req = new LSQ::PredictDataRequest(this, load_inst,
++                                        pred, packetSize,
++                                        flags);
++
++    bool needs_burst = transferNeedsBurst(pred, packetSize, 64);
++
++    if (needs_burst) {
++        assert(!req->isAnyOutstandingRequest());
++        req->discard();
++        load_inst->predInst.hasPred = false;
++        return;
++    }
++
++    req->_byteEnable = std::vector<bool>(packetSize, true);
++
++    req->initiateTranslation();
++
++    if (!load_inst->predInst.predData) {
++        load_inst->predInst.predData = new uint8_t[req->mainReq()->getSize()];
++    }
++
++    if (!req->isMemAccessRequired()) {
++        // todo: delayed predictions?
++        ++stats.delayedTranslationPredictions;
++        req->discard();
++        load_inst->predInst.hasPred = false;
++        return;
++        //panic("We are always in the same page");
++    }
++
++    req->buildPackets();
++
++    bool sent = dcachePort->sendTimingReq(req->_packets.at(0));
++
++    if (sent) {
++        ++stats.issuedPredictions;
++        cpu->predictionUnit.insertIssuedLoad(load_inst);
++        req->_numOutstandingPackets = 1;
++        load_inst->predInst.predRequest = req;
++        load_inst->predInst.predIssuedCycle = cpu->curCycle();
++    } else {
++        ++stats.blockedPredictions;
++        assert(!req->isAnyOutstandingRequest());
++        req->discard();
++        load_inst->predInst.hasPred = false;
++    }
++
++    DPRINTF(AddrPrediction, "Load [sn:%llu] completed prediction "
++        "sent: %d, pred: %#x, predicate: %d, size: %d\n",
++        load_inst->seqNum,
++        sent,
++        pred,
++        load_inst->readPredicate(),
++        packetSize);
++}
++
++bool
++LSQUnit::verifyPrediction(const DynInstPtr &load_inst)
++{
++    assert(load_inst->predInst.predData ||
++           load_inst->predInst.storeData);
++
++    PredictionInstruction* pred = &load_inst->predInst;
++    LSQRequest* req = load_inst->savedRequest;
++
++    if (!pred->verifyData) {
++        pred->verifyData =
++            new uint8_t[pred->predictedSize];
++        memset(pred->verifyData, 0, load_inst->effSize);
++    }
++
++    req->mainReq()->setFlags(pred->flags);
++    PacketPtr snoop = Packet::createRead(req->mainReq());
++    snoop->dataStatic(pred->verifyData);
++    dcachePort->sendFunctional(snoop);
++
++    bool equal = true;
++    for (int i = 0; i < pred->predictedSize; i++) {
++        if (pred->validStoreData)
++            equal = equal &&
++                pred->verifyData[i] == pred->storeData[i];
++        else
++            equal = equal &&
++                pred->verifyData[i] == pred->predData[i];
++    }
++
++    delete snoop;
++    snoop = nullptr;
++
++    return equal;
++}
++
++void
++LSQUnit::forwardData(const DynInstPtr &load_inst, int load_idx)
++{
++
++    if (cpu->scheme == CPU::Scheme::DoM &&
++        load_inst->predInst.cacheLevels > 1 &&
++        load_inst->isSpeculative()) {
++          cpu->delayUnit.insertDelayedMem(load_inst);
++          return;
++    }
++
++    assert(load_inst->savedRequest);
++    DPRINTF(AddrPrediction, "Forwarding predicted data for "
++            "load [sn:%llu], storeData: %d, size: %d, "
++            "fromStore: %d, partialFault: %d\n",
++            load_inst->seqNum,
++            load_inst->predInst.validStoreData,
++            load_inst->effSize,
++            load_inst->predInst.validStoreData,
++            load_inst->predInst.partial);
++    LSQRequest* request = load_inst->savedRequest;
++
++    if (load_inst->predInst.partial)
++        iewStage->blockMemInst(load_inst);
++
++    bool correct = verifyPrediction(load_inst);
++
++    if (!correct) {
++        if (load_inst->predInst.validStoreData) {
++            ++stats.storeMemoryVariance;
++        } else {
++            ++stats.wrongDataPredictions;
++        }
++    }
++
++    if (!load_inst->memData) {
++        load_inst->memData =
++            new uint8_t[request->mainReq()->getSize()];
++    }
++
++    if (load_inst->predInst.validStoreData &&
++        !correct) {/* &&
++        (cpu->curCycle() - load_inst->predInst.storeWriteCycle)
++            < Cycles(50)) {
++        load_inst->predInst.shouldForward = false;
++        load_inst->predInst.successfulPred = false;
++        iewStage->blockMemInst(load_inst);
++        return; */
++        memcpy(load_inst->memData,
++               load_inst->predInst.storeData,
++               request->mainReq()->getSize());
++    } else {
++        memcpy(load_inst->memData,
++               load_inst->predInst.verifyData,
++               request->mainReq()->getSize());
++    }
++
++    load_inst->predInst.wrotePredictedData = true;
++
++    if (cpu->scheme == CPU::Scheme::Delay &&
++        load_inst->isSpeculative()) {
++        cpu->delayUnit.insertDelayedMem(load_inst);
++        return;
++    } else if (cpu->scheme == CPU::Scheme::STT &&
++        (!cpu->sttBypass) &&
++        cpu->taintTracker.isTaintedInst(load_inst)) {
++        panic("Should never end up here, check earlier");
++    }
++
++    PacketPtr data_pkt = new Packet(request->mainReq(),
++                    MemCmd::ReadReq);
++
++    data_pkt->dataStatic(load_inst->memData);
++
++    assert(!request->isAnyOutstandingRequest());
++
++    writeback(load_inst, data_pkt);
++    load_inst->savedRequest->writebackDone();
++    delete data_pkt;
++}
++
+ void LSQUnit::schedule(Event& ev, Tick when) { cpu->schedule(ev, when); }
+ 
+ BaseMMU *LSQUnit::getMMUPtr() { return cpu->mmu; }
+@@ -1462,10 +1960,15 @@
+                 if (store_it->isAllZeros())
+                     memset(load_inst->memData, 0,
+                             request->mainReq()->getSize());
+-                else
++                else{
+                     memcpy(load_inst->memData,
+                         store_it->data() + shift_amt,
+                         request->mainReq()->getSize());
++                    if(cpu->allowLeaked){
++                      if(!storeQueue[store_it._idx].canWB())
++                          load_inst->stlForw = true;
++                    }
++                }
+ 
+                 DPRINTF(LSQUnit, "Forwarding from store idx %i to load to "
+                         "addr %#x\n", store_it._idx,
+@@ -1584,6 +2087,44 @@
+         *load_inst->memData = (uint64_t) 0x1ull;
+     }
+ 
++    if (cpu->scheme == CPU::Scheme::STT &&
++        cpu->taintTracker.isTaintedInst(load_inst)) {
++        if (cpu->addressPrediction &&
++            cpu->sttBypass &&
++            load_inst->predInst.successfulPred &&
++            !load_inst->predInst.partial) {
++            ++stats.sttLoadBypasses;
++        } 
++        else{
++          load_inst->clearIssued();
++          cpu->delayUnit.insertTaintedLoad(load_inst);
++          return NoFault;
++        }
++    }
++
++    if (cpu->addressPrediction &&
++        load_inst->predInst.successfulPred &&
++        !load_inst->predInst.partial) {
++
++        if (!load_inst->predInst.validPredData) {
++            load_inst->predInst.shouldForward = true;
++        } else {
++            load_inst->predInst.shouldForward = true;
++            forwardData(load_inst, load_idx);
++        }
++        return NoFault;
++    }
++
++    // Wrong prediction case, delay load
++    if (cpu->scheme == CPU::Scheme::DoM &&
++        cpu->addressPrediction &&
++        load_inst->predInst.predIssuedCycle != Cycles(0) &&
++        load_inst->isSpeculative()) {
++        cpu->delayUnit.insertDelayedMem(load_inst);
++        load_inst->clearIssued();
++        return NoFault;
++    }
++
+     // For now, load throughput is constrained by the number of
+     // load FUs only, and loads do not consume a cache port (only
+     // stores do).
+@@ -1599,6 +2140,21 @@
+     return NoFault;
+ }
+ 
++void
++LSQUnit::freeLoad(const DynInstPtr &inst)
++{
++    PacketPtr main_pkt =
++        new Packet(inst->savedRequest->mainReq(), MemCmd::ReadReq);
++    main_pkt->dataStatic(inst->memData);
++
++//    writeback(inst, main_pkt);
++//    inst->savedRequest->writebackDone();
++//    delete main_pkt;
++
++    WritebackEvent *wb = new WritebackEvent(inst, main_pkt, this);
++    cpu->schedule(wb, curTick() + 1);
++}
++
+ Fault
+ LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
+ {
+@@ -1646,5 +2202,36 @@
+         return 0;
+ }
+ 
++void
++LSQUnit::checkStall()
++{
++    if (loadQueue.empty()) {
++        stallCycles = 0;
++        head_load_inst = 0;
++        return;
++    }
++
++    if (head_load_inst == 0) {
++        stallCycles = 0;
++        head_load_inst = loadQueue.front().instruction()->seqNum;
++        return;
++    }
++
++    if (head_load_inst == loadQueue.front().instruction()->seqNum) {
++        stallCycles++;
++    } else {
++        stallCycles = 0;
++        head_load_inst = loadQueue.front().instruction()->seqNum;
++    }
++
++    assert(stallCycles < 10000);
++}
++
++void
++LSQUnit::snoop(PacketPtr pkt)
++{
++    dcachePort->sendFunctional(pkt);
++}
++
+ } // namespace o3
+ } // namespace gem5

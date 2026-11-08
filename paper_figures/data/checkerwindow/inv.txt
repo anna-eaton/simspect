@@ -1,0 +1,228 @@
+                         III. T HREAT M ODEL                                         including floating-point units [21] and SIMD units [15]—which
+   Speculative execution attacks exploit the side effects of                         can be mitigated by not scheduling the victim and adversary
+transient instructions—i.e., speculatively-executed instructions                     in adjacent SMT contexts. Other examples are contention on
+that are destined to be squashed. Specifically, victim programs                      the network-on-chip [22] or DRAM [23], which may allow an
+speculatively execute access instructions that can write secrets                     adversary to learn coarse-grain information about the victim.
+into general purpose registers or the store queue (see Section IV                    We leave protecting these channels as future work.
+for examples). Before such access instructions are squashed, C. Settings
+further speculative transmit instructions may execute and leak       We block the side and covert channels described in Sec-
+those secrets to adversarial code, the receiver, over a covert tion III-B in the following settings, which differ in where the
+channel. As the access and transmit instructions are transient, adversarial receiver code runs relative to the victim program.
+they would not have executed in a non-speculative execution.
+                                                                  SameThread. The receiver runs in the same thread as the
+   Since predictors are not perfect, dangerous access and
+                                                                  victim. This case models scenarios such as JavaScript, where
+transmit instructions may execute in the normal course of
+                                                                  adversarial code, e.g., a malicious advertisement or tab, may be
+execution. We make conservative (but realistic [1]) assumptions,
+                                                                  JITed into an otherwise honest program. As such, we assume
+and allow the adversary to run arbitrary code before and during
+                                                                  that malicious and honest code temporally multiplex the core.
+victim execution to influence the victim program’s speculation—
+                                                                  They share the private caches and TLBs, and the attacker can
+e.g., by changing branch predictor state. We assume that the
+                                                                  snapshot the state of these resources when it becomes active.
+processor hardware and the operating system function correctly.
+                                                                  On the other hand, it is not possible for malicious code to
+A. Cache Hierarchy-Based Side Channels                            learn fine-grain behavior such as exactly when an execution
+                                                                  unit is used.
+   In almost all of the known speculative execution attacks,
+the adversary transmits over a cache-based side channel. The CrossCore. The receiver runs on a separate physical core.
+adversary exploits the fact that transient load instructions This case models a multi-tenant cloud scenario where different
+modify the cache state, which allows the receiver to learn VMs are scheduled to different physical cores on the same
+information out of the victim’s cache state changes.1 The two socket. The adversary can monitor the last-level cache and its
+most popular techniques for cache-based side channel attacks directory—e.g., how line coherence state changes over time.
+are P RIME +P ROBE (where the receiver monitors conflicts in SMT. The receiver runs in an adjacent SMT context of the
+the cache through its own evictions) and F LUSH +R ELOAD same core. The threads may share the private caches and/or the
+(where the receiver uses instructions such as x86’s clflush TLB. We note that while our security objective in Section III-B
+to evict the victim’s cache lines). Cache-based side channels is only to protect against the monitoring of cache and TLB state,
+have been demonstrated within and across cores [16], and on SMT presents a broader attack surface: fine-grain structures
+both inclusive and non-inclusive cache hierarchies [17]. Recent at the core such as execution units can also be used as covert
+work has also shown side channels from cache coherence state or side channels. We leave blocking such channels as future
+changes [5] and data TLB state [18].                              work.
+
+B. Channels Protected                                                                IV. U NDERSTANDING S PECULATIVE E XECUTION ATTACKS
+   InvisiSpec blocks covert and side channels that are con-                             We discuss the events that can be the source of transient
+structed by monitoring the state of any level of a multiprocessor                    instructions leading to a security attack. Table I shows examples
+data cache hierarchy. This includes cache state such as                              of such attacks and what event creates the transient instructions.
+occupancy (e.g., what lines live in what sets), replacement                           Attack                What Creates the Transient Instructions
+information, and coherence information (e.g., whether a line                          Meltdown
+                                                                                                            Virtual memory exception
+is in the Exclusive or Shared state). It also includes data TLB                       L1 Terminal Fault
+                                                                                      Lazy Floating Point
+state (e.g., what entries live in the TLB). Our goal is to provide                    Rogue System          Exception reading a disabled or privileged register
+a complete defense for the data cache hierarchy,2 as it has                           Register Read
+been proven to lead to practical attacks [1], [2]. Note that our                      Spectre               Control-flow misprediction
+                                                                                      Speculative
+mechanism does not preclude protecting additional channels.                           Store Bypass
+                                                                                                            Address alias between a load and an earlier store
+Out of scope. Physical side channels (e.g., power [19] or                                                   Various events, such as:
+                                                                                                            • Exceptions
+EM [20]) are out of scope. We also do not protect micro-                                                    • Control-flow mispredictions
+architectural channels other than those listed above. One                             Futuristic            • Address alias between a load and an earlier store
+such example is monitoring the timing of execution units [1],                                               • Address alias between two loads
+                                                                                                            • Memory consistency model violations
+  1 The exception is NetSpectre [15]. It uses a timing channel created by                                   • Interrupts
+speculative execution, which powers-up SIMD units and thus speeds-up later              TABLE I: Understanding speculative execution attacks.
+SIMD instructions.
+  2 For simplicity, we do not describe the protection of the instruction cache
+or instruction TLB. However, we believe they can be protected with similar           Exceptions. Several attacks exploit speculation past an
+or even simpler structures as those we propose for the data cache hierarchy.         exception-raising instruction. The processor squashes the
+
+
+
+                                                                                 3
+execution when the exception-raising instruction reaches the        (large) subset of speculative loads that can create a security
+head of the ROB, but by this time, dependent transmitting           vulnerability due to speculation. We call these loads Unsafe
+instructions can leak data. The Meltdown [2] and L1 Terminal        Speculative Loads (USLs). The set of speculative loads that
+Fault (L1TF) [24], [25] attacks exploit virtual memory-related      are USLs depends on the attack model.
+exceptions. Meltdown reads a kernel address mapped as                   In the Spectre attack model, USLs are the speculative loads
+inaccessible to user space in the page table. L1TF reads a          that follow an unresolved control-flow instruction. As soon as
+virtual address whose page table entry (PTE) marks the physical     the control-flow instruction resolves, the USLs that follow it in
+page as not present, but the physical address is still loaded.      the correct path of the branch transition to safe loads—although
+   The Lazy Floating Point (FP) State Restore attack [26] reads     they remain speculative.
+an FP register after the OS has disabled FP operations, thereby         In our Futuristic attack model, USLs are all the speculative
+reading the FP state of another process. The Rogue System           loads that can be squashed by an earlier instruction. A
+Register Read [26] reads privileged system registers.               USL transitions to a safe load as soon as it becomes either
+Control-flow misprediction. Spectre attacks [1] exploit             (i)  non-speculative because it reaches the head of the ROB
+control-flow speculation to load from an arbitrary memory           or   (ii) speculative non-squashable by any earlier instruction
+address and leak its value. Variant 1 performs an out-of-           (or   speculative     non-squashable for short). Speculative non-
+bounds array read, exploiting a branch misprediction of the         squashable     loads   are loads that both (i) are not at the head of the
+array bounds check [1]. Other variants direct the control           ROB     and  (ii) are  preceded   in the ROB only by instructions that
+flow to an instruction sequence that leaks arbitrary memory,        cannot    be squashed    by  any  of the squashing events in Table I for
+either through indirect branch misprediction [1], return address    Futuristic.    Note   that  in the table, one of the squashing events
+misprediction [27], or an out-of-bounds array write that is interrupts. Hence, making a load safe includes delaying
+redirects the control flow (e.g., by overwriting a return address interrupts until the load reaches the head of the ROB.
+on the stack) [28].                                                     To understand why these two conditions allow a USL to
+                                                                    transition to a safe load consider the following. A load at the
+Memory-dependence speculation. Speculative Store Bypass
+                                                                    ROB head cannot itself be transient; it can be squashed (e.g.,
+(SSB) attacks [29] exploit a speculative load that bypasses an
+                                                                    due to an exception), but it is a correct instruction. The same
+earlier store whose address is unresolved, but will resolve to
+                                                                    can be said about speculative non-squashable loads. This is
+alias the load’s address [30]. Before the load is squashed, it
+                                                                    because, while not at the ROB head, they cannot be squashed
+obtains stale data, which can be leaked through subsequent
+                                                                    by any earlier instruction and, hence, can be considered a
+dependent instructions. For example, suppose that a JavaScript
+                                                                    logical extension of the instruction at the ROB head.
+runtime or virtual machine zeroes out memory allocated to a
+user thread. Then, this attack can be used to peek at the prior         2) Making USLs Invisible: The idea behind InvisiSpec is to
+contents of an allocated buffer. We discovered the SSB attack       make      USLs invisible. This means that a USL cannot modify
+in the process of performing this work. While our paper was         the   cache  hierarchy in any way that is visible to other threads,
+under review, a security analysis independently conducted by        including     the coherence states. A USL loads the data into a
+Microsoft and Google found this vulnerability [29].                 special    buffer   that we call Speculative Buffer (SB), and not
+                                                                    into the local caches. As indicated above, there is a point in
+A comprehensive model of speculative execution attacks. time when the USL can transition to a safe load. At this point,
+Transient instructions can be created by many events. As long called the Visibility Point, InvisiSpec takes an action that will
+as an instruction can be squashed, it can create transient make the USL visible—i.e., will make all the side effects of
+instructions, which can be used to mount a speculative the USL in the memory hierarchy apparent to all other threads.
+execution attack. Since we focus on cache-based covert and InvisiSpec makes the USL visible by re-loading the data, this
+side channel attacks, we limit ourselves to load instructions.      time storing the data in the local caches and changing the
+   We define a Futuristic attack as one that can exploit cache hierarchy states. The load may remain speculative.
+any speculative load. Table I shows examples of what can
+                                                                        3) Maintaining Memory Consistency: The Window of Sup-
+create transient instructions in a Futuristic attack: all types of
+                                                                    pressed Visibility for a load is the time period between when
+exceptions, control-flow mispredictions, address alias between
+                                                                    the load is issued as a USL and when it makes itself visible.
+a load and an earlier store, address alias between two loads,
+                                                                    During this period, since a USL does not change any coherence
+memory consistency model violations, and even interrupts.
+                                                                    state, the core may fail to receive invalidations directed to the
+   In the rest of the paper, we present two versions of InvisiSpec:
+                                                                    line loaded by the USL. Therefore, violations of the memory
+one that defends against Spectre attacks, and one that defends
+                                                                    consistency model by the load run the risk of going undetected.
+against Futuristic attacks.
+                                                                    This is because such violations are ordinarily detected via
+    V. I NVISI S PEC : T HWARTING S PECULATION ATTACKS              incoming invalidations, and are solved by squashing the load.
+                                                                    To solve this problem, InvisiSpec may have to perform a
+A. Main Ideas                                                       validation step when it re-loads the data at the load’s visibility
+   1) Unsafe Speculative Loads: Strictly speaking, any load point.
+that initiates a read before it reaches the head of the ROB             It is possible that the line requested by the USL was already
+is a speculative load. In this work, we are interested in the in the core’s L1 cache when the USL was issued and the
+
+
+
+                                                                     4
+line loaded into the SB. In this case, the core may receive               B. InvisiSpec Operation
+an invalidation for the line. However, the USL ignores such
+invalidation, as the USL is invisible, and any effects of this                A load in InvisiSpec has two steps. First, when it is issued to
+invalidation will be handled at the visibility point.                      memory as a USL, it accesses the cache hierarchy and obtains
+                                                                           the current version of the requested cache line. The line is only
+   4) Validation or Exposure of a USL: The operation of re- stored in the local SB, which is as close to the core as the L1
+loading the data at the visibility point has two flavors: Validation cache. USLs do not modify the cache coherence states, cache
+and Exposure. Validation is the way to make visible a USL that replacement algorithm states, or any other cache hierarchy
+would have been squashed during the Window of Suppressed state. No other thread, local or remote, can see any changes.
+Visibility (due to memory consistency considerations) if, during However, the core uses the data returned by the USL to make
+that window, the core had received an invalidation for the line progress. The SB stores lines rather than individual words to
+loaded by the USL. A validation operation includes comparing exploit spatial locality.
+the actual bytes used by the USL (as stored in the SB) to their
+                                                                              When the USL can be made visible, and always after it
+most up-to-date value being loaded from the cache hierarchy. If
+                                                                           has received its requested cache line, the hardware triggers a
+they are not the same, the USL and all its successive instructions
+                                                                           validation or an exposure transaction. Such a transaction re-
+are squashed. This is required to satisfy the memory consistency
+                                                                           requests the line again, this time modifying the cache hierarchy,
+model. This step is reminiscent of Cain and Lipasti’s value-
+                                                                           and bringing the line to the local caches. As detailed in
+based memory ordering [31].
+                                                                           Section V-A4, validation and exposure transactions operate
+   Validations can be expensive. A USL enduring a validation differently and have different performance implications.
+cannot retire until the transaction finishes—i.e., the line
+                                                                              We consider two attack models, Spectre and Futuristic, and
+obtained from the cache hierarchy is loaded into the cache, the
+                                                                           propose slightly different InvisiSpec designs to defend against
+line’s data is compared to the subset of it used in the SB, and
+                                                                           each of these attacks. In our defense against the Spectre attack,
+a decision regarding squashing is made. Hence, if the USL is
+                                                                           a USL reaches its visibility point when all of its prior control-
+at the ROB head and the ROB is full, the pipeline stalls.
+                                                                           flow instructions resolve. At that point, the hardware issues a
+   Thankfully, InvisiSpec identifies many USLs that could not validation or an exposure transaction for the load depending on
+have violated the memory consistency model during their the memory consistency model and the load’s position in the
+Window of Suppressed Visibility, and allows them to become ROB (Section V-C). If multiple USLs can issue validation or
+visible with a cheap Exposure. These are USLs that would not exposure transactions, the transactions have to start in program
+have been squashed by the memory consistency model during order, but can otherwise all overlap (Section V-D).
+the Window of Suppressed Visibility if, during that window,                   In our defense against Futuristic attacks, a USL reaches its
+the core had received an invalidation for the line loaded by the visibility point only when: (i) it is not speculative anymore
+USL. In an exposure, the line returned by the cache hierarchy because it is at the head of the ROB, or (ii) it is still speculative
+is simply stored in the caches without comparison. A USL but cannot be squashed anymore. At that point, the hardware
+enduring an exposure can retire as soon as the line request is issues a validation or an exposure for the load depending on
+sent to the cache hierarchy. Hence, the USL does not stall the the memory consistency model and the load’s position in the
+pipeline.                                                                  ROB (Section V-C). If multiple USLs can issue validation or
+   To summarize, there are two ways to make a USL visible: exposure transactions, the transactions have to be issued in
+validation and exposure. The memory consistency model program order. However, when a validation transaction is issued,
+determines which one is needed. Figure 2 shows the timeline no subsequent validation or exposure transaction can overlap
+of a USL with validation and with exposure.                                with it; they all have to wait to be issued until the validation is
+                                                                           complete (Section V-D). On the other hand, when an exposure
+       Load is Issued                Visibility                            transaction is issued, all subsequent exposure transactions up
+       to Memory                       Point                    Retirement
+                                           Validation                      to, and including, the next validation transaction can overlap
+              Window of Suppressed Visibility                              with it (Section V-D).
+                         Load is a USL                  Load is Safe          Overall, in the Spectre and Futuristic defense designs,
+                                                                           pipeline stalls may occur when a validation transaction holds
+                                              Earliest Possible
+                                       (a)
+                                                Retirement                 up the retirement of a load at the head of the ROB and the
+                                                                           ROB is full. This is more likely in Futuristic than in Spectre.
+       Load is Issued                Visibility
+       to Memory                       Point                    Retirement    We call these designs InvisiSpec-Spectre (or IS-Spectre)
+                                           Exposure                        and InvisiSpec-Future (or IS-Future). They are shown in the
+              Window of Suppressed Visibility
+                                                                           first row of Table II. For comparison, the second row shows
+                   Load is a USL                  Load is Safe             how to defend against these same attacks using fence-based
+                                 Earliest Possible                         approaches—following current proposals to defend against
+                                    Retirement
+                                       (b)
+                                                                           Spectre [32]. We call these designs Fence-Spectre and Fence-
+Fig. 2: Timeline of a USL with validation (a) and exposure (b).            Future.   The former places a fence after every indirect or
+                                                                           conditional branch; the latter places a fence before every load.
+
+
+
+                                                                      5
+

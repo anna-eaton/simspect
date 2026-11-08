@@ -16,10 +16,28 @@
    "aliases": "STT_6_interleave, STT_all (symlinks); interleave is a config/parsexml knob, not a separate model"
   },
   "STT_6_futuristic": {
-    "tier": "variant",
-    "summary": "STT_6 under STT's Futuristic threat model: any older instruction that has not COMPLETED is a speculation source (isresolved = completed, for every kind), not only branches. Contract uncommitted & has_unresolved_any; loads past the VP declassify. Matches /work/stt --threatModel=Futuristic (isPrevInstsCompleted, rob_impl.hh:493-512).",
-    "intention": "Test STT-Futuristic builds (/work/stt with threatModel Futuristic). NOT for gem5-recon*/STT, whose threat model is control+store shadows only.",
-    "caveat": "2026-10-30: written + SAT (500 instances in 7s), not reviewed by Anna, no concretization mode yet (non-branch/non-store sources need a completion-hold hook). See wiki/design/FUTURISTIC_MODEL.md."
+   "tier": "variant",
+   "summary": "STT_6 under STT's Futuristic threat model: any older instruction that has not COMPLETED is a speculation source (isresolved = completed, for every kind), not only branches. Contract uncommitted & has_unresolved_any; loads past the VP declassify. Matches /work/stt --threatModel=Futuristic (isPrevInstsCompleted, rob_impl.hh:493-512).",
+   "intention": "Test STT-Futuristic builds (/work/stt with threatModel Futuristic). NOT for gem5-recon*/STT, whose threat model is control+store shadows only.",
+   "caveat": "PARKED 2026-11-07 (Anna): Futuristic is not STT's only mode (the harness runs Spectre), so it is tabled. 2026-10-30: written + SAT (500 instances in 7s), not reviewed by Anna. 2026-11-07: every source kind SAT; branch-only tests run on /work/stt with configs/example/se_futuristic.py (Futuristic 0/60, Unsafe 43/60). Load/ALU sources have no concretization mode (need a completion-hold hook). See wiki/design/FUTURISTIC_MODEL.md."
+  },
+  "STT_6_shadows": {
+   "tier": "draft",
+   "summary": "STT_6 under Recon-STT's threat model: speculation source = an older unresolved conditional branch OR an older store with an unresolved address (Recon paper Sec. 3.1; gem5-recon* decode.cc:686-695). Contract uncommitted & has_unresolved_brs_strs; loads past both shadows declassify. = proposal P1 in wiki/design/MODELS_AND_BUILDS.md PART 7.",
+   "intention": "Judge gem5-recon / -modded / -stl scheme-2 (Recon-STT) results against the threat model those builds implement, instead of branch-only STT_6.",
+   "caveat": "2026-11-07: DRAFT at STAGE1_alloy/models/proposed/STT_6_shadows.als (not approved; the pipeline does not read proposed/). Admits branch-only and store-only sources, not load/ALU (model_source_matrix.py). gem5 on 60 tests/shape: branch-only Recon-STT 1/60 (known SLF gadget) vs Unsafe 49/60; aliasing store-only 0/32 vs 32/32 sent in the hold. Store-only instances WITHOUT a true alias don't concretize (open DECIDE). See wiki/design/STT_VS_RECON_STT.md."
+  },
+  "Recon_6_stl": {
+   "tier": "draft",
+   "summary": "Recon_6 with the speculation source switched from unresolved branches to unresolved-ADDRESS stores (store-to-load speculation); every branch resolved; atom-based true-alias fact (every unresolved store has a younger load at or before the xmit naming the same Mem_s, no store to it in between). Made by STAGE1_alloy/models/proposed/derive_stl.py: the same edits that made STT_6_stl.",
+   "intention": "STL tests for ReCon (unit 5), whose shadow tracker casts store shadows. Run on /work/gem5-recon-stl.",
+   "caveat": "2026-11-08: DRAFT at STAGE1_alloy/models/proposed/Recon_6_stl.als (not approved). SAT, 60 instances in 10 s; 60/60 concretize with stl_bypass. Split core proposed_twophase/Recon_6_stl_core.als (RI-only) SAT at <=3 and <=4; Stage-1 run started 2026-11-08. Whether ReCon mode is enabled on gem5-recon-stl is not verified."
+  },
+  "SPT_6_oneLP_stl": {
+   "tier": "draft",
+   "summary": "SPT_6_oneLP with the speculation source switched to unresolved-ADDRESS stores; every branch resolved; atom-based true-alias fact. Made by derive_stl.py; SPT has no branch-keyed de-protection, so only the contract changed.",
+   "intention": "STL tests for SPT's FuturisticSafe* configs (unit 10). Not in the threat model of SPT's Spectre configs.",
+   "caveat": "2026-11-08: DRAFT, currently generates NOTHING: 0 instances in 900 s at exactly 6; its conservative core is UNSAT at <=3 and <=4. Cause (probes): SPT protects a load's output whatever location it reads, so the aliased Mem_s is never necessary and state-minimality (RS) rejects every aliasing instance. RS off or alias off -> SAT; the perturbation-aware seed does not help. Exempting the alias location from RS -> 60 in 10 s, 59/60 concretize. Decision pending (URGENT_TODO.md)."
   },
   "STT_6_stl": {
    "tier": "variant",
@@ -38,9 +56,14 @@
    "summary": "SPT (Speculative Privacy Tracking), one-leak-point. Operand-granularity protection + untaint flows + STLF de-protection (inaddr too). Transmitters add stores(inaddr). Requires EXACTLY one insecure point.",
    "intention": "The main SPT model, run against gem5-spt (fence + untaint variants). Store-address transmitters produced the ~24 untriaged str hits (need a store checker)."
   },
+  "SPT_6_oneLP_v2": {
+   "tier": "variant",
+   "summary": "DRAFT (2026-11-08, awaiting Anna's sign-off): consolidated SPT for the final batch. SPT_6_oneLP + 4 marked changes: [v2-1] rf_from_most_recent_writer (skeleton sync with STT_6), [v2-2] perturbation-aware protection seed (simspect-c8/twophase-spt fix, audited: no instance lost), [v2-3] base clause >=1 insecure transmitter (skeleton form), [v2-4] declassification only of the transmitted value, not its whole backward cone (SPT paper Sec. 6 backward rules untaint less).",
+   "intention": "Recommended SPT model for the final batch (brief: wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md §0). Stage-1 core: proposed_twophase/SPT_6_oneLP_v2_core_ri.als (RI-only, per the 2026-11-08 decision; 546 at but 3); fallback SPT_6_oneLP_v2_core_conservative.als. Evidence: results/spt_v2_20261108/, wiki/state/ALLOY_MODEL_CHANGES.md 2026-11-08."
+  },
   "Recon_6": {
    "tier": "production",
-   "summary": "Recon — dynamic/parameterized protection: Mem_s minus state reachable backward through data-dependence from speculative loads. Carries rf_from_most_recent_writer.",
+   "summary": "Recon — dynamic/parameterized protection: Mem_s minus state reachable backward through data-dependence from speculative loads. Does NOT carry rf_from_most_recent_writer (grep 2026-11-08; only the STT_6 family has it; proposal P1 in wiki/state/ALLOY_MODEL_CHANGES.md).",
    "intention": "The Recon defense under test, run against gem5-recon-modded. Where the two real recon bugs reproduced: OTB/getOldestTaint + STL/SLF bypass."
   },
   "STT_6_core": {

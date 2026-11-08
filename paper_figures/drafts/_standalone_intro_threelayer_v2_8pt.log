@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  2 NOV 2026 22:03
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  3 NOV 2026 05:50
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -720,18 +720,18 @@ LaTeX Info: Command `\ddddot' is already robust on input line 6.
 
 (./intro_threelayer_v2_8pt.tex
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 8.0pt on input line 21.
+(Font)              scaled to size 8.0pt on input line 23.
 LaTeX Font Info:    Font shape `OT1/ntxtlf/b/n' will be
-(Font)              scaled to size 8.0pt on input line 21.
+(Font)              scaled to size 8.0pt on input line 23.
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/it' will be
-(Font)              scaled to size 8.0pt on input line 21.
+(Font)              scaled to size 8.0pt on input line 23.
 
 
 [1
 
 
 Non-PDF special ignored!
-<special> papersize=254.0pt,148.07596pt
+<special> papersize=254.0pt,218.57596pt
 {/usr/local/texlive/2025/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/usr/loc
 al/texlive/2025/texmf-dist/fonts/enc/dvips/newtx/ntx-ot1-tlf.enc}])
 (./_standalone_intro_threelayer_v2_8pt.aux)
@@ -741,17 +741,17 @@ L3 programming layer <2020/03/25>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 17086 strings out of 473190
- 322458 string characters out of 5715801
- 668106 words of memory out of 5000000
- 40048 multiletter control sequences out of 15000+600000
+ 17078 strings out of 473190
+ 322375 string characters out of 5715801
+ 669105 words of memory out of 5000000
+ 40040 multiletter control sequences out of 15000+600000
  565104 words of font info for 46 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 117i,7n,121p,452b,819s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 117i,7n,121p,454b,822s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2025/texmf-dist/fonts/type1/public/newtx/ztmb.pfb></usr/l
 ocal/texlive/2025/texmf-dist/fonts/type1/public/newtx/ztmr.pfb></usr/local/texl
 ive/2025/texmf-dist/fonts/type1/public/newtx/ztmri.pfb>
-Output written on _standalone_intro_threelayer_v2_8pt.pdf (1 page, 94496 bytes)
+Output written on _standalone_intro_threelayer_v2_8pt.pdf (1 page, 93012 bytes)
 .
 PDF statistics:
  27 PDF objects out of 1000 (max. 8388607)

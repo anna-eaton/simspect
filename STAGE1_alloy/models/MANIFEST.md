@@ -2,21 +2,13 @@
 
 At-a-glance index of every `.als` physically in this folder. **This is a navigational front-door, not a competing source of truth:** the canonical per-model metadata lives in `specs/alloy_models.json` (keyed by stem; drives the dashboard Utilities → Alloy models table) and the deeper design write-up is `wiki/design/MODELS_AND_BUILDS.md`. Summaries below are mirrored from that JSON — edit metadata there, not here. **Never edit, regenerate, or reformat any `.als` without Anna's per-change sign-off** (CLAUDE.md).
 
-Last built: 2026-10-30. Folder holds 21 `.als` (incl. 3 symlinks) + the `old_models/` archive + `util/` + a visualizer theme.
+Last built: 2026-10-30; manifest section rebuilt 2026-11-08. Folder holds 21 `.als` (incl. 3 symlinks) + the `old_models/` archive + `util/` + a visualizer theme, plus the draft folders `proposed/` (STL and shadows drafts, `derive_stl.py`) and `proposed_twophase/` (Stage-1 core drafts, `derive_core.py`, `run_stage1.py`), which the pipeline does not read.
 
 ---
 
-## ⭐ Current model per defense (the quick-reference)
+## ⭐ Main models per defense → moved to [`wiki/state/EVAL_MANIFEST.md`](../../wiki/state/EVAL_MANIFEST.md) (2026-11-08)
 
-These are the production, "enumerated-final" models — the ones our in-use testsets are generated from (`enumerated_final: true` in `specs/alloy_relaxations.json`). Scope for all three: `for 9 but exactly 6 Instruction, exactly 1 rBool, exactly 1 cBool, exactly 1 tBool`. Minimality relaxations ON: RR + RC + RS; OFF: RI + RO.
-
-| Defense | **Current model** | Testset | gem5 build it's run against |
-|---|---|---|---|
-| **STT** (Speculative Taint Tracking) | **`STT_6.als`** | `testsets/STT_6` | gem5-recon / stt builds |
-| **SPT** (Speculative Privacy Tracking) | **`SPT_6_oneLP.als`** | `testsets/SPT_6_oneLP` | gem5-spt (fence + untaint variants) |
-| **Recon** | **`Recon_6.als`** | `testsets/Recon_6` | gem5-recon-modded |
-
-(AMuLeT has no dedicated `.als` in this folder as of this manifest.)
+The per-defense tables that were here (model families: main / split core / STL / STL split core; defenses we test; STL scope) were consolidated on 2026-11-08 (simspect-c8, at Anna's request) into the eval manifest, together with the approved eval set (builds, flags, run configs, checkers) and which testsets are current. Update that file and `specs/defense_units.json` (`model_families`, per-unit fields), not this one. This file stays the catalog of the `.als` files in this folder.
 
 ---
 
@@ -26,7 +18,7 @@ These are the production, "enumerated-final" models — the ones our in-use test
 |---|---|---|
 | `STT_6.als` | STT | Canonical STT. Protect at state/memory level (`hardware_protection_policy = Mem_s`). Transmitters = loads(inaddr) + branches(inreg). Per-branch resolution-minimality. **Caveat:** the per-branch minimality clause means it structurally cannot emit a two-source (in-degree ≥ 2) merge (~99.6% single-source) — see `OTB_GENERATION_GAP.md`. |
 | `SPT_6_oneLP.als` | SPT | SPT one-leak-point. Operand-granularity protection + untaint flows + STLF de-protection (inaddr too). Transmitters add stores(inaddr). Requires exactly one insecure point. |
-| `Recon_6.als` | Recon | Dynamic/parameterized protection: `Mem_s` minus state reachable backward through data-dependence from speculative loads. Carries `rf_from_most_recent_writer`. Where both real recon bugs reproduced (OTB/getOldestTaint + STL/SLF bypass). |
+| `Recon_6.als` | Recon | Dynamic/parameterized protection: `Mem_s` minus state reachable backward through data-dependence from speculative loads. Does NOT carry `rf_from_most_recent_writer` (grep 2026-11-08: only the STT_6 family has it; proposal P1 in `wiki/state/ALLOY_MODEL_CHANGES.md`). Where both real recon bugs reproduced (OTB/getOldestTaint + STL/SLF bypass). |
 
 ## Variants (per-defense experiments; see JSON for full notes)
 

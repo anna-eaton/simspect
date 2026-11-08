@@ -1,0 +1,52 @@
+--- se.py	2026-05-28 17:54:02.792419517 +0000
++++ se_exp.py	2026-06-02 04:18:06.614333442 +0000
+@@ -338,5 +338,25 @@
+         cpu.fncCommitStallPC     = options.fnc_commit_stall_pc
+         cpu.fncCommitStallCycles = options.fnc_commit_stall_cycles
+ 
++    # [SimSpect slow-comm experiment] Env-driven O3 timing overrides. Each is
++    # applied only when its env var is set, so an unset var leaves the stock
++    # default. backComSize/forwardComSize MUST exceed the IEW<->commit delays
++    # (timebuffer depth: wires read at getWire(-delay)). Runtime params only.
++    import os as _os
++    def _envi(name):
++        v = _os.environ.get(name)
++        return int(v) if v not in (None, "") else None
++    _iewc   = _envi("SIMSPECT_IEW_COMMIT_DELAY")
++    _comiew = _envi("SIMSPECT_COMMIT_IEW_DELAY")
++    _back   = _envi("SIMSPECT_BACK_COM_SIZE")
++    _fwd    = _envi("SIMSPECT_FWD_COM_SIZE")
++    _sqw    = _envi("SIMSPECT_SQUASH_WIDTH")
++    for cpu in system.cpu:
++        if _iewc   is not None: cpu.iewToCommitDelay = _iewc
++        if _comiew is not None: cpu.commitToIEWDelay = _comiew
++        if _back   is not None: cpu.backComSize      = _back
++        if _fwd    is not None: cpu.forwardComSize   = _fwd
++        if _sqw    is not None: cpu.squashWidth      = _sqw
++
+ root = Root(full_system = False, system = system)
+ Simulation.run(options, root, system, FutureClass)
+--- se.py	2026-05-28 17:54:02.792419517 +0000
++++ se_slowcomm.py	2026-06-02 04:33:22.965281042 +0000
+@@ -338,5 +338,21 @@
+         cpu.fncCommitStallPC     = options.fnc_commit_stall_pc
+         cpu.fncCommitStallCycles = options.fnc_commit_stall_cycles
+ 
++    # [SimSpect slow-comm experiment] Stretch IEW<->commit communication and
++    # drain squash one inst/cycle to widen the observable speculative window.
++    # backComSize/forwardComSize MUST exceed the delays (timebuffer depth: the
++    # wires are read at getWire(-delay)). Runtime params only — same binary.
++    # Max terminating stretch (verified 2026-06-02): commitToIEWDelay (backward
++    # commit->IEW wire) LIVELOCKS this gem5 O3 model at >=5 — generic, repros
++    # with STT off and fnc-stall off — so it is hard-capped at 4. iewToCommitDelay
++    # (forward) and squashWidth=1 are safe. backComSize/forwardComSize must exceed
++    # the delays. See claudelog.md 2026-06-02 04:30.
++    for cpu in system.cpu:
++        cpu.iewToCommitDelay = 30
++        cpu.commitToIEWDelay = 4
++        cpu.backComSize      = 40
++        cpu.forwardComSize   = 40
++        cpu.squashWidth      = 1
++
+ root = Root(full_system = False, system = system)
+ Simulation.run(options, root, system, FutureClass)

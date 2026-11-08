@@ -94,8 +94,9 @@
         "claim": "p2; §3.2 p6 'replacement state updates for both L1 and L2 caches leak no information'"
       },
       {
-        "item": "directory randomized; DIR not observed",
-        "claim": "p2 '(and for the directory [61])'; Anna 2026-10-28 scope = L1D + L2"
+        "item": "directory: DIR not observed",
+        "claim": "p2 'CleanupSpec uses randomization for L2/LLC (and for the directory [61])': the paper's directory concern is conflicts in a capacity-limited directory",
+        "why_not_observed": "In this build's MESI_Two_Level protocol the directory is DirectoryMemory, one entry per memory block with no capacity (src/mem/protocol/MESI_Two_Level-dir.sm:30), so it never evicts and the directory-conflict channel the paper defends cannot occur. Its only replacement event, CleanReplacement (:72, :518), mirrors an L2 eviction, which is by design (randomized L2). So DIR events add nothing to check. Kept excluded by Anna's decision 2026-11-08 (replaces the 2026-10-28 'scope = L1D + L2' reason)."
       }
     ]
   },
@@ -183,6 +184,31 @@
       ],
       "note": "excluded from the count, kept in the net-state replay"
     }
+  },
+  "ownership": {
+    "rule": "count as both. Presence moves to the older access: if a non-squashed access A with A.seq < S.seq hits (kind 'hit') a line that squashed actor S installed and that is still live, the install no longer counts for S (keeping the line is correct; a cleanup_inv of it is over_clean, AMuLeT UV5). The victim S's install evicted stays charged to S (never restored → under_clean). Guard: an access with seq > S.seq never claims a line, so a post-squash correct-path probe that hits speculative residue is still a leak. Non-squashed and older than S implies older than the squashing branch (every instruction younger than the branch is squashed).",
+    "kinds": [
+      "hit"
+    ],
+    "claims": {
+      "L1D": [
+        "L1D",
+        "L2"
+      ],
+      "L2": [
+        "L2"
+      ]
+    },
+    "claims_note": "an L1D hit by A also claims S's live L2 install of the same line: with no speculation A would have missed and filled both levels (MESI_Two_Level, inclusive L2). Implementation choice 2026-11-08, flagged to Anna.",
+    "replay": "the net-state replay's reference run keeps a claimed fill, so count and replay agree",
+    "decided": "Anna 2026-11-08 (URGENT_TODO.md, CleanupSpec ownership rule)",
+    "claim": {
+      "section": "§3.4",
+      "page": "p7",
+      "quote": "Changes made to the cache by older non-squashed loads that execute after squashed loads due to re-ordering, need to be preserved and not reversed … corresponding invalidations / restorations are skipped.",
+      "supports": "ownership"
+    },
+    "impl": "check_footprint.py _eval_balance (claimed, claimed_by_older per line)"
   },
   "balance_scope": "all actor fill/evict events in the run (not only those in W), so cleanup of an actor's out-of-window footprint pairs correctly; under-clean is a leak only if the line has ≥1 footprint event in W",
   "leak": {

@@ -1,0 +1,61 @@
+--- upstream22/iew.cc	2026-11-07 16:59:42
++++ reconbase/iew.cc	2026-11-07 16:59:51
+@@ -1360,6 +1360,12 @@
+         }
+     }
+ 
++    while (cpu->addressPrediction &&
++          ldstQueue.cachePortAvailable(true) &&
++          cpu->predictionUnit.hasPredictedLoads()){
++        ldstQueue.predictLoad(cpu->predictionUnit.getPredictedLoad());
++    }
++
+     // Update and record activity if we processed any instructions.
+     if (inst_num) {
+         if (exeStatus == Idle) {
+@@ -1566,7 +1572,14 @@
+ 
+ #if TRACING_ON
+     if (debug::O3PipeView) {
+-        inst->completeTick = curTick() - inst->fetchTick;
++        // For loads, completeTick is set in LSQUnit::writeback() when data
++        // actually arrives from cache.  Setting it here (at executeLoad time)
++        // is premature: STT-blocked loads also return NoFault from executeLoad
++        // and would get a phantom "complete" timestamp indistinguishable from
++        // an unblocked load.
++        if (!inst->isLoad()) {
++            inst->completeTick = curTick() - inst->fetchTick;
++        }
+     }
+ #endif
+ 
+@@ -1620,5 +1633,29 @@
+     }
+ }
+ 
++void
++IEW::freeBranch(const DynInstPtr &inst)
++{
++    instQueue.addIfReady(inst);
++}
++
++void
++IEW::freeLoad(const DynInstPtr &inst)
++{
++    ldstQueue.freeLoad(inst);
++}
++
++void
++IEW::forwardLoad(const DynInstPtr &inst)
++{
++    ldstQueue.forwardLoad(inst);
++}
++
++void
++IEW::addReadyMemInst(const DynInstPtr &inst)
++{
++    instQueue.addReadyMemInst(inst);
++}
++
+ } // namespace o3
+ } // namespace gem5

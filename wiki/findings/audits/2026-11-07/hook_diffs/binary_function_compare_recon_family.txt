@@ -1,0 +1,144 @@
+### recon -> rmpre
+ONLY_B gem5::X86ISA::PCState::setInstAddr(unsigned long)
+DIFF : gem5::branch_prediction::BPredUnit::BPredUnit(gem5::BranchPredictorParams const&)
+DIFF : gem5::branch_prediction::BPredUnit::BPredUnit(gem5::BranchPredictorParams const&) [clone .cold]
+DIFF : gem5::branch_prediction::BPredUnit::dump()
+DIFF : gem5::branch_prediction::BPredUnit::dump() [clone .cold]
+DIFF : gem5::branch_prediction::BPredUnit::predict(gem5::RefCountingPtr<gem5::StaticInst> const&, unsigned long const&, gem5::PCStateBase&, short)
+DIFF : gem5::branch_prediction::BPredUnit::predict(gem5::RefCountingPtr<gem5::StaticInst> const&, unsigned long const&, gem5::PCStateBase&, short) [clone .cold]
+DIFF : gem5::branch_prediction::BPredUnit::squash(unsigned long const&, gem5::PCStateBase const&, bool, short)
+DIFF : gem5::branch_prediction::BPredUnit::squash(unsigned long const&, gem5::PCStateBase const&, bool, short) [clone .cold]
+DIFF : gem5::branch_prediction::BPredUnit::~BPredUnit()
+DIFF : gem5::branch_prediction::BiModeBP::BiModeBP(gem5::BiModeBPParams const&)
+DIFF : gem5::branch_prediction::LTAGE::LTAGE(gem5::LTAGEParams const&)
+DIFF : gem5::branch_prediction::LocalBP::LocalBP(gem5::LocalBPParams const&)
+DIFF : gem5::branch_prediction::MultiperspectivePerceptron::MultiperspectivePerceptron(gem5::MultiperspectivePerceptronParams const&)
+DIFF : gem5::branch_prediction::MultiperspectivePerceptron::init()
+DIFF : gem5::branch_prediction::TAGE::TAGE(gem5::TAGEParams const&)
+DIFF : gem5::branch_prediction::TAGE_SC_L::TAGE_SC_L(gem5::TAGE_SC_LParams const&)
+DIFF : gem5::branch_prediction::TournamentBP::TournamentBP(gem5::TournamentBPParams const&)
+DIFF : gem5::o3::CPU::CPU(gem5::BaseO3CPUParams const&)
+DIFF : gem5::o3::Commit::Commit(gem5::o3::CPU*, gem5::BaseO3CPUParams const&)
+DIFF : gem5::o3::Commit::commit()
+DIFF : gem5::o3::Commit::commitHead(gem5::RefCountingPtr<gem5::o3::DynInst> const&, unsigned int)
+DIFF : gem5::o3::Commit::commitHead(gem5::RefCountingPtr<gem5::o3::DynInst> const&, unsigned int) [clone .cold]
+DIFF : gem5::o3::Commit::commitInsts()
+DIFF : gem5::o3::Commit::commitInsts() [clone .cold]
+DIFF : gem5::o3::Commit::getCommittingThread()
+DIFF : gem5::o3::Commit::handleInterrupt()
+DIFF : gem5::o3::Commit::handleInterrupt() [clone .cold]
+DIFF : gem5::o3::Commit::markCompletedInsts()
+ONLY_B gem5::o3::ElasticTrace::ElasticTrace(gem5::ElasticTraceParams const&)
+ONLY_B gem5::o3::ElasticTrace::ElasticTrace(gem5::ElasticTraceParams const&) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::ElasticTraceStats::ElasticTraceStats(gem5::statistics::Group*)
+ONLY_B gem5::o3::ElasticTrace::ElasticTraceStats::ElasticTraceStats(gem5::statistics::Group*) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::ElasticTraceStats::~ElasticTraceStats()
+ONLY_B gem5::o3::ElasticTrace::TraceInfo::getExecuteTick() const
+ONLY_B gem5::o3::ElasticTrace::TraceInfo::typeToStr[abi:cxx11]() const
+ONLY_B gem5::o3::ElasticTrace::addCommittedInst(gem5::RefCountingPtr<gem5::o3::DynInst const> const&)
+ONLY_B gem5::o3::ElasticTrace::addCommittedInst(gem5::RefCountingPtr<gem5::o3::DynInst const> const&) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::addDepTraceRecord(gem5::RefCountingPtr<gem5::o3::DynInst const> const&, gem5::o3::ElasticTrace::InstExecInfo*, bool)
+ONLY_B gem5::o3::ElasticTrace::addDepTraceRecord(gem5::RefCountingPtr<gem5::o3::DynInst const> const&, gem5::o3::ElasticTrace::InstExecInfo*, bool) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::addSquashedInst(gem5::RefCountingPtr<gem5::o3::DynInst const> const&)
+ONLY_B gem5::o3::ElasticTrace::addSquashedInst(gem5::RefCountingPtr<gem5::o3::DynInst const> const&) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::assignRobDep(gem5::o3::ElasticTrace::TraceInfo*, gem5::o3::ElasticTrace::TraceInfo*)
+ONLY_B gem5::o3::ElasticTrace::assignRobDep(gem5::o3::ElasticTrace::TraceInfo*, gem5::o3::ElasticTrace::TraceInfo*) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::clearTempStoreUntil(gem5::RefCountingPtr<gem5::o3::DynInst const> const&)
+ONLY_B gem5::o3::ElasticTrace::compDelayPhysRegDep(gem5::o3::ElasticTrace::TraceInfo*, gem5::o3::ElasticTrace::TraceInfo*)
+ONLY_B gem5::o3::ElasticTrace::compDelayPhysRegDep(gem5::o3::ElasticTrace::TraceInfo*, gem5::o3::ElasticTrace::TraceInfo*) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::compDelayRob(gem5::o3::ElasticTrace::TraceInfo*, gem5::o3::ElasticTrace::TraceInfo*)
+ONLY_B gem5::o3::ElasticTrace::compDelayRob(gem5::o3::ElasticTrace::TraceInfo*, gem5::o3::ElasticTrace::TraceInfo*) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::fetchReqTrace(std::shared_ptr<gem5::Request> const&)
+ONLY_B gem5::o3::ElasticTrace::fetchReqTrace(std::shared_ptr<gem5::Request> const&) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::flushTraces()
+ONLY_B gem5::o3::ElasticTrace::hasCompCompleted(gem5::o3::ElasticTrace::TraceInfo*, unsigned long) const
+ONLY_B gem5::o3::ElasticTrace::hasLoadBeenSent(gem5::o3::ElasticTrace::TraceInfo*, unsigned long) const
+ONLY_B gem5::o3::ElasticTrace::hasLoadCompleted(gem5::o3::ElasticTrace::TraceInfo*, unsigned long) const
+ONLY_B gem5::o3::ElasticTrace::hasStoreCommitted(gem5::o3::ElasticTrace::TraceInfo*, unsigned long) const
+ONLY_B gem5::o3::ElasticTrace::recordExecTick(gem5::RefCountingPtr<gem5::o3::DynInst const> const&)
+ONLY_B gem5::o3::ElasticTrace::recordExecTick(gem5::RefCountingPtr<gem5::o3::DynInst const> const&) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::recordToCommTick(gem5::RefCountingPtr<gem5::o3::DynInst const> const&)
+ONLY_B gem5::o3::ElasticTrace::recordToCommTick(gem5::RefCountingPtr<gem5::o3::DynInst const> const&) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::regEtraceListeners()
+ONLY_B gem5::o3::ElasticTrace::regEtraceListeners() [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::regProbeListeners()
+ONLY_B gem5::o3::ElasticTrace::removeRegDepMapEntry(std::pair<unsigned long, unsigned short> const&)
+ONLY_B gem5::o3::ElasticTrace::removeRegDepMapEntry(std::pair<unsigned long, unsigned short> const&) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::updateCommitOrderDep(gem5::o3::ElasticTrace::TraceInfo*, bool)
+ONLY_B gem5::o3::ElasticTrace::updateIssueOrderDep(gem5::o3::ElasticTrace::TraceInfo*)
+ONLY_B gem5::o3::ElasticTrace::updateRegDep(gem5::RefCountingPtr<gem5::o3::DynInst const> const&)
+ONLY_B gem5::o3::ElasticTrace::updateRegDep(gem5::RefCountingPtr<gem5::o3::DynInst const> const&) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::writeDepTrace(unsigned int)
+ONLY_B gem5::o3::ElasticTrace::writeDepTrace(unsigned int) [clone .cold]
+ONLY_B gem5::o3::ElasticTrace::~ElasticTrace()
+DIFF : gem5::o3::Fetch::fetch(bool&)
+DIFF : gem5::o3::Fetch::fetch(bool&) [clone .cold]
+DIFF : gem5::o3::IEW::dispatchInsts(short)
+DIFF : gem5::o3::IEW::executeInsts()
+DIFF : gem5::o3::IEW::executeInsts() [clone .cold]
+DIFF : gem5::o3::IEW::instToCommit(gem5::RefCountingPtr<gem5::o3::DynInst> const&) [clone .cold]
+DIFF : gem5::o3::LSQUnit::commitLoad()
+DIFF : gem5::o3::LSQUnit::commitLoad() [clone .cold]
+DIFF : gem5::o3::LSQUnit::insertStore(gem5::RefCountingPtr<gem5::o3::DynInst> const&)
+DIFF : gem5::o3::LSQUnit::predictLoad(gem5::RefCountingPtr<gem5::o3::DynInst> const&)
+DIFF : gem5::o3::LSQUnit::read(gem5::o3::LSQ::LSQRequest*, long)
+DIFF : gem5::o3::LSQUnit::read(gem5::o3::LSQ::LSQRequest*, long) [clone .cold]
+DIFF : gem5::o3::MemDepUnit::dumpLists()
+DIFF : gem5::o3::SimpleTrace::regProbeListeners() [clone .cold]
+same 1666 diff 42
+### rmpre -> rmprint
+DIFF : gem5::branch_prediction::BPredUnit::drainSanityCheck() const
+DIFF : gem5::branch_prediction::BPredUnit::dump()
+DIFF : gem5::branch_prediction::BPredUnit::dump() [clone .cold]
+DIFF : gem5::branch_prediction::BPredUnit::predict(gem5::RefCountingPtr<gem5::StaticInst> const&, unsigned long const&, gem5::PCStateBase&, short)
+DIFF : gem5::branch_prediction::BPredUnit::predict(gem5::RefCountingPtr<gem5::StaticInst> const&, unsigned long const&, gem5::PCStateBase&, short) [clone .cold]
+DIFF : gem5::o3::Commit::getCommittingThread()
+DIFF : gem5::o3::Commit::markCompletedInsts()
+DIFF : gem5::o3::Commit::markCompletedInsts() [clone .cold]
+DIFF : gem5::o3::Commit::squashAll(short)
+DIFF : gem5::o3::ElasticTrace::addCommittedInst(gem5::RefCountingPtr<gem5::o3::DynInst const> const&) [clone .cold]
+DIFF : gem5::o3::IEW::dispatchInsts(short)
+DIFF : gem5::o3::IEW::executeInsts()
+DIFF : gem5::o3::IEW::executeInsts() [clone .cold]
+ONLY_B gem5::o3::IEW::executeInsts()::{lambda()#2}::operator()() const
+ONLY_B gem5::o3::IEW::executeInsts()::{lambda()#2}::operator()() const [clone .cold]
+DIFF : gem5::o3::IEW::instToCommit(gem5::RefCountingPtr<gem5::o3::DynInst> const&) [clone .cold]
+same 1738 diff 14
+### rmprint -> rmcur
+DIFF : gem5::o3::ElasticTrace::addCommittedInst(gem5::RefCountingPtr<gem5::o3::DynInst const> const&) [clone .cold]
+DIFF : gem5::o3::IEW::executeInsts()::{lambda()#2}::operator()() const
+DIFF : gem5::o3::IEW::writebackInsts()
+DIFF : gem5::o3::IEW::writebackInsts() [clone .cold]
+same 1750 diff 4
+### rmpre -> stl
+DIFF : gem5::o3::ElasticTrace::addCommittedInst(gem5::RefCountingPtr<gem5::o3::DynInst const> const&) [clone .cold]
+DIFF : gem5::o3::IEW::IEW(gem5::o3::CPU*, gem5::BaseO3CPUParams const&)
+DIFF : gem5::o3::IEW::IEW(gem5::o3::CPU*, gem5::BaseO3CPUParams const&) [clone .cold]
+DIFF : gem5::o3::IEW::IEWStats::ExecutedInstStats::ExecutedInstStats(gem5::o3::CPU*)
+DIFF : gem5::o3::IEW::dispatchInsts(short)
+DIFF : gem5::o3::IEW::executeInsts()
+DIFF : gem5::o3::IEW::executeInsts() [clone .cold]
+DIFF : gem5::o3::IEW::writebackInsts()
+DIFF : gem5::o3::IEW::writebackInsts() [clone .cold]
+DIFF : gem5::o3::IEW::~IEW()
+DIFF : gem5::o3::MemDepUnit::MemDepUnit()
+DIFF : gem5::o3::MemDepUnit::MemDepUnit() [clone .cold]
+DIFF : gem5::o3::MemDepUnit::MemDepUnit(gem5::BaseO3CPUParams const&)
+DIFF : gem5::o3::MemDepUnit::MemDepUnit(gem5::BaseO3CPUParams const&) [clone .cold]
+DIFF : gem5::o3::MemDepUnit::dumpLists()
+DIFF : gem5::o3::MemDepUnit::dumpLists() [clone .cold]
+DIFF : gem5::o3::MemDepUnit::findInHash(gem5::RefCountingPtr<gem5::o3::DynInst const> const&)
+ONLY_B gem5::o3::MemDepUnit::findInHash(gem5::RefCountingPtr<gem5::o3::DynInst const> const&) [clone .part.0]
+DIFF : gem5::o3::MemDepUnit::init(gem5::BaseO3CPUParams const&, short, gem5::o3::CPU*)
+DIFF : gem5::o3::MemDepUnit::init(gem5::BaseO3CPUParams const&, short, gem5::o3::CPU*) [clone .cold]
+DIFF : gem5::o3::MemDepUnit::insert(gem5::RefCountingPtr<gem5::o3::DynInst> const&)
+DIFF : gem5::o3::MemDepUnit::insert(gem5::RefCountingPtr<gem5::o3::DynInst> const&) [clone .cold]
+DIFF : gem5::o3::MemDepUnit::insertBarrier(gem5::RefCountingPtr<gem5::o3::DynInst> const&)
+DIFF : gem5::o3::MemDepUnit::insertBarrier(gem5::RefCountingPtr<gem5::o3::DynInst> const&) [clone .cold]
+DIFF : gem5::o3::MemDepUnit::insertBarrierSN(gem5::RefCountingPtr<gem5::o3::DynInst> const&)
+DIFF : gem5::o3::MemDepUnit::nonSpecInstReady(gem5::RefCountingPtr<gem5::o3::DynInst> const&)
+DIFF : gem5::o3::MemDepUnit::nonSpecInstReady(gem5::RefCountingPtr<gem5::o3::DynInst> const&) [clone .cold]
+DIFF : gem5::o3::MemDepUnit::replay()
+ONLY_B gem5::o3::MemDepUnit::stlAliasDep(gem5::RefCountingPtr<gem5::o3::DynInst> const&)
+DIFF : gem5::o3::MemDepUnit::~MemDepUnit()
+same 1724 diff 28

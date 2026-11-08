@@ -1,0 +1,19 @@
+--- configs/example/se.py.bak-20261108-pre-threatmodel	2026-05-28 17:54:06.280747047 +0000
++++ configs/example/se.py	2026-11-08 22:56:06.263308310 +0000
+@@ -295,9 +295,13 @@
+         system.cpu[i].branchPred.annotationResolveStallCycles = bstall
+ 
+     if options.scheme == 2:
+-        system.cpu[i].STT = True
+-        system.cpu[i].threatModel = "Spectre"
+-        system.cpu[i].implicitChannel = True
++        # SimSpect glue (2026-11-08): explicit --threat_model/--needsTSO/--STT/--implicit_channel
++        # now win (AMuLeT parity: Futuristic, needsTSO=1); without them this is unchanged.
++        system.cpu[i].STT = True if options.STT is None else bool(options.STT)
++        system.cpu[i].threatModel = options.threat_model or "Spectre"
++        system.cpu[i].implicitChannel = True if options.implicit_channel is None else bool(options.implicit_channel)
++        if options.needsTSO is not None:
++            system.cpu[i].needsTSO = bool(options.needsTSO)
+ 
+     system.cpu[i].createThreads()
+ 

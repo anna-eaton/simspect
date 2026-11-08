@@ -6,6 +6,300 @@ future sessions (and the user) need to know. It is the counterpart to `claudenot
 - `claudenotes.md` = *ephemeral* "what I'm doing right now" scratchpad. Cleared/overwritten freely.
 - `claudelog.md` (this file) = *durable* "what we learned / changed and why". **Append, don't delete.**
 
+## 2026-11-08 — simspect-c8/manifest-2 — both briefs consolidated; Anna decides RI-only cores, recon-only STL, SPT seed fix after check, Alloy on cafe2
+
+- **Consolidated** `wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md` (twophase-spt) and the STL handoff in `wiki/design/STL_SPECULATION.md` (stl-spec) into `wiki/state/EVAL_MANIFEST.md`: per-family two-stage table (incl. STL cores: STT_6_stl_core EXHAUSTED at 306 cores; Recon_6_stl_core running; SPT STL core UNSAT), SPT conservative core = default (Anna's condition met), RO+RI SPT core superseded, every eval row NOT RUN (Anna: everything re-run on two-stage testsets; prior campaigns listed as reference only; `specs/defense_units.json` unit.eval.status/prior updated, dashboard card shows `prior`). Naming: the brief's "Stage 2 / round 2" is written as Stage 1.5 (the figure's and URGENT_TODO's name).
+- **Corrections to the brief:** (a) cafe2's `gem5_dev` container HAS Java 17 (`/usr/bin/java`, 17.0.15) and `alloy6.jar`, and `testsets_latest` was enumerated there in June; only `run_stage1.py`'s JAVA/DISK paths were Mac-specific. (b) The perturbation-aware SPT seed is not the A1 rewrite and does not change SPT's leak semantics: scratch differential `eq_base` (old seed vs new seed at no perturbation) = 0 counterexamples; production SPT gains ≥500 instances (capped) the old seed's RS check wrongly rejected; the "drops nothing" check is still running.
+- **Anna's decisions (AskUserQuestion):** (1) Stage-1 minimality RI-only for every family except SPT (re-derive the STT_6/Recon_6 RO+RI core drafts; Alloy agent owns it). (2) STL this round = Kaxiras-group builds: rebuild `gem5-recon-stl` from today's recon-modded + write the STL window checker (not started). (3) Apply the SPT seed fix once the differential returns 0, after sign-off of the diff. (4) Two-stage Alloy runs on the cafe2 container: done the script part (`proposed_twophase/run_stage1.py` JAVA/DISK configurable via `SIMSPECT_JAVA`/`SIMSPECT_DISK`, Mac defaults unchanged; verified both paths resolve); `/tests/simspect/STAGE1_alloy/` still lacks `a6CountModels.class`.
+
+## 2026-11-08 — simspect-c8/manifest — eval set approved; one eval manifest; testsets_latest IS current (correction); claim-before-work rule added to CLAUDE.md
+
+- **Eval set (Anna, 2026-11-08):** "ok im down with those builds. make sure we're gonna run all the stts separately." Rows E1-E14 in the new `wiki/state/EVAL_MANIFEST.md`: Unsafe control, STT ×3 as separate runs (Kaxiras recon-modded `--scheme=2`, upstream `/work/stt`, AMuLeT's build; SPT's STT sub-mode only if it exists), ReCon, ReCon OTB, NDA, DoM, Doppelganger, SPT, InvisiSpec, CleanupSpec, SpecLFB (AMuLeT builds on AMuLeT's flags). Each row: binary, flags, model → testset, checker, run config, status/blocker. Machine copy: `specs/defense_units.json` (new per-unit `eval` object; new units 13 unsafe_on_recon, 14 stt_on_amulet, 15 doppelganger_on_recon); dashboard unit inspector shows an "Eval recipe" card (`dashboard/dashboard_ui.py`, JS checked with `node --check`). AMuLeT-STT (E4) is blocked on the 2-line config-glue edit (P-4) since dropping it is out.
+- **Consolidation:** the "Main models per defense" tables moved out of `STAGE1_alloy/models/MANIFEST.md` (now a pointer + the `.als` catalog) into EVAL_MANIFEST. Fixed a wrong claim in MANIFEST.md and `specs/alloy_models.json`: Recon_6 does NOT carry `rf_from_most_recent_writer` (grep: only the STT_6 family).
+- **Correction to simspect-c8 2026-11-07 ("every production testset is stale"):** only `/tests/simspect/testsets/` is stale. cafe2 `/tests/simspect_fixed_20261030/testsets_latest/{STT_6,SPT_6_oneLP,Recon_6}` (150,000 programs per branch mode each, generated 2026-06-03, git e298a9e) were built from today's exact `.als` (sha256 7a6ac4c0 / 713d0904 / 01252c82, from each `provenance.tar.gz`). Their parsexml (30de6b77) differs from today's (2096e32a) only by STL mode, commit-split support and the interleave-aware commit boundary, none of which these testsets use; instruction table identical (28e77a1d). Round 4 ran on them.
+- **CLAUDE.md:** new "Claim big work BEFORE you start it" rule under Session notes (Anna asked): check claudenotes/claudelog/URGENT_TODO/wiki/state for the topic, write a WORKING ON claim line with files and result doc, log findings to claudelog as found, mark DONE. Trigger: on 2026-11-08 the SPT seed fix was worked by three sessions and the AMuLeT config diff by two (hooks-v2 appends to `wiki/findings/audits/2026-10-28/full_configs.md`, simspect-c8 to `HOOK_AUDIT.md`; reconcile).
+
+## 2026-11-08 — simspect-c8/amulet-parity — our AMuLeT-build runs do NOT use AMuLeT's configs (cache geometry, TBEs, sys-clock, TSO, threat model, branch predictor)
+
+Read-only audit, full tables in `wiki/findings/audits/2026-11-07/HOOK_AUDIT.md` § "AMuLeT config parity (2026-11-08)" (5 DECIDEs P-1..P-5). What AMuLeT ran: `src/benchmark_all.sh:21-66` → `cli.py` → `executor.py:196-344`: InvisiSpec = `--ruby` + Futuristic (`docker_gem5_v1_final_cache_ipcFP.yaml`), CleanupSpec = `--ruby`, STT = `--ruby` + Futuristic, SpecLFB = classic caches (checked by simspect-c8 on cafe2). All in IPC mode (`configs/revizor/ipc.py` wraps the same `se.py`, adds `--access-backing-store` under Ruby). Differences on all four builds: sys-clock (AMuLeT 2GHz; we never pass it, default `Options.py:71-72` 1GHz); AMuLeT fills/flushes L1D before every test (`ipc_base_x86.s`), we start cold, which is why our configs shrank L1D to 1-2 kB. Per build: InvisiSpec needsTSO 0 vs our 1 (our glue `se.py:350-351` defaults it to 1), allowSpecBuffHit 0 vs 1, TBEs 256 vs 2, L1D 32kB/8 vs 1kB/2, Futuristic vs Spectre(+Futuristic); CleanupSpec TBEs 256 vs 2 (cause of the 62% deadlocks), L1D 32kB/8 vs 2kB/4; SpecLFB BiModeBP vs TournamentBP, L1D 32kB/8 vs 1kB/2; amulet-STT Ruby + Futuristic + needsTSO 1 vs classic + Spectre + False. InvisiSpec/CleanupSpec/SpecLFB can match with `extra_args` only; amulet-STT can't (`se.py:348-349` skips `config_scheme` whenever `--scheme` is set → glue edit needs Anna's OK, or drop the build). Risk: at 32kB with cold caches the eviction-based hits (UV1 2881/3000 at 1kB/2) may vanish; nothing measured yet. Correction: `gem5-hooks/amulet-repo/gen_stt_tests.py` is a SimSpect-written file, not an AMuLeT source.
+
+## 2026-11-08 — simspect-c8 — Anna's calls: scheme 1 = NDA; regen ALL testsets only after the two-stage model; AMuLeT config parity audit started
+
+- **NDA naming (Anna):** scheme 1 on the recon builds is called NDA. Evidence that it is NDA: Pavlos's email (`documentation/docs/Files/email.txt:18`, "--scheme 1 to NDA"); code: when a speculative load's data returns, the Delay scheme puts it in the delay unit and returns before `writeback`, so dependents are not woken (`/work/gem5-recon-modded/src/cpu/o3/lsq_unit.cc:194-211`), which is NDA's "prevent tag broadcast / delay wake-up" (Weisse 2019 p1-2, `~/Documents/quail/sources/papers/weisse-2019-nda.pdf`), loads only, i.e. permissive propagation. NDA is a flag (`--scheme=1`), not a separate binary. On `/work/stt` scheme 1 is Unsafe. Renamed in `specs/gem5_builds.json` (3 recon rows), `specs/defense_units.json` #11 (id `delay` kept so references don't break), `wiki/design/MODELS_AND_BUILDS.md:139`, `wiki/design/VOCAB_TABLES.md` headings.
+- **Regen (Anna):** regenerate ALL testsets, but only once the two-stage model exists. The flat 500k "go regen" plan is dropped.
+- **Doppelganger:** its paper evaluates it on top of NDA, STT and DoM (Kvalsvik 2023 abstract p1), so rows #7-#9 of the build list are all author configurations.
+- **Build list vs eval set:** the 33-row list counts every flag combination, control and June experiment; a proposed ~11-build core eval set is a new DECIDE in `URGENT_TODO.md`.
+- **AMuLeT config parity:** Anna: the AMuLeT builds must run with AMuLeT's own configs. An agent is diffing AMuLeT's `src/executor.py` `set_cmd` + per-defense YAMLs against our run configs; results go to a new section at the end of `wiki/findings/audits/2026-11-07/HOOK_AUDIT.md`. Already visible in `executor.py`: InvisiSpec `--needsTSO=0` (ours 1), STT `--needsTSO=1 --STT=1 --implicit_channel=1 --threat_model=...` (ours: glue, needsTSO False), defaults l1d 32kB/8, l2 2MB/8, TBEs 256 (hooks-v2 found CleanupSpec deadlocks at our `--L1_TBEs=2`).
+
+## 2026-11-08 — hooks-v2/deploy — cafe2 harness deployed; amulet-STT se.py glue fixed + parity config; CleanupSpec directory reason corrected
+
+- **Deploy to cafe2.** `check_footprint.py`, `gem5_common.py`, `cleanupspec.json`, the tests/fixtures, `runconfigs/footprint/` and `runconfigs/amulet_parity/` are now in `/tests/simspect_fixed_20261030/`. Old copies are kept as `.bak-20261108`; md5s match the Mac and the tests pass there. Staging the files through a tarball worked, where the earlier direct copy had been refused.
+- **amulet-STT glue (Anna approved).** In `/work/amulet/amulet-gem5-STT_AE-v1.1/configs/example/se.py`, the `--scheme=2` block now honours explicit `--threat_model`/`--needsTSO`/`--STT`/`--implicit_channel`, and is unchanged without them.
+  - Backup: `se.py.bak-20261108-pre-threatmodel`; diff: `gem5-hooks/amulet-STT/se_py_threatmodel_glue_20261108.diff`.
+  - Smoke test: with the flags, `threatModel=Futuristic` and `needsTSO=true`; without them, Spectre as before.
+  - New parity config: `runconfigs/amulet_parity/run_config_STT_6_amuletstt_amulet_parity.jsonc` (Ruby/MESI_Two_Level, TBE 256, 32kB/8, 2GHz, check_ld).
+- **CleanupSpec directory:** kept excluded, with the reason corrected in `cleanupspec.json` (capacity-free `DirectoryMemory`, so no directory-conflict channel exists).
+- **STATUS:** new urgent todos for running AMuLeT itself on all our defenses including Recon, and for timing runs using parity configs only.
+- **Write-up** of everything learned: `wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md` "CURRENT".
+
+## 2026-11-08 — hooks-v2/configs — CleanupSpec ownership rule ("count as both") implemented; canonical footprint + AMuLeT-parity configs
+
+(1) **Ownership rule** (Anna approved "count as both"), from CleanupSpec §3.4 p7.
+- **Code:** `check_footprint._eval_balance`, driven by the new `ownership` block in `specs/leakage/cleanupspec.json`.
+- **Claiming:** a non-squashed access older than squashed load S that hits S's live install claims it, so cleaning it is over_clean (UV5). An L1D hit also claims S's L2 install, since MESI_Two_Level's L2 is inclusive; Anna to review.
+- **Not claimed:** S's victim stays charged to S.
+- **Guard:** younger (post-squash) or squashed accesses never claim. The replay cross-check uses the same rule.
+- **Tests:** 37/37, including a real UV5 fixture `cln_uv5ro`.
+- **Offline re-score** of the 80 kept `main_tbe8` traces: only `inst-101824`/`inst-102050` change, to victim-only under_clean on 0x3cc0. uv5ro becomes a leak.
+
+(2) **Configs.**
+- `runconfigs/footprint/`: the 4 canonical amplified configs. They are the old `*_full` ones plus the `paths.*` keys, `testsets_latest`, O3PipeView-only, and CleanupSpec `--L1_TBEs=8`.
+- `runconfigs/amulet_parity/`: InvisiSpec-Futuristic, CleanupSpec and SpecLFB with AMuLeT's exact flags, cited to `/work/amulet-repo` @ c871bdf. A smoke test showed `config.ini` as intended, and the SpecLFB branch force still fires under BiModeBP.
+- 16-row inventory of every AMuLeT-build config: `wiki/findings/audits/2026-10-28/full_configs.md`. No amulet-STT parity config (glue fix P-4 pending).
+- Nothing deployed to cafe2 yet (URGENT_TODO deploy item).
+
+## 2026-11-08 — hooks-v2/jmp-shadow — SpecLFB jmp-shadow is a REAL bug: a porting bug from DOLMA, independent of UV6
+
+Adversarial investigation, all directions. Review: `wiki/findings/bug/speclfb_jmp_shadow/README.md` (gadgets in `src/`). cafe2 runs: `gem5_dev:/work/amulet/jmpshadow_probe/` (`LOG.md`; `pristine/` and `cf/` builds are about 2 GB each and can be deleted after review). Upstream clones: `/work/amulet/upstream/{SpecLFB,dolma,amulet-gem5}`.
+
+**Mechanism.** In `ROB::updateSafeState`, `prevBrsResolved = isDirectCtrl && isUncondCtrl` (upstream `SpecLFB-gem5/src/cpu/o3/rob.cc:501`, simple path, the live one) overwrites the false set by an older unresolved branch. The same logic is in upstream SpecLFB and in AMuLeT's copy. DOLMA computes a per-instruction `isControlInducer` instead (`dolma/src/cpu/o3/rob_impl.hh:308-348`, spot-checked by this session), so this is a SpecLFB porting bug.
+
+**Evidence.**
+- Reproduced on a pristine build with zero SimSpect changes, with no branch force or resolve stall and a natural misprediction, using SpecLFB's native prints as the oracle.
+- The leak is relational: secrets 2/4/7 install different lines (d5000/d7000/da000) only with the jmp.
+- Across 11 variants, jmp, call+ret, call-pop and far jmp leak. A same-length nop, an indirect jmp, a conditional branch, ret, a jmp before the branch and a jmp after the transmitter stay protected.
+- A one-line counterfactual fix in a scratch copy removes the leak, and the UV6 path is unchanged.
+- Not reported in AMuLeT; no upstream issue.
+
+DECIDE in `URGENT_TODO.md`.
+
+## 2026-11-08 — hooks-v2/rmw — speculative RMW load half is protected everywhere except CleanupSpec (UV3); no new bug; why STT_6 has no RMWs
+
+24 runs in cafe2 `/work/amulet/rmw_probe/` (README.txt, probe.log). Findings: `wiki/design/VOCAB_TABLES.md` "RMW agent findings (2026-11-08)".
+
+**What the probe found**
+- **The load half is protected like a plain load** on InvisiSpec Spectre/Futuristic, SpecLFB (including its UV6 exposure), `/work/stt` and Recon-STT. gem5 x86 `ldst` is a LoadOp that differs only in a request flag, which only the Ruby Sequencer acts on (GETX, `Sequencer.cc:852-863`).
+- **CleanupSpec skips the undo (`nohitinfo`)**, which is AMuLeT UV3.
+- **`lock`/`xchg` never execute speculatively** (`ldstl` `nonSpec=True`, `ldstop.isa:486-489`).
+- **Why STT_6 has no RMWs:** pass 5 emits each ld/str as separate inline asm, and STT_6's 100k instances contain no ld→op→str chain.
+
+**Next step:** generation options (a)-(d) are in URGENT_TODO (V7).
+
+## 2026-11-08 — hooks-v2/flags — none of the four AMuLeT builds runs with AMuLeT's flags; CleanupSpec TBE=2 was accidental
+
+Write-up with full per-parameter tables: `wiki/findings/audits/2026-10-28/full_configs.md` "Comparison with AMuLeT's flags (2026-11-08)". Sources: AMuLeT repo on cafe2 `/work/amulet-repo` @ c871bdf and its paper, plus two `config.ini` diffs.
+
+**Where AMuLeT and we differ**
+- **AMuLeT's defaults:** 32kB/8 L1D, 256 TBEs/MSHRs, 2GHz `--sys-clock`, `--access-backing-store`. It shrank structures only for InvisiSpec-Patched (§4.5.1 Table 6: 2-way L1D, then 2 MSHRs).
+- **Ours, on all three footprint builds:** 1kB/2 L1D (CleanupSpec 2kB/4), TBE 2 and the 1GHz default clock.
+- **InvisiSpec** also differs on `needsTSO=1` and `allowSpecBuffHit=1` (AMuLeT 0/0), and our Spectre run has no AMuLeT counterpart.
+- **SpecLFB** runs the Tournament predictor; AMuLeT runs BiModeBP.
+
+**What matches:** scheme and defense settings, the Ruby/classic memory system, ROB/LQ/SQ 192/32/32, the predictor's BTB and RAS, and replacement policies, all confirmed in `config.ini`.
+
+**Real mistakes**
+- **CleanupSpec `L1_TBEs=2` is accidental** (tree default; AMuLeT 256, paper 64). It causes the 62% deadlocks.
+- **amulet-STT cannot be put in AMuLeT's configuration:** `se.py:297-300,348-349` hard-codes Spectre and skips `config_scheme`, so `--threat_model`/`--needsTSO` are ignored.
+- **The 1GHz clock is set by omission everywhere.**
+
+DECIDEs are in `URGENT_TODO.md`.
+
+## 2026-11-08 — hooks-v2 — trace parsers ignore native debug-print residue; jmp-shadow and AMuLeT-flag agents launched
+
+At Anna's request the trace parsers now ignore glued native-print residue.
+- **The problem:** native DPRINTF formats that print text after their own newline glue it onto the next trace line. These are CleanupSpec `lsq_unit.hh:1257` (`\n.`) and `RubyPort.cc:272` (`\n `), the only two found in the 6 builds' CPU and cache code. The glued line then failed every `startswith`/`^` match, and the CleanupSpec UV3 demo lost a `BR:resolve_hold` line this way.
+- **The fix:** `gem5_common._unglue` plus `_trace_lines` now feed every trace parser (`parse_pipeview`, `parse_pipeview_by_seq`, `parse_simspect_events`/`parse_simspect_line`, `parse_lsq`, `parse_commit_squashes`, `parse_commit_ticks`). `check_v2_trace.py` got the same treatment.
+- **Verification:**
+  - Old and new parsers give identical results on all 10 fixtures.
+  - A glued-line test passes, and the footprint tests pass 31/31.
+- **Not yet on cafe2:** this is Mac only so far, like the `check_footprint` by_pc fix. Both need copying to `/tests/simspect_fixed_20261030/STAGE3_gem5/` (URGENT_TODO).
+
+Two background agents were launched:
+- an adversarial investigation of the SpecLFB jmp-shadow candidate (provenance vs the original SpecLFB and DOLMA, a pristine-build repro without SimSpect machinery, a relational secret-dependent leak test, a counterfactual scratch build), reporting to `wiki/findings/bug/speclfb_jmp_shadow/README.md`;
+- a comparison of our flags with AMuLeT's for all four AMuLeT builds, reporting to `wiki/findings/audits/2026-10-28/full_configs.md`.
+
+## 2026-11-08 — hooks-v2 — InvisiSpec through hooks v2: UV1 everywhere, UV2/KV1 not caught; check_footprint dropped the Commit-trace lc fill (fixed on the Mac)
+
+**InvisiSpec (Spectre and Futuristic) through the hooks**
+- **Run:** 3000 STT_6 ld tests per scheme (testsets_latest, seed 20261107, `results/STT_6_invisispec_full_*` flags), 0 errors, 0 NEW. Results in `/tests/simspect_fixed_20261030/results/STT_6_invisispec_v2hooks_{spectre,futuristic}__20261107/` (README, every pipeview kept).
+- **Hits:** UV1 (`L1D:evict req=specld` + `L2:coh` PUTX) in 2881 / 2886 tests, and 2995 / 3000 once the checker bug below is fixed. The Futuristic actor mode was confirmed on 3000/3000 records.
+- **Demos:**
+  - UV1 is flagged, and its signature disappears with `--apply-spec-eviction-patch`.
+  - UV2 is not caught: the hooks show MSHR serialization only through `buf_fill` ticks, there is no stall event, MSHR is out of the criterion's scope, and the leak is a two-run timing difference.
+  - KV1 is not caught: `L1I:fill`/`ITLB:fill` are in the trace, but those structures are ignored and fetch events are `seq=-`.
+- **D-1:** the DTLB replacement-on-hit deviation is in every hit and alone flags the patched UV1 test.
+- **D2:** in 802 of 2883 UV1 hits only non-transmitter loads leak (wrong-path epilogue `POP_R`).
+- **Window (C-2):** `inst-031760` has a real UV1 eviction before lc_retire, because the window opens late behind a late-committing lc load.
+
+**Checker bug fixed on the Mac**
+- **Cause:** `check_footprint.check_footprint` ignored the `by_pc` that `gem5_common.process_one` fills from the Commit trace (`fill_retire_from_commit`, added 2026-11-07), because `evaluate_trace` re-parsed the pipeview. So a committed lc with no O3PipeView record was "lc specified but never retired".
+- **Impact:**
+  - InvisiSpec: 114/3000 tests per scheme, all UV1 under a what-if re-score.
+  - CleanupSpec: 64 (TBE 2) + 138 (TBE 8) records, not yet re-scored.
+  - SpecLFB: 0.
+- **Fix:** `evaluate_trace(..., by_pc=None)`, and `check_footprint` passes `by_pc`. New test `TestRealTracesV2.test_caller_by_pc_is_used`; footprint tests 30/30.
+- **Not deployed to cafe2:** copying into `/tests/simspect_fixed_20261030/STAGE3_gem5/` was refused by the permission classifier, so that tree's copy is now older than the Mac's.
+
+Combined per-bug table: `wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md` "CURRENT (2026-11-08)". Hook gaps: `wiki/design/SIMSPECT_HOOKS.md` "Gaps found by the first STT_6 runs".
+
+## 2026-11-08 — hooks-v2 — first STT_6 runs through hooks v2 on CleanupSpec and SpecLFB: UV4/UV6 found, NEW SpecLFB "jmp-shadow" candidate, CleanupSpec TBE-2 deadlock, UV3 reachable via RMW
+
+First time the STT_6 library (testsets_latest, current STT_6.als) went through `check_footprint.py` on the AMuLeT builds. Earlier AMuLeT numbers all came from DPRINTF checkers on the old testset, and the 10-28 `*_full` configs had never run. Runs are in `/tests/simspect_fixed_20261030/results/STT_6_{cleanupspec,speclfb}_v2hooks__20261107/` on cafe2 (each has a `README.md`; every hit's pipeview is kept). The sample is fixed seed 20261107, 1500 ld-kind tests per branch mode, through `pipeline.py gem5` or an equivalent proven path. InvisiSpec (Spectre + Futuristic) is still running.
+
+(1) **CleanupSpec.**
+- **Deadlock:** with the config as written (`--L1_TBEs=2`), 62% of tests die with `panic: Possible Deadlock` (`L1_Replacement_OnInstall` Resource Stall). They also die with cleanup off, so this is a Ruby TBE-2 artifact. With `--L1_TBEs=8` there are 0 errors.
+- **Hits:** 6 (TBE 2) and 40 (TBE 8); 38 are AMuLeT UV4 (`cleanup_skip why=split`) and 2 are NEW (`inst-101824`, `inst-102050`, taken).
+- **Demos:** the hooks show UV3, UV4, UV5 and unXpec. check_footprint flags UV3 and UV4, misses UV5 (the per-line balance has no ownership transfer when a committed access hits a squashed load's line), and does not cover unXpec (timing).
+- **UV3 is reachable after all:** a speculative read-modify-write store installs and is skipped as `nohitinfo` (`Sequencer::writeCallback` sets no hit level). This corrects the June "unreachable" note, which holds only for plain `mov` stores. STT_6 has no RMW instructions.
+- **Hook problems:**
+  - A native DPRINTF at CleanupSpec `lsq_unit.hh:1257` ends in `\n.` and glues a `.` onto the next line, so with the `LSQUnit` flag on, the parser drops a hook line. Run CleanupSpec with `O3PipeView` only. InvisiSpec and SpecLFB have no such print (checked).
+  - Ruby stalls are not exported (`StateMachine.py:1273-1295` passes only Valid to `endTransition`).
+  - `cleanup_drop` prints `seq=-`.
+
+(2) **SpecLFB.**
+- **Hits:** 0 errors; 1300/1500 (not_taken) and 1452/1500 (taken).
+- **Buckets:** UV6 as published (first spec load = LQ head, `lsq_unit.cc:877`) 1143 / 1142; walk-order (sticky `PrevNoUnsafe`) 157 / 162.
+- **NEW "jmp-shadow" 144 + 4 (taken only):**
+  - `ROB::updateSafeState` assigns `prevBrsResolved = isDirectCtrl && isUncondCtrl` (or true through the mnemonic fallback) inside `if(!prevBrsResolved)`, so any direct jmp or call after an unresolved branch re-marks all later loads resolved. Source read by this session on 2026-11-08.
+  - Clean A/B demo `uv6jmp.s` vs `uv6lfb.s`.
+  - Not yet compared with the original SpecLFB or DOLMA code.
+- **Walk-order option (c):** the native Speclfb trace lines up exactly with the v2 lines (`renameToROBDelay=1` < `renameToIEWDelay=2`).
+- **LFB:** the park path is unreachable by code reading (USL is set only with HitUSL, and the HitUSL miss is refused at the port). So "LFB parks unsafe misses" in `PROTECTION_SCOPE_TABLE.md` and `speclfb.json` is wrong for this build. The hold is a bounce plus replay instead.
+
+(3) **D2 evidence:**
+- CleanupSpec: in all 46 hits the leaking load is not the model's transmitter.
+- SpecLFB: the transmitter is among the offending loads in about 63% of hits, and in 2 of 148 NEW hits.
+
+DECIDEs added to `URGENT_TODO.md` (jmp-shadow, the walk-order update, the CleanupSpec ownership rule, TBEs, the RMW stimulus). SpecLFB review: `wiki/findings/audits/2026-10-28/hooks_speclfb_and_uv6.md` "Update 2026-11-08".
+
+## 2026-11-08 14:45 — stl-spec — STT_6_stl split core: Stage-1 exhausted at 306 cores; all STL knowledge consolidated
+
+- `proposed_twophase/STT_6_stl_core.als` (RI-only) Stage-1 EXHAUSTED at ≤6 instructions: 306 cores in 23 min (`testsets/STT_6_stl__twophase_draft/stage1_xml`, `~/Library/Logs/simspect/twophase_STT_6_stl.log`). `Recon_6_stl_core` still running.
+- Everything known about STL (builds, per-defense scope, models, experiments, open decisions, lessons) is now in `wiki/design/STL_SPECULATION.md` "Manifest handoff", for the agent writing `wiki/state/EVAL_MANIFEST.md` (simspect-c8). My manifest section in `STAGE1_alloy/models/MANIFEST.md` was moved there by that agent.
+
+## 2026-11-08 — stl-spec — STL model + split core for every main model; defense manifest rebuilt; SPT STL blocked by RS vs alias
+
+- **Manifest:** `STAGE1_alloy/models/MANIFEST.md` "Main models per defense" now covers all 12 defense units (+ amulet-STT and the unmodelled NDA/Doppelganger flags): main model, whether STL is in the defense's threat model, STL model, whether STL can run there today; plus one family per main model (main / split core / STL / STL split core). Machine copy: `specs/defense_units.json` `model_families` + per-unit `stl_scope`; the dashboard unit inspector shows both (`dashboard_ui.py` openUnitInspector).
+- **New tool `STAGE1_alloy/models/proposed/derive_stl.py`:** applies exactly the STT_6→STT_6_stl edits to any main model; self-check `--alias rf` on STT_6 = STT_6_stl code. Drafts (unapproved, in `proposed/`): `Recon_6_stl.als`, `SPT_6_oneLP_stl.als`, atom-based alias. Split-core drafts (in `proposed_twophase/`, via `derive_core.py`): `STT_6_stl_core.als`, `Recon_6_stl_core.als` (RI-only), `SPT_6_oneLP_stl_core_conservative.als` (no RO/RI). No existing `.als` edited.
+- **Checks:** STT_6_stl 60 in 5 s, Recon_6_stl 60 in 10 s, both 60/60 `stl_bypass`; their cores SAT at ≤3/≤4 (200 capped). Stage-1 runs started 13:58 (cap 20000, 4 h): `testsets/{STT_6_stl,Recon_6_stl}__twophase_draft/stage1_xml`, logs `~/Library/Logs/simspect/twophase_{STT_6_stl,Recon_6_stl}.log`.
+- **SPT_6_oneLP_stl generates nothing** (0 in 900 s; core UNSAT ≤3, ≤4). Root cause by probes: SPT protects a load's output regardless of the location read, so the aliased Mem_s is never necessary and RS-minimality rejects every aliasing instance. RS off → SAT, alias off → SAT, perturbation-aware seed → still 0, RS with the alias location exempt → 60 in 10 s, 59/60 concretize (1 `parsexml` `_stl_store_retargets` out-of-bounds edge case, not investigated). DECIDE in `URGENT_TODO.md`; draft left as derived.
+- **Running STL needs the STL hooks, only on `/work/gem5-recon-stl`** (stale, no resolve hooks). DECIDE: rebuild it, then port to amulet ×3 and gem5-spt. Write-ups: `wiki/design/STL_SPECULATION.md` "STL for every main model", `wiki/design/TWO_PHASE_MODELS.md` "2026-11-08 — STL split cores".
+
+## 2026-11-07 — twophase-spt — SPT Stage-1 = 0 root-caused: unperturbed protection seed, not RO over-pruning
+
+- **Two-phase Stage-1 runs (2026-11-03) finished:** STT_6 → 2 skeletons, Recon_6 → 2, **SPT_6_oneLP → 0** (`EXHAUSTED`, genuine UNSAT). Investigated why SPT alone is empty.
+- **Isolation sweep (scratch copies, scope 5, STT control):** SPT base (RR+RC+RS only) = 150 (capped) → SPT models leaks fine; but **RI-only = 0, RO-only = 0, RO+RI = 0**. STT = 129 / 67 / 2. So it is **NOT RO over-pruning** (contradicts `RIONLY_BASELINE_PROOF.md`'s framing for SPT) — *no* SPT leak is minimal under removing *any* instruction OR operand.
+- **Not the base-predicate mismatch either:** swapping SPT's base `one_insecure` → STT's `not secure` still gives 0 under RI/RO.
+- **Root cause (strongly supported):** SPT's protection seed `hardware_protection_policy` (`SPT_6_oneLP.als:341`) is **unperturbed and computed over the whole program** (`Instruction.operands`, `Instruction.outreg.rf`, no `[p]`), so removals don't shrink the protected set → transmitter stays protected → leak survives almost every removal → no minimal instance. STT's seed is `Mem_s` (a sig; `STT_6.als:326`) with all instruction-sensitivity in the *perturbed* propagation, so STT minimal instances exist. Same seed as the A1 issue (`PROTECTION_SET_REEVAL.md`). Confirmation (perturbation-aware seed variant) pending Anna's sign-off (semantics change).
+- **Consequence:** RO+RI Stage-1 is incompatible with SPT's current model; dropping RO does NOT fix it. Options (Anna to pick, conservative-leaning): (1) SPT Stage-1 with no removal-minimality (over-generate), (2) scope-ladder minimality, (3) fix the seed (A1 rework). Full write-up + reproducible evidence: `wiki/design/TWO_PHASE_MODELS.md` ("2026-11-07 — RESOLVED"). No `.als` edited.
+
+## 2026-11-07 — stl-spec — Futuristic PARKED (Anna); atom-based store alias for STT_6_shadows checked
+
+- **Futuristic tabled (Anna, 2026-11-07):** it is not STT's only mode (`/work/stt` `threatModel` = UnsafeBaseline / Spectre / Futuristic, `cpu.cc:422-439`; harness runs Spectre). Model, `se_futuristic.py`, branch-only check and the two DECIDEs are kept and marked PARKED: `wiki/design/FUTURISTIC_MODEL.md` banner, `URGENT_TODO.md`, `STATUS.md`, `specs/alloy_models.json`.
+- **Store alias for `STT_6_shadows`:** new `model_source_matrix.py` predicate `str_alias_atom` = every unresolved store has a younger uncommitted load at or before `xm` naming the same `Mem_s`, no other store to it in between, `rf` not required (the rule `parsexml.py` `pass2_6_specify_stl` already uses). On the draft: SAT, 60 instances in 4 s; 60/60 concretize with `stl_bypass`; 37/60 pair only by shared atom (an `rf`-based fact like `STT_6_stl`'s would drop those). Not applied to any `.als`: it is option (a) of the alias DECIDE, awaiting Anna. Write-up: `wiki/design/STT_VS_RECON_STT.md` "How a store-source test gets its alias".
+
+## 2026-11-07 — hooks-v2 — SimSpect hooks v2 done on amulet InvisiSpec/CleanupSpec/SpecLFB (print-only verified); InvisiSpec panic fixed; SpecLFB walk-order finding
+
+- **Done:** APPROVALS.md §E hook fixes + max export, in all three amulet builds (cafe2 `/work/amulet/amulet-gem5-*_AE-v1.1`, current `gem5.opt`). New appended fields (addr/size/set/way/req/msg/ev/st/nst/lvl/why/...), META header `ver=2`, hit/miss for every lookup, LSQ issue/stlf/data/safe, BR:resolve, SpecLFB LSQ:unsafe + usl_flag, CleanupSpec cleanup_req/cleanup_restore_req/cleanup_wait/cleanup_drop_data, one cleanup_done per squash id (incl. bufd=0). v1 field order unchanged. Spec: `wiki/design/SIMSPECT_HOOKS.md` (rewritten). Diffs: `gem5-hooks/amulet-*/hooks_v2_vs_v1resolve.diff`.
+- **Verified print-only:** 10 cases, v2 vs reference binaries with the same non-print code (`gem5-hooks/verify/make_refs.sh`: v1+resolve snapshot + IEW wake fix): identical sim ticks, non-simspect O3PipeView lines and parse_pipeview; `check_v2_trace.py` hard checks all pass. `test_check_footprint.py` 29/29 incl. `TestRealTracesV2` (same leak verdicts on v2 traces). Log `/work/amulet/simspect_hooks_verify_v2/run_all_v2_20261107.log`.
+- **InvisiSpec panic root cause** (`panic: Invalid range for type MachineType`, every run since the 10-30 21:27 rebuild): the dead 10-30 v2 agent's `Sequencer::hitCallback` hook called `MachineType_to_string(mach)` on L1 hits, where `mach` is not a valid type. Fixed (`simspectLvlOf`). The partial v2 existed only in the cafe2 trees; recovered from them (v1+resolve snapshot `/work/amulet/backups/<b>-simspect-hooks-v1.tgz`) and from `/work/amulet/hooks_v2_ruby.tgz`. Any run on amulet-InvisiSpec between 10-30 21:27 and 11-08 00:56 UTC crashed; CleanupSpec ran the partial v2 in that period; that binary is still the current one (CleanupSpec sources needed no fix) and is now verified print-only on 4 CleanupSpec cases, so its runs from that period are as valid as the reference build's.
+- **Finding (needs Anna):** on `lfb_uv6x` SpecLFB treats both speculative loads as safe because the ROB walk sets the sticky `PrevNoUnsafe` on both (tick 92500) before the LSQ walk sets `cusl` on the first (93000); both fill L2 and L1D before the squash. This corrects the 10-28 audit's guess (load-queue-head skip). DECIDE in URGENT_TODO.md.
+- Not exercised by any case (code reviewed only): LLCSB, DIRTBE, LFB, cleanup_wait/drop/drop_data, rollback-space evict, clusivity inv.
+
+## 2026-11-07 — simspect-c8/vocab — richer concretization vocabulary needs parsexml emitter work; two side bugs found
+
+[`wiki/design/VOCAB_TABLES.md`](wiki/design/VOCAB_TABLES.md) (35-candidate superset + per-defense tables with paper citations, V1-V9 decisions); new tables in `STAGE2_compilation/instruction_tables/proposed/` (`today_superset.jsonc`, `today_taint.jsonc` load today; `NEEDS_EMITTER_WORK.candidates.jsonc` is deliberately not loadable); harness scripts in `proposed/tools/`. (1) Pass 5 emits by instruction **name** and knows only 10 (`parsexml.py:2144-2537`; unknown → "skipped" comment), and pass 2.5 forces every branch to br_bez/br_cond (`:754-836`), so without a parsexml change only `other_n` can grow (reuse zsm/div). (2) `add` is emitted as `leaq` (`:2296`): no flag-setting ADD exists today. (3) zsm/div put the pc marker on the leading `movq`, not `imulq`/`idivq` (`:2321`, `:2376`): dormant (no model's leakage function has Otherxs) but wrong for any other_x transmitter. (4) Interleave chains hardcode bitnot/add/load/store (`:307-331`), ignoring the table. (5) gem5-recon STT only holds tainted loads and tainted conditional branches (`lsq_unit.cc:2079-2090`, `inst_queue.cc:1450-1456`). NDA / DoM / Doppelganger papers saved to `~/Documents/quail/sources/papers/{weisse-2019-nda,sakalis-2019-dom,kvalsvik-2023-doppelganger}.pdf`.
+
+## 2026-11-07 — simspect-c8/hook-audit — every audited gem5 hook is readout, predictor directive or allowed stall; problems are in config glue, global latency knobs and stale recon-stl
+
+Read-only audit of all SimSpect gem5 changes except the three AMuLeT footprint builds (InvisiSpec / CleanupSpec / SpecLFB, paused while Anna reviews them): [`wiki/findings/audits/2026-11-07/HOOK_AUDIT.md`](wiki/findings/audits/2026-11-07/HOOK_AUDIT.md), diffs in `hook_diffs/`. (1) C++ hooks in gem5-recon-modded, stt, stt-dbg and gem5-spt are all R/S/T; recon-family binaries differ from the control only in hooked functions. (2) One non-hook source change: amulet-STT `src/cpu/o3/rob_impl.hh:275` fixes a use-after-free (copies `head_inst` before `erase()`), same as upstream `/work/stt`; benign but a modification. (3) Config glue diverges from the authors: `se.py` sets `needsTSO=0` on stt/spt/amulet-STT (authors use 1, plus `--ruby` for spt/amulet); on `/work/stt` `--scheme` overrides `--threat_model`, so STT-Futuristic is unreachable, and there scheme 1 = Unsafe, 3 = Spectre fence (not DoM). (4) `se_slowcomm.py` / `se_exp.py` change iewToCommitDelay / commitToIEWDelay / squashWidth for every instruction, and the STT race "~41 real leaks" exists only at commitToIEWDelay=3 (`experiments/paper_stalls/stall_sweep_stt.sh:3`); 0 at stock. (5) gem5-recon-stl predates the 2026-10-30 resolve hooks (0 `BR:` strings) and its store hold re-issues the store each replay. (6) gem5-recon `iew.cc:1575-1582` / `lsq_unit.cc:1422-1432` (Apr 8, trace-only, not in `gem5-hooks/`) redefine O3PipeView `complete` for loads as "data arrived", which check_ld's data-obtained gate reads. (7) Another session started `*_fixed_latest__20261108_010535` campaigns (stt, recon-modded, spt) in `/tests/simspect_fixed_20261030/`. Stale docs not fixed: `specs/gem5_hooks.json`, `specs/gem5_builds.json`, `specs/defense_units.json` (scheme 1 "Delay"), `gem5-hooks/README.md`.
+
+## 2026-11-07 — simspect-c8 (eval-finalize overview) — SPT core UNSAT is a perturbation bug in SPT's seed; all production testsets predate their current .als; recon scheme injection verified; Doppelganger flag exists
+
+(1) **SPT_6_oneLP_core has 0 cores because SPT's protection-set seed ignores the perturbation.** `SPT_6_oneLP.als:341` seeds `Instruction.operands - ((Inreg + Inaddr) - Instruction.outreg.rf)` with the unperturbed `rf`/operands. When RI (or RO) removes the load that produces the transmitter's address, `xm.inaddr` stays in the seed (it still has an `rf` source in the unperturbed relation), `fix_rf_hole_p` can't reconnect it (Mem_s→Reg_s is filtered), and the de-protect rule needs an `rf_p` source, so the leak survives. RI-minimality can then never hold for the producer, which every SPT leak needs, so the core is UNSAT at every bound (matches the 2026-11-03 run: 0 cores, EXHAUSTED at `but 6` after 3.9 h). Scratch probe (repo `.als` untouched): the same draft core with only the seed made perturbation-aware, `fun hardware_protection_policy[p: PTag->univ]: Operand {o_p[p] - ((Inreg + Inaddr) - i_p[p].outreg.(rf_p[p]))}`, gives **6 cores, exhausted, at `but 3`** (first one = `br_n(unresolved) → ld → ld[xm]`), versus 0 exhausted unmodified. Evidence: `results/twophase_stage1_2026-11-03/probe_spt_seed_20261107/` (`diff_seed.txt`, `fix3.als`, `out_fix/`, `fix.log`). The same unperturbed seed also weakens RS-minimality in production `SPT_6_oneLP` (an RS on a producer's state can't secure it). Fix is a clause-(2) change → Anna's call (URGENT_TODO).
+
+(2) **Every production testset on cafe2 was generated from an older version of its model.** `provenance.tar.gz` sha256 (first 12) vs today's file: STT_6 `5cae70e9` vs `7a6ac4c0` (XML 2026-05-19); SPT_6_oneLP `5e89267c` vs `713d0904` (06-02); Recon_6 `12b5ea88` vs `01252c82` (05-14). STT_6_interleave, STT_all and SPT_6_full recorded an empty `.als` (symlink captured as a 0-byte file), so their provenance is unknown. Only STT_6_stl (60 XMLs) and STT_6_commitsplit (20k, fixed-harness copy) match their current models. Every testset's recorded `parsexml.py` also differs from today's (`2096e32a`). So no current testset is "current model + current concretization"; a regen is needed before final numbers. `/tests/simspect_fixed_20261030/testsets/{STT_6,SPT_6_oneLP,Recon_6}` are symlinks to the same old sets.
+
+(3) **Recon-build scheme injection verified.** One hello run on `/work/gem5-recon-modded/build/X86/gem5.opt --cpu-type=X86O3CPU --caches --scheme=2 --allow_leaked` printed `Injecting special parameters` and `config.ini` shows `scheme=2`, `allowLeaked=true` (`/tmp/c8_schemecheck` in the container). Closes claudelog 2026-10-28 item 5 / `campaign_configs_defense_active.md` "Recon scheme-injection check": recon-build runs did not silently run Unsafe. Also: ReCon's reveal bits exist in the classic caches of that build (`src/mem/cache/base.cc:427` `MemCmd::Reveal`, `cache.cc:956`, read at `cpu/o3/lsq_unit.cc:183`), so classic-cache Recon runs do exercise ReCon. gem5 needs `LC_ALL=C.UTF-8` in a bare `docker exec` (else `UnicodeDecodeError` in `m5/main.py:409`).
+
+(4) **Doppelganger and NDA/DoM are flags on the builds we already have.** `/work/gem5-recon-modded/configs/common/Options.py:422` `--allow_leaked`, `:430` `--address_prediction` (Doppelganger loads; `Simulation.py:475`). Pavlos's email (`documentation/docs/Files/email.txt`): scheme 0 unsafe, **1 NDA**, 2 STT, 3 DoM; Doppelganger needs simple memory (no `--ruby`). Our docs call scheme 1 "Delay"; the code enum is `CPU::Scheme::Delay` (`lsq_unit.cc:194`). No Alloy model exists for DoM, NDA or Doppelganger (`specs/defense_units.json` units 11/12 map Delay/DoM to STT_6).
+
+(5) **OTB has never come out of enumeration.** Confirmed only by the hand-built `oldest_taint_bug/` test and the bugsynth forced-predicate models (`bugsynth/models/STT_6_otb*.als` + interleave); the 3 classifier "OTB" hits were false matches (`wiki/findings/bug/BUGS.md:34`). Why the two-stage cores don't help by themselves: RI's `fix_rf_hole_p` splices a pass-through ALU's dataflow, so `br → ld → other → ld[xm]` is never RI-minimal and the STT/Recon cores at `but 6` are only the 2 Spectre-v1 skeletons; an ALU-on-path base instance has to come from Stage 1.5 or a forcing predicate / diversity driver, and interleave then fills its blank 2nd operand.
+
+## 2026-11-07 — stl-spec — STT_6_shadows drafted; shadows + futuristic checked from Alloy through gem5
+
+- **`STAGE1_alloy/models/proposed/STT_6_shadows.als`** (DRAFT, not approved, not read by the pipeline): STT_6 + helper `has_unresolved_brs_strs_p` (unresolved branch OR unresolved-address store) in the contract and protset = P1 of `MODELS_AND_BUILDS.md`. Diff vs STT_6 = helper block + 2 clauses + header.
+- **`STAGE1_alloy/model_source_matrix.py`** (new): per model x source kind, SAT/UNSAT of gen_useful_litmus restricted to that kind. shadows: branch SAT, store SAT, load UNSAT, ALU UNSAT. futuristic: all SAT. Branch + store: nothing found in 15-25 min on either (SAT cells take 2-7 s); expected, since the older source's shadow covers the younger's, so resolution-minimality leaves one source.
+- **gem5, 60 tests per shape** (cafe2 `results/STT_6_shadows_draft/`, `results/STT_6_futuristic_draftcheck/`): shadows branch-only on recon-modded (fixed harness, hold 5000): STT 1/60 (inst-000003 = the known recon SLF gadget), Unsafe 49/60. shadows aliasing store-only on recon-stl: STT 0/32 load transmitters sent in the hold, Unsafe 32/32, alias control 0. futuristic branch-only on /work/stt: Futuristic 0/60, Spectre 0/60, Unsafe 43/60.
+- **`/work/stt/configs/example/se_futuristic.py`** (new, config only; copy `gem5-hooks/stt/se_futuristic.py`): se.py with threatModel 'Futuristic' for scheme 2. gem5 prints `simulation uses threatModel: Futuristic`.
+- **Gap:** store sources with no true alias (the store writes an unspecified location) don't concretize under stl_bypass. Also, the model allows a store and a load to share a Mem_s atom with no rf edge; those alias concretely and concretize fine. DECIDE in URGENT_TODO (recommendation: an atom-based alias fact in shadows).
+- **Driver fix:** `gem5-hooks/stl/stl_hooktest.py` now resolves `<testdir>` to an absolute path (a relative one made gem5 miss `--stl-ann-file`).
+
+## 2026-11-08 15:10 — resolve-hooks — SPT consolidated as SPT_6_oneLP_v2.als (draft); simspect-c8's seed fix audited and adopted
+
+Anna asked me to audit the other sessions' SPT change and consolidate SPT for the final batch, without deleting the original.
+
+**Audit of the perturbation-aware seed** (simspect-c8 / twophase-spt; `fun hardware_protection_policy[p] {o_p[p] - ((Inreg + Inaddr) - i_p[p].outreg.(rf_p[p]))}`): legit.
+- It is equal to the old seed at `no_p` (their `eq_base` UNSAT).
+- It is a subset of the old seed under every perturbation (including RI's `fix_rf_hole_p`).
+- `prot_set_propagation_p` is monotone in its input: each subtracted term grows as the set shrinks. `secure_*` is monotone too, and the non-monotone exactly-one clause is only evaluated at `no_p`.
+- So old-useful ⇒ new-useful: it loses nothing and adds instances.
+- Note: their `run.log` labels the base `SPT_6_oneLP.als sha 65eae944`, but the file is 713d0904 (unchanged). The label is wrong.
+
+**New file `STAGE1_alloy/models/SPT_6_oneLP_v2.als`** (sha db9ea73a), with 4 marked changes:
+- rf_from_most_recent_writer;
+- the seed fix;
+- `not secure` base clause;
+- declassification `.*(~rf_p)` instead of `.*(~op_edges_p)`.
+
+**Cores:** `proposed_twophase/SPT_6_oneLP_v2_core.als` (derive_core.py, RO+RI: 6 cores exhausted at `but 3`) and `SPT_6_oneLP_v2_core_conservative.als` (546 at `but 3`).
+
+**Validation** (`results/spt_v2_20261108/`):
+- v2 is SAT, 50 instances in 9 s at production scope.
+- Census, 3,000 instances, orig → v2: stale rf 63% → 0, clean 23% → 58%, unfed read 28% → 33%, constant-derived transmitter 2.4% → 9.6% (P3 not applied, on purpose).
+- Differential under v2's facts: both ≥500, gained ≥500 (300 sampled: 227 clean).
+- `lost` was still running at the time of writing.
+
+Brief for the manifest agent: `wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md` §0. Registry: `specs/alloy_models.json` `SPT_6_oneLP_v2` (tier variant, DRAFT).
+
+## 2026-11-08 — resolve-hooks — round 4 (current models, fixed checker) classified; SPT_6_oneLP and Recon_6 lack rf_from_most_recent_writer (68% of the SPT testset affected); SPT fix plan proposed
+
+**Round 4** is cafe2 `results/*_fixed_latest__20261108_012818`, on `testsets_latest`, 2% sample, with the lc/fnc commit-trace fix. Hit tests (not_taken / taken), all analyses in cafe2 `/tests/simspect_fixed_20261030/triage/r4/`:
+
+- STT_6/stt: 0 / 0.
+- STT_6/recon-modded ld: 91 / 94. All 185 test×mode runs show the known real-bug A2 signature (`recon_stlf_check.py`): `STL_CHECK isTainted=1 isSpeculative=1`, then `Forwarding from store`, then ready in the ROB before the branch resolves. 6 needed the second execution of the load; the first was squashed.
+- SPT_6_oneLP/spt:
+  - ld 57 / 48: x86 slice 87 constant, 18 declassified;
+  - str 74 / 60: 95 constant, 39 declassified;
+  - br_x 51 / 51: 73 constant, 29 declassified; gem5 never made a transmitter branch pending, all 102 reproduced.
+- 0 SPT operands are tainted by SPT's rules, so every SPT hit is the model or concretization, not SPT. `str` has no checker of its own (check_ld fallback: store complete in window).
+
+**Skeleton drift:** `diff` of the shared skeleton shows `SPT_6_oneLP.als` (and `Recon_6.als`) lack `rf_from_most_recent_writer` (`STT_6.als:163`; tracker A2, applied to STT_6 only on 06-03). SPT also uses `one_insecure_speculation_scheme_p` in `gen_useful_litmus` instead of the skeleton's `not secure_speculation_scheme_p`.
+
+**Census of all 150,000 current SPT instances** (`STAGE3_gem5/triage/spt_testset_shapes.py`):
+- stale rf 102,724 (68%), 69,780 of them on the transmitter operand;
+- constant-derived transmitter 9,626 (6%);
+- unfed reads 74,621 (50%).
+- Control: STT_6 has 0 / 0 for the first two and 87,928 (59%) unfed reads.
+
+**Mechanism of the constant hits:** in a single propagation step, `prot_set_propagation_p`'s Other-output rule (`:353`) reads the set from before that step's input rule (`:356`), so const-op → op chains stay protected.
+
+**Declassification:** `:349` declassifies the whole backward rf+ddi cone, which is broader than SPT's backward rules (paper §6: MOV, and ADD with all but one input untainted; `rob_impl.hh:853-878`). That under-generates.
+
+Plan P1–P5 is in `wiki/state/ALLOY_MODEL_CHANGES.md` (top). No `.als` touched.
+
+## 2026-11-07 — resolve-hooks — every round-2 hit classified (0 NEW); round 2 used old testsets; lc/fnc O3PipeView gap fixed; Recon A2 re-confirmed
+
+(1) **Round 2 ran on pre-June-3 testsets.** The 10-30 fixed configs kept `testset_dir: testsets`. `testsets/STT_6` holds STT_6.als 5cae70e9 and `testsets/SPT_6_oneLP` holds 5e89267c, while the current models (e298a9e, 06-03) exist only in `testsets_latest/`. My STT_6_interleave regen also reused the old model's 05-19 XML. Round 4 (`runconfigs/fixed_20261030/*_fixed_latest.jsonc`) reruns on `testsets_latest`. (2) **Classification** with per-campaign `diagnostics/bucket_hits.py` (source `STAGE3_gem5/triage/diag/`): SPT ld 336/264 hit tests are all June model artifacts (constaddr 595, rf_clobber 3, nonspec_cotransmit 2), and the x86 slicer agrees on all 600. SPT br_x 28/22 tests are 46 constant conditions plus 4 declassified-by-non-spec-transmitter. gem5-spt never made the transmitter branch pending in any of the 50 (`commit_impl.hh:944`), `VPUntaints` is 0 vs 1 to match, and 2 counterfactual edits flip the result. Verdict: model/concretization artifacts, not SPT bugs. recon-modded 7/7 tests are the known real bug A2: `STL_CHECK isTainted=1 isSpeculative=1`, then `Forwarding from store`, then ready in the ROB about 2,500 cycles before the branch resolves, in all 14 test×mode runs. STT_6/stt and commitsplit/stt have 0 hits. 0 NEW anywhere. (3) **Checker gap fixed:** O3PipeView prints from the DynInst destructor (`dyn_inst_impl.hh:73`), and gem5-spt kept committed stores alive to the run's end, so lc/fnc read retire 0 (vacuous `before_fnc`, spurious `lc_retired` fail). `gem5_common.fill_retire_from_commit` now takes the Commit-trace commit tick. Round-2 effect: 33 false-hit records (3 tests) and 6 hidden records (2 tests, both rf_clobber). (4) Round 3 (`__20261108_010535`) was stopped to deploy (3) and marked SUPERSEDED; round 4 is `__20261108_012818`. Full write-up: `wiki/findings/bug/BRANCH_ANNOTATION_AND_FORCE.md` §7.
+
+## 2026-11-03 03:25 — two-phase-models — Stage-1 core drafts for SPT_6_oneLP + Recon_6; STT_6_core not stale; Stage-1 runs started; RO kills the STL core
+
+New, UNAPPROVED files only (no existing .als touched, hashes re-checked): `STAGE1_alloy/models/proposed_twophase/{SPT_6_oneLP_core,Recon_6_core}.als`, made by `proposed_twophase/derive_core.py`, which applies exactly the STT_6_core prototype's three changes (idx removed, RO+RI added, `but 6`) and copies everything else, defense block included. Re-deriving STT_6_core from today's STT_6 matches the existing file once comments are ignored, so it is up to date (its comment wrongly says idx is kept). Tiny scope: STT_6_core and Recon_6_core give the same 2 cores at `but 3` (Recon's reveal is a no-op, R-1); SPT_6_oneLP_core gives 0 at `but 3` (UNSAT) and 0 in 7-9 min at `but 4/5` (SPT RR+RC+RS is SAT at `but 4`), so the SPT core may be unsatisfiable or just slow; RO+RI makes the STT_6_stl core UNSAT by construction (the store's outmem is required by `stl_alias_pair` but never on the leak path); RI-only gives 129 raw at `but 3` for STT/Recon/STL. Stage-1 runs (cap 100000, 6 h, disk guard 50/40 GB) started for all three; Stage 1.5 not run. Review doc + DECIDE list: `wiki/design/TWO_PHASE_MODELS.md`.
+
+## 2026-11-03 — defense-fit — STT and AMuLeT-build load criteria must differ; SpecLFB UV6 paper numbers counted cache hits
+
+Delay defenses (STT-Spectre, Recon-STT, ReCon, SPT) need a transmitter-keyed "the tainted transmitter executed" criterion (`check_ld`); hide/undo defenses (InvisiSpec, SpecLFB, CleanupSpec) need a footprint-of-any-unsafe-load criterion (`check_footprint` + `specs/leakage/*.json`). AMuLeT confirms the protection-set split: CT-SEQ for the three, ARCH-SEQ for STT (AMuLeT §3.1 p5), so `STT_6` protects less than those three claim, but `check_footprint` never reads the transmitter (`check_footprint.py:473-482`), so there the model only shapes the stimulus. The bigger stimulus gap is the control-only speculation contract (InvisiSpec-Futuristic, CleanupSpec, SpecLFB memory-order MUSLs). **Result-affecting:** the paper's SpecLFB UV6 "68/300 / test #6 / 23%" were scored by the pre-re-key access-keyed `check_ld_speclfb`; all 68 were dcache hits (`wiki/results/PAPER_RESULTS.md:302-304`), which SpecLFB scopes out (§9 p643) and the current install/fill criteria do not count. Full table, clause proposals and DECIDE D1-D4: `wiki/design/MODELS_AND_BUILDS.md` PART 7.
+
 ## 2026-11-02 — paper-figs — the STT squash race falls outside the post-fix window
 
 On the real inst-047231 trace (`/work/stt`, commitToIEWDelay=4; cycle = (tick−2907000)/500), the branch resolves at 77, the transmitter's cache packet is at 79, and the squash lands at 81. The post-fix check (`STAGE3_gem5/check_ld.py:110-114`) ends the window at branch resolution, so this packet is outside the window. The race was counted only under the old (lc_retire, fnc_retire) window. This affects the paper's headline STT/SPT result, so it's a methodology decision for Anna (URGENT_TODO R1). Also: the Recon STL bug (`wiki/findings/bug/recon_SLF_stlf_bypass/`, inst-014912) is a strong candidate but its evidence predates the harness fix, and its forwarding claim rests on the code read plus identical store and load addresses (the trace is grep-filtered). Write-up: `paper_figures/plans/RESULTS_FIGURES.md`.

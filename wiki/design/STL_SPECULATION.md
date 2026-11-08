@@ -1,6 +1,90 @@
 # Store-to-load (STL) speculation: model, concretization, gem5 hooks, window check
 
-*Living doc, overwrite-in-place. Written 2026-10-28, updated 2026-10-30 (hooks built + tested). Paper table row: [`SPEC_PRIMITIVE_INSTANCES.md`](SPEC_PRIMITIVE_INSTANCES.md) (h, i).*
+*Living doc, overwrite-in-place. Written 2026-10-28, updated 2026-10-30 (hooks built + tested) and 2026-11-08 (STL for every main model; manifest handoff). This is the one place for everything known about STL in SimSpect. Paper table row: [`SPEC_PRIMITIVE_INSTANCES.md`](SPEC_PRIMITIVE_INSTANCES.md) (h, i).*
+
+## Manifest handoff (2026-11-08): the active STL builds, models and experiments
+
+**Consolidated 2026-11-08 into [`../state/EVAL_MANIFEST.md`](../state/EVAL_MANIFEST.md)** (eval rows, two-stage families incl. the STL cores, STL per defense). This section stays as the STL detail and evidence; when STL status changes, update the manifest and `specs/defense_units.json` too.
+
+For the agent writing the manifest of active builds, models and experiments. Everything below is current as of 2026-11-08 14:40 PST; sections further down hold the evidence. "Draft" = unapproved, in `STAGE1_alloy/models/proposed/` or `proposed_twophase/`, which the pipeline does not read.
+
+**What STL is here.** Store-to-load speculation: an older store's address is held unresolved, the memory-dependence predictor is forced to say "no alias", a younger load to the same address reads the stale value, and the store's address resolution squashes it (memory-order violation). The window is load issue → that squash. Spectre v4. The other direction (predict alias, addresses differ) opens no window in gem5 and is only a negative control.
+
+### Builds
+
+| Build | STL hooks? | Status | Notes |
+|---|---|---|---|
+| `/work/gem5-recon-stl` (cafe2) | **yes, the only one** | active, but **stale** | Copy of `gem5-recon-modded` taken before the 2026-10-30 resolve hooks: no BR lines, old-style branch force, no CPU-wake fix (`wiki/findings/audits/2026-11-07/HOOK_AUDIT.md`, verdict BORDERLINE). `gem5.opt` md5 `9ac3ac66…`. Flags `--stl-ann-file`, `--stl-store-stall-cycles N`, `--stl-alias-pred {no_alias,alias,off}`. Schemes as recon-modded: 0 Unsafe, 1 Delay/NDA-like, 2 STT, 3 DoM. Registry: `specs/gem5_builds.json` id `gem5-recon-stl`. |
+| every other build (`/work/stt`, `gem5-recon-modded`, `gem5-spt`, the three amulet builds, amulet-STT) | no | port needed to run STL | Port = `gem5-hooks/stl/apply_stl_hooks.py <gem5_root>` (anchor-based, idempotent, refuses unless every anchor matches once) + rebuild. `stl_hooks_vs_gem5_v22.0.0.2.diff` is an older upstream reference, before the 2026-10-30 barrier/alias fixes. Rebuilds need Anna's OK (DECIDE). |
+
+### Which defenses have STL in their threat model
+
+| Unit (`specs/defense_units.json`) | STL in scope? | STL model | Runnable today? |
+|---|---|---|---|
+| 1 STT-Spectre, `/work/stt` | **no**: STT-Spectre casts no store shadow (`rob_impl.hh:444-495`); a bypass leak there is expected by design | (`STT_6_stl` only as a labelled control) | no hooks |
+| 2 Recon-STT, recon scheme 2 | yes (`decode.cc:686-695` inserts stores into the shadow tracker) | `STT_6_stl` | **yes**, on `gem5-recon-stl` |
+| 3 SPT-Fence (Spectre configs), `gem5-spt` | no (branch-only visibility point) | — | no hooks |
+| 4 SpecLFB, amulet | yes (memory-order MUSLs, SpecLFB Sec. 5) | `STT_6_stl` as stimulus | no hooks |
+| 5 ReCon, recon-modded | yes (same shadow tracker) | `Recon_6_stl` (draft) | partly: `gem5-recon-stl` has the hooks; ReCon mode there not verified |
+| 6 InvisiSpec, amulet | Futuristic mode only (InvisiSpec Sec. IV Table I) | `STT_6_stl` as stimulus | no hooks |
+| 7 CleanupSpec, amulet | yes (every transient instruction unsafe, Sec. 2.1) | `STT_6_stl` as stimulus | no hooks |
+| 8 ReCon OTB | n/a (two-source merge shape) | — | — |
+| 9 STT on SPT's sub-implementation | no | — | no hooks |
+| 10 SPT variants, `FuturisticSafe*` configs | yes | `SPT_6_oneLP_stl` (draft, **generates nothing** yet) | no hooks |
+| 11 Delay/NDA (recon scheme 1), 12 DoM (scheme 3) | probably (same shadow tracker; not verified in code) | `STT_6_stl` | on `gem5-recon-stl --scheme=1/3`, untested |
+| STT-Futuristic (`/work/stt` + `configs/example/se_futuristic.py`) | yes | `STT_6_stl` | **PARKED** by Anna 2026-11-07 (`FUTURISTIC_MODEL.md`) |
+
+### Models
+
+| Model | Where | State | Generation result |
+|---|---|---|---|
+| `STT_6_stl` | `STAGE1_alloy/models/STT_6_stl.als` | **approved** 2026-10-28; `rf`-based alias fact | SAT; 60 in 5 s (500 earlier); 60/60 concretize |
+| `Recon_6_stl` | `proposed/Recon_6_stl.als` | draft 2026-11-08, atom-based alias | 60 in 10 s; 60/60 concretize |
+| `SPT_6_oneLP_stl` | `proposed/SPT_6_oneLP_stl.als` | draft 2026-11-08, atom-based alias | **0 in 900 s**: SPT's state-minimality (RS) vs the alias fact (section "STL for every main model"); a one-line RS exemption gives 60 in 10 s, 59/60 concretize (DECIDE) |
+| `STT_6_shadows` | `proposed/STT_6_shadows.als` | draft 2026-11-07: Recon-STT's branch **or** store contract, no alias fact | minimal instances have one source, so its tests = `STT_6`'s + `STT_6_stl`'s (`STT_VS_RECON_STT.md`) |
+| `STT_6_stl_core` (split, Stage 1) | `proposed_twophase/STT_6_stl_core.als` | draft, RI-only (RO+RI makes an STL core impossible) | **Stage-1 EXHAUSTED: 306 cores at ≤6 instructions** (Mac, 23 min) → `testsets/STT_6_stl__twophase_draft/stage1_xml`, log `~/Library/Logs/simspect/twophase_STT_6_stl.log` |
+| `Recon_6_stl_core` (split) | `proposed_twophase/Recon_6_stl_core.als` | draft, RI-only | Stage-1 **running** since 13:58 (858 at 40 min; cap 20000, 4 h) → `testsets/Recon_6_stl__twophase_draft/stage1_xml`, log `twophase_Recon_6_stl.log` |
+| `SPT_6_oneLP_stl_core_conservative` (split) | `proposed_twophase/` | draft, no RO/RI (SPT conservative convention) | UNSAT at ≤3 and ≤4 (same RS cause); not run |
+| Stage 1.5 (pin + add) for any STL core | — | not built (the two-phase session owns Stage 1.5 for every family) | — |
+
+Tools: `STAGE1_alloy/models/proposed/derive_stl.py` (main model → STL draft; reproduces `STT_6_stl` from `STT_6`), `STAGE1_alloy/model_source_matrix.py` (which speculation sources a model admits; `str_alias_atom` predicate), `proposed_twophase/derive_core.py` + `run_stage1.py` (split cores). Concretization: `parsexml.py` branch mode `stl_bypass` (`pass2_6_specify_stl`). Run config: `runconfigs/run_config_STT_6_stl.jsonc` (gem5-recon-stl, scheme 2, hold D = 5000, `no_alias`, fnc 150, `max_instances` 100000).
+
+### Experiments
+
+| Experiment | State | Result / where |
+|---|---|---|
+| Hook test: 60 `STT_6_stl` tests on `gem5-recon-stl`, configs A–F | **done** 2026-10-30 | valid bypass 58/60; STT 0/28 load transmitters sent in the window vs Unsafe 28/28; `alias` and D = 0 controls 0. cafe2 `results/STT_6_stl_hooktest/controls/` (section "Hook test") |
+| Shadows store-only + alias: 60 tests, STT vs Unsafe vs `alias` | **done** 2026-11-07 | 59/60 valid; STT 0/32 sent vs Unsafe 32/32; `alias` 0. cafe2 `results/STT_6_shadows_draft/` (`stl_A_stt.json`, `stl_B_unsafe.json`, `stl_C_stt_alias.json`, `cfg_stl.jsonc`) |
+| Full `STT_6_stl` testset + sweep (Recon-STT, unit 2) | **planned, blocked** | needs the STL window checker (not written; `check_ld`/`check_br` verdicts are not meaningful for STL tests: no `lc`, `fnc` = the store) and, ideally, a refreshed `gem5-recon-stl`. Until then score with `gem5-hooks/stl/stl_hooktest.py` |
+| `Recon_6_stl` on `gem5-recon-stl` (unit 5) | planned | needs the draft approved; ReCon mode on that build unverified |
+| `STT_6_stl` on schemes 1 and 3 (units 11, 12) | planned | untested; shadow-tracker sharing across schemes not verified |
+| STL on amulet ×3 and `gem5-spt` (units 4, 6, 7, 10) | not started | needs the hook port + rebuilds (DECIDE) |
+| SPT STL generation | blocked | RS DECIDE |
+| Stage-1 STL cores | 1 done (STT, 306), 1 running (Recon), 1 blocked (SPT) | see Models |
+
+### Open decisions (all in `URGENT_TODO.md`)
+
+- Approve `Recon_6_stl` (recommended) and, after the RS call, `SPT_6_oneLP_stl`.
+- SPT STL: (a) exempt the alias location from RS (recommended), (b) drop RS, or (c) skip SPT STL for now.
+- Alias fact: `rf` (approved `STT_6_stl`) vs atom-based (the new drafts; superset, works without `rf_from_most_recent_writer`). Re-deriving `STT_6_stl` with `--alias atom` gives 60 in 7 s, 60/60.
+- Approve `STT_6_shadows`, and whether it needs a true-alias fact.
+- STL hooks: (i) rebuild `gem5-recon-stl` from today's recon-modded (recommended first), (ii) port to amulet ×3 + `gem5-spt`.
+- `stl_bypass` annotates every aliasing load, not only the first: OK as the semantics?
+- Window checker design (below), including accepting a squash caused by S of any load at or before L (gem5 checks violations at 16-byte granularity).
+- Contract granularity: every instruction after an unresolved store (encoded), or only loads that may alias it?
+- Whether the forced memory-dependence prediction counts as "the predictor" under the hook rule (HOOK_AUDIT borderline).
+
+### Lessons (things that produced wrong answers or failures)
+
+- **Shared `Mem_s` atom ≠ `rf` edge.** The model lets a store and a load name the same location with no `rf` edge; they still alias in the concrete program. An `rf`-based alias filter misses them (37/60 of atom-alias instances had no `rf` edge).
+- **A store-source instance without a true alias doesn't concretize**: its store usually has no location (`outmem` is `set`, can be empty), so `stl_bypass` fails with "no specified outmem". Under Recon-STT such a load is still "speculative", but nothing transient happens.
+- **Minimality keeps one source per instance**: branch + store together found nothing in 25 min, because the older source's shadow covers the younger one.
+- **RO+RI minimality makes an STL core impossible**; RI-only is required (306 cores at ≤6).
+- **SPT protects a load's output regardless of the location read**, which is why its RS-minimality kills every aliasing instance.
+- **gem5 detects memory-order violations at 16-byte granularity**: the squash can name an older load 8 bytes from S.
+- **Hook bugs fixed 2026-10-30**: the litmus setup `mfence` sends dispatch down the barrier path (override applied there too); priming the store set fails for `alias` (the load now depends on the store's seqNum directly).
+- **Harness gotchas**: `stl_hooktest.py` needs an absolute testdir (fixed in the repo copy 2026-11-07); ship tarballs to cafe2 with `COPYFILE_DISABLE=1` (macOS `._*` files break asm); cafe2 has no `a6CountModels.class`, so generate XML on the Mac.
+- **Signal on recon builds**: the real cache send is `Memory request (pkt: …) from inst [sn:N] was sent` (`lsq_unit.cc:1546`), not `Doing memory access`; `check_ld`'s gate keys on a line that doesn't exist there (`wiki/findings/bug/recon_cache_reach_gate/`).
 
 ## Status
 
@@ -10,7 +94,8 @@
 | Concretization, branch mode `stl_bypass` | written + tested: 500/500 instances concretize and compile to x86; the existing modes are byte-identical before/after (120/120 STT_6 `.ll` + `.ann.json`). 2026-10-30: every true-alias load is annotated, not only the first (2/60 tests gain a second one) |
 | Harness flags (`gem5.stl_*` → `SIMSPECT_STL_*` → `--stl-*`) | written; off unless a config sets `gem5.stl_ann_enable` |
 | gem5 hooks `gem5-hooks/stl/` | **built** into `/work/gem5-recon-stl` (copy of gem5-recon-modded, 2026-10-30); two hook bugs found and fixed by the controls; all controls pass on 60 tests (see Hook test) |
-| Window checker | proposed below, not written |
+| Window checker | proposed below, **still not written** (2026-11-08) |
+| STL models for the other main models (2026-11-08) | drafts `proposed/Recon_6_stl.als`, `proposed/SPT_6_oneLP_stl.als` via `proposed/derive_stl.py`; split cores in `proposed_twophase/`. Recon works; SPT generates nothing yet (see "STL for every main model") |
 
 ## The primitive: a false-negative alias prediction
 
@@ -147,4 +232,21 @@ Per test: S, L and the xmit X are known by address from the ann. All times come 
 - **Answered:** build = copy `/work/gem5-recon-stl` (Anna, 2026-10-30); threat model = control + store shadows (above).
 - **Window checker** still to write (above), then a full STT_6_stl testset + sweep. The 60-test result already says STT holds on these shapes.
 - **Contract granularity.** Is "everything after an unresolved store" right for STT Futuristic, or only loads that may alias it? See Generation.
-- **Other defenses.** SPT and Recon versions (`SPT_6_*_stl.als`, `Recon_6_stl.als`) follow the same three edits once STT is settled; the hooks port by re-running `apply_stl_hooks.py` on each tree.
+- **Other defenses.** Drafted 2026-11-08 (next section). The hooks still port by re-running `apply_stl_hooks.py` on each tree; only `/work/gem5-recon-stl` has them today.
+
+## STL for every main model (2026-11-08)
+
+`STAGE1_alloy/models/proposed/derive_stl.py <main>.als <out>.als [--alias atom|rf]` applies exactly the edits that turned `STT_6.als` into `STT_6_stl.als`: the STL source block (`has_unresolved_strs_p`, `no_unresolved_strs_p`, all branches resolved), the alias fact, the contract switched to stores, and the branch-keyed protection-set line switched to stores where the model has one. Every anchor must match once or it refuses. Self-check: `--alias rf` on `STT_6.als` gives code identical to `STT_6_stl.als` (ignoring comments and whitespace).
+
+The drafts use the atom-based alias (`--alias atom`, default): every unresolved store has a younger uncommitted load at or before the transmitter naming the same `Mem_s`, with no other store to it in between. Reasons: it is a superset of the `rf` version (more tests); Recon_6 and SPT_6_oneLP lack `rf_from_most_recent_writer`, which the `rf` version relies on for "no store in between"; and in SPT an `rf` edge from the store would let its forwarding rule treat the bypassing load as getting the store's value, which is the opposite of a bypass.
+
+| Model | Alloy, exactly 6 | `stl_bypass` concretization | Split core (Stage 1) |
+|---|---|---|---|
+| `STT_6_stl` (approved, `rf` alias) | 60 in 5 s | 60/60 | `STT_6_stl_core.als`, RI-only: 200 (capped) at ≤3 in 12 s and at ≤4 in 67 s |
+| `STT_6` + atom alias (scratch, for comparison) | 60 in 7 s | 60/60 | — |
+| `Recon_6_stl` (draft) | 60 in 10 s | 60/60 | `Recon_6_stl_core.als`, RI-only: 200 at ≤3 in 31 s, at ≤4 in 165 s |
+| `SPT_6_oneLP_stl` (draft) | **0 in 900 s** | — | `SPT_6_oneLP_stl_core_conservative.als` (no RO/RI): **UNSAT** at ≤3 (34 s) and ≤4 (326 s) |
+
+**Why SPT generates nothing.** SPT's protection seed protects every operand except unfed register/address inputs (`SPT_6_oneLP.als:341`), so a speculative load's output is protected whatever location it reads. The aliased `Mem_s` is then never necessary for the leak, and state-minimality (`all s: State | secure[RS->s]`) rejects every instance in which the store and the load share it, which the alias fact requires. Probes on the ≤3 core: RS off gives 50 instances in 5 s; the alias fact off gives 50 in 16 s; the perturbation-aware seed from the 2026-11-07 SPT probe still gives 0; RS with the alias location exempt (`all s: State - (unresolved & Stores).outmem.opstate | ...`) gives 50 in 8 s, and on the full model 60 in 10 s at exactly 6, of which 59/60 concretize. The one failure is a `parsexml` edge case: `stl_bypass: bypass load address probe+-1 out of bounds` in `_stl_store_retargets` (`parsexml.py:1208`), not investigated. The fix is a generation-predicate choice, so it is a DECIDE in `URGENT_TODO.md`; the draft stays as derived.
+
+**Running STL tests needs the STL hooks** (store-address hold and the forced no-alias prediction), and only `/work/gem5-recon-stl` has them. That build is stale: it predates the 2026-10-30 resolve hooks (`wiki/findings/audits/2026-11-07/HOOK_AUDIT.md`). Which defenses have STL in their threat model, per build: `STAGE1_alloy/models/MANIFEST.md` ("Defenses we test").

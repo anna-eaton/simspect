@@ -1,0 +1,67 @@
+{
+  // CANONICAL footprint-run config (2026-11-08), tracked copy of results/STT_6_invisispec_full_spectre/run_config.jsonc.
+  // Changed vs that file ONLY in the run glue: (1) paths.alloy_stage/models_dir/stage2_dir/stage3_dir/instruction_tables
+  // added (without them pipeline.py raises KeyError: CleanupSpec v2 run README on cafe2,
+  // /tests/simspect_fixed_20261030/results/STT_6_cleanupspec_v2hooks__20261107/README.md "Deviations" (1));
+  // (2) testset_dir = testsets_latest; (3) debug_flags = ["O3PipeView"] only (check_footprint reads only that;
+  // ProtocolTrace filled 15 GB on 40 pilot traces, and CleanupSpec's LSQUnit print corrupts hook lines);
+  // (4) results_name STT_6_invisispec_spectre_footprint.
+  // Anna 2026-11-08: keep the shrunk (amplified) caches for all footprint runs; never use a deadlocking setting.
+  // TSO, sys clock and branch predictor are NOT decided for these runs and are left exactly as in the old file.
+  // Run: make run MODEL=STT_6 RUNCONFIG=runconfigs/footprint/run_config_STT_6_invisispec_spectre_footprint.jsonc (on cafe2, tree /tests/simspect_fixed_20261030).
+  // AMuLeT head-to-head comparisons use runconfigs/amulet_parity/ instead (wiki/findings/audits/2026-10-28/full_configs.md).
+  // InvisiSpec-SPECTRE, FULL configuration (Ruby MESI_Two_Level, defense active at L1D/L2/DIR/LLC-SB/D-TLB).
+  // Written 2026-10-28 (scope-table session). NOT LAUNCHED. Every flag is justified in results/STT_6_invisispec_full_spectre/README.md.
+  // Differs from STT_6_invisispec (classic caches: defense cache logic inactive) by adding --ruby + the paper's
+  // L1I/L2 geometry; differs from STT_6_invisispec_compound (no run_config) only by explicit L1I/L2/TBE flags.
+  // Pipeline path: make run MODEL=STT_6 RUNCONFIG=results/<this dir>/run_config.jsonc (gem5.checker/criterion below).
+  "paths": {
+    "testset_dir":  "testsets_latest",
+    "results_dir":  "results",
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "results_name": "STT_6_invisispec_spectre_footprint",
+    "model":        "STT_6"
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_not_taken", "mispredict_taken"]
+  },
+  "filter": { "xmit_kind": "ld" },   // read by the launchers only, not by pipeline.py                 // load transmitters only (as STT_6_invisispec)
+  "gem5": {
+    "binary":        "/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1/build/X86_MESI_Two_Level/gem5.opt",
+    "config_script": "/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1/configs/example/se.py",
+    "branch_ann_enable":       true,               // SimSpect realization hook (BTB force + resolve stall), as STT_6_invisispec
+    "cpu_type":                "DerivO3CPU",
+    "scheme":                  2,                  // auto-appended --scheme=2; overridden by extra_args (optparse last-wins)
+    "jobs":                    6,
+    "debug_flags":             ["O3PipeView"],   // check_footprint reads only O3PipeView (Commit is auto-added by gem5_common)
+    "debug_file":              "pipeview.txt",
+    "checker":                 "check_footprint.py",   // pipeline.py:304-312 override; reads only the O3PipeView simspect: lines
+    "criterion":               "specs/leakage/invisispec.json",   // footprint criterion (criteria session); pipeline.py:599-614 -> SIMSPECT_CRITERION
+    "fnc_commit_stall_cycles": 0,                  // kept as the existing campaigns (the hook now exists in this build, see README)
+    // NOTE: gem5_common.py:167 always adds --caches; under --ruby se.py:299-335 builds Ruby and never reaches
+    // CacheConfig.config_cache (:340), so --caches is inert here. The old "caches" key is read by nothing and is omitted.
+    "extra_args": [
+      "--ruby",                                    // defense lives in the Ruby MESI_Two_Level .sm files
+      "--scheme=SpectreSafeInvisibleSpec",         // IS-Spectre (lsq_unit_impl.hh:251-255)
+      "--needsTSO=1",                              // x86 = TSO (paper p2); exercises Validation path (lsq_unit.hh:1031-1050)
+      "--allowSpecBuffHit=1",                      // L1-SB reuse (paper p8); CpuConfig.py:107-110 forces False if omitted
+      "--l1d_size=1kB", "--l1d_assoc=2",           // SimSpect amplification (as _compound); paper Table IV p10 = 64KB/8
+      "--l1i_size=32kB", "--l1i_assoc=4",          // paper Table IV p10; authors' exp_script/run_spec_from_ckpt.sh:237
+      "--l2_size=2MB",  "--l2_assoc=16",           // paper Table IV p10; exp_script:237
+      "--L1_TBEs=2", "--L2_TBEs=2", "--DC_TBEs=2"  // = Ruby.py:83-88 defaults the _compound run used; made explicit
+      // NOT passed: --apply-spec-eviction-patch (AMuLeT's UV1 fix, not part of InvisiSpec; Ruby.py:91),
+      //             --enable-prefetch (off in paper eval, AMuLeT, and all SimSpect runs; see README decision list)
+    ]
+  },
+  // 1-point sweep = the launchers' inject_stalls (mispredict branches held 5000 cyc, xmit branch 0): pipeline.py:402-426.
+  // enabled:true is required on the pipeline path; with false, pipeline.py injects no stall (the old configs relied on the launcher).
+  "sweep": { "enabled": true, "points": [0], "unresolved_stall_cycles": 5000 },
+  "legacy_checker": "STAGE3_gem5/check_ld_invisispec_compound.py",   // the earlier direct-checker path (needs debug flags this config no longer sets: add them back to use it); for comparison only
+  "pipeline": { "check": "per_type", "keep_tmp": false }
+}

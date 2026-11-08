@@ -12,8 +12,8 @@ Representative instance: **`inst-014912`** (campaign `results/Recon_6__20260602_
 
 ```
 pc0 (last_committed):  idivq ...            # TOther → %rax  (committed)
-pc1 (first_noncommitted): xorq %rdx,%rdx; jne   # mispredicted branch (unresolved)
-pc2:  movq $1,%rdx; jne ; leaq 40(%rsp),%rsi
+pc1 (first_noncommitted): xorq %rdx,%rdx; jne   # resolved branch, correctly not taken (XML isresolved; ann.json correctly_not_taken)
+pc2:  movq $1,%rdx; jne ; leaq 40(%rsp),%rsi     # the mispredicted, unresolved branch (ann.json mispredict_not_taken); corrected 2026-11-03
 pc3:  movq (%rsi), %rax                     # speculative load → %rax  (TAINTED address source)
       leaq 64(%rsp), %rsi
 pc4:  movq %rdi, (%rsi,%rax)                # STORE to addr 64(%rsp)+%rax

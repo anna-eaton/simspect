@@ -1,3 +1,37 @@
+2026-11-08 15:10 — simspect-c8 — FOR THE ALLOY / TWO-STAGE AGENT AND stl-spec (Anna's decisions today, in URGENT_TODO + wiki/state/EVAL_MANIFEST.md): (1) Stage-1 minimality = RI-only for every family except SPT → re-derive STT_6_core / Recon_6_core RI-only (sign-off per .als); (2) Alloy runs go to the cafe2 gem5_dev container — run_stage1.py JAVA/DISK now configurable (SIMSPECT_JAVA/SIMSPECT_DISK, Mac defaults unchanged; the running Recon_6_stl job is unaffected); /tests/simspect/STAGE1_alloy lacks a6CountModels.class; (3) STL this round = recon builds only: rebuild gem5-recon-stl from today's recon-modded + write the STL window checker (not started, unowned); (4) SPT perturbation-aware seed: apply after simspect-c8's 'lost' differential returns 0 + Anna's sign-off. The manifest is wiki/state/EVAL_MANIFEST.md (both briefs consolidated); update it + specs/defense_units.json, not STAGE1_alloy/models/MANIFEST.md.
+
+2026-11-08 15:10 — resolve-hooks — DONE (one check running): SPT consolidated as STAGE1_alloy/models/SPT_6_oneLP_v2.als (draft; original untouched) + cores proposed_twophase/SPT_6_oneLP_v2_core{,_conservative}.als; brief → wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md §0. RUNNING (local Mac java): results/spt_v2_20261108/differential lost.als (90 min timeout) and tiny/v2_core_rori_but4. ADDED: RI-only core proposed_twophase/SPT_6_oneLP_v2_core_ri.als (546 at but 3); manifest handoff = MANIFEST_BRIEF_twophase_and_SPT.md §0 (rewritten as an edit list).
+
+2026-11-08 14:45 — stl-spec — STL handoff for the manifest agent: wiki/design/STL_SPECULATION.md "Manifest handoff". STT_6_stl_core Stage-1 EXHAUSTED (306); Recon_6_stl_core Stage-1 still RUNNING (log ~/Library/Logs/simspect/twophase_Recon_6_stl.log).
+
+2026-11-08 15:00 — simspect-c8 — DONE: eval manifest → wiki/state/EVAL_MANIFEST.md (rows E1-E14; machine copy specs/defense_units.json unit.eval + units 13-15; dashboard 'Eval recipe' card). STAGE1_alloy/models/MANIFEST.md's per-defense tables moved there (stl-spec: update EVAL_MANIFEST.md + defense_units.json model_families, not MANIFEST.md). RUNNING (local Mac, 1 java): SPT seed-fix differential, 'lost' check (old-useful and not new-useful, expect 0) — results/twophase_stage1_2026-11-03/probe_spt_seed_20261107/differential_20261108/run.log; eq_base=0 and gained>=500 already done. No .als edited.
+
+2026-11-08 14:00 — stl-spec — RUNNING: Stage-1 of draft STL cores STT_6_stl_core + Recon_6_stl_core (local Mac, run_stage1.py, cap 20000, 4 h; logs ~/Library/Logs/simspect/twophase_{STT_6_stl,Recon_6_stl}.log; out testsets/*_stl__twophase_draft/). DONE: STL drafts per main model (proposed/, derive_stl.py), STL cores (proposed_twophase/), manifest (MANIFEST.md + defense_units.json model_families). SPT STL blocked (RS vs alias DECIDE).
+
+2026-11-08 — simspect-c8 — DONE: AMuLeT config parity audit → wiki/findings/audits/2026-11-07/HOOK_AUDIT.md § AMuLeT config parity (P-1..P-5 in URGENT_TODO). Recorded Anna's calls: scheme 1 = NDA (specs/docs renamed), regen all testsets only after the two-stage model. Nothing launched on cafe2.
+
+2026-11-07 — stl-spec — DONE: Futuristic parked (Anna); atom-based store-alias check for STT_6_shadows (60/60 SAT + concretize), docs updated. Awaiting Anna: approve shadows draft + alias fact.
+
+2026-11-08 — hooks-v2 — DONE: all of the AMuLeT-builds work is written up in AMULET_BUGS_DETECTION_ACCOUNTING.md CURRENT; cafe2 harness deployed; amulet-STT glue fixed. Next (not started): CleanupSpec footprint re-run; AMuLeT-on-all-defenses plan. Pending Anna: make sync, decisions in URGENT_TODO.
+
+2026-11-07 — stl-spec — DONE: STT_6_shadows DRAFT (STAGE1_alloy/models/proposed/, awaiting approval) + model_source_matrix.py + gem5 checks of shadows (recon-modded/recon-stl) and futuristic (/work/stt + new se_futuristic.py). Results: wiki/design/STT_VS_RECON_STT.md. cafe2 dirs: results/STT_6_shadows_draft, results/STT_6_futuristic_draftcheck, testsets/STT_6_shadows_draft, testsets/STT_6_futuristic_draftcheck.
+
+2026-11-08 — resolve-hooks — round 4 DONE and classified (claudelog 2026-11-08); SPT fix plan P1–P5 proposed in wiki/state/ALLOY_MODEL_CHANGES.md, awaiting Anna. Nothing running from this session.
+
+2026-11-07 — hooks-v2 — DONE: SimSpect hooks v2 built + verified print-only on all 3 amulet builds (10 cases, identical ticks/pipeview vs refs; check_v2_trace hard checks pass; footprint tests 29/29). InvisiSpec panic fixed. Spec wiki/design/SIMSPECT_HOOKS.md; claudelog 2026-11-07 hooks-v2. Open: SpecLFB walk-order DECIDE in URGENT_TODO.md.
+
+2026-11-07 — simspect-c8 — eval-finalize overview (read-only on .als: Anna has another agent on the Alloy two-stage ladder). Holder job 18374614 started on cafe2. Background agents: hook audit of all non-AMuLeT gem5 builds + build list → wiki/findings/audits/2026-11-07/HOOK_AUDIT.md; vocab tables → wiki/design/VOCAB_TABLES.md + STAGE2_compilation/instruction_tables/proposed/. AMuLeT run-readiness agent STOPPED at Anna's request (she is checking the InvisiSpec/CleanupSpec/SpecLFB hooks). Findings: claudelog 2026-11-07.
+
+2026-11-07 — twophase-spt — ROOT-CAUSED why SPT Stage-1 = 0: unperturbed protection seed (SPT_6_oneLP.als:341), NOT RO over-pruning (RI-only AND RO-only each → 0; STT fine). Write-up wiki/design/TWO_PHASE_MODELS.md (2026-11-07 RESOLVED) + claudelog. STT_6/Recon_6 Stage-1 built (2 cores each). SPT: conservative Stage-1 (no RO/RI, over-generate) ran LOCAL → 20000 CAPPED in ~12min (new file SPT_6_oneLP_core_conservative.als; testsets/SPT_6_oneLP__twophase_draft_conservative/). Round 2 (pin+add) not built yet. OPEN for Anna: move Alloy runs to cafe? rename conservative file? seed-fix (A1) later?
+
+2026-11-04 — paper-round4 — paper moved to git@github.com:anna-eaton/ISCA-27.git; PUSHED 3ad4c75 (neutral \reviewnote/\reviewtag macros, NOTE SWITCHES block, no Claude names in the paper; notes backup moved to paper_figures/NOTES_BACKUP_2026-11-03.md). test-paper NOT yet archived on GitHub (no gh CLI here; Anna to archive in GitHub settings). Working copy: ~/Documents/stanford/trippel/ISCA-27 (the one local clone)
+
+2026-11-03 — paper-round4 — PUSHED test-paper a448224 (on top of Anna's 238a4fe): intro reordered (nothing about SimSpect before the proposal), Fig. 3 vocab labels, Background defense-sentence proposals, sanity fixes (2 LaTeX errors from a pasted note, typos), ALL comment macros hidden via the preamble REVIEW SWITCHES (gray [Note:] lab notes still show). (test-paper clones deleted 2026-11-04; the paper now lives in ISCA-27)
+
+2026-11-03 03:25 — two-phase-models — RUNNING: Stage-1 (core) enumerations of STT_6_core.als + drafts proposed_twophase/{Recon_6,SPT_6_oneLP}_core.als (PIDs runner/java 67090/67093, 67091/67094, 67140/67142; 6 h timeout; logs ~/Library/Logs/simspect/twophase_*.log; out testsets/*__twophase_draft/). Drafts UNAPPROVED. Review: wiki/design/TWO_PHASE_MODELS.md.
+
+2026-11-03 — defense-fit — DONE (read-only investigation): per-build model + load-criterion fit → wiki/design/MODELS_AND_BUILDS.md PART 7 (table, clause proposals P1/P2, DECIDE D1-D4); 9 paper notes in paper_figures/audit/defense.jsonl. No code/spec/model touched.
+
 2026-11-02 — paper-figs — SESSION ENDED (usage): resume from paper_figures/SESSION_HANDOFF.md.
 
 2026-11-02 — paper-figs — PAUSED for usage: 4 agents stopped; resume list in URGENT_TODO.md ("RESUME (paused 2026-11-02"). test-paper pushed a469b46.

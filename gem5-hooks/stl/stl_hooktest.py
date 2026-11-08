@@ -98,7 +98,8 @@ def gc_fate(recs):
     return _xmit_cache_fate({0: recs}, 0)
 
 if __name__ == "__main__":
-    testdir, scheme, out = Path(sys.argv[1]), int(sys.argv[2]), Path(sys.argv[3])
+    # absolute: gem5 runs in the per-test workdir, so a relative --stl-ann-file is not found
+    testdir, scheme, out = Path(sys.argv[1]).resolve(), int(sys.argv[2]), Path(sys.argv[3])
     lim = int(sys.argv[4]) if len(sys.argv) > 4 else 10**9
     pairs = []
     for s in sorted((testdir / "asm").glob("*.s"))[:lim]:

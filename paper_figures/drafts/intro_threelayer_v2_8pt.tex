@@ -8,28 +8,31 @@
 \providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
 \providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}\providecolor{sssrcbg}{gray}{0.90}%
 \def\itlw{162pt}%      layer box width
-\def\itgap{17pt}%      vertical gap between layers
-\def\itgapA{21pt}%     gap between the top two layers (two-line proof label at 8pt)
+\def\itgap{31pt}%      vertical gap between the bottom two layers (two-line label, with room above and below)
+\def\itgapA{31pt}%     gap between the top two layers (two-line proof label, with room above and below)
 \def\itax{30pt}%       x of the two vertical arrows
-\def\itpw{128pt}%      proof label width
+\def\itpw{124pt}%      proof label width
+\def\itrail{12pt}%     how far right of the boxes the prior-work arrow runs
 \def\itshade{sssrcbg}%
 \tikzset{%
-  itlayer/.style={draw, rounded corners=4pt, line width=0.6pt, text width=\itlw-6pt, align=center, inner xsep=3pt, inner ysep=2.5pt, font=\footnotesize},%
+  itlayer/.style={draw, rounded corners=4pt, line width=0.6pt, text width=\itlw-10pt, align=center, inner xsep=5pt, inner ysep=4.5pt, font=\footnotesize},%
   itlab/.style={font=\footnotesize, align=left, inner sep=1pt},%
+  itarrow/.style={->, line width=0.6pt, rounded corners=3pt},% the one arrow style (Anna 2026-11-03: one type of arrow)%
 }%
 \begin{tikzpicture}[>=latex, every node/.style={execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000\relax}}]%
-\node[itlayer, anchor=north west] (P) at (0,0) {\textbf{Generic security property}\\[-0.5pt]{\footnotesize\itshape e.g.\ speculative non-interference}};%
-\node[itlayer, fill=\itshade, draw=sssrcink, anchor=north] (G) at ($(P.south)+(0,-\itgapA)$) {\textbf{Defense security guarantee}\\[-0.5pt]{\footnotesize\itshape e.g.\ ``block memory from leaking through (load, addr) transmitters under mispredicted branch speculation''}};%
-\node[itlayer, fill=\itshade, draw=sssrcink, anchor=north] (I) at ($(G.south)+(0,-\itgap)$) {\textbf{Defense mechanism implementation}\\[-0.5pt]{\footnotesize\itshape e.g.\ gem5 simulator prototype}};%
+\node[itlayer, anchor=north west] (P) at (0,0) {\textbf{Generic security property}\\[1pt]{\footnotesize\itshape e.g.\ speculative non-interference, a hardware--software contract}};%
+\node[itlayer, fill=\itshade, draw=sssrcink, anchor=north] (G) at ($(P.south)+(0,-\itgapA)$) {\textbf{Defense security guarantee} {\mdseries\itshape (leakage predicate)}\\[1pt]{\footnotesize\itshape e.g.\ protection set: memory;\\[-0.5pt]leakage contract: (load, addr) transmitters;\\[-0.5pt]execution contract: mispredicted branches}};%
+\node[itlayer, fill=\itshade, draw=sssrcink, anchor=north] (I) at ($(G.south)+(0,-\itgap)$) {\textbf{Defense mechanism implementation}\\[1pt]{\footnotesize\itshape e.g.\ gem5 simulator prototype}};%
 % guarantee -> property: handwritten proof
-\draw[->, line width=0.6pt] ($(G.north west)+(\itax,0)$) -- ($(P.south west)+(\itax,0)$) node[midway, right=4pt, itlab, text width=\itpw] {handwritten proof {\itshape (in the proposing paper; sometimes exists)}};%
+\draw[itarrow] ($(G.north west)+(\itax,0)$) -- ($(P.south west)+(\itax,0)$) node[midway, right=5pt, itlab, text width=\itpw] {handwritten proof {\itshape (in the proposing paper; sometimes exists)}};%
 % implementation -> guarantee: the gap
-\draw[->, line width=1.1pt, dash pattern=on 3pt off 2pt] ($(I.north west)+(\itax,0)$) -- ($(G.south west)+(\itax,0)$) coordinate[midway] (gm);%
-\node[circle, draw, line width=0.9pt, fill=white, inner sep=0.6pt, font=\footnotesize\bfseries] at (gm) {?};%
-\node[itlab, anchor=west, font=\footnotesize\bfseries] at ($(gm)+(7pt,0)$) {no existing method {\mdseries\itshape (this work)}};%
+\draw[itarrow] ($(I.north west)+(\itax,0)$) -- ($(G.south west)+(\itax,0)$) coordinate[midway] (gm);%
+\node[circle, draw, line width=0.6pt, fill=white, inner sep=0.6pt, font=\footnotesize\bfseries] at (gm) {?};%
+\node[itlab, anchor=west, font=\footnotesize\bfseries] at ($(gm)+(8pt,0)$) {SimSpect (this work);\\[-0.5pt]no prior method};%
 % implementation -> property: prior work (e.g. AMuLeT)
-\draw[->, dashed, line width=0.5pt] (I.east) .. controls ($(I.east)+(26pt,4pt)$) and ($(P.east)+(26pt,-4pt)$) .. (P.east);%
-\node[itlab, anchor=west, align=left] at ($(G.east)+(28pt,0)$) {\textbf{Prior work}\\[-0.5pt]{\itshape probes whether}\\[-0.5pt]{\itshape the defense}\\[-0.5pt]{\itshape satisfies a broad}\\[-0.5pt]{\itshape property}};%
-\path (0,0) -- (250pt,0);%
+\draw[itarrow] (I.east) -- ++(\itrail,0) |- (P.east);%
+\node[itlab, anchor=west, align=left] at ($(G.east)+(\itrail+6pt,0)$) {\textbf{Prior work}\\[1pt]{\itshape tests whether}\\[-0.5pt]{\itshape the implementation}\\[-0.5pt]{\itshape satisfies a generic}\\[-0.5pt]{\itshape property}};%
+\path (0,6pt) -- (250pt,6pt);% breathing room above and below
+\path (0,0) |- ($(I.south)+(0,-6pt)$);%
 \end{tikzpicture}%
 }%

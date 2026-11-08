@@ -45,7 +45,9 @@ Run in the container (`make cafe`), then stream the tarball to this dir. The one
 2026-10-20 is reproducible from `claudelog.md` (entry: gem5-hook backup). TODO: fold this into a
 `scripts/sim capture-hooks` subcommand so it is a single command, not an ad-hoc pipe.
 
-## SimSpect cache-event hooks (2026-10-28, amulet InvisiSpec / CleanupSpec / SpecLFB)
+## SimSpect cache-event hooks (v1 2026-10-28, v2 2026-11-07; amulet InvisiSpec / CleanupSpec / SpecLFB)
+
+**v2 (current, 2026-11-07):** the approved fixes plus the extra fields and events; diff `amulet-<build>/hooks_v2_vs_v1resolve.diff` (from the v1+resolve snapshot), verify `verify/run_all_verify_v2.sh` + `verify/check_v2_trace.py` against reference binaries from `verify/make_refs.sh`. Spec, results and backups: [`wiki/design/SIMSPECT_HOOKS.md`](../wiki/design/SIMSPECT_HOOKS.md). The v1 notes below still describe the base layer.
 
 Print-only hooks that emit `O3PipeView:simspect:...` lines (cache fills, evictions, invalidations, coherence changes, replacement touches, defense-buffer and cleanup events, squashes) under the existing `O3PipeView` flag. Full spec: [`wiki/design/SIMSPECT_HOOKS.md`](../wiki/design/SIMSPECT_HOOKS.md). These three builds have no git, so the capture is a `diff -ruN` of every touched file against its pristine copy (`amulet-<build>/simspect_hooks.diff`). The earlier branch-force + fnc-commit-stall hooks in these builds are NOT in these diffs (they predate them and are still uncaptured; the pristine tarballs below include them as the base).
 

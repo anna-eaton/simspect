@@ -1,121 +1,189 @@
-# SimSpect hooks: the cache/defense event trace in the O3 pipeline output
+# SimSpect hooks: the cache/defense event trace in the O3 pipeline output (format v2)
 
-**Status:** built and verified 2026-10-28 on the three AMuLeT footprint-defense builds (InvisiSpec, CleanupSpec, SpecLFB). Print-only: no defense logic, timing, or behavior changed (verified: identical non-simspect O3PipeView lines, identical `parse_pipeview` output, identical sim ticks, pre-hook vs hooked binary). This implements Layer 1 of [`TRANSMISSION_CRITERIA_FORMAT.md`](TRANSMISSION_CRITERIA_FORMAT.md), with one deliberate change from that proposal: there is no separate `SimSpectCache` flag and no `SSEV` prefix. Per Anna, the only interface is the O3 pipeline trace, so every event prints under the existing `O3PipeView` flag.
+**Status (2026-11-07): v2 built and verified on the three AMuLeT footprint-defense builds (InvisiSpec, CleanupSpec, SpecLFB).** The hooks are print-only. On all 10 verification cases the v2 binary and a reference binary with the same non-print code give identical sim ticks, identical non-simspect O3PipeView lines and identical `parse_pipeview` output (table in "How to verify"). v2 does the approved hook fixes (`wiki/findings/audits/2026-10-28/APPROVALS.md` §E) and exports as much as the builds can print cheaply: hit/miss for every lookup, set/way, request kind, native event and states, LSQ load issue / store forward / data arrival, branch resolution, and each defense's own decisions. v1 (2026-10-28) is the same line format without the appended fields; history and the 2026-10-30 rebuild accident are under "History".
+
+This doc is the spec for what the pipeline parses: every event is one line in the normal `--debug-flags=O3PipeView` output, read by `STAGE3_gem5/gem5_common.py:parse_simspect_line` / `parse_simspect_events` and used by `STAGE3_gem5/check_footprint.py` (criteria in `specs/leakage/*.json`, format in [`TRANSMISSION_CRITERIA_FORMAT.md`](TRANSMISSION_CRITERIA_FORMAT.md)). Per Anna, the O3 pipeline trace is the only interface, so there is no separate debug flag.
 
 ## Line format
 
 ```
-O3PipeView:simspect:<tick>:<struct>:<kind>:line=0x<line>:seq=<sn|->:pc=0x<pc|->:victim=0x<line|->:cause=<id|->:sq=<id|->:id=<id>
+O3PipeView:simspect:<tick>:<struct>:<kind>:line=0x<line>:seq=<sn|->:pc=0x<pc|->:victim=0x<line|->:cause=<id|->:sq=<id|->:id=<id>[:key=value ...]
 ```
 
-- `--debug-flags=O3PipeView` alone gives everything. Lines are printed with `DPRINTFR` at the moment of the event, interleaved with the normal O3PipeView records (which gem5 prints in one block when an instruction retires or is destroyed, so a simspect line never lands inside an instruction's record).
-- `STAGE3_gem5/gem5_common.py:parse_pipeview` ignores unknown stages, so existing parsers are unaffected. Verified on all three builds: `parse_pipeview(new) == parse_pipeview(ref)`.
-- `line` is the 64-byte physical line address. Exceptions: `ROB:squash` and `L1D:cleanup_done` have no line (`line=-`); `DTLB`/`ITLB` events carry the virtual page address.
-- `seq` is the dynamic instruction's seqNum, the same number as field 6 of that instruction's `O3PipeView:fetch:` line, so events join to instructions. `-` means no instruction can be named (see Attribution gaps).
-- `pc` is the instruction's PC (for instruction fetch: the fetch address).
-- `victim` is set only on `evict`: the line that was removed.
-- `cause` is set only on `evict`: the `id` of the fill that took the victim's way (that fill line carries the same `id`).
-- `sq` is the squash id: set on `ROB:squash` (new id), on CleanupSpec cleanup events and on `SB:buf_release` at squash (the squash that covers the instruction, i.e. the latest squash whose squashing seqNum is below `seq`), and on `cleanup_done`.
-- `id` is a unique event id per run.
+- The first 11 fields are exactly v1 and always appear in this order (`check_v2_trace.py` checks it). v2 only appends `key=value` fields. Values never contain `:` or `=` (the emitter replaces them, and whitespace, with `_`); `-` means none. `parse_simspect_line` already returns unknown keys verbatim, so v1 consumers keep working and `check_footprint` gives the same verdicts on v1 and v2 traces of the same runs (`STAGE3_gem5/tests/test_check_footprint.py`, `TestRealTracesV2`).
+- **Header:** the first simspect line of every run is `O3PipeView:simspect:0:META:hooks:line=-:seq=-:pc=-:victim=-:cause=-:sq=-:id=0:ver=2:build=<InvisiSpec|CleanupSpec|SpecLFB>`. A trace with no META line is v1.
+- Lines are printed with `DPRINTFR` when the event happens, between the normal O3PipeView records (gem5 prints an instruction's record in one block when it retires or is destroyed, so a simspect line never lands inside one). In Ruby builds, events raised inside a SLICC transition get their id when they happen and are printed when the transition ends (so `nst=` is known); within one tick, order by `id`.
+- `line` = 64-byte physical line address. Exceptions: `ROB:squash`, `L1D:cleanup_done`, `LSQ:unsafe`, `LSQ:usl_flag`, `BR:*` have `line=-`; `DTLB`/`ITLB` lines carry the virtual page. Physical line `0x0` is real: in SE mode the code page at vaddr 0x401000 maps to paddr 0, so instruction-fetch events name it.
+- `seq` = the dynamic instruction's seqNum (field 6 of its `O3PipeView:fetch:` line), so events join to instructions. `pc` = that instruction's PC (fetch address for instruction fetch).
+- `victim` only on `evict`: the removed line. `cause` only on `evict`: the `id` of the fill that took the way (that fill carries the same `id`; v2 guarantees no id is the cause of two evicts).
+- `sq` = squash id: new on `ROB:squash`; on cleanup events, squash-time buffer releases and `cleanup_done` it names the squash. `id` = unique per run, except the resolve-hook `BR:` lines from [`RESOLUTION_HOOKS.md`](RESOLUTION_HOOKS.md), which print `id=-`.
+
+## Appended fields (v2)
+
+| key | meaning | on |
+|---|---|---|
+| `addr`, `size` | byte address and size of the request (physical for caches, virtual for TLBs) | cache, TLB, LSQ, buffer events |
+| `vaddr`, `paddr` | the other address where both are known | LSQ events (`vaddr`), TLB fill (`paddr`) |
+| `set`, `way` | the slot touched (`vset`/`vway` = the victim's slot on SpecLFB evicts) | fill, evict, inv, hit, repl_touch, TLB |
+| `req` | request kind, closed list: `ld st ifetch specld expose validate cleanup rollback wb pf flush coh -` (`coh` = traffic for a line with no CPU cause yet) | everywhere a request is known |
+| `msg` | native message or command name (`RubyRequestType`, `CoherenceRequestType`, classic `MemCmd`) | Ruby and classic cache events |
+| `ev`, `st`, `nst` | Ruby: SLICC event, state before, state after the transition (`pst` on `coh` = last stable state). TLB/classic: native function in `ev` | Ruby transition events, TLB, SpecLFB `inv` |
+| `lvl` | where the data came from or was found: `L1 L2 MEM SB -` | hit/miss, `LSQ:data`, `SB:buf_release`, `cleanup_req` |
+| `why` | the native reason, per kind (below) | skips, releases, safe, inv |
+| `usl`, `hitusl` | SpecLFB's request flags (`Request::isUSL`, `isHit_USL`) | SpecLFB cache + LSQ events |
+| `perm`, `touch` | SpecLFB hit: block has the needed permission; replacement state updated | SpecLFB `hit` |
+| `dirty` | the removed block was dirty | SpecLFB evict / inv |
+| `occ`, `cap` | MSHR occupancy after allocation / capacity | SpecLFB `MSHR:buf_fill` |
+| `idx`, `blk`, `src_idx`, `core` | InvisiSpec spec-buffer entry, block half, source entry on an SB hit, LLC-SB core | `SB`, `LLCSB` |
+| `filled`, `half`, `sqseq`, `post_squash` | InvisiSpec squash release: the SB entry had data / which line of a split load / the squashing seqNum / a fill that landed after its load's release | `SB` |
+| `bufd`, `merged` | CleanupSpec: loads the squash episode buffered for cleanup (0 = nothing to undo) / squash ids merged into the episode | `cleanup_done` |
+| `mode`, `rb`, `evl1` | CleanupSpec: exec or inflight cleanup / rollback line / the L1 line the load's fill evicted | `cleanup_req`, `LSQ:data` |
+| `issued`, `ret` | CleanupSpec: the squashed load had issued / had returned | `cleanup_skip` |
+| `trig` | SpecLFB: seq of the same-PC load whose miss released a parked LFB line | `LFB:buf_release` |
+| `mispred`, `predtaken`, `act`, `stalled`, `upc`, `cond` | IEW branch resolution: mispredicted / predicted taken / this resolution triggers the squash / released by the resolve-stall hook / micro-PC / conditional | `BR:resolve` |
+| `unsafe`, `cusl`, `musl`, `prevnounsafe`, `reallyunsafe`, `prevbrsres`, `lqhead`, `split`, `requsl` | SpecLFB per-load state at translation (`dyn_inst.hh:640-642`: `unsafe = (cusl or musl) and reallyunsafe`), whether the load is the load-queue head, split, and the request's USL flag after tagging | `LSQ:unsafe` |
+| `f`, `v`, `by` | SpecLFB flag change: flag name, new value, which walk (`lsq` = `LSQUnit::updateSafeState`, `rob` = `ROB::updateSafeState`) | `LSQ:usl_flag` |
+| `sent`, `bounced`, `blocked`, `split`, `line2` | LSQ issue: the cache accepted the packet / SpecLFB refused a hit-USL request / the port was blocked / split load and its second line | `LSQ:issue` |
+| `via`, `squashed`, `src`, `spc` | LSQ data: `mem`, `sb` (InvisiSpec spec buffer), `stlf`, `ipr` / the load was already squashed / forwarding store's seq and PC | `LSQ:data`, `LSQ:stlf` |
 
 ## Event vocabulary (closed list)
 
-| kind | meaning |
+| struct:kind | meaning |
 |---|---|
-| `fill` | line allocated into `struct` (tag allocated; Ruby allocates the way at miss time in MESI L1, at install time in CleanupSpec's L1) |
-| `evict` | line removed by replacement. `line` = the incoming line whose fill caused it, `victim` = the removed line, `cause` = that fill's id |
-| `inv` | line removed by anything other than replacement or CleanupSpec cleanup (coherence invalidation, flush, uncacheable access, clusivity) |
-| `coh` | the line's last stable coherence state changed to a different stable state while present before and after, with no tag change in that transition (Ruby only) |
-| `repl_touch` | replacement-state update (LRU touch) on an access |
-| `buf_fill` / `buf_release` | entry into / out of a buffer: the defense buffers (`SB`, `LLCSB`, `LFB`) and the miss-handling entries (`MSHR`, `L1IMSHR`, `L2MSHR`, `DIRTBE`) |
-| `expose` / `validate` | InvisiSpec visibility-point re-access issued for a load (`seq` = that load; this marks its visibility point, in both Spectre and Futuristic modes) |
+| `META:hooks` | trace header (`ver`, `build`) |
+| `<cache>:hit` / `<cache>:miss` | a demand lookup found / did not find the line. Ruby L1: CPU-request events `Load Ifetch Store SpecLoad Expose` (miss = the transition allocated a TBE or the line was not present); Ruby L2: `L1_GET*`, `L1_UPGRADE`, `L1_EXPOSE`; classic: every `BaseCache::access` except writebacks, evictions and cache maintenance; TLB: `TLB::translate` lookup; InvisiSpec `SB`: the LSQ's spec-buffer check |
+| `fill` | line allocated into the struct (Ruby MESI L1 allocates the way at miss time; CleanupSpec at install time) |
+| `evict` | line removed by replacement: `line` = incoming line, `victim` = removed line, `cause` = that fill's id. CleanupSpec rollback-space evictions carry `req=rollback`, the squash `sq`, `line` = the rollback line, `cln` = the cleanup request's line |
+| `inv` | line removed by anything other than replacement or cleanup: coherence, flush, uncacheable, wrong-L1 clusivity (`why=clusivity`), TLB `flushAll`/`flushNonGlobal`/`demapPage` (`ev=`) |
+| `coh` | Ruby only: last stable state changed to another stable state while present, with no tag change in that transition |
+| `repl_touch` | replacement-state update on an access |
+| `buf_fill` / `buf_release` | entry into / out of a buffer: `SB`, `LLCSB`, `LFB`, `MSHR`, `L1IMSHR`, `L2MSHR`, `DIRTBE` |
+| `L1D:expose` / `L1D:validate` | InvisiSpec visibility-point re-access issued for load `seq` |
+| `LSQ:safe` | InvisiSpec/fence scheme: the load became safe (`why=prev_brs_resolved` Spectre, `prev_insts_completed` Futuristic, `fence_*` for the fence scheme) |
+| `LSQ:fence` | fence scheme holds the load |
+| `LSQ:issue` | the LSQ offered the load's packet to the D-cache (`sent=0` = not accepted this cycle) |
+| `LSQ:stlf` | store-to-load forward (`src` = store seq) |
+| `LSQ:data` | the load obtained its data (`via`, `lvl`, `squashed`) |
+| `LSQ:unsafe` | SpecLFB: the per-load unsafe decision, printed where the LSQ tags the request at translation (`lsq.cc` `initiateTranslation`) |
+| `LSQ:usl_flag` | SpecLFB: a per-load safety flag changed (`prevnounsafe` printed once, it is sticky) |
+| `BR:resolve` | IEW resolved a control instruction (`executeInsts`, or the resolve-stall release) |
+| `BR:predict_force`, `resolve_hold`, `resolve_drop`, `resolve_release`, `resolve_bcast`, `resolve_visible` | resolution-hook lines, defined in [`RESOLUTION_HOOKS.md`](RESOLUTION_HOOKS.md) (`id=-`) |
+| `ROB:squash` | the core squashed everything younger than `seq` |
+| `L1D:cleanup_req` | CleanupSpec issued a cleanup request for squashed load `seq` (`lvl` = the hit level that chose the undo path, `lsq_unit_impl.hh:142-160`; `rb` = rollback line) |
 | `cleanup_inv` | CleanupSpec invalidated a line during cleanup |
-| `cleanup_restore` | CleanupSpec re-installed an evicted victim (rollback) |
-| `cleanup_skip` | CleanupSpec decided no undo is done for this load/line |
-| `cleanup_drop` | CleanupSpec dropped / cancelled an in-flight load's fill |
-| `cleanup_done` | CleanupSpec finished all undo work for squash `sq` (quiescence point) |
-| `squash` | the core squashed everything younger than `seq` (struct `ROB`) |
+| `cleanup_restore_req` | CleanupSpec rollback started: victim tag allocated, GETS issued |
+| `cleanup_restore` | rollback done: the victim's data returned (printed at the rollback TBE's free; `nst` = S/E, or I if it was invalidated meanwhile) |
+| `cleanup_skip` | no undo for this load/line (`why`: `split`, `not_issued`, `inflight_cleanup_off`, `l1hit`, `nohitinfo`, `reissue_nocleanup`, `present`, `ack_no_inv`, or a native skip event in `ev`) |
+| `cleanup_wait` | L2 `SendAck_Cleanup_Invalidate` kept the request waiting (NP recycle or stall), printed once per request message |
+| `cleanup_drop` | CleanupSpec decided to drop an in-flight load's fill |
+| `cleanup_drop_data` | `DropIncomingPacket*`: the dropped fill's data actually arrived and was discarded |
+| `L1D:cleanup_done` | CleanupSpec finished all undo work: exactly one per squash id (squashes during a cleanup merge into its episode and each get their own line), including squashes that buffered nothing (`bufd=0`) |
 
-Structures: `L1D`, `L1I`, `L2` (the LLC in all three builds), `DIR` (Ruby directory), `DTLB`, `ITLB`, `ROB`, and the defense buffers `SB` (InvisiSpec L1-side speculative buffer, `Sequencer::m_specBuf`), `LLCSB` (InvisiSpec's memory-side speculative buffer, `AbstractController::m_specBuf`, used by the directory controller), `LFB` (SpecLFB's line-fill buffer, `BaseCache::refillBlocks`), and the miss-handling entries: Ruby TBEs print as `MSHR` (L1 controller, shared by L1D and L1I), `L2MSHR` (L2 controller), `DIRTBE` (directory); classic MSHRs print as `MSHR` (L1D), `L1IMSHR`, `L2MSHR`. Every cache/memory structure present in a build is exported, not only the ones a paper claims to protect; the criterion JSON chooses which ones count. Prefetchers: none is configured in any SimSpect run; if one is enabled, its fills go through the same allocate path and print as `fill` with `seq=-`.
+Structures: `L1D`, `L1I`, `L2` (the LLC in all three builds), `DIR` (Ruby directory), `DTLB`, `ITLB`, `ROB`, `LSQ`, `BR`, `META`, and the buffers `SB` (InvisiSpec L1-side spec buffer, `Sequencer::m_specBuf`), `LLCSB` (InvisiSpec memory-side spec buffer, `AbstractController::m_specBuf`), `LFB` (SpecLFB, `BaseCache::refillBlocks`), and the miss-handling entries: Ruby TBEs `MSHR` (L1 controller, shared by L1D and L1I), `L2MSHR`, `DIRTBE`; classic `MSHR` (L1D), `L1IMSHR`, `L2MSHR`. Every structure present in a build is exported, not only the ones a paper protects; the criterion JSON chooses what counts. No prefetcher is configured in any SimSpect run.
 
 ## Per-build sites
 
-All three: `ROB::squash` (`cpu/o3/rob_impl.hh`, SpecLFB `cpu/o3/rob.cc`) emits `ROB:squash`; core emitter `src/sim/simspect_hooks.{hh,cc}` (event ids, squash ids, per-line attribution map, evict-to-fill id link).
+**All three:** core emitter `src/sim/simspect_hooks.{hh,cc}` (ids, squash ids, per-line attribution, evict-to-fill link, `Kv` fields, META header, print-side tag sets); `ROB::squash` → `ROB:squash`; IEW `executeInsts` + the resolve-stall release → `BR:resolve`.
 
-**Ruby builds (InvisiSpec, CleanupSpec), shared code** (`src/mem/ruby/slicc_interface/SimSpectRubyHooks.{hh,cc}`):
+**Ruby builds (InvisiSpec, CleanupSpec), shared** (`src/mem/ruby/slicc_interface/SimSpectRubyHooks.{hh,cc}`, identical in both trees):
 
-- SLICC code generator: `mem/slicc/ast/PeekStatementAST.py` adds `SimSpect::noteMsg(in_msg_ptr)` after every peek (records the message being processed: for a Sequencer `RubyRequest`, its line, PC and the packet's seqNum; for protocol messages, their `m_addr`). `mem/slicc/symbols/StateMachine.py` brackets every `doTransition` with `SimSpect::beginTransition(machine, version, event, state, permission)` / `endTransition(valid, next_state, permission)`, so cache-tag hooks know which SLICC event they run under.
-- `CacheMemory::allocate` → `fill` (or `cleanup_restore` under a `*ROLLBACK*` event); `CacheMemory::deallocate` → `evict` (event name contains `Replacement`), `cleanup_inv` (`Inv_CLEANUP`, `Cleanup_Invalidate`, `Cleanup_Invalidate_clean`), else `inv`; all three `CacheMemory::setMRU` overloads → `repl_touch`. Struct from the CacheMemory name (`L1Dcache`→L1D, `L1Icache`→L1I, `L2cache`→L2).
-- `TBETable::allocate` / `deallocate` → `MSHR`/`L2MSHR`/`DIRTBE` `buf_fill` / `buf_release` (allocation also records per-line attribution). This is where InvisiSpec UV2 (TBE contention) is visible.
-- `endTransition` → `coh` (rule in the table above, using each state's AccessPermission: present = `Read_Only`/`Read_Write`/`Maybe_Stale`, transient = `Busy`) for L1, L2 and DIR; and the CleanupSpec decision events below.
-- `arch/x86/tlb.cc` → `DTLB`/`ITLB` `fill` (`TLB::insert`), `evict` (`TLB::evictLRU`, victim = evicted page), `repl_touch` (`TLB::lookup` with LRU update); attribution from the request in `TLB::translate`.
+- SLICC codegen: `PeekStatementAST.py` opens a `SimSpect::MsgScope` per peek, so each message is the attribution context only until its peek ends (v1 used one global that was never cleared). `StateMachine.py` brackets every `doTransition` with `beginTransition`/`endTransition` plus a `TransGuard` that closes the bracket if an action throws.
+- `CacheMemory::allocate` → `fill` (`cleanup_restore_req` under a `*ROLLBACK*` event); `deallocate` → `evict` (event contains `Replacement`, except the request's own line → `inv why=clusivity`, and a replacement under a cleanup request → `evict req=rollback`), `cleanup_inv` (`Inv_CLEANUP`, `Cleanup_Invalidate(_clean)`), else `inv`; `setMRU` → `repl_touch`. All with `set`/`way`.
+- `TBETable` alloc/free → `MSHR`/`L2MSHR`/`DIRTBE` `buf_fill`/`buf_release`; the free of a CleanupSpec rollback TBE → `cleanup_restore`.
+- `endTransition` → `hit`/`miss`, `coh`, and the CleanupSpec decision events.
+- `arch/x86/tlb.cc` → TLB `hit`/`miss` (`translate`), `fill` (`insert`), `evict` (`evictLRU`), `repl_touch` (`lookup`), `inv` (`flushAll`, `flushNonGlobal`, `demapPage`).
+- `cpu/o3/lsq_unit.hh` / `lsq_unit_impl.hh` → `LSQ:issue`, `LSQ:stlf`, `LSQ:data`, `LSQ:safe`, `LSQ:fence`.
 
-**InvisiSpec only:** `Sequencer::updateSBB` and the SB-hit copy path → `SB:buf_fill`; `Sequencer::makeRequest` → `L1D:expose` / `L1D:validate` when the visibility-point request is issued; `Sequencer::readCallback` expose/validate completion → `SB:buf_release`; `LSQUnit::squash` → `SB:buf_release` for a squashed spec load (`needPostFetch && !isExposeSent`); `AbstractController::recvTimingResp` ReadSpec data → `LLCSB:buf_fill`; the three `m_specBuf` clears in `queueMemoryRead` → `LLCSB:buf_release` (only for an entry that was filled: empty slots hold address 0).
+**InvisiSpec only:** `Sequencer::updateSBB` and the SB-hit copy → `SB:buf_fill` (`post_squash=1` + an immediate `buf_release why=post_squash` when the load's entry was already released at its squash); `Sequencer::makeRequest` → `L1D:expose`/`validate`; `readCallback` expose/validate completion → `SB:buf_release` (`lvl`); `hitCallback` notes the hit level for `LSQ:data lvl=`; `LSQUnit::squash` → `SB:buf_release why=squash` for both lines of a split load, only for a load whose SpecLoad was sent (`needPostFetch`, set in `lsq_unit.hh` only after a successful send), `sq` = the squash being applied (`sqExact(squashed_num)`); `LSQ:issue`-time SB lookup → `SB:hit`/`miss`; `AbstractController` → `LLCSB:buf_fill`/`buf_release` (keyed per controller; a ReadSpec overwriting a live entry releases it first; consistent `line`).
 
-**CleanupSpec only:** native event → SimSpect kind mapping, complete for every cleanup-family event in `MESI_Two_Level-L1cache.sm`, `MESI_Two_Level-L2cache.sm` and `lsq_unit_impl.hh`:
+**CleanupSpec only:** native event → SimSpect kind, complete for the cleanup-family events in `MESI_Two_Level-L1cache.sm`, `-L2cache.sm` and `lsq_unit_impl.hh`:
 
 | native (state) | SimSpect |
 |---|---|
 | L1 `Inv_CLEANUP` (S, X, E: deallocates) | `L1D:cleanup_inv` |
-| L1 `Inv_CLEANUP` (NP, I, M: skip actions `clirs`/`clirs2`) | `L1D:cleanup_skip` |
-| L1 `Inv_CLEANUP` (transient: waits/recycles) | nothing (re-fires when stable) |
-| L1 `Load_ROLLBACK` (NP, I: allocates + GETS) | `L1D:cleanup_restore` (the L2 fill of that GETS prints as `L2:fill`) |
-| L1 `Load_ROLLBACK` (S, E, M, X: already present) | `L1D:cleanup_skip` |
-| L1 `Load_ROLLBACK` (transient) / `Waiting_Rollback_CLEANUP` / `Waiting_CLEANUP` / `Waiting_Final_CLEANUP` / `Waiting_CLEANUP_inprogress` | nothing (waits) |
+| L1 `Inv_CLEANUP` (NP, I, M: `clirs`/`clirs2`) | `L1D:cleanup_skip` |
+| L1 `Load_ROLLBACK` (NP, I: allocates + GETS) | `L1D:cleanup_restore_req`, then `L1D:cleanup_restore` when the rollback TBE is freed |
+| L1 `Load_ROLLBACK` (S, E, M, X: present) | `L1D:cleanup_skip why=present` |
 | L1 `Skip_ROLLBACK`, `Skip_Inflight_Cleanup` | `L1D:cleanup_skip` |
-| L1 `L1_Replacement` triggered to make room for a rollback | `L1D:evict` (line = the cleanup request's line, see gaps) |
-| L1 `InvL2_CLEANUP` | nothing at L1 (it sends `PUTINV`; the L2 prints the result) |
-| L2 `Cleanup_Invalidate` / `Cleanup_Invalidate_clean` (deallocates) | `L2:cleanup_inv` |
-| L2 `SendAck_Cleanup_Invalidate` (NP: line not in L2) | `L2:cleanup_skip` |
-| L1 `Inflight_CLEANUP_reqs` (NP) | `L1D:cleanup_drop` |
+| L1 `L1_Replacement` to make room for a rollback | `L1D:evict req=rollback` (`sq`, `line` = rollback line, `cln`) |
+| L1 `Inflight_CLEANUP_reqs` (NP) / `Drop_Load_Cleanup_Inflight` | `L1D:cleanup_drop` |
 | L1 `Inflight_CLEANUP_reqs` (M_I / I → NP) | `L1D:cleanup_skip` |
-| L1 `Drop_Load_Cleanup_Inflight` | `L1D:cleanup_drop` |
-| L1 `Inflight_CLEANUP_resp`, `Done_CLEANUP` (per-request ack), `Done_Invalidate_CLEANUP` (never triggered in this .sm) | nothing |
-| L1 `L1_Replacement_OnInstall` | `L1D:evict` (+ the `AllocateLine_OnInstall` `L1D:fill`) |
-| LSQ `issueBufferedCleanupReqs`: split load (`isSplitReq`, the UV4 `TODO`) | `L1D:cleanup_skip` on both lines |
-| LSQ: returned load that hit L1, or has no hit-level info | `L1D:cleanup_skip` |
-| LSQ `reissueSkippedCleanupReq`: no cleanup needed | `L1D:cleanup_skip` |
-| LSQ `clearLoadQueue` succeeds (all cleanup acks in) | `L1D:cleanup_done` (`seq` = squash seqNum) |
+| L1 `DropIncomingPacket`, `DropIncomingPacketnUnblockL2`, `DropIncomingPacketnUnblockRevertL2` | `L1D:cleanup_drop_data` (these also fire with no TBE, not only for cleanup) |
+| L2 `Cleanup_Invalidate` / `Cleanup_Invalidate_clean` | `L2:cleanup_inv` |
+| L2 `SendAck_Cleanup_Invalidate`, request consumed with a state change (`C_ISS`→`CC_ISS`, `M_I`→`C_M_I`, L2cache.sm:1136-1139, 1162-1165) | `L2:cleanup_skip why=ack_no_inv` |
+| L2 `SendAck_Cleanup_Invalidate`, request kept (NP recycle, L2cache.sm:1147-1149; stalls) | `L2:cleanup_wait`, once per request (v1 printed `cleanup_skip` on every recycle) |
+| L1/L2 transient-state waits, `Inflight_CLEANUP_resp`, `Done_CLEANUP` | nothing |
+| LSQ `issueBufferedCleanupReqs`, cleanup request sent | `L1D:cleanup_req` |
+| LSQ split load (the UV4 `TODO`), not issued, inflight with cleanup off, L1 hit, no hit info, reissue with nothing to do | `L1D:cleanup_skip` with that `why` (an untranslated load prints `line=-`, never `0x0`) |
+| LSQ `clearLoadQueue` succeeds | `L1D:cleanup_done`, one per squash id of the episode |
 
-A not-issued squashed load (never touched memory) prints nothing. A cleanup request the D-cache port refused is retried by the LSQ and prints nothing until it is issued.
+**SpecLFB** (newer gem5, classic caches): `BaseCache::access` → `hit`/`miss` (`perm`, `touch`, `usl`, `hitusl`); `allocateBlock` → `fill` and its `handleEvictions` victims → `evict` (`vset`/`vway`, `dirty`; an LFB refill never reads the natively freed parked packet); `invalidateBlock` outside a replacement → `inv`; `BaseSetAssoc::accessBlock` LRU touch → `repl_touch` (v2: per-line fallback attribution); the unsafe-load branch of `recvTimingResp` that parks the line → `LFB:buf_fill why=usl_miss`; the same-PC refill → `LFB:buf_release why=refill` (`sq` of the parked load, `trig`) then the cache `fill`; `MSHRQueue` → `MSHR`/`L1IMSHR`/`L2MSHR` (`occ`/`cap`); `lsq.cc` `initiateTranslation` → `LSQ:unsafe`; `LSQUnit`/`ROB::updateSafeState` → `LSQ:usl_flag`; `LSQUnit::trySendPacket` → `LSQ:issue` (`bounced`); forwarding → `LSQ:stlf`; `WritebackEvent::process` / `completeDataAccess` → `LSQ:data`.
 
-**SpecLFB** (newer gem5, classic caches; `mem/cache/base.cc`, `mem/cache/tags/base_set_assoc.hh`): `BaseCache::allocateBlock` → `fill`, and the replacement victims it evicts in `handleEvictions` → `evict` (exact cause link: the fill id is assigned before the evictions); `BaseCache::invalidateBlock` outside a replacement → `inv`; `BaseSetAssoc::accessBlock` LRU touch → `repl_touch`; the unsafe-load branch of `recvTimingResp` that parks the line in `refillBlocks` → `LFB:buf_fill`; the refill from `refillBlocks` when the same-PC load returns → `LFB:buf_release` then the cache `fill`. Struct from the cache name (`dcache`→L1D, `icache`→L1I, `l2`→L2). `MSHRQueue::allocate` / `deallocate` (`mem/cache/mshr_queue.cc`) → `MSHR`/`L1IMSHR`/`L2MSHR` `buf_fill` / `buf_release`. Both classic levels are covered whenever `--l2cache` is on.
+## Attribution and remaining gaps
 
-## Attribution (how `seq` is found)
+- Requests carry the seqNum in all three builds (`Request` created with `this->seqNum` in the old base; `setReqInstSeqNum` in SpecLFB). Ruby L1 events processed from a Sequencer `RubyRequest` are exact. Ruby responses and all L2 / DIR / LLCSB events use a per-line "most recent cause" map (set when an L1 allocates a TBE for a CPU request; moved to a line's writeback when an eviction is caused by it); exact in single-core SE runs except when a later request to the same line has already started. L2 cleanup events take `seq` from that map, so their `sq` can name a later squash (audit finding 6, not fixed: the L2 only sees a protocol message).
+- `seq=-`: instruction fetch (`L1I`, `ITLB` and their L2/DIR traffic) happens before the dynamic instruction exists; lines never requested by an instruction (startup, page table) have none. Ruby L1 TBEs print `MSHR` for both sides, so I-side TBEs are told apart only by `seq=-`/`req=ifetch`.
+- In-flight squashed loads never get an `O3PipeView:fetch:` line (gem5 prints a record only when the instruction is destroyed), so their seqs are valid but do not join.
+- InvisiSpec SpecLoad replacement (UV1): the spec load does not allocate in L1D, so the evict's `cause` id never appears as a fill. v2 drops that reservation at the end of the transition, so a later expose fill can no longer inherit it.
+- CleanupSpec rollback-space evict: its `cause` id is reserved for the rollback line, whose allocate prints as `cleanup_restore_req` (not `fill`), so the id does not reappear. `req=rollback` and `sq` mark it.
+- SpecLFB: an LFB entry has no removal path except the same-PC refill (`base.cc` grep: only the push, the refill and its erase), so a squashed unsafe load's parked line can enter L1D much later, when a later load with the same PC misses; `seq` on that fill is the parked load, `trig` the later one. A split SpecLFB load is tagged USL only on its main request (`lsq.cc` SplitDataRequest), which `LSQ:unsafe split=1 requsl=` shows.
+- TLB events carry the virtual page; TLB attribution is the most recent `translate` (exact in SE mode, where `insert` is synchronous).
+- `coh` is Ruby only. Compiled but **not exercised by any v2 verification case** (0 lines in all 10 traces): `LLCSB` (no spec load missed the L2), `DIRTBE` (MESI allocates directory TBEs only for DMA), `LFB` (on the three SpecLFB cases no unsafe load parked a line; see the UV6 note below), `cleanup_wait`, `cleanup_drop`, `cleanup_drop_data`, `evict req=rollback`, `inv why=clusivity`. Their code paths were reviewed, not run.
+- **Gaps found by the first STT_6 runs (2026-11-08, details in `wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md` "CURRENT"):**
+  - **Ruby resource and protocol stalls print nothing.** The generated `doTransition` passes only `result==Valid` to `SimSpect::endTransition` (`src/mem/slicc/symbols/StateMachine.py` ~1273-1295). That leaves UV2 contention and the CleanupSpec TBE-2 deadlocks visible only in ProtocolTrace.
+  - **Instruction-fetch events have no `seq`,** so KV1 cannot be attributed (`fetch_impl.hh` `fetchCacheLine` runs before the DynInst exists).
+  - **CleanupSpec `cleanup_drop` prints `seq=-`/`sq=-`.** It is raised from the mandatory-queue peek (`MESI_Two_Level-L1cache.sm:867`) after the sequencer entry is gone, and it drops a queued request, not a returned fill.
+  - **A read-modify-write read prints `req=st`.**
+  - **SpecLFB flag changes not printed:**
+    - `setPrevBrsResolved` (`rob.cc:464`) and the direct-jump reset show only as `prevbrsres=` on `LSQ:unsafe`;
+    - `setPrevStoreResolved` (`rob.cc:476`) is not printed;
+    - `SpeclfbStalled` set/clear is not printed;
+    - a replayed held load prints no new `LSQ:unsafe` (adding the flags to `LSQ:issue` at `lsq_unit.cc:1445` would cover it).
+  - **SpecLFB `LFB` events never fire,** because the native park path is unreachable in this build: a HitUSL miss is refused and replayed (`lsq.cc:1049-1051`, `base.cc:597-617,853,1943,3236-3238`).
+  - **Now exercised:** `cleanup_restore_req`/`cleanup_restore` (1505×, correct) and `cleanup_drop` (320×, only in deadlocked runs). `cleanup_wait`, `cleanup_drop_data`, `evict req=rollback` and `inv why=clusivity` are still at 0 in about 6100 CleanupSpec runs.
+  - **Parser hazard (fixed 2026-11-08 in the Mac copy):** native formats that print text after their own newline glue it onto the next line: CleanupSpec `src/cpu/o3/lsq_unit.hh:1257` (`"Created CleanupReq … 0x%llx\n."`) and `src/mem/ruby/system/RubyPort.cc:272` (`"…Ruby.\n "`). A grep of the InvisiSpec, SpecLFB, recon-modded, stt and spt trees found no others in CPU or cache code. With `LSQUnit` on, a hook line could be dropped (this happened in the UV3 demo). `gem5_common._unglue` now strips the residue before every trace parser (`_trace_lines`, `parse_simspect_line`), and `gem5-hooks/verify/check_v2_trace.py` does the same. Fixture parses are unchanged (all 10 fixtures identical); test `test_glued_native_print_residue_is_ignored`.
+- Not added (no cheap print-only site found, or out of time): Ruby `lvl=` on hit/miss for the L1 beyond L1/-, classic hit level on `LSQ:data` (`lvl=-`), coherence-bit changes on the classic cache, compressed-cache `handleEvictions` from `updateCompressionData` (no compressor is configured).
 
-- Requests already carry the seqNum: the two older Ruby builds create every data `Request` with `this->seqNum` (`cpu/base_dyn_inst.hh`), and copies (`postReq`, `cleanupReq`, split halves) keep it; the SpecLFB base sets `setReqInstSeqNum` in `LSQ::SingleDataRequest::initiateTranslation`. No seqNum had to be threaded.
-- Ruby L1 events processed from a Sequencer `RubyRequest` (loads, stores, SpecLoad, Expose, CleanupSpec cleanup requests) are exact: the seqNum comes from the request being processed.
-- Ruby L1 events from responses, and all L2 / DIR / LLCSB events, use a per-line "most recent cause" map: set when an L1 allocates a TBE for a CPU request (that is the moment a request leaves L1), propagated to a line's writeback when an eviction or TBE for another line is caused by it. In single-core SE runs this names the right instruction except where a later request to the same line has already started.
-- Evictions are attributed to the request that caused them (`seq` on the evict line), and the evicted line's attribution moves to that instruction so its writeback/L2/DIR traffic is attributed too.
-- Classic (SpecLFB): fills, evictions, repl_touch use the packet's request; writebacks and other packets without a seqNum fall back to the per-line map.
+## What the v2 trace already showed (SpecLFB UV6)
 
-## Attribution gaps (`seq=-` and other limits)
-
-- **Instruction fetch** (`L1I`, `ITLB`, and the L2/DIR traffic of an I-miss): `seq=-`. A fetch happens before the dynamic instruction exists, so no seqNum exists. `pc` = fetch address.
-- **Lines never requested by an instruction** (startup, page-table, the loader's first touches): `seq=-`.
-- **In-flight squashed loads never get an `O3PipeView:fetch:` line** (gem5 prints a record only when the instruction object is destroyed, and the LSQ keeps squashed in-flight loads until the end); their seqs are valid but do not join. Seen on InvisiSpec UV1 (12 seqs).
-- **CleanupSpec rollback-space replacement** (`L1cache.sm` "Space unavailable for CleanupReq"): the evict's `line` is the cleanup request's line, not the rollback target, and its `cause` id has no matching fill.
-- **InvisiSpec SpecLoad replacement (UV1):** the spec load does not allocate in L1D, so the evict's `cause` id never appears as a fill. `line`/`seq` on the evict are the attribution.
-- **TLB** events carry the virtual page, not a physical line. TLB attribution is the most recent `translate` call.
-- **`coh` is Ruby only.** The classic cache changes coherence bits in many places with no single site; not implemented for SpecLFB (single-core classic runs have no downgrades to see).
-- **`LLCSB` and `DIRTBE` hooks are compiled but printed nothing in the verification runs** (no spec load missed the L2 in those tests, and the MESI directory allocates TBEs only for DMA).
-- **`LFB` hooks are compiled but were not exercised** by any verification run: on the gadgets tried (`gem5-hooks/verify/uv6x.s`, `uv6dep.s`, STT_6 inst-002014 and inst-014986) SpecLFB classified every spec load `isUnsafe=0`, so nothing was parked in the LFB.
+On `lfb_uv6x` (two speculative loads behind a held mispredicted branch, `gem5-hooks/verify/uv6x.s`), the new lines show why the second load is also treated as safe. At tick 92500 the ROB walk sets `prevnounsafe=1` on both loads (seq 28 and 29), before the LSQ walk sets `cusl=1` on seq 28 at 93000. `PrevNoUnsafe` is sticky, so at translation (94000) both print `LSQ:unsafe unsafe=0 cusl=1 prevnounsafe=1 reallyunsafe=0 lqhead=0`, and both fill L2 (174000, 179000) and L1D (184500, 189500) before the squash at 1094500. So the "wider than UV6" behavior here comes from the order of the two walks in one cycle, not from the load-queue-head skip the 2026-10-28 audit guessed (`wiki/findings/audits/2026-10-28/hooks_speclfb_and_uv6.md`; the oldest load in the LQ here is the committed load seq 22, which is older than the branch). Later instances of the same loads print `unsafe=1` and are not sent (`LSQ:issue sent=0 usl=1 hitusl=1`). Whether this counts as a SpecLFB implementation bug is Anna's call (`URGENT_TODO.md`).
 
 ## How to verify
 
-`gem5-hooks/verify/verify_simspect_hooks.py` (copy on cafe2 in `/work/amulet/simspect_hooks_verify/`) builds one litmus test, runs it with only `--debug-flags=O3PipeView`, counts simspect lines per `struct:kind`, checks that attributed events join to `fetch` seqNums, and with `--ref-bin` reruns on the pre-hook binary and requires identical non-simspect lines, identical `parse_pipeview` output and identical sim ticks. `gem5-hooks/verify/mkann.py` makes the annotation for a hand gadget (`<name>_branch`, `<name>_xmit` labels). Rebuild script: `gem5-hooks/verify/build_simspect_hooks.sh` (copy at `/work/amulet/build_simspect_hooks.sh`, log `/work/amulet/rebuild_<build>_simspect_hooks_20261028.log`).
+- `gem5-hooks/verify/run_all_verify_v2.sh` (copy on cafe2 in `/work/amulet/simspect_hooks_verify_v2/`, run inside `gem5_dev`) runs every case with `gem5-hooks/verify/verify_simspect_hooks.py` against a **reference binary with the same non-print code**, then `gem5-hooks/verify/check_v2_trace.py` on the new trace. Log: `run_all_v2_20261107.log` there.
+- Reference binaries: Ruby builds `/work/amulet/hooks_v2_work/ref_<build>/build/X86_MESI_Two_Level/gem5.opt`, built by `gem5-hooks/verify/make_refs.sh` (copy `/work/amulet/hooks_v2_work/make_refs.sh`, logs `make_refs_<build>.log`): a copy of the tree with every v2-touched file restored to the v1+resolve snapshot plus the 2026-10-30 IEW wake fix. SpecLFB: `build/X86/gem5.opt.simspect-hooks-v1-resolve-wake-20261030` (the binary just before v2).
+- `check_v2_trace.py` hard checks: META header `ver=2` with the right build; every line parses; v1 fields first; no `line=0x0` on squash-time releases/skips; no fill id is the cause of two evicts; at most one `cleanup_done` per squash id; every post-squash SB fill has a release.
+- Results 2026-11-08 01:04 UTC (all `ok`, ticks new = ref, non-simspect lines identical, `parse_pipeview` identical, all hard checks pass):
 
-`gem5-hooks/verify/run_all_verify.sh` reruns every case below and prints one line each (`ok`, sim ticks new/ref, non-simspect identical). Final run 2026-10-28 22:57 after the last rebuild: all `ok=True`; ref ticks identical for inv_uv1 5691000, cln_uv4align 1252000, cln_uv4split 1251500, cln_uv5clean 1378000, lfb_uv6x 1110500, lfb_inst002014 6227500; inv_fut (FuturisticSafeInvisibleSpec, no ref run) shows `L1D:expose ... seq=647:pc=0x401c74` with the load's seq. MSHR events: e.g. `O3PipeView:simspect:80500:MSHR:buf_fill:line=0x3dc0:seq=3:pc=0x401000:...` (InvisiSpec), `L1IMSHR`/`MSHR`/`L2MSHR` on SpecLFB with `--l2cache`.
+| case | build | test | sim ticks | events |
+|---|---|---|---|---|
+| inv_uv1 | InvisiSpec Spectre | STT_6 inst-002014 | 5691000 | 2189 |
+| inv_fut | InvisiSpec Futuristic | inst-002014 | 5699500 | 2211 |
+| inv_014986 | InvisiSpec Spectre | inst-014986 | 5699500 | 2256 |
+| cln_uv4align | CleanupSpec | uv4align | 1252000 | 170 |
+| cln_uv4split | CleanupSpec | uv4split | 1251500 | 173 |
+| cln_uv5clean | CleanupSpec | uv5clean | 1378000 | 243 |
+| cln_inst002014 | CleanupSpec | inst-002014 | 6383500 | 2058 |
+| lfb_uv6x | SpecLFB | uv6x | 1110500 | 327 |
+| lfb_uv6dep | SpecLFB | uv6dep | 1109500 | 275 |
+| lfb_inst002014 | SpecLFB | inst-002014 | 6227500 | 1169 |
 
-Results on 2026-10-28 (outputs in `/work/amulet/simspect_hooks_verify/<name>/`):
+- The v1 cases that existed on 2026-10-28 give the same ticks as then (inv_uv1 5691000, cln_uv4align 1252000, cln_uv4split 1251500, cln_uv5clean 1378000, lfb_uv6x 1110500, lfb_inst002014 6227500).
+- `python3 STAGE3_gem5/tests/test_check_footprint.py`: 29 tests pass, including `TestRealTracesV2` (same leak verdicts on the v2 traces of inv_uv1, lfb_uv6x, cln_uv5clean, cln_uv4split, inv_fut; fixtures `STAGE3_gem5/tests/fixtures/<case>.v2.pipeview.txt.gz`).
+- Example lines (cln_uv5clean): `L1D:cleanup_req:line=0x4000:seq=35:...:sq=4:...:mode=exec:lvl=MEM:rb=0x3000`, `L1D:cleanup_restore_req:line=0x3000:...:ev=Load_ROLLBACK:st=NP:nst=IS` at 1295500, `L1D:cleanup_restore:line=0x3000:...:req=rollback:ev=Data_Exclusive:st=IS:nst=E` at 1303500, `L1D:cleanup_done:...:sq=3:...:bufd=21:merged=2` and `...:sq=4:...` at 1311000. (inv_uv1): `SB:buf_release:line=0x3dc0:seq=576:...:sq=4:...:why=squash:filled=1:half=lo:sqseq=564`, `L1D:miss:line=0x3dc0:seq=576:...:req=specld:msg=SPEC_LD:addr=0x3de8:size=8:ev=SpecLoad:st=NP:nst=IX`.
 
-- **InvisiSpec UV1** (`inv_uv1`: STT_6 `mispredict_not_taken/inst-002014`, `--ruby --scheme=SpectreSafeInvisibleSpec --needsTSO=1 --allowSpecBuffHit=1 --l1d_size=1kB --l1d_assoc=2`, stall 5000): spec loads evict live L1D lines in the window, e.g. `O3PipeView:simspect:3176500:L1D:evict:line=0x3dc0:seq=576:pc=0x401c74:victim=0x39c0:cause=1458:sq=-:id=1459`, then `SB:buf_fill` for each spec load and `SB:buf_release ... sq=4` at the squash (`ROB:squash:...:seq=564:pc=0x401c53`). Ref binary: identical ticks (5691000) and pipeview.
-- **InvisiSpec KV1** (`inv_kv1mispred`): wrong-path `L1I:fill ... pc=0x4020ff` before the squash; `L1D:expose` present.
-- **SpecLFB UV6 shape** (`lfb_uv6x`, `--l2cache`): the first spec load fills L1D (and L2) in the window, `O3PipeView:simspect:184500:L1D:fill:line=0x2000:seq=28:pc=0x40102f:...`, squash at 1094500 (`seq=27`, the branch). The second spec load (seq 29) also fills L1D: SpecLFB's own trace shows both loads `isUnsafe=0`. Ref binary identical.
-- **CleanupSpec** (`cln_uv5clean`, `uv5_demo/uv5clean.s`, `--l1d_size=8kB --l1d_assoc=2 --L1_TBEs=8`): spec load seq 35 `L1D:fill line=0x4000` evicts committed `0x3000` (`evict ... victim=0x3000:cause=59`, fill id 59), squash `sq=4`, then `L1D:cleanup_inv line=0x4000`, `L1D:cleanup_restore line=0x3000`, `L1D:cleanup_done sq=4`. `cln_uv4align`: L1D and L2 `cleanup_inv`. `cln_uv4split` (UV4): spec load seq 58 fills two L1D lines (0x1000, 0x1040) and gets `cleanup_skip` on both, zero `cleanup_inv`; ref binary identical (1251500 ticks). unXpec: `unxmiss` has L1D+L2 `cleanup_inv`, `unxhit` only `cleanup_skip`.
+## Rebuild
 
-## Backups
+`gem5-hooks/verify/build_simspect_hooks.sh <InvisiSpec|CleanupSpec|SpecLFB> [tag]` (copy `/work/amulet/build_simspect_hooks.sh`; log `/work/amulet/rebuild_<build>_simspect_hooks_<tag>.log`; `J=` sets scons `-j`). v2 logs: `..._v2fix_20261107.log` (InvisiSpec), `..._v2_20261030.log` (InvisiSpec/CleanupSpec, the first v2 build), `..._v2_20261107.log` (SpecLFB). The build script's END line is missing from the InvisiSpec v2fix log (I killed the wrapper shell while its scons finished; the binary is from that scons run, 2026-11-08 00:56 UTC).
 
-- Pre-hook binaries: `build/X86_MESI_Two_Level/gem5.opt.pre-simspect-hooks-20261028` (InvisiSpec, CleanupSpec), `build/X86/gem5.opt.pre-simspect-hooks-20261028` (SpecLFB). Every earlier result was produced by these binaries; rerun with them to reproduce exactly.
-- Pristine sources of every touched file: `/work/amulet/backups/<build>-pre-simspect-hooks-20261028.tgz` (InvisiSpec/CleanupSpec: paths start `src/`, extract in the build root; SpecLFB: paths are relative to `src/`, extract in `src/`).
-- Diffs (pristine vs hooked, `diff -ruN`): `gem5-hooks/amulet-{InvisiSpec,CleanupSpec,SpecLFB}/simspect_hooks.diff`. Apply from the build root with `patch -p1` (paths start `pristine/src/...` / `hooked/src/...`).
+## Backups and diff chain
+
+- Binaries in each `build/<ISA>/`: `gem5.opt.pre-simspect-hooks-20261028` (pristine: every result before 2026-10-28), `gem5.opt.simspect-hooks-v1-20261028` (v1), `gem5.opt.pre-resolve-hooks-20261030` (= v1), `gem5.opt.simspect-hooks-v1-resolve-20261030` (v1 + resolve hooks, no wake fix), SpecLFB `gem5.opt.simspect-hooks-v1-resolve-wake-20261030` (v1 + resolve + wake), CleanupSpec `gem5.opt.hooks-v2-partial-20261030` (the 2026-10-30 21:27 partial v2), InvisiSpec `gem5.opt.hooks-v2-broken-20261030` (the one that panicked). Current `gem5.opt` = v2.
+- Sources: pristine `/work/amulet/backups/<build>-pre-simspect-hooks-20261028.tgz`; full v1+resolve `src/` snapshot `/work/amulet/backups/<build>-simspect-hooks-v1.tgz` (taken 2026-10-30 19:38, after the resolve hooks; extracted in `/work/amulet/hooks_v2_work/v1snap_<build>/`); pre-resolve `/work/simspect_backups/resolve-hooks-20261030/`; SpecLFB just before v2 `/work/amulet/hooks_v2_work/SpecLFB-src-before-v2-20261107.tgz`.
+- Diffs in the repo, applied in order from the build root: `gem5-hooks/amulet-<build>/simspect_hooks.diff` (pristine → v1, `patch -p1`), `resolve_hooks.diff` (v1 → resolve, [`RESOLUTION_HOOKS.md`](RESOLUTION_HOOKS.md)), `hooks_v2_vs_v1resolve.diff` (v1+resolve snapshot → v2; it also contains the 3-line IEW wake fix, which belongs to the resolve work).
+
+## History
+
+- 2026-10-28: v1 built and verified (`claudelog.md` "simspect-hooks").
+- 2026-10-30: the v2 agent edited the InvisiSpec/CleanupSpec sources and died (API error) mid-build, leaving nothing on the Mac. The resolve-hooks session's 21:27 rebuild compiled those unverified edits; the InvisiSpec binary then panicked on every run (`panic: Invalid range for type MachineType`) because the new `hitCallback` hook called `MachineType_to_string(mach)` on L1 hits, where `mach` is not a valid machine type. CleanupSpec ran.
+- 2026-11-07: recovered the partial v2 from the cafe2 trees, fixed the panic (`simspectLvlOf` in `Sequencer.cc` converts `mach` only when `externalHit`), wrote SpecLFB v2, built references, verified (above).

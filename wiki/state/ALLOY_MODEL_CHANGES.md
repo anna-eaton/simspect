@@ -5,7 +5,44 @@ need, each one grounded in a findings doc. **Nothing here is applied** — every
 edit needs Anna's explicit per-change sign-off (root `CLAUDE.md` → Alloy models STRICT). This file is
 the backlog + rationale so the edits don't live only in scattered findings mds.*
 
-**Last refreshed:** 2026-10-26
+**Last refreshed:** 2026-11-08 (SPT conservative fix plan at top)
+
+---
+
+## 2026-11-08 — SPT_6_oneLP: conservative fix plan (proposal; nothing applied)
+
+**Update 2026-11-08 (later, Anna asked for a consolidated SPT):** P1 + P2 + P4 + simspect-c8's perturbation-aware seed are implemented as a NEW draft file, `STAGE1_alloy/models/SPT_6_oneLP_v2.als`; `SPT_6_oneLP.als` is unchanged. P3 and P5 are not included. Cores: `proposed_twophase/SPT_6_oneLP_v2_core{,_conservative}.als`. Audit, validation and the manifest instructions: `wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md` §0.
+
+Goal from Anna: be conservative, generate too many tests rather than too few. So every change below either removes only instances that cannot be realized as programs or that are provably public under SPT's own rules, or adds tests. Evidence: round-4 fixed-harness campaign on `testsets_latest/SPT_6_oneLP` (the current model, e298a9e). All 341 SPT hit tests have a transmitter operand SPT considers public: x86 slice with gem5-spt's taint rules, and gem5 never delayed a branch transmitter. Census over all 150,000 instances: `STAGE3_gem5/triage/spt_testset_shapes.py`, cafe2 `/tests/simspect_fixed_20261030/triage/r4/spt_latest_shapes.json`. Control: STT_6 shows 0 stale-rf and 0 constant-derived transmitters.
+
+**State of A1/A2:** A2 (`rf_from_most_recent_writer`) was applied to `STT_6.als` only, on 06-03 (`STT_6.als:163`). `SPT_6_oneLP.als` and `Recon_6.als` still lack it, which is drift in the shared skeleton. A1 (the seed rewrite) was not applied anywhere.
+
+- **P1. Add `rf_from_most_recent_writer` to SPT_6_oneLP (and Recon_6), verbatim from STT_6.als:163** (= A2). It's a sound prune, and the most important item.
+  - Evidence: 102,724 of 150,000 current SPT instances (68%) have an rf edge that reads a state past a newer writer; in 69,780 (47%) that edge feeds the transmitter operand.
+  - parsexml passes the newest value of the register, so the program differs from the instance (e.g. inst-086921: the model's address is the pc0 load, the program's is pc3's `imul` result).
+  - Removes only instances no register machine can realize.
+- **P2. Narrow declassification to the transmitted value (defense clause 2, `SPT_6_oneLP.als:349`).** This adds tests.
+  - Today `- (i.operands & nonspeculative_xmit_p[p]).*(~(op_edges_p[p]))` declassifies the whole backward cone over rf and ddi, through any ALU op and through loads into memory.
+  - SPT untaints far less. Paper §6 "Untaint rules": backward only through MOV, and through invertible arithmetic like ADD when all but one input is untainted; the authors call these rules conservative (no GLIFT). gem5-spt `rob_impl.hh:853-878` matches.
+  - The model can't know which concrete op parsexml will pick for an `other` (random among bitnot/xor/add/imul/idiv), so the conservative rule is `.*(~(rf_p[p]))`: declassify the transmitted operand and its producer's output (the same value). The existing input rule (`:356`) then clears the value's other readers.
+  - Effect: the protection set is a superset of what SPT protects, never a subset. Some new hits will be SPT legitimately untainting through a mov/add, which the x86 slicer classifies.
+- **P3. Fix the one-step lag so constant chains of any depth leave the protection set (defense clause 2, `:345-357`).** Fewer junk tests; optional.
+  - In one propagation step, the input rule (`:356`) and the Other-output rule (`:353`) both read the set as it was before the step.
+  - So in a chain const-op → op → transmitter, the second op's input is cleared but its output stays protected for good. That's the dominant shape of round-4 "constant" hits; census: 9,626 instances (6%) with a constant-derived transmitter operand.
+  - Fix: apply `:353` to the set after `:349`/`:356`/`:357`, e.g. `let o1 = o - (declassify) - (input rule) - (STLF rule) | o1 - (i & ((Otherns + Otherxs) - inreg.o1)).outreg`. That also subsumes `:351`.
+  - Sound by SPT's forward rule (paper §6 "Forward (Output) Untainting"; gem5 `rob_impl.hh:236-250, 800`). To keep the model edit smallest, skip P3 and keep classifying these hits (`diag_constaddr_load`, `diag_brx_const_condition`).
+- **P4. `one_insecure_speculation_scheme_p` back to STT_6's `not secure_speculation_scheme_p` in `gen_useful_litmus` (`SPT_6_oneLP.als:314`).** Adds tests.
+  - SPT requires exactly one insecure transmitter, while the shared skeleton (STT_6) requires at least one. `xm` still designates the one the checker scores.
+  - This is a generation change, so per CLAUDE.md it's a separate task from the protection set.
+- **P5. Every input that reads a state an earlier instruction wrote must have an rf edge (new skeleton fact, all models).** Bigger; separate batch.
+  - 74,621 SPT (50%) and 87,928 STT (59%) instances have such an "unfed read". Since Reg_s = physical register, the program's input gets that writer's value anyway.
+  - These cause the "declassified" hits: a non-speculative load or store using the same register declassifies the value (round 4: 18 ld, 39 str, 29 br_x tests). They can also hide a tainted transmitter the model calls public.
+- **Not proposed, to stay conservative:** the A1 seed rewrite to `Loads.outreg` + memory. The broad seed only ever over-protects; P3 removes the constant over-taint with a smaller edit; and a new seed risks under-protecting store-data and memory paths.
+- **Keep:** stores as transmitters (`Stores.inaddr`). They have no checker yet: `str` hits are scored by check_ld's fallback as "store's pipeline complete in the window", which needs its own criterion (decision).
+- **Validation before any regen** (scratch copies outside `STAGE1_alloy/models/`):
+  1. Differential Alloy per change: "old-useful and not new-useful, restricted to instances with no stale rf and a load in the transmitter's cone" should be UNSAT, so nothing realizable and tainted is lost. For P2 and P4, check that new ⊇ old.
+  2. Run the census on a small fresh enumeration: stale_rf → 0, and with P3 x_no_load_cone → 0.
+  3. Regenerate SPT_6_oneLP from `xml` and rerun the round-4 SPT campaign. The `max_instances` cap was 150,000; if it was hit, P1 also frees room for realizable instances.
 
 ---
 

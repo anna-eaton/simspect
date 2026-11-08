@@ -17,7 +17,9 @@ check_ld), pick the actor mode (from the scheme, see `select_actor_mode`), and
 evaluate the criterion's leak form:
   exists           ∃ footprint event in OBS by an actor inside the window
   per_line_balance CleanupSpec: installed−churn−invalidated, evicted−churn−restored
-                   per (struct, line), plus a net-state replay cross-check
+                   per (struct, line), plus a net-state replay cross-check;
+                   an older non-squashed hit on an actor's line takes it over
+                   (criterion "ownership", CleanupSpec §3.4 p7)
 
 Usage (same CLI shape as check_ld.py, plus the criterion):
     python3 check_footprint.py <dir-with-.s+.ann.json> --criterion specs/leakage/cleanupspec.json \
@@ -294,6 +296,17 @@ def _eval_balance(crit, tm, obs, is_actor, in_W, lc_retire, fnc_retire, lc_seq) 
     k_inst = set(terms["installed"]["kinds"]); k_ev = set(terms["evicted"]["kinds"])
     k_inv = set(terms["invalidated"]["kinds"]); k_rest = set(terms["restored"]["kinds"])
     k_rep = set(terms.get("reported_not_undo", {}).get("kinds", []))
+    # Ownership transfer (CleanupSpec §3.4 p7; Anna 2026-11-08 "count as both"):
+    # a NON-squashed access A that hits a line a squashed actor S installed, with
+    # A.seq < S.seq (older in program order), takes over that line's presence:
+    # keeping it is correct, invalidating it in cleanup is over_clean (UV5). S's
+    # evicted victim stays charged to S. Guard: a younger access (seq > S.seq,
+    # e.g. every post-squash correct-path probe) never claims a line. Non-squashed
+    # and older than S also means older than the squashing branch, since every
+    # instruction younger than the branch is squashed.
+    own = crit.get("ownership") or {}
+    k_own = set(own.get("kinds", []))
+    own_claims = own.get("claims", {})
 
     # undo windows per squash id
     undo = {}
@@ -329,6 +342,7 @@ def _eval_balance(crit, tm, obs, is_actor, in_W, lc_retire, fnc_retire, lc_seq) 
     installed = defaultdict(list); evicted = defaultdict(list)
     invalidated = defaultdict(list); restored = defaultdict(list)
     churn = defaultdict(list); skipdrop = []
+    claimed = defaultdict(list)       # (s, line) -> [(actor fill, claiming hit)]
     live = defaultdict(list)          # (s, line) -> live actor fill events
     window_sqs = set()
     for sq, (a, b, s) in undo.items():
@@ -361,6 +375,17 @@ def _eval_balance(crit, tm, obs, is_actor, in_W, lc_retire, fnc_retire, lc_seq) 
                     sqd = tm.squash_of(e["seq"])
                     if sqd is not None and sqd["sq"] in undo:
                         window_sqs.add(sqd["sq"])
+        elif kd in k_own and e["seq"] is not None and e["line"] is not None \
+                and tm.squash_of(e["seq"]) is None and not is_actor(e["seq"]):
+            for cs in own_claims.get(st, [st]):
+                k = (cs, e["line"])
+                keep = []
+                for f in live[k]:
+                    if f["seq"] is not None and f["seq"] > e["seq"]:
+                        claimed[k].append((f, e))     # the line is now A's: no churn, no undo
+                    else:
+                        keep.append(f)
+                live[k] = keep
         elif kd in k_inv and undo_sq_of(e) is not None:
             invalidated[(st, e["line"])].append(e)
             live[(st, e["line"])] = []      # cleanup removes the line: later evicts of it can't churn
@@ -369,21 +394,24 @@ def _eval_balance(crit, tm, obs, is_actor, in_W, lc_retire, fnc_retire, lc_seq) 
         elif kd in k_rep and undo_sq_of(e) is not None:
             skipdrop.append(_brief(e))
 
-    keys = set(installed) | set(evicted) | set(invalidated) | set(restored) | set(churn)
+    keys = set(installed) | set(evicted) | set(invalidated) | set(restored) | set(churn) | set(claimed)
     per_line, under, over, under_out, over_out = [], [], [], [], []
     for k in sorted(keys, key=lambda k: (k[0], k[1] if k[1] is not None else -1)):
         st, ln = k
         ob = oblig.get(st, [])
-        n_ch = len(churn.get(k, []))
+        n_ch = len(churn.get(k, [])); n_own = len(claimed.get(k, []))
         n_inst = len(installed.get(k, [])); n_ev = len(evicted.get(k, []))
         n_inv = len(invalidated.get(k, [])); n_rest = len(restored.get(k, []))
-        d_inst = (n_inst - n_ch) - n_inv if "install" in ob else 0
+        d_inst = (n_inst - n_ch - n_own) - n_inv if "install" in ob else 0
         d_vic = n_ev - n_rest if "victim" in ob else 0
         foot_inw = any(in_W(e["tick"]) for e in installed.get(k, []) + evicted.get(k, []))
         cl_sqs = {undo_sq_of(e) for e in invalidated.get(k, []) + restored.get(k, [])}
         rec = dict(struct=st, line=hex(ln) if ln is not None else None,
                    installed=n_inst, invalidated=n_inv, evicted=n_ev, restored=n_rest,
-                   churn_cancelled=n_ch, d_install=d_inst, d_victim=d_vic,
+                   churn_cancelled=n_ch, claimed_by_older=n_own,
+                   claims=[dict(fill_id=f["id"], actor_seq=f["seq"], hit_id=h["id"], owner_seq=h["seq"],
+                                owner_struct=h["struct"]) for f, h in claimed.get(k, [])],
+                   d_install=d_inst, d_victim=d_vic,
                    footprint_in_window=foot_inw,
                    event_ids=sorted(e["id"] for e in installed.get(k, []) + evicted.get(k, [])
                                     + invalidated.get(k, []) + restored.get(k, [])),
@@ -399,6 +427,8 @@ def _eval_balance(crit, tm, obs, is_actor, in_W, lc_retire, fnc_retire, lc_seq) 
     cleanup_ids = {e["id"] for v in list(invalidated.values()) + list(restored.values()) for e in v}
     actor_l2_evict_benign = {e["id"] for v in evicted.values() for e in v
                              if "victim" not in oblig.get(e["struct"], [])}
+    # the reference run keeps a claimed fill: the line is the older access's
+    claimed_ids = {f["id"] for v in claimed.values() for f, _ in v}
 
     def replay(reference: bool):
         pres = {s: set() for s in obs}
@@ -406,7 +436,8 @@ def _eval_balance(crit, tm, obs, is_actor, in_W, lc_retire, fnc_retire, lc_seq) 
             st = e["struct"]
             if st not in obs:
                 continue
-            if reference and (e["id"] in actor_ids or e["id"] in cleanup_ids or e["id"] in side):
+            if reference and ((e["id"] in actor_ids and e["id"] not in claimed_ids)
+                              or e["id"] in cleanup_ids or e["id"] in side):
                 continue
             if not reference and e["id"] in actor_l2_evict_benign:
                 continue
@@ -452,7 +483,11 @@ def _eval_balance(crit, tm, obs, is_actor, in_W, lc_retire, fnc_retire, lc_seq) 
 
 def evaluate_trace(trace_path, crit: dict, lc_pc=None, fnc_pc=None, unresolved=None,
                    ticks_per_cycle: int = 500, actor_mode: Optional[str] = None,
-                   scheme_name: str = "") -> dict:
+                   scheme_name: str = "", by_pc: Optional[Dict[int, list]] = None) -> dict:
+    """`by_pc`: the caller's parse_pipeview result. process_one passes the one it
+    filled from the Commit trace (gem5_common.fill_retire_from_commit); re-parsing
+    here dropped that fill, so a committed lc with no O3PipeView record was
+    disqualified as never retired (114/3000 InvisiSpec tests, 2026-11-08)."""
     trace_path = Path(trace_path)
     events = parse_simspect_events(trace_path)
     if actor_mode is None:
@@ -462,7 +497,9 @@ def evaluate_trace(trace_path, crit: dict, lc_pc=None, fnc_pc=None, unresolved=N
                     criterion=crit.get("defense"), actor_mode=actor_mode,
                     error="no O3PipeView:simspect lines in the trace: this gem5 build lacks the "
                           "SimSpect hooks (wiki/design/SIMSPECT_HOOKS.md); cannot decide")
-    return evaluate(crit, events, parse_pipeview_by_seq(trace_path), parse_pipeview(trace_path),
+    if by_pc is None:
+        by_pc = parse_pipeview(trace_path)
+    return evaluate(crit, events, parse_pipeview_by_seq(trace_path), by_pc,
                     lc_pc, fnc_pc, list(unresolved or []), ticks_per_cycle, actor_mode)
 
 
@@ -478,7 +515,7 @@ def check_footprint(by_pc, xmit_pc, lc_pc, fnc_pc, unresolved, ticks_per_cycle,
     scheme = scheme_name_from_args(extra, gc._scheme)
     mode = select_actor_mode(_CRIT, scheme, _ACTOR_OVERRIDE)
     r = evaluate_trace(trace_path, _CRIT, lc_pc, fnc_pc, unresolved, ticks_per_cycle,
-                       actor_mode=mode, scheme_name=scheme)
+                       actor_mode=mode, scheme_name=scheme, by_pc=by_pc)
     r["scheme_name"] = scheme
     return r
 

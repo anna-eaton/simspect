@@ -75,5 +75,99 @@ The STT_6 / recon-modded "STT holds" conclusions and the SPT hit counts should b
 
 ## 6. Status
 
-- Old `results/` (75 GB, 8.3 M files) is being zipped to cafe2 `/tests/simspect/archive/results_pre_resolve_hooks_20261030.zip`, then verified. The originals stay until Anna runs `scripts/archive_results_pre_resolve_hooks.sh --delete` (the delete step was blocked for Claude by the permission check, rightly).
-- Fixed-harness validation campaigns (2% samples) and the STT_6_interleave regeneration and STT_6_commitsplit candidate testset are running in cafe2 `/tests/simspect_fixed_20261030/` (a copy of the fixed code, because nothing is synced yet).
+- Old `results/` (75 GB, 8.3 M files) is zipped and verified at cafe2 `/tests/simspect/archive/results_pre_resolve_hooks_20261030.zip`. The originals stay until Anna runs `scripts/archive_results_pre_resolve_hooks.sh --delete` (the delete step was blocked for Claude by the permission check, rightly).
+- Round 2 (2% samples) finished 2026-10-31 and is classified in §7. It ran on old testset generations (§7.1). Round 4 on `testsets_latest`, with the §7.3 checker fix, started 2026-11-08 01:28 UTC (cafe2 `results/*_fixed_latest__20261108_012818`). The STT_6_interleave regeneration finished but used the old model's XML (§7.1), and the STT_6_commitsplit candidate testset is complete.
+
+## 7. After the fix: every round-2 hit classified, a testset-generation mistake, and a second checker gap (2026-11-07)
+
+### 7.1 Round 2 ran on old testset generations (my mistake)
+
+The 10-30 fixed configs kept `"testset_dir": "testsets"`, the pre-June-3 enumerations. The current models were committed in e298a9e (06-03). They add `rf_from_most_recent_writer`, the `first_uncommitted` fix, and the SPT inaddr de-protect and committed-store leakage. They are enumerated only in `testsets_latest/`. Hashes are from each testset's `provenance.tar.gz` against git history (`STAGE3_gem5/triage/testset_provenance.py`; cafe2 `/tests/simspect_fixed_20261030/triage/testset_provenance.json`).
+
+| testset | .als in provenance | current .als? | parsexml in provenance |
+|---|---|---|---|
+| `testsets/STT_6` (round 2) | 5cae70e9 (faf0d9a, 05-27) | no | f7cb3a23 (uncommitted, ~05-19) |
+| `testsets/SPT_6_oneLP` (round 2) | 5e89267c (14fcb1f, 06-02) | no | 2d7478c8 (uncommitted, 06-01) |
+| `testsets/Recon_6` | 12b5ea88 (ec27f02, 05-14) | no | 30de6b77 |
+| `testsets_latest/{STT_6,SPT_6_oneLP,Recon_6}` | 7a6ac4c0 / 713d0904 / 01252c82 (e298a9e, 06-03) | **yes** | 30de6b77 (14fcb1f, 06-02) |
+| fixed-dir `STT_6_interleave` (my 10-30 regen) | none recorded; reused the 05-19 XML of the old STT_6 model | **no** | 0b4636a6 (10-30) |
+| fixed-dir `STT_6_commitsplit` | 3e8dee9d (current, unreviewed) | yes | 0b4636a6 |
+
+`testsets_latest` predates the 10-29 parsexml changes, but for branch-mode, non-interleaved testsets those changes don't alter lc/fnc: `audit_commit_boundary.py` reports 0 offenders on both. The 11-02 parsexml change is STL-only. Round 4 (`runconfigs/fixed_20261030/*_fixed_latest.jsonc`) reruns STT_6/stt, STT_6/recon-modded and SPT_6_oneLP/spt on `testsets_latest`. STT_6_interleave must be regenerated from the current STT_6 XML before its campaign means anything.
+
+### 7.2 Round-2 hits, classified with the per-results classifying scripts
+
+Every hit test went through `diagnostics/bucket_hits.py` in its campaign folder (cafe2 `results/<campaign>__20261030_214301/diagnostics/`, source `STAGE3_gem5/triage/diag/`). That runs the June SPT XML diagnostics, which apply because it's the same testset, plus three new evidence-backed diagnostics. **0 tests are left as NEW.**
+
+| campaign | kind | hit tests (not_taken / taken) | bucket | verdict |
+|---|---|---|---|---|
+| STT_6 / stt | ld, br_x | 0 / 0 | none | STT holds; the load transmitter never executes |
+| STT_6_commitsplit / stt | ld, br_x | 0 / 0 | none | uninformative (STT_6 is also 0 here) |
+| STT_6 / recon-modded | ld | 7 / 7 (same 7) | `recon_stlf_bypass` 7 / 7 | **real gem5 bug, known A2**, re-verified on the fixed harness |
+| SPT_6_oneLP / spt | ld | 336 / 264 | `constaddr_load` 333 / 262, `rf_clobber` 2 / 1, `nonspec_cotransmit` 1 / 1 | model artifacts (June verdicts) |
+| SPT_6_oneLP / spt | br_x | 28 / 22 | `brx_const_condition` 26 / 20, `brx_declassified_condition` 2 / 2 | model / concretization artifacts (new diagnostics) |
+
+**SPT br_x, how it was proven:**
+- Every transmitter instance that redirected was fetched inside the primary window and resolved while the older branch was still held, so these are not the old re-fetch artifact.
+- An x86 slice of the jcc's flags, using gem5-spt's taint rules (`spt_cond_slice.py`), gives 46 conditions built only from constants and 4 load values declassified by a non-speculative load or store: inst-021589 and inst-043417 in not_taken, inst-013888 and inst-021589 in taken.
+- In faithful re-runs at each hit's grid point (`spt_taint_probe.py`) all 50 reproduce, and gem5 never printed "(Lazy) A branch ... made pending" for the transmitter. That is gem5-spt's own verdict that the arguments were untainted (`commit_impl.hh:944`).
+- `VPUntaints` is 0 for all 46 constant cases and 1 for all 4 declassified ones.
+- Two equal-length counterfactual edits flip the result:
+  - inst-043417 with its store's address register changed from `%rax` to `%r12`: `VPUntaints` 0, every transmitter instance made pending, no hit;
+  - inst-080310 with its constant source replaced by a load: made pending, no hit.
+
+**SPT ld, cross-check:**
+- The same x86 slicer agrees with the June XML verdict on all 600 tests:
+  - every `constaddr_load` test slices as constant;
+  - every `nonspec_cotransmit` test slices as declassified;
+  - the `rf_clobber` tests slice as constant or declassified.
+- None slices as tainted.
+- 0 of 3,315 hit records got their data at or after the window closed, so the 11-02 concern that the data-obtained gate is not window-bound doesn't touch these hits.
+
+**recon-modded, how it was proven:** I re-ran each of the 7 tests in both modes. In all 14 runs the LSQ prints `STL_CHECK: load PC <xmit> isTainted=1 isSpeculative=1` right after the transmitter executes, then `Forwarding from store idx N to load`. Commit then marks the load ready within the ROB (tick 2,676,000–2,678,000) before the window-opening branch's `resolve_visible` (about 5,173,500). In 4 of the 7 the Alloy shape is load→load. At run time the address still equals an older store's because every value is 0, so the mechanism is the same. This settles the 11-02 doubt that the A2 evidence predated the fix and rested on a grep-filtered trace.
+
+### 7.3 Second checker gap: lc/fnc missing from O3PipeView (fixed)
+
+gem5 prints an O3PipeView record from the DynInst destructor (`dyn_inst_impl.hh:73`). gem5-spt kept some committed stores alive to the end of the run, so they never got one. Example: inst-043417's fnc store commits at 2,952,000 per the Commit trace, with no record. The checkers then read `fnc_retire = 0`, which makes `before_fnc` pass vacuously, or `lc_retire = 0`, which disqualifies through `lc_retired`.
+
+- **Fix:** `gem5_common.process_one` now fills a missing lc/fnc retire from the Commit trace's first `Committing instruction` tick (`parse_commit_ticks` + `fill_retire_from_commit`; flagged in `retire_from_commit_trace`). Where both exist they agree on 273/282 instructions and differ by exactly one cycle on the other 9.
+- **Effect on round 2, all SPT:**
+  - 33 of the 91 hit records with a vacuous fnc had fnc commit before the signal. That's 3 tests (inst-034362, inst-038197, inst-094716), so those records were false hits.
+  - The 126 records that failed only `lc_retired` (30 tests) were re-run: 120 now fail `after_lc` and 6 become hits (2 tests), both `rf_clobber`.
+- So the gap added a few false hits and hid no new ones. Round 4 runs with the fix. The recon traces showed no missing records; stt and the amulet builds aren't checked yet.
+
+### 7.4 Not understood yet
+
+1. Why gem5-spt keeps committed stores' DynInsts alive to the end of the run. The effect is handled by 7.3, but I haven't traced the cause.
+2. inst-043417's transmitter branch is re-fetched and re-mispredicts about every 15 cycles while the window is open (seq 565, 603, 641, ...). Only the first instance is scored. The re-fetch path isn't traced; it's likely a wrong-path `retq` returning into the function.
+3. `resolved_before_signal` is False in every hit record of 450 / 600 SPT ld tests and 32 / 50 br_x tests, and 3 of 14 recon test×mode pairs.
+   - Many of the late branches are younger than the transmitter or on the wrong path, where resolving after the signal is natural.
+   - Some are held by the sweep grid's resolved-branch stall: inst-080310 hits only at grid points 1–2, because its fnc is a resolved branch and the stall delays fnc's commit.
+   - The criterion as written counts younger resolved branches too, which may be the wrong rule. That belongs to the pending DECIDE.
+4. gem5-spt `--trackInstsFile` aborts on the first 64-bit register (`regfile.hh:280` asserts `size + offs < taintVec.size()`, an off-by-one in the logging helper). SPT's own per-instruction taint log can't be used without a gem5 patch, so 7.2 uses the "made pending" lines and stats instead.
+
+### 7.5 Tools (`STAGE3_gem5/triage/`, run in the container from the fixed repo copy)
+
+- `hit_facts.py`: per-hit-record window and branch-instance facts.
+- `spt_cond_slice.py`: x86 slice with gem5-spt's taint rules.
+- `spt_taint_probe.py`: faithful re-run at a grid point, collecting pending lines and SPT stats; `--keep` keeps the trace.
+- `run_spt_brx_triage.sh`: runs the three above for a campaign.
+- `fnc_commit_check.py`: re-derives fnc commit ticks.
+- `testset_provenance.py`: provenance hashes.
+- `diag/`: the diagnostics and the multi-kind `bucket_hits.py`.
+
+Outputs are in cafe2 `/tests/simspect_fixed_20261030/triage/`.
+
+### 7.6 Round 4: current models, fixed checker (2026-11-08)
+
+Campaigns are cafe2 `results/*_fixed_latest__20261108_012818` (2% of `testsets_latest`). Analyses are in `/tests/simspect_fixed_20261030/triage/r4/`.
+
+| campaign | hit tests (not_taken / taken) | classification |
+|---|---|---|
+| STT_6 / stt | 0 / 0 | STT holds |
+| STT_6 / recon-modded, ld | 91 / 94 | all 185 = real bug A2 (store-forwarding bypass of the STT check), `recon_stlf_check.py` |
+| SPT_6_oneLP / spt, ld | 57 / 48 | x86 slice: 87 constant, 18 declassified |
+| SPT_6_oneLP / spt, str | 74 / 60 | 95 constant, 39 declassified; no store checker yet |
+| SPT_6_oneLP / spt, br_x | 51 / 51 | 73 constant, 29 declassified; gem5 never delayed the branch (102/102 reproduced) |
+
+Every SPT hit's transmitter operand is public under SPT's rules. The causes are in the model (missing `rf_from_most_recent_writer`, one-step propagation lag) and in concretization (unfed reads). Plan: `wiki/state/ALLOY_MODEL_CHANGES.md` (2026-11-08). Round-4 `diagnostics/` folders are not deployed yet: the June SPT XML diagnostics are testset-specific, and ld/str need slicer-based diagnostics.

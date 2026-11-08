@@ -452,28 +452,53 @@ def _run_bounded(cmd: list) -> None:
 
 # ── Pipeview parsing ────────────────────────────────────────────────────────
 
+# Some native gem5 DPRINTF formats print text after their own newline, which
+# glues it onto the front of the next trace line: CleanupSpec lsq_unit.hh:1257
+# ("...0x%llx\n.") and RubyPort.cc:272 ("...Ruby.\n "). The glued line then fails
+# every startswith/^-anchored match, so a hook or pipeview line was silently
+# dropped (2026-11-08, CleanupSpec UV3 demo lost a BR:resolve_hold line).
+# _unglue drops that leading residue; every trace parser reads through it.
+_GLUE_BEFORE_TICK_RE = re.compile(r"^[^\s\d]+(?=\s*\d+: )")
+
+
+def _unglue(line: str) -> str:
+    """Strip native debug-print residue glued in front of an O3PipeView line
+    (text before the first 'O3PipeView:') or a tick-prefixed DPRINTF line."""
+    if line.startswith("O3PipeView:"):
+        return line
+    i = line.find("O3PipeView:")
+    if i > 0:
+        return line[i:]
+    return _GLUE_BEFORE_TICK_RE.sub("", line, count=1)
+
+
+def _trace_lines(trace_path: Path):
+    with open(trace_path) as f:
+        for line in f:
+            yield _unglue(line)
+
+
 def parse_pipeview(trace_path: Path) -> Dict[int, List[dict]]:
     """Parse O3PipeView trace → dict mapping PC → list of pipeline records."""
     by_pc: Dict[int, List[dict]] = defaultdict(list)
     cur = None
-    with open(trace_path) as f:
-        for line in f:
-            if not line.startswith("O3PipeView:"):
-                continue
-            parts = line.rstrip().split(":")
-            stage = parts[1]
-            if stage == "fetch":
-                cur = dict(pc=int(parts[3], 16),
-                           fetch=int(parts[2]), decode=0, rename=0, dispatch=0,
-                           issue=0, complete=0, retire=0)
-            elif stage in ("decode", "rename", "dispatch", "issue", "complete"):
-                if cur:
-                    cur[stage] = int(parts[2])
-            elif stage == "retire":
-                if cur:
-                    cur["retire"] = int(parts[2])
-                    by_pc[cur["pc"]].append(cur)
-                    cur = None
+    for line in _trace_lines(trace_path):
+        if not line.startswith("O3PipeView:"):
+            continue
+        parts = line.rstrip().split(":")
+        stage = parts[1]
+        if stage == "fetch":
+            cur = dict(pc=int(parts[3], 16),
+                       fetch=int(parts[2]), decode=0, rename=0, dispatch=0,
+                       issue=0, complete=0, retire=0)
+        elif stage in ("decode", "rename", "dispatch", "issue", "complete"):
+            if cur:
+                cur[stage] = int(parts[2])
+        elif stage == "retire":
+            if cur:
+                cur["retire"] = int(parts[2])
+                by_pc[cur["pc"]].append(cur)
+                cur = None
     return dict(by_pc)
 
 
@@ -506,6 +531,7 @@ def parse_simspect_line(line: str) -> Optional[dict]:
     cause, sq, id (ints or None), plus any unknown key=value fields verbatim.
     Raises ValueError on a malformed simspect line (never silently drops one).
     """
+    line = _unglue(line)
     if not line.startswith(SIMSPECT_PREFIX):
         return None
     parts = line.rstrip("\n").rstrip("\r").split(":")
@@ -528,12 +554,11 @@ def parse_simspect_events(trace_path: Path) -> List[dict]:
     sort by (tick, id): an `evict` may print before the `fill` that caused it
     at the same tick (see SIMSPECT_HOOKS.md, CleanupSpec uv5clean)."""
     events: List[dict] = []
-    with open(trace_path) as f:
-        for raw in f:
-            ev = parse_simspect_line(raw)
-            if ev is not None:
-                ev["order"] = len(events)
-                events.append(ev)
+    for raw in _trace_lines(trace_path):
+        ev = parse_simspect_line(raw)
+        if ev is not None:
+            ev["order"] = len(events)
+            events.append(ev)
     return events
 
 
@@ -546,29 +571,28 @@ def parse_pipeview_by_seq(trace_path: Path) -> Dict[int, dict]:
     all (gem5 prints a record only when the instruction is destroyed)."""
     by_seq: Dict[int, dict] = {}
     cur = None
-    with open(trace_path) as f:
-        for line in f:
-            if not line.startswith("O3PipeView:") or line.startswith(SIMSPECT_PREFIX):
+    for line in _trace_lines(trace_path):
+        if not line.startswith("O3PipeView:") or line.startswith(SIMSPECT_PREFIX):
+            continue
+        parts = line.rstrip().split(":")
+        stage = parts[1]
+        if stage == "fetch":
+            try:
+                seq = int(parts[5])
+            except (IndexError, ValueError):
+                cur = None
                 continue
-            parts = line.rstrip().split(":")
-            stage = parts[1]
-            if stage == "fetch":
-                try:
-                    seq = int(parts[5])
-                except (IndexError, ValueError):
-                    cur = None
-                    continue
-                cur = dict(seq=seq, pc=int(parts[3], 16), upc=int(parts[4]),
-                           fetch=int(parts[2]), decode=0, rename=0, dispatch=0,
-                           issue=0, complete=0, retire=0)
-            elif stage in ("decode", "rename", "dispatch", "issue", "complete"):
-                if cur:
-                    cur[stage] = int(parts[2])
-            elif stage == "retire":
-                if cur:
-                    cur["retire"] = int(parts[2])
-                    by_seq[cur["seq"]] = cur
-                    cur = None
+            cur = dict(seq=seq, pc=int(parts[3], 16), upc=int(parts[4]),
+                       fetch=int(parts[2]), decode=0, rename=0, dispatch=0,
+                       issue=0, complete=0, retire=0)
+        elif stage in ("decode", "rename", "dispatch", "issue", "complete"):
+            if cur:
+                cur[stage] = int(parts[2])
+        elif stage == "retire":
+            if cur:
+                cur["retire"] = int(parts[2])
+                by_seq[cur["seq"]] = cur
+                cur = None
     return by_seq
 
 
@@ -637,79 +661,78 @@ def parse_lsq(trace_path: Path) -> Dict[int, List[dict]]:
         r"^\s*(\d+):.*Initiating Translation inst \[sn:(\d+)\] sPC [0-9a-f]+ - "
         r"Prior Brs Not Resolved\. isCUSL: ([01])\..*?isUnsafe: ([01])")
     insert_sn_re  = re.compile(r"\[sn:(\d+)\]")
-    with open(trace_path) as f:
-        for line in f:
-            m = insert_re.match(line)
-            if m:
-                tick = int(m.group(1)); pc = int(m.group(2), 16)
-                sn_m = insert_sn_re.search(line)
-                sn = int(sn_m.group(1)) if sn_m else -1
-                rec = dict(pc=pc, sn=sn, insert_tick=tick, execute_tick=0,
-                           squash_tick=0, packet_tick=0, spec_read_tick=0,
-                           expose_tick=0, memaccess_tick=0, cache_fill_tick=0,
-                           cache_access_outcome="",
-                           spec_cusl=False, spec_unprotected=False)
-                by_sn[sn] = rec
-                by_pc[pc].append(rec)
-                continue
-            m = execute_re.match(line)
-            if m:
-                tick = int(m.group(1)); pc = int(m.group(2), 16)
-                sn_m = insert_sn_re.search(line)
-                sn = int(sn_m.group(1)) if sn_m else -1
-                rec = by_sn.get(sn)
-                if rec is not None:
-                    rec["execute_tick"] = tick
-                continue
-            m = packet_re.match(line)
-            if m:
-                rec = by_sn.get(int(m.group(2)))
-                if rec is not None and rec["packet_tick"] == 0:
-                    rec["packet_tick"] = int(m.group(1))
-                continue
-            m = spec_re.match(line)
-            if m:
-                rec = by_sn.get(int(m.group(2)))
-                if rec is not None and rec["spec_read_tick"] == 0:
-                    rec["spec_read_tick"] = int(m.group(1))
-                continue
-            m = expose_re.match(line)
-            if m:
-                rec = by_sn.get(int(m.group(2)))
-                if rec is not None and rec["expose_tick"] == 0:
-                    rec["expose_tick"] = int(m.group(1))
-                continue
-            m = memaccess_re.match(line)
-            if m:
-                sn = int(m.group(2))
-                rec = by_sn.get(sn)
-                if rec is not None and rec["memaccess_tick"] == 0:
-                    rec["memaccess_tick"] = int(m.group(1))
-                pending_read_sn = sn  # its ReadReq outcome is the next dcache line
-                continue
-            m = dcache_read_re.match(line)
-            if m and pending_read_sn is not None:
-                rec = by_sn.get(pending_read_sn)
-                if rec is not None and rec["cache_access_outcome"] == "":
-                    rec["cache_access_outcome"] = m.group(2)
-                    if m.group(2) == "miss":        # miss → L1 fill/install
-                        rec["cache_fill_tick"] = int(m.group(1))
-                pending_read_sn = None
-                continue
-            m = speclfb_usl_re.match(line)
-            if m:
-                rec = by_sn.get(int(m.group(2)))
-                if rec is not None and m.group(3) == "1":   # isCUSL: genuine USL
-                    rec["spec_cusl"] = True
-                    if m.group(4) == "0":                   # isUnsafe=0: not protected
-                        rec["spec_unprotected"] = True
-                continue
-            m = squash_re.match(line)
-            if m:
-                tick = int(m.group(1)); pc = int(m.group(2), 16); sn = int(m.group(3))
-                rec = by_sn.get(sn)
-                if rec is not None:
-                    rec["squash_tick"] = tick
+    for line in _trace_lines(trace_path):
+        m = insert_re.match(line)
+        if m:
+            tick = int(m.group(1)); pc = int(m.group(2), 16)
+            sn_m = insert_sn_re.search(line)
+            sn = int(sn_m.group(1)) if sn_m else -1
+            rec = dict(pc=pc, sn=sn, insert_tick=tick, execute_tick=0,
+                       squash_tick=0, packet_tick=0, spec_read_tick=0,
+                       expose_tick=0, memaccess_tick=0, cache_fill_tick=0,
+                       cache_access_outcome="",
+                       spec_cusl=False, spec_unprotected=False)
+            by_sn[sn] = rec
+            by_pc[pc].append(rec)
+            continue
+        m = execute_re.match(line)
+        if m:
+            tick = int(m.group(1)); pc = int(m.group(2), 16)
+            sn_m = insert_sn_re.search(line)
+            sn = int(sn_m.group(1)) if sn_m else -1
+            rec = by_sn.get(sn)
+            if rec is not None:
+                rec["execute_tick"] = tick
+            continue
+        m = packet_re.match(line)
+        if m:
+            rec = by_sn.get(int(m.group(2)))
+            if rec is not None and rec["packet_tick"] == 0:
+                rec["packet_tick"] = int(m.group(1))
+            continue
+        m = spec_re.match(line)
+        if m:
+            rec = by_sn.get(int(m.group(2)))
+            if rec is not None and rec["spec_read_tick"] == 0:
+                rec["spec_read_tick"] = int(m.group(1))
+            continue
+        m = expose_re.match(line)
+        if m:
+            rec = by_sn.get(int(m.group(2)))
+            if rec is not None and rec["expose_tick"] == 0:
+                rec["expose_tick"] = int(m.group(1))
+            continue
+        m = memaccess_re.match(line)
+        if m:
+            sn = int(m.group(2))
+            rec = by_sn.get(sn)
+            if rec is not None and rec["memaccess_tick"] == 0:
+                rec["memaccess_tick"] = int(m.group(1))
+            pending_read_sn = sn  # its ReadReq outcome is the next dcache line
+            continue
+        m = dcache_read_re.match(line)
+        if m and pending_read_sn is not None:
+            rec = by_sn.get(pending_read_sn)
+            if rec is not None and rec["cache_access_outcome"] == "":
+                rec["cache_access_outcome"] = m.group(2)
+                if m.group(2) == "miss":        # miss → L1 fill/install
+                    rec["cache_fill_tick"] = int(m.group(1))
+            pending_read_sn = None
+            continue
+        m = speclfb_usl_re.match(line)
+        if m:
+            rec = by_sn.get(int(m.group(2)))
+            if rec is not None and m.group(3) == "1":   # isCUSL: genuine USL
+                rec["spec_cusl"] = True
+                if m.group(4) == "0":                   # isUnsafe=0: not protected
+                    rec["spec_unprotected"] = True
+            continue
+        m = squash_re.match(line)
+        if m:
+            tick = int(m.group(1)); pc = int(m.group(2), 16); sn = int(m.group(3))
+            rec = by_sn.get(sn)
+            if rec is not None:
+                rec["squash_tick"] = tick
     return dict(by_pc)
 
 
@@ -728,12 +751,50 @@ def parse_commit_squashes(trace_path: Path) -> Dict[int, List[int]]:
     (not the pipeview 'complete' tick), which is why it needs the Commit trace.
     """
     by_pc: Dict[int, List[int]] = defaultdict(list)
-    with open(trace_path) as f:
-        for line in f:
-            m = _COMMIT_SQUASH_RE.match(line)
-            if m:
-                by_pc[int(m.group(2), 16)].append(int(m.group(1)))
+    for line in _trace_lines(trace_path):
+        m = _COMMIT_SQUASH_RE.match(line)
+        if m:
+            by_pc[int(m.group(2), 16)].append(int(m.group(1)))
     return {pc: sorted(t) for pc, t in by_pc.items()}
+
+
+_COMMIT_INST_RE = re.compile(
+    r"^\s*(\d+):\s+system\.cpu\.commit.*Committing instruction with \[sn:\d+\] PC \((0x[0-9a-f]+)=>")
+
+
+def parse_commit_ticks(trace_path: Path) -> Dict[int, List[int]]:
+    """Commit-debug 'Committing instruction with [sn:N] PC (<pc>=>' -> pc: sorted ticks.
+
+    O3PipeView records are printed from the DynInst destructor
+    (dyn_inst_impl.hh:73), so an instruction gem5 still references when the run
+    ends has no record even though it committed. Seen on gem5-spt for committed
+    stores (inst-043417 fnc: committed at 2952000, no record; 2026-11-07).
+    """
+    by_pc: Dict[int, List[int]] = defaultdict(list)
+    for line in _trace_lines(trace_path):
+        m = _COMMIT_INST_RE.match(line)
+        if m:
+            by_pc[int(m.group(2), 16)].append(int(m.group(1)))
+    return {pc: sorted(t) for pc, t in by_pc.items()}
+
+
+def fill_retire_from_commit(by_pc: Dict[int, list], commit_by_pc: Dict[int, List[int]],
+                            pcs: List[Optional[int]]) -> List[str]:
+    """For each pc in `pcs` with no retired pipeview record but Commit-trace
+    commits, add a record whose retire is the first commit tick. Where both
+    exist, the pipeview retire equals the first or last commit line of the pc
+    (273/282 last, 9/282 first, at most 1 cycle apart; stt/recon/spt traces
+    2026-11-07). Returns the hex pcs filled."""
+    filled = []
+    for pc in pcs:
+        if pc is None or not commit_by_pc.get(pc):
+            continue
+        if any(r.get("retire", 0) > 0 for r in by_pc.get(pc, [])):
+            continue
+        by_pc.setdefault(pc, []).append(dict(pc=pc, fetch=0, decode=0, rename=0, dispatch=0, issue=0,
+                                             complete=0, retire=min(commit_by_pc[pc]), source="commit_trace"))
+        filled.append(hex(pc))
+    return filled
 
 
 def best_record(recs: List[dict]) -> Optional[dict]:
@@ -1115,6 +1176,11 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
         else:
             trace = run_gem5(binary, workdir, ann_path=ann_path, fnc_pc=fnc_pc)
             by_pc     = parse_pipeview(trace)
+            # lc/fnc committed but missing from O3PipeView (2026-11-07): take
+            # the retire tick from the Commit trace, else before_fnc passes
+            # vacuously and lc_retired disqualifies a real retire.
+            result["retire_from_commit_trace"] = fill_retire_from_commit(
+                by_pc, parse_commit_ticks(trace), [lc_pc, fnc_pc])
             lsq_by_pc = parse_lsq(trace)
             squash_by_pc = parse_commit_squashes(trace)
             ticks_per_cycle = parse_ticks_per_cycle(workdir / "m5out")

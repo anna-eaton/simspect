@@ -1,0 +1,61 @@
+// DRAFT (2026-11-07, vocab-tables session) — NOT used by any run config. Review doc: wiki/design/VOCAB_TABLES.md
+//
+// "today" = every candidate here is a concrete_instruction NAME that pass5_emit_llvm already emits
+// (STAGE2_compilation/parsexml.py:2144-2537 dispatches on the NAME, not on llvm_op). No parsexml.py change needed.
+// The only lever available without code changes is cross-category reuse: the existing multiply (zsm) and
+// divide (div, non-xmit form forces the divisor odd, parsexml.py:2366-2370) are offered as never-transmitting
+// ALU ops (other_n). ld / str / br cannot grow without emitter work (see NEEDS_EMITTER_WORK.candidates.jsonc).
+//
+// Intended for the defenses whose leakage is cache/load-only and whose gem5 builds never gate ALU ops:
+// InvisiSpec, CleanupSpec, SpecLFB (AMuLeT builds) and DoM / Delay (gem5-recon --scheme=3 / =1).
+// Paper/code reasons per candidate are in VOCAB_TABLES.md (cited there with page / file:line).
+//
+// RULE: a name may appear in more than one category, but its "uses" must be IDENTICAL everywhere, because
+// pass3/pass4 look uses up by name only (parsexml.py:1433-1441, first match wins).
+//
+// To try it: set paths.instruction_tables in a run config to this file (pipeline.py:151 → batch_generate
+// --instruction-tables → parsexml.reload_tables). Regenerate llvm/asm with --force (CLAUDE.md "Gotchas").
+{
+  "kind_categories": {
+    "ld":      "ld",
+    "str":     "str",
+    "br_n":    "br",
+    "br_x":    "br",
+    "other_n": "other_n",
+    "other_x": "other_x",
+    "unknown": "other_n"
+  },
+  "instructions": {
+    "ld": [
+      // Only emittable load. Two addressing shapes already: movq (%probe,%idx,1),%dst when inaddr is
+      // rf-specified, else movq disp(%mem_base),%dst (parsexml.py:2151-2183).
+      { "name": "load",  "llvm_op": "load volatile i64",  "uses": ["inaddr", "inmem", "outreg"],
+        "comment": "64-bit load (movq)" }
+    ],
+    "str": [
+      { "name": "store", "llvm_op": "store volatile i64", "uses": ["inreg0", "inaddr", "outmem"],
+        "comment": "64-bit store (movq); stl_bypass re-target path parsexml.py:2185-2215" }
+    ],
+    "br": [
+      // NOTE: pass2_5 overrides whatever is picked here: xmit branch -> br_bez, every other branch -> br_cond
+      // (parsexml.py:754-836). Listing more branch names here has no effect today.
+      { "name": "br_uncond", "llvm_op": "br label", "uses": [],         "comment": "upgraded to br_cond by pass2_5" },
+      { "name": "br_cond",   "llvm_op": "br i1",    "uses": ["inreg0"], "comment": "testq+jne" },
+      { "name": "br_bez",    "llvm_op": "testq+jz", "uses": ["inreg0"], "comment": "xmit branch only (forced by pass2_5)" }
+    ],
+    "other_n": [
+      { "name": "bitnot", "llvm_op": "xor i64",  "uses": ["inreg0", "outreg"],
+        "comment": "emitted as notq (plus movq in->out when regs differ), parsexml.py:2258-2280. Invertible unary." },
+      { "name": "add",    "llvm_op": "add i64",  "uses": ["inreg0", "inreg1", "outreg"],
+        "comment": "NAME MISMATCH: emitted as leaq (a,b),d — an LEA, not a flag-setting ADD (parsexml.py:2296)." },
+      { "name": "zsm",    "llvm_op": "mul i64",  "uses": ["inreg0", "inreg1", "outreg"],
+        "comment": "REUSED as a non-transmitter: movq a,d; imulq b,d (parsexml.py:2305-2332). Non-invertible." },
+      { "name": "div",    "llvm_op": "sdiv i64", "uses": ["inreg0", "inreg1", "outreg"],
+        "comment": "REUSED as a non-transmitter: non-xmit form copies the divisor to rcx and ORs 1 (never faults on 0), clobbers rax/rdx/rcx (parsexml.py:2334-2385). Exception-capable op: casts a DoM E-shadow / SpecLFB exception window." }
+    ],
+    "other_x": [
+      { "name": "zsm", "llvm_op": "mul i64",  "uses": ["inreg0", "inreg1", "outreg"], "comment": "unchanged from instructions.jsonc" },
+      { "name": "div", "llvm_op": "sdiv i64", "uses": ["inreg0", "inreg1", "outreg"], "comment": "unchanged from instructions.jsonc" }
+    ]
+  }
+}

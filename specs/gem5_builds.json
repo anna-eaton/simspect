@@ -14,7 +14,7 @@
       "cpu": "X86 / X86O3CPU",
       "config_script": "configs/example/se.py",
       "defense": "Recon / STT",
-      "scheme": "0=Unsafe 1=Delay 2=STT 3=DoM",
+      "scheme": "0=Unsafe 1=NDA (code enum Delay) 2=STT 3=DoM",
       "variants": "--branch-ann-file BTB override",
       "intention": "PRIMARY build + the 9-site hook reference template. Runs STT_6 / STT_all / Recon_6. Where the recon OTB (getOldestTaint) and STL/SLF bypass bugs reproduced.",
       "timing_hooks": {
@@ -39,7 +39,7 @@
       "cpu": "X86 / X86O3CPU",
       "config_script": "configs/example/se.py",
       "defense": "Recon / STT (same as gem5-recon-modded) + SimSpect-STL hooks",
-      "scheme": "0=Unsafe 1=Delay 2=STT 3=DoM",
+      "scheme": "0=Unsafe 1=NDA (code enum Delay) 2=STT 3=DoM",
       "variants": "--branch-ann-file BTB override; --stl-ann-file / --stl-store-stall-cycles / --stl-alias-pred",
       "intention": "STL (store-to-load) speculation testing: STT_6_stl testsets. Threat model of the STT scheme here = control + store shadows (Recon paper Sec. 3/6; decode.cc:686-695, shadow_tracker.cc freeStores), so STL is in scope.",
       "timing_hooks": {
@@ -63,7 +63,7 @@
       "cpu": "X86 / X86O3CPU",
       "config_script": "configs/example/se.py",
       "defense": "Recon / STT (unmodded)",
-      "scheme": "0=Unsafe 1=Delay 2=STT 3=DoM",
+      "scheme": "0=Unsafe 1=NDA (code enum Delay) 2=STT 3=DoM",
       "variants": "none (no branch-ann)",
       "intention": "Baseline control \u2014 the un-modded recon, to confirm a hit is not an artifact of the BTB hook.",
       "timing_hooks": {
@@ -87,7 +87,7 @@
       "config_script": "configs/example/se.py",
       "defense": "STT (upstream)",
       "scheme": "0-3",
-      "variants": "se_exp.py / se_slowcomm.py",
+      "variants": "se_exp.py / se_slowcomm.py; configs/example/se_futuristic.py = se.py with threatModel 'Futuristic' for scheme 2 (added 2026-11-07, copy in gem5-hooks/stt/se_futuristic.py; Futuristic parked 2026-11-07)",
       "intention": "Upstream STT build \u2014 cross-check STT_6 against recon-scheme2. STT_6_sttbuild -> 0 ld leaks (model holds).",
       "timing_hooks": {
         "branch_force": true,
@@ -99,7 +99,7 @@
       "git_tracked": true,
       "hooks_backup": "gem5-hooks/stt/",
       "flags": [],
-      "threat_model": "STT-Spectre by default (--threatModel=Spectre, pinned by gem5-hooks/stt/se_exp.py:332): a load is speculative only while an older control inst is unresolved (rob_impl.hh:444-495). --threatModel=Futuristic = all older insts completed (rob_impl.hh:493-512). STL tests are OUT of scope under Spectre. wiki/design/STT_VS_RECON_STT.md"
+      "threat_model": "STT-Spectre by default (--threatModel=Spectre, pinned by gem5-hooks/stt/se_exp.py:332): a load is speculative only while an older control inst is unresolved (rob_impl.hh:444-495). Futuristic (all older insts completed) via config_script /work/stt/configs/example/se_futuristic.py (rob_impl.hh:493-512). STL tests are OUT of scope under Spectre. wiki/design/STT_VS_RECON_STT.md"
     },
     {
       "id": "stt-dbg",

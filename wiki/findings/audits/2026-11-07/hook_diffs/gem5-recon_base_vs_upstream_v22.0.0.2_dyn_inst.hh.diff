@@ -1,0 +1,94 @@
+--- upstream22/dyn_inst.hh	2026-11-07 16:59:42
++++ reconbase/dyn_inst.hh	2026-11-07 16:59:52
+@@ -56,6 +56,8 @@
+ #include "cpu/exetrace.hh"
+ #include "cpu/inst_res.hh"
+ #include "cpu/inst_seq.hh"
++
++#include "cpu/o3/address_prediction/pred_inst.cc"
+ #include "cpu/o3/cpu.hh"
+ #include "cpu/o3/dyn_inst_ptr.hh"
+ #include "cpu/o3/lsq_unit.hh"
+@@ -140,6 +142,8 @@
+     /** InstRecord that tracks this instructions. */
+     Trace::InstRecord *traceData = nullptr;
+ 
++    PredictionInstruction predInst;
++
+   protected:
+     enum Status
+     {
+@@ -179,6 +183,7 @@
+         PossibleLoadViolation,
+         HitExternalSnoop,
+         EffAddrValid,
++        TrueEffAddrValid, //ANNACODE
+         RecordResult,
+         Predicate,
+         MemAccPredicate,
+@@ -203,8 +208,10 @@
+      */
+     std::queue<InstResult> instResult;
+ 
++  public:
+     /** PC state for this instruction. */
+     std::unique_ptr<PCStateBase> pc;
++  protected:
+ 
+     /** Values to be written to the destination misc. registers. */
+     std::vector<RegVal> _destMiscRegVal;
+@@ -240,6 +247,28 @@
+     size_t numSrcs() const { return _numSrcs; }
+     size_t numDests() const { return _numDests; }
+ 
++    // [Pavlos]
++    unsigned long int valueFromAddr = -1;
++    int prodRevealBit = 0;
++    unsigned long int producerLoad = -1;
++
++    bool nowVisible = false;
++
++    bool allowlistedDoM = false;
++    bool loadCompleted = false; // only for allow_leaked
++
++    int revealBit = 0;
++
++    // For STT and NDA stlForw refers
++    // to the current instruction that 
++    // will either untaint or propagate
++    // For DOM stlForw refers to the previous
++    // instructions that passes you the value
++    // LD1(addr) -> LD2: LD1 should not have STL
++    // for LD2 to execute (so LD1 passes its STL 
++    // information to LD2
++    bool stlForw = false;
++
+     // Returns the flattened register index of the idx'th destination
+     // register.
+     const RegId &
+@@ -328,6 +357,10 @@
+ 
+     /** How many source registers are ready. */
+     uint8_t readyRegs = 0;
++
++    bool predResolved = true;
++
++    bool speculative = false;
+ 
+   public:
+     /////////////////////// Load Store Data //////////////////////
+@@ -533,6 +566,14 @@
+         return *next_pc != *predPC;
+     }
+ 
++    bool branchResolved() {return predResolved;}
++
++    void branchResolved(bool br) {predResolved = br;}
++
++    void setSpeculative(bool sp) {speculative = sp;}
++
++    bool isSpeculative() {return speculative;}
++
+     //
+     //  Instruction types.  Forward checks to StaticInst object.
+     //

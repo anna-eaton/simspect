@@ -12,7 +12,7 @@
 
 Every paper figure (the vertical pipeline figure plus minifigs a–e) follows these rules so the paper reads as one system. Anna's direction (2026-11-02): minimal colors, minimal fonts, very professional, use defaults as much as possible, dense without looking cramped or overlapping, items of a list inside one box (not separate boxes).
 
-Reference implementation: the vertical pipeline figure, `/private/tmp/claude-501/-Users-annaeaton-Documents-stanford-trippel-simspect/15c53160-c914-4164-9142-cacfcd307bbc/scratchpad/fig/_standalone_pipeline.tex` (a draft; will move to `paper_figures/drafts/`).
+Reference implementation: the vertical pipeline figure, `paper_figures/drafts/_standalone_pipeline_reference.tex` (moved out of a session scratchpad 2026-11-04; preview `_standalone_pipeline_reference-1.png`).
 
 ## Page geometry (measured, not assumed)
 

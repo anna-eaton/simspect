@@ -1,0 +1,74 @@
+{
+  // InvisiSpec-FUTURISTIC, AMuLeT-PARITY configuration (2026-11-08). Anna 2026-11-08: AMuLeT comparisons (speed,
+  // throughput, head-to-head) use AMuLeT's exact flags and structure sizes. Every gem5 flag below is AMuLeT's, cited
+  // to cafe2 gem5_dev /work/amulet-repo @ c871bdf (src/executor.py set_cmd :196-307, src/config.py defaults,
+  // src/benchmark_all.sh :21-61, docker/docker_invisispec/docker_gem5_v1_final_cache_ipcFP.yaml). Comparison tables:
+  // wiki/findings/audits/2026-10-28/full_configs.md "Comparison with AMuLeT's flags (2026-11-08)".
+  // Run: make run MODEL=STT_6 RUNCONFIG=runconfigs/amulet_parity/run_config_STT_6_invisispec_futuristic_amulet_parity.jsonc
+  //
+  // REMAINING DIFFERENCES from AMuLeT (harness requirements, kept on purpose):
+  //   - BTB force (--branch-ann-file/--branch-ann-base, branch_ann_enable) and the 5000-cycle resolve stall on the
+  //     model's mispredicted branches (sweep below). AMuLeT relies on natural mispredictions.
+  //   - harness always adds --caches (inert under --ruby) and --scheme=2 (overridden by the trailing --scheme= below).
+  //   - run bound --abs-max-tick=1e11 (gem5_common.py) + 120 s wall timeout vs AMuLeT --rel-max-tick=1000000000 (executor.py:305).
+  //   - one gem5 process per test, plain se.py: no RevizorIPC object (configs/revizor/ipc.py, executor.py:311-312,335-338:
+  //     --socket/--sandbox-size, per-test L1D priming), no --checkpoint-dir (executor.py:306). --access-backing-store,
+  //     which ipc.py:62-63 appends under --ruby, IS passed explicitly below.
+  //   - debug flags O3PipeView (+Commit), print-only; single-run footprint oracle (check_footprint) vs AMuLeT's relational one.
+  //
+  // README (amulet_parity/): amulet-STT now has a parity config (run_config_STT_6_amuletstt_amulet_parity.jsonc) after the 2026-11-08 se.py glue fix
+  // (gem5-hooks/amulet-STT/se_py_threatmodel_glue_20261108.diff). OLD NOTE, superseded: there is NO amulet-STT parity config. The harness always sends --scheme=2, which our
+  // amulet-STT se.py glue maps to Spectre and which makes se.py skip config_scheme (se.py:348-349), so AMuLeT's
+  // --threat_model=Futuristic --needsTSO=1 --STT=1 --implicit_channel=1 (executor.py:241-250) would be silently
+  // ignored. Writing that config waits on Anna's OK for the two-line glue change (full_configs.md "AMuLeT-STT", P-4, R8).
+  "paths": {
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "testset_dir":        "testsets_latest",
+    "results_dir":        "results",
+    "results_name":       "STT_6_invisispec_futuristic_amulet_parity",
+    "model":              "STT_6"
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_not_taken", "mispredict_taken"]
+  },
+  "filter": { "xmit_kind": "ld" },   // read by the launchers only, not by pipeline.py
+  "gem5": {
+    "binary":        "/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1/build/X86_MESI_Two_Level/gem5.opt",
+    "config_script": "/work/amulet/amulet-gem5-InvisiSpec_AE-v1.1/configs/example/se.py",   // AMuLeT: config.py:227 se.py (via ipc.py)
+    "branch_ann_enable":       true,               // harness addition (BTB force)
+    "cpu_type":                "DerivO3CPU",       // executor.py:209, config.py:249
+    "scheme":                  2,                  // harness; overridden by --scheme=FuturisticSafeInvisibleSpec (last wins)
+    "jobs":                    6,
+    "debug_flags":             ["O3PipeView"],
+    "debug_file":              "pipeview.txt",
+    "checker":                 "check_footprint.py",
+    "criterion":               "specs/leakage/invisispec.json",
+    "fnc_commit_stall_cycles": 0,                  // harness hook off (AMuLeT has none)
+    "extra_args": [
+      "--num-cpu=1",                               // executor.py:208
+      "--cpu-clock=2GHz",                          // executor.py:210, config.py:250
+      "--sys-clock=2GHz",                          // executor.py:211, config.py:251
+      "--ruby",                                    // executor.py:214-215; benchmark_all.sh:44 "--ruby,--InvisiSpec,--InvisiSpec_Futuristic"
+      "--L1_TBEs=256", "--L2_TBEs=256", "--DC_TBEs=256",   // executor.py:216-218, config.py:255 tbe_count=256
+      "--l1d_size=32kB", "--l1d_assoc=8",          // executor.py:224-225; ipcFP.yaml:47,49
+      "--l1i_size=32kB", "--l1i_assoc=8",          // executor.py:226-227; ipcFP.yaml:48,50
+      "--cacheline_size=64",                       // executor.py:228, config.py:277
+      "--l2_size=2MB", "--l2_assoc=8",             // executor.py:229-230, config.py:278-279
+      "--DTB_entries=64",                          // executor.py:233, config.py:282
+      "--needsTSO=0",                              // executor.py:295 (passed explicitly: our se.py:350-351 glue would default it to 1)
+      "--scheme=FuturisticSafeInvisibleSpec",      // executor.py:299-301 (benchmark_all.sh:44 --InvisiSpec_Futuristic)
+      "--access-backing-store"                     // configs/revizor/ipc.py:62-63 appends it under --ruby (executor.py:311-312 uses ipc.py; ipcFP.yaml:46 gem5_orchestration "ipc")
+      // NOT passed, as in AMuLeT: --allowSpecBuffHit (never passed -> CpuConfig.py:107-110 sets False),
+      // --apply-spec-eviction-patch (executor.py:302-303, off by default), --dump-caches (executor.py:236-237, only without ipc).
+    ]
+  },
+  // harness addition: resolve stall 5000 cycles on the model's mispredicted branches, xmit branch 0 (pipeline.py _inject_stalls)
+  "sweep": { "enabled": true, "points": [0], "unresolved_stall_cycles": 5000 },
+  "pipeline": { "check": "per_type", "keep_tmp": false }
+}

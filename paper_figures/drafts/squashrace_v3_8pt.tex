@@ -1,0 +1,183 @@
+% Results figure v3, 8pt (every text >= 8pt, \footnotesize): the STT visibility-point <-> squash race, on a real gem5 trace.%
+% = squashrace_v2_8pt.tex with the x86 listing on top replaced by the test as an execution graph (shared graph notation,%
+% VISUAL_LANGUAGE.md "Graph notation"; drawing copied from relaxation_v4_8pt.tex, all in black since nothing is relaxed here).%
+% Body only (goes into the paper's tikz/). Wrapped in { }; all helper names are prefixed \sq.%
+% Needs TikZ libraries calc + shapes.geometric (the paper preamble loads both).%
+% Graph: testsets/STT_6/xml/inst-047231.xml, rows in spo order (Instruction$5=i0, $4=i1, $3=i2, $2=i3, $1=i4, $0=i5;%
+% Reg_s$0=r0, Reg_s$1=r1, Mem_s$0=m0), as in relaxation_v4_8pt.tex.%
+% Data: wiki/findings/bug/stt_slowcomm_vp_squash_race/ (inst-047231, STT_6 mispredict_not_taken,%
+% /work/stt --scheme=2, se_slowcomm.py: commitToIEWDelay=4; experiment slow_comm_squash1, 2026-06-02).%
+% Ticks: provenance.json "evidence" + example_inst-047231.md:46-50,96-98. Program: inst-047231.s.%
+% Cycle c = (tick - 2907000)/500, i.e. 0 = lc retires. Provenance + caveats: plans/RESULTS_FIGURES.md.%
+{%
+\providecolor{ssspecfill}{gray}{0.94}\providecolor{ssspecink}{gray}{0}%
+\providecolor{ssprotfill}{gray}{0.83}\providecolor{ssprotink}{gray}{0}%
+\providecolor{ssxmitfill}{gray}{0.76}\providecolor{ssxmitink}{gray}{0}%
+\providecolor{sssrcfill}{gray}{0.66}\providecolor{sssrcink}{gray}{0}\providecolor{sssrcbg}{gray}{0.90}%
+% ============================ TUNING KNOBS ============================%
+\def\sqcyc{12}%          pt per simulated cycle (same scale in every axis segment)%
+\def\sqbrk{12}%         pt width of each elided stretch (dotted)%
+\def\sqtl{56}%          pt, x of the time axis origin; left of it: label column%
+\def\sqrowh{30}%        pt between instruction rows%
+\def\sqbarh{4}%         pt height of an instruction bar%
+\def\sqright{250}%      pt, right edge of the figure%
+% execution graph (top), x positions as in relaxation_v4_8pt.tex%
+\def\sqgkind{11pt}%     x where kinds start (ids at 0)%
+\def\sqgout{55pt}%      x of the output operand%
+\def\sqgarr{66pt}%      x of the <- arrow%
+\def\sqgin{77pt}%       x of the input operand%
+\def\sqggut{101pt}%     x of the gutter carrying the i0 -> i4 rf edge%
+\def\sqgflag{105pt}%    x where flag words start%
+\def\sqgnote{164pt}%    x where the notes start%
+\def\sqgrow{15}%        pt row pitch%
+\def\sqgapA{7}%         pt extra space above i3 (its ddi arc + label)%
+\def\sqgapB{7}%         pt extra space above i5 (the rf edge)%
+\def\sqlw{1.1pt}%       line width of the leak path%
+\def\sqggap{38}%        pt from i5's baseline to the i0 timeline row%
+\def\sqstar{8.5pt}%     outer diameter of the transmission star%
+\def\sqwinlw{0.9pt}%    line width of the window frame%
+\def\sqdefshade{sssrcfill}% fill marking defense-specific elements (defense source of truth)%
+\def\sqfs{\footnotesize}% the one font size (8pt)%
+% axis segments [start,end] in cycles after lc retires; elided stretches between them%
+\def\sqsA{-1}\def\sqeA{1}%       lc retires at 0%
+\def\sqsB{45.5}\def\sqeB{49.5}%      xmit dispatched 46, first issue 49%
+\def\sqsC{76.5}\def\sqeC{82.5}%      branch resolves 77, re-issue 78, packet 79, squash 81%
+\def\sqsD{260.5}\def\sqeD{261.5}%    fnc retires 261%
+% ======================================================================%
+\pgfmathsetmacro\sqoA{0}%
+\pgfmathsetmacro\sqoB{(\sqeA-\sqsA)*\sqcyc+\sqbrk}%
+\pgfmathsetmacro\sqoC{\sqoB+(\sqeB-\sqsB)*\sqcyc+\sqbrk}%
+\pgfmathsetmacro\sqoD{\sqoC+(\sqeC-\sqsC)*\sqcyc+\sqbrk}%
+\newcommand\sqx[2]{(\sqtl+\csname sqo#1\endcsname+(#2-\csname sqs#1\endcsname)*\sqcyc)}%
+\newcommand\sqab[1]{\textup{#1}}%
+\newcommand\sqedges[4]{\draw[#4] (#2,#1+\sqbarh/2) -- (#3,#1+\sqbarh/2) (#2,#1-\sqbarh/2) -- (#3,#1-\sqbarh/2);}%
+\newcommand\sqtck[2]{\draw (#2,#1-\sqbarh/2) -- (#2,#1+\sqbarh/2);}%
+\newcommand\sqstg[3]{\node[anchor=south] at (#2,#1+\sqbarh/2+1.6) {#3};}%
+\newcommand\sqsq[2]{\draw[line width=0.6pt] ({#2-2},{#1-2}) -- ++(4,4) ({#2-2},{#1+2}) -- ++(4,-4);}%
+% elided stretch after segment #2 (B, C or D = the segment it leads into), row y=#1%
+\newcommand\sqgap[2]{\sqedges{#1}{{\sqtl+\csname sqo#2\endcsname-\sqbrk}}{{\sqtl+\csname sqo#2\endcsname}}{densely dotted}}%
+\begin{tikzpicture}[x=1pt, y=1pt, >=latex,%
+  every node/.style={font=\sqfs, inner sep=0pt, execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000\relax}},%
+  sqann/.style={font=\sqfs\itshape},%
+  sqrow/.style={anchor=base west},%
+  sqgloss/.style={font=\sqfs\itshape, anchor=base west},%
+  sqtok/.style={anchor=base west, outer sep=0.6pt},%
+  sqlab/.style={font=\sqfs\itshape},%
+  sqflagw/.style={font=\sqfs\itshape, anchor=base west},%
+  sqgnotes/.style={font=\sqfs\itshape, anchor=base west},%
+  sqleak/.style={->, line width=\sqlw, draw=ssprotink, preaction={draw=ssprotfill, arrows=-, line width=3.6pt, line cap=round, blend mode=multiply}},%
+]%
+% ------------------------------ legend line ------------------------------%
+\node[anchor=base west] at (0,0) {N: dispatch\quad E: issue\quad Dotted: elided cycles};%
+\node[anchor=base east] (sqlg) at (\sqright,0) {Defense-specific};%
+\draw[fill=\sqdefshade, draw=sssrcink] ($(sqlg.west)+(-9.5,-0.5)$) rectangle ++(6,6);%
+% ------------- the test as an execution graph (inst-047231, spo order) -------------%
+\pgfmathsetmacro\sqcy{-20}% baseline of i0%
+\begin{scope}[shift={(0,\sqcy)}]%
+\path (0,0) coordinate (y0) (0,-\sqgrow) coordinate (y1) (0,-2*\sqgrow) coordinate (y2)%
+  (0,-3*\sqgrow-\sqgapA) coordinate (y3) (0,-4*\sqgrow-\sqgapA) coordinate (y4)%
+  (0,-5*\sqgrow-\sqgapA-\sqgapB) coordinate (y5);%
+% speculative rows (after the unresolved i2): light band behind them, drawn first%
+\coordinate (sqspA) at ($(-2pt,0 |- y2)+(0,-4.5pt)$); \coordinate (sqspB) at ($(\sqgnote-4pt,0 |- y5)+(0,-4pt)$);%
+\fill[ssspecfill, rounded corners=2pt] (sqspA) rectangle (sqspB);%
+\node[font=\sqfs\itshape, text=black!55, rotate=90, anchor=south] at ($($(sqspB)!0.5!(sqspB |- sqspA)$)+(-1.2pt,0)$) {speculative};%
+% ids%
+\foreach \k in {0,...,5} \node[sqtok] at (y\k) {i\k:};%
+% i0: Other_n r1 <- ?   committed%
+\node[sqtok] at ($(y0)+(\sqgkind,0)$) {\texttt{Other\_n}};%
+\node[sqtok] (sqi0o) at ($(y0)+(\sqgout,0)$) {$r1$};%
+\node[sqtok] at ($(y0)+(\sqgarr,0)$) {$\leftarrow$};%
+\node[sqtok] at ($(y0)+(\sqgin,0)$) {?};%
+\node[sqflagw] at ($(y0)+(\sqgflag,0)$) {committed};%
+% i1: Other_x r0 <- ?%
+\node[sqtok] at ($(y1)+(\sqgkind,0)$) {\texttt{Other\_x}};%
+\node[sqtok] at ($(y1)+(\sqgout,0)$) {$r0$};%
+\node[sqtok] at ($(y1)+(\sqgarr,0)$) {$\leftarrow$};%
+\node[sqtok] at ($(y1)+(\sqgin,0)$) {?};%
+% i2: Branch_n   unresolved (mispredicted: opens speculation)%
+\node[sqtok] at ($(y2)+(\sqgkind,0)$) {\texttt{Branch\_n}};%
+\node[sqflagw] at ($(y2)+(\sqgflag,0)$) {unresolved};%
+% i3: Load r0 <- m0   (m0 in STT's protection set)%
+\node[sqtok] at ($(y3)+(\sqgkind,0)$) {\texttt{Load}};%
+\node[sqtok] (sqi3o) at ($(y3)+(\sqgout,0)$) {$r0$};%
+\node[sqtok] at ($(y3)+(\sqgarr,0)$) {$\leftarrow$};%
+\node[sqtok, fill=ssprotfill, inner xsep=1pt, inner ysep=1.3pt] (sqi3m) at ($(y3)+(\sqgin,0)$) {$m0$};%
+% i4: Branch_x r1   resolved%
+\node[sqtok] at ($(y4)+(\sqgkind,0)$) {\texttt{Branch\_x}};%
+\node[sqtok] (sqi4i) at ($(y4)+(\sqgin,0)$) {$r1$};%
+\node[sqflagw] at ($(y4)+(\sqgflag,0)$) {resolved};%
+% i5: Load ? <- [r0]   xmit%
+\node[sqtok] at ($(y5)+(\sqgkind,0)$) {\texttt{Load}};%
+\node[sqtok] at ($(y5)+(\sqgout,0)$) {?};%
+\node[sqtok] at ($(y5)+(\sqgarr,0)$) {$\leftarrow$};%
+\node[sqtok] (sqi5b) at ($(y5)+(\sqgin,0)$) {[};%
+\node[sqtok, outer sep=0pt] (sqi5r) at (sqi5b.base east) {$r0$};%
+\node[sqtok] at (sqi5r.base east) {]};%
+\node[sqflagw] at ($(y5)+(\sqgflag,0)$) {\textcolor{ssxmitink}{xmit}};%
+% leak path (thick): m0 -ddi-> r0 (i3) -rf-> [r0] (i5)%
+\draw[sqleak, shorten >=1.4pt] ($(sqi3m.north)+(0,0.3pt)$) to[out=115, in=65, looseness=1.1]%
+  node[pos=0.5, above=1.4pt, sqlab] {ddi} ($(sqi3o.north)+(0,0.6pt)$);%
+\draw[sqleak, shorten <=0.6pt, shorten >=1.2pt] (sqi3o.south) .. controls +(0,-0.50) and +(-0.30,0.20) .. (sqi5b.north west)%
+  node[pos=0.5, sqlab, anchor=east, xshift=-2.5pt] {rf};%
+% rf r1 (i0) -> r1 (i4), through the gutter right of the operands%
+\draw[->, shorten <=1.6pt, shorten >=0.6pt, rounded corners=2pt]%
+  (sqi0o.north) -- ++(0,4pt) -| ($(\sqggut,0 |- sqi4i.east)$) -- (sqi4i.east);%
+\node[sqlab, anchor=west] at ($(\sqggut,0 |- y1)+(2pt,2pt)$) {rf};%
+% notes%
+\node[sqgnotes] at ($(y2)+(\sqgnote,0)$) {mispredicted};%
+\node[sqgnotes] at ($(y3)+(\sqgnote,0)$) {\textcolor{ssprotink}{speculative load}};%
+\node[sqgnotes] at ($(y4)+(\sqgnote,0)$) {correctly predicted};%
+\node[sqgnotes] at ($(y5)+(\sqgnote,0)$) {\textcolor{ssxmitink}{tainted address}};%
+\end{scope}%
+% ------------------------------ timeline rows ------------------------------%
+\pgfmathsetmacro\sqyA{\sqcy-5*\sqgrow-\sqgapA-\sqgapB-\sqggap}% i0 lc%
+\pgfmathsetmacro\sqyB{\sqyA-\sqrowh}%      i2 branch%
+\pgfmathsetmacro\sqyC{\sqyB-\sqrowh}%      i5 xmit%
+\pgfmathsetmacro\sqwT{\sqyA+13}%           window frame top%
+\pgfmathsetmacro\sqwB{\sqyC-34}%           window frame bottom%
+\pgfmathsetmacro\sqyT{\sqwB-3.5}%          top of the cycle numbers%
+\node[sqrow] at (0,\sqyA-2.7) {i0: \sqab{lc}};%
+\node[sqgloss] at (0,\sqyA-12.2) {Last committed};%
+\node[sqrow] at (0,\sqyB-2.7) {i2: branch};%
+\node[sqgloss, text=ssspecink] at (0,\sqyB-12.2) {Mispredicted};%
+\node[sqrow] at (0,\sqyC-2.7) {i5: \sqab{xmit}};%
+\node[sqgloss, text=ssxmitink] at (0,\sqyC-12.2) {Transmitter};%
+% i0: lc retires at 0 (window opens); earlier cycles elided%
+\sqedges{\sqyA}{{\sqx{A}{-1}}}{{\sqx{A}{0}}}{}%
+\sqtck{\sqyA}{{\sqx{A}{0}}}%
+\node[sqann, anchor=west] at ({\sqx{A}{0}+3},\sqyA) {Retires};%
+% i2: the mispredicted branch, resolves at 77%
+\sqedges{\sqyB}{{\sqx{A}{-1}}}{{\sqx{B}{45.5}-\sqbrk}}{}%
+\sqgap{\sqyB}{B}%
+\sqedges{\sqyB}{{\sqx{B}{45.5}}}{{\sqx{C}{76.5}-\sqbrk}}{}%
+\sqgap{\sqyB}{C}%
+\sqedges{\sqyB}{{\sqx{C}{76.5}}}{{\sqx{C}{77}}}{}%
+\sqtck{\sqyB}{{\sqx{C}{77}}}%
+\node[sqann, anchor=south] at ({\sqx{C}{77}},\sqyB+\sqbarh/2+2) {Resolves};%
+% resolution releases the protection on i5 (dashed drop line)%
+\draw[densely dashed] ({\sqx{C}{77}},\sqyB-\sqbarh/2) -- ({\sqx{C}{77}},\sqyC+\sqbarh/2+9);%
+% i5: dispatched 46, first issue 49, held while its address is tainted, re-issue 78, packet 79, squashed 81%
+\sqedges{\sqyC}{{\sqx{B}{46}}}{{\sqx{C}{76.5}-\sqbrk}}{}%
+\sqgap{\sqyC}{C}%
+\sqedges{\sqyC}{{\sqx{C}{76.5}}}{{\sqx{C}{81}}}{}%
+\sqtck{\sqyC}{{\sqx{B}{46}}} \sqtck{\sqyC}{{\sqx{B}{49}}} \sqtck{\sqyC}{{\sqx{C}{78}}}%
+\sqstg{\sqyC}{{\sqx{B}{46}}}{N} \sqstg{\sqyC}{{\sqx{B}{49}}}{E} \sqstg{\sqyC}{{\sqx{C}{78}}}{E}%
+\node[sqann, anchor=north west] at ({\sqx{B}{49}+2.5},\sqyC-\sqbarh/2-2.5) {\textcolor{ssprotink}{Held: tainted}};%
+\sqsq{\sqyC}{\sqx{C}{81}}%
+\node[star, star points=5, star point ratio=2.4, fill=ssxmitink, draw=white, line width=0.5pt, minimum size=\sqstar, inner sep=0pt] (sqtx) at ({\sqx{C}{79}},\sqyC) {};%
+\node[sqann, anchor=south west] at ($(sqtx.north east)+(-1,2.2)$) {Cache packet};%
+\node[sqann, anchor=north west] at ({\sqx{C}{81}+1},\sqyC-\sqbarh/2-2.5) {Squashed};%
+% squash propagation gap, resolve 77 -> squash 81%
+\draw ({\sqx{C}{77}},\sqyC-15) -- ++(0,-3) -- ({\sqx{C}{81}},\sqyC-18) -- ++(0,3);%
+\node[sqann, anchor=north east] at ({\sqx{C}{81}},\sqyC-20.5) {Squash in flight: 4 cycles};%
+% ------------------------- the committed window -------------------------%
+\draw[line width=\sqwinlw] ({\sqx{D}{261}},\sqwT) -- ({\sqx{A}{0}},\sqwT) -- ({\sqx{A}{0}},\sqwB) -- ({\sqx{D}{261}},\sqwB) -- cycle;%
+\node[anchor=base] at ({(\sqx{A}{0}+\sqx{D}{261})/2},\sqwT+4) {Committed window (\sqab{lc} retires to \sqab{fnc} retires)};%
+% ------------------------------ time axis ------------------------------%
+\node[anchor=north west] at (0,\sqyT) {Cycle};%
+\foreach \sqc/\sqs in {0/A, 46/B, 49/B, 77/C, 79/C, 81/C, 261/D} \node[anchor=north] at ({\sqx{\sqs}{\sqc}},\sqyT) {\sqc};%
+% ------------- the defense-specific rule the trace exposes -------------%
+\pgfmathsetmacro\sqyK{\sqyT-8-9}%
+\node[draw=sssrcink, fill=sssrcbg, anchor=north west, align=left, inner sep=3pt, text width=244pt] at (0,\sqyK) {\raggedright\textit{STT rule:} a load's result stops tainting younger instructions once every older branch has resolved. On a mispredict that is also the moment the squash starts, and the squash needs commitToIEWDelay cycles to reach the load queue.};%
+\end{tikzpicture}%
+}%

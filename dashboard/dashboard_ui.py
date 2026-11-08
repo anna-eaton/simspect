@@ -1868,8 +1868,24 @@ function openUnitInspector(number) {
       <strong>implementation:</strong> ${esc(u.implementation || '')}<br>
       <strong>alloy_model:</strong> ${esc(u.alloy_model || '')}
       ${u.notes ? `<br><strong>notes:</strong> ${esc(u.notes)}` : ''}
+      ${u.stl_scope ? `<br><strong>STL in threat model:</strong> ${esc(u.stl_scope)}` : ''}
     </div>
   </div>`;
+  // Eval recipe (specs/defense_units.json unit.eval; human view wiki/state/EVAL_MANIFEST.md):
+  // which eval row, exact gem5 flags, testset, run config, checker, status, blocker.
+  if (u.eval) {
+    html += `<div class="card"><strong>Eval recipe (row ${esc(u.eval.row || '')})</strong><div class="card-meta">${
+      ['set', 'gem5_flags', 'testset', 'run_config', 'checker', 'status', 'blocker', 'prior'].filter(k => u.eval[k]).map(k =>
+        `<strong>${esc(k)}:</strong> ${esc(u.eval[k])}`).join('<br>')}</div></div>`;
+  }
+  // Model family of the unit's main model (specs/defense_units.json model_families):
+  // main / split core / STL / STL split core.
+  const fam = ((DEFENSE_UNITS_DATA && DEFENSE_UNITS_DATA.model_families) || {})[u.alloy_model];
+  if (fam) {
+    html += `<div class="card"><strong>Model family</strong><div class="card-meta">${
+      ['main', 'core', 'stl', 'stl_core', 'also'].filter(k => fam[k]).map(k =>
+        `<strong>${esc(k)}:</strong> ${esc(fam[k])}`).join('<br>')}</div></div>`;
+  }
 
   const specBlock = (label, filename, spec) => {
     if (!filename) return '';

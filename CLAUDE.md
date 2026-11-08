@@ -91,6 +91,8 @@ These rules live in `~/Documents/CLAUDE.md`. They're copied here so that session
 
 **Careful logs for everything that runs unattended.** Every tool, job, agent, hook, or app that runs in the background or unattended (launchd, `sched`, tmux sessions, sweep watchers, `testsetgen.py` / `testrun.py`, scripts started by other tools) keeps a careful log so a failure can be debugged later. Each run logs when it started and ended, what it did or decided (and why, if it chose not to act), what it changed, and every error with the full traceback or stderr. Logs go to a known, documented place, don't grow without bound, and never contain secrets. A failure must never be silent: log it, and surface it if someone needs to act. When building or changing such a tool, make sure its logging is good enough to diagnose problems without rerunning it; when something didn't work, read its log first.
 
+**Nothing important in Claude's temp folder.** The session scratchpad is throwaway; clones, data a doc points to, scripts worth rerunning and review PDFs go to a real location (a repo or `~/Documents`) right away, and no durable doc may point into the temp folder.
+
 **Real sources over memory.** As much as possible, factual content (explanations, wiki pages, comparisons, numbers, definitions) comes from a **real source Claude has actually read in this session**, not from training memory. Before explaining a paper, spec, ISA manual, gem5 internals, or an API, get the primary source: find it locally first, otherwise fetch the official copy (arXiv/DOI/vendor docs/the repo file), and cite a page, section, or line. If no source can be obtained, say so up front ("from memory, unverified") and keep it out of anything that's supposed to be factual. When a source contradicts what Claude remembered, the source wins; mention the correction. The same goes for how tools and settings work: check the docs or the actual config/code when the answer matters, may have changed, or Claude isn't sure.
 
 ## Paper & figures
@@ -99,10 +101,10 @@ The paper/writing workspace is a **separate repo at `/tests/SimSpect-S-P-2027/`*
 `git@github.com:anna-eaton/SimSpect-S-P-2027.git`) — see its own `CLAUDE.md` for all paper
 conventions (critique style, figure generation, logs). Do paper work there, not here.
 
-**Current paper repo (2026-10-28):** `git@github.com:anna-eaton/test-paper.git` (https://github.com/anna-eaton/test-paper), Overleaf-synced, root `bare_conf_compsoc.tex`, figures in `tikz/` with `_standalone_<name>.tex` + `-1.png` previews. Not cloned on the Mac; clone into a scratch dir to work.
+**Current paper repo (2026-11-04):** `git@github.com:anna-eaton/ISCA-27.git` (https://github.com/anna-eaton/ISCA-27; replaces the retired `test-paper`), Overleaf-synced. Anna's advisor reads it, so keep "Claude" out of the paper: notes use `\reviewnote` (renders [Note]) and `\reviewtag`, never Claude names in note text or comments; root `bare_conf_compsoc.tex`, figures in `tikz/` with `_standalone_<name>.tex` + `-1.png` previews. Local clone (the one working copy): `~/Documents/stanford/trippel/ISCA-27`.
 
 > ## ⛔ Paper text is read-only; new figures are OK (Anna, 2026-10-28, STRICT)
-> Claude has **no permission to edit the paper's text** — not `sections/*.tex`, captions in existing files, the main `.tex`, the preamble, or `.bib`; not even a typo or a `\input` swap. Propose prose in chat or a doc and Anna pastes it. Claude **may upload new figure files** (new `tikz/*.tex`, standalone previews, images) to the paper repo, adding new files only and never overwriting an existing one, and then tells Anna exactly which line to change to use them. Paper repo: `git@github.com:anna-eaton/test-paper.git` (Overleaf-synced; root `bare_conf_compsoc.tex`).
+> Claude has **no permission to edit the paper's text** — not `sections/*.tex`, captions in existing files, the main `.tex`, the preamble, or `.bib`; not even a typo or a `\input` swap. Propose prose in chat or a doc and Anna pastes it. Claude **may upload new figure files** (new `tikz/*.tex`, standalone previews, images) to the paper repo, adding new files only and never overwriting an existing one, and then tells Anna exactly which line to change to use them. Paper repo (since 2026-11-04): `git@github.com:anna-eaton/ISCA-27.git` (Overleaf-synced; root `bare_conf_compsoc.tex`); the old `test-paper` repo is retired.
 
 ## Write everything down — minimize fragile session state (governing principle)
 
@@ -213,6 +215,13 @@ conclusion, a reason to restart a sweep) — a dated, self-contained entry in th
 `claudelog.md`. Big things and changes must **stick around** so future sessions inherit them
 without re-deriving; if in doubt whether it's big, append it. This is a standing requirement,
 not a per-task instruction.
+
+**Claim big work BEFORE you start it, so parallel agents don't duplicate each other (Anna, 2026-11-08).** On 2026-11-08 three sessions independently worked the SPT protection-seed fix and two independently diffed AMuLeT's configs against ours, because nobody could see the others' work in progress. So, for any big piece of work (an investigation, an audit, a model/checker/hook change, a campaign, a manifest):
+
+- **Before starting:** read `claudenotes.md` and grep `claudelog.md`, `URGENT_TODO.md` and `wiki/state/` for the topic. If another session already claims it or has written it up, build on that doc (or ask Anna) instead of starting a parallel copy.
+- **Claim it:** write a dated line in `claudenotes.md` (`YYYY-MM-DD HH:MM — <session-label> — WORKING ON: <topic>; touching <files/models/dirs>; results → <doc>`) before the first real step. Do the same for every background agent you launch, and tell the agent to read `claudenotes.md` first.
+- **While working:** put each big finding in `claudelog.md` (the durable, dated project log) when you find it, not only at the end.
+- **When done:** change the claim to `DONE: … → <doc>`, so the next session finds the result instead of redoing it.
 
 **Session close-out → the `/session-log` routine.** At the end of a session (or before one is
 killed), run **`/session-log`** (`.claude/commands/session-log.md`). It captures the whole session
