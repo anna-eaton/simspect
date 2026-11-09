@@ -1,0 +1,43 @@
+{
+  "_doc": "Registry of live / finished eval generation runs (Alloy stages, later Stage 2/3 campaigns) for the dashboard's Eval manifest page. Each entry points at a status JSON written by the run's launcher (e.g. STAGE1_alloy/models/proposed_twophase/launch_stage1.py). Paths are as seen INSIDE the cafe2 gem5_dev container, where the dashboard runs; on another host the page shows the entry as 'status not available here'. Human view: wiki/state/EVAL_MANIFEST.md.",
+  "runs": [
+    {
+      "id": "stage1_20261108",
+      "stage": "Stage 1 (cores, RI-only, up to 6 instructions)",
+      "host": "cafe2 (gem5_dev container)",
+      "workspace": "/tests/simspect_alloy_20261108",
+      "status_json": "/tests/simspect_alloy_20261108/status/stage1_status.json",
+      "launcher_log": "/tests/simspect_alloy_20261108/logs/launcher.log",
+      "tmux": "alloy_stage1_1108 (inside gem5_dev)",
+      "families": [
+        "STT_6_core_ri",
+        "Recon_6_core_ri",
+        "SPT_6_oneLP_v2_core_ri",
+        "Recon_6_stl_core",
+        "STT_6_stl_core"
+      ],
+      "started": "2026-11-09T01:01Z (2026-11-08 17:01 PST)",
+      "config": "52 partitions (exact size k=1..6 x transmitter kind, partition_stage1.py), 48 parallel, cap 200000 per partition, timeout 24 h, -Xmx8g",
+      "provenance": "/tests/simspect_alloy_20261108/PROVENANCE_sha256.txt"
+    },
+    {
+      "id": "stage15_20261108",
+      "stage": "Stage 1.5 (pin each core into the production model, exactly 6 instructions)",
+      "host": "cafe2 (gem5_dev container)",
+      "workspace": "/tests/simspect_alloy_20261108",
+      "status_json": "/tests/simspect_alloy_20261108/status/stage15_status.json",
+      "launcher_log": "/tests/simspect_alloy_20261108/logs/stage15_launcher.log",
+      "tmux": "alloy_stage15_1108 (inside gem5_dev)",
+      "families": [
+        "STT_6_stl",
+        "STT_6",
+        "Recon_6",
+        "Recon_6_stl",
+        "SPT_6_oneLP_v2"
+      ],
+      "started": "2026-11-09T01:54Z (restarted 01:56Z with 24 jobs + serial GC after contention)",
+      "config": "~300,000 instances per family (Anna 2026-11-08) split evenly over its cores (per-core cap = ceil(300000/cores)); one seeded production-model run per core; 24 parallel; 30 min per core; JAVA_TOOL_OPTIONS=-XX:+UseSerialGC -XX:CICompilerCount=2; each family starts when its Stage 1 is complete",
+      "results": "<ws>/s15/<family>/results.jsonl (one line per core) + out/<part>__<inst>/; dedup + renumber into a testset is the next step (merge)"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "_doc": "Opt-in FPR (xmm) routing of load results in Stage 2 (parsexml.py pass5_emit_llvm, fpr_cfg). Copy the 'fpr' object into a run config's top-level 'fpr' key; pipeline.py phase_llvm passes it to batch_generate.py --fpr-config. Each routed load becomes 'movq (..),%out; movq %out,%xmmK; movq $0,%out; movq %xmmK,%out' in its own asm block (the zeroing is needed because gem5's mov2int also reads its int destination). Absent or enabled=false: output byte-identical to no option. The chosen register per load is recorded in .ann.json 'fpr'. Design: wiki/design/VOCAB_TABLES.md 'FPR routing'.",
+  "fpr": {
+    "enabled": true,
+    "loads": "consumed",
+    "xmm_regs": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  },
+  "variants": {
+    "s1_xmm4": {"enabled": true, "loads": "consumed", "xmm_regs": [4], "_note": "STT audit S1: rob_impl.hh:229 skips FP index 16 = XMM4_LOW"},
+    "s1_xmm3_control": {"enabled": true, "loads": "consumed", "xmm_regs": [3], "_note": "control for S1: same copy through xmm3 (FP index 14)"}
+  }
+}

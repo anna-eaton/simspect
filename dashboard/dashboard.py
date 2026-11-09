@@ -27,7 +27,7 @@ import os
 import re
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, quote
 
 # This file lives in dashboard/; the shared modules (simspect_paths, jobs_registry,
 # sweep_monitor, pipeline) live at the repo root. Put the repo root on sys.path so
@@ -232,6 +232,31 @@ def safe_md_path(path: str):
     return None
 
 
+_HREF = re.compile(r'href="([^"]+)"')
+
+
+def rewrite_md_links(body: str, md_path: str) -> str:
+    """Make relative links in a rendered .md work inside the dashboard: a linked .md
+    under an allowed root opens through /api/md, any other existing file gets the
+    VSCode deep link. External/anchor links and unresolvable paths are left alone."""
+    base = os.path.dirname(md_path or "")
+
+    def fix(m):
+        href = html.unescape(m.group(1))
+        if re.match(r"^(https?:|mailto:|vscode:|#|/api/)", href) or not base:
+            return m.group(0)
+        target = href.split("#", 1)[0]
+        if not target:
+            return m.group(0)
+        cand = os.path.realpath(target if os.path.isabs(target) else os.path.join(base, target))
+        if safe_md_path(cand):
+            return 'href="/api/md?path=%s"' % html.escape(quote(cand), quote=True)
+        if os.path.exists(cand) and any(cand.startswith(r) for r in ALLOWED_ROOTS):
+            return 'href="%s"' % html.escape(D.vscode_uri(cand), quote=True)
+        return m.group(0)
+    return _HREF.sub(fix, body)
+
+
 def render_status(which: str) -> str:
     cfg = DASHBOARDS.get(which)
     if not cfg:
@@ -348,6 +373,18 @@ class Handler(BaseHTTPRequestHandler):
                                          one("mode"), one("stem")))
         if path == "/api/defense_units":
             return self._json(self._safe(D.defense_units))
+        if path == "/api/eval_manifest":
+            # Eval manifest page: units/T/C rows + live run statuses; ?part=runs = runs only
+            # (the page's 60 s poll). The manifest .md is rendered here (data layer has no HTML).
+            res = self._safe(D.eval_manifest, one("part"))
+            if isinstance(res, dict) and res.get("manifest_md"):
+                try:
+                    res["manifest_html"] = rewrite_md_links(md_to_html(res["manifest_md"]),
+                                                            res.get("manifest_path", ""))
+                except Exception as e:  # noqa
+                    res["manifest_error"] = "render failed: %s: %s" % (type(e).__name__, e)
+                del res["manifest_md"]
+            return self._json(res)
         if path == "/api/transmitter_criteria":
             return self._json(self._safe(D.transmitter_criteria))
 
@@ -438,6 +475,7 @@ def selftest():
         ("checkers", lambda: D.checkers()),
         ("todos", lambda: D.todos()),
         ("alloy_relax", lambda: D.alloy_relaxations()),
+        ("eval_manifest", lambda: D.eval_manifest()),
         ("docs", lambda: find_md_links(DASHBOARDS["code"]["status"], CODE_ROOT)),
         ("status(code)", lambda: render_status("code")),
     ]

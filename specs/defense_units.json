@@ -5,24 +5,24 @@
   "_amulet_parity_rule": "T rows: run only from runconfigs/amulet_parity/ and check config.ini against wiki/findings/audits/2026-10-28/full_configs.md; shrunk eval configs never produce timing numbers.",
   "canonical_models": {
     "STT": "STT_6",
-    "SPT": "SPT_6_oneLP",
+    "SPT": "SPT_6_oneLP_v2",
     "Recon": "Recon_6",
-    "_note": "SPT_6_oneLP_v2 replaces SPT_6_oneLP for the final batch once Anna signs it off (wiki/state/EVAL_MANIFEST.md)"
+    "_note": "SPT_6_oneLP_v2 approved by Anna 2026-11-08 and replaces SPT_6_oneLP (kept unchanged for provenance)."
   },
   "model_families": {
     "_doc": "One family per main model (added 2026-11-08, stl-spec). main = branch speculation (the unit's alloy_model); stl = the same defense with store-to-load speculation (an older store whose address is unresolved; derived by STAGE1_alloy/models/proposed/derive_stl.py); core / stl_core = the split (two-phase) Stage-1 core of each (wiki/design/TWO_PHASE_MODELS.md). Paths are under STAGE1_alloy/models/. Human view: wiki/state/EVAL_MANIFEST.md (moved from STAGE1_alloy/models/MANIFEST.md 2026-11-08). Stage-1 minimality: RI-only for every family except SPT (Anna 2026-11-08); Stage 1.5 not built for any family; Alloy runs move to the cafe2 gem5_dev container.",
     "STT_6": {
       "main": "STT_6.als (production)",
-      "core": "STT_6_core.als (prototype in models/, never signed off, so DRAFT; RO+RI; Stage-1 = 2 cores, 2026-11-03; Anna DECIDED 2026-11-08: re-derive RI-only)",
+      "core": "STT_6_core.als (prototype in models/, never signed off, so DRAFT; RO+RI; Stage-1 = 2 cores, 2026-11-03; Anna DECIDED 2026-11-08: re-derive RI-only) | RI-only re-derived 2026-11-08: proposed_twophase/STT_6_core_ri.als, Stage-1 RUNNING on cafe2 (/tests/simspect_alloy_20261108)",
       "stl": "STT_6_stl.als (approved 2026-10-28; rf-based alias)",
-      "stl_core": "proposed_twophase/STT_6_stl_core.als (DRAFT 2026-11-08; RI-only, since RO+RI makes an STL core impossible; Stage-1 EXHAUSTED: 306 cores at <=6 instructions, Mac testsets/STT_6_stl__twophase_draft/stage1_xml)",
+      "stl_core": "proposed_twophase/STT_6_stl_core.als (DRAFT 2026-11-08; RI-only, since RO+RI makes an STL core impossible; Stage-1 EXHAUSTED: 306 cores at <=6 instructions, Mac testsets/STT_6_stl__twophase_draft/stage1_xml) | re-run on cafe2 (partitioned) as a cross-check of the 306",
       "also": "proposed/STT_6_shadows.als (DRAFT; Recon-STT branch + store contract; minimal instances have one source, so they are STT_6's plus STT_6_stl's)"
     },
     "Recon_6": {
       "main": "Recon_6.als (production)",
-      "core": "proposed_twophase/Recon_6_core.als (DRAFT; RO+RI; Stage-1 = 2 cores; Anna DECIDED 2026-11-08: re-derive RI-only)",
+      "core": "proposed_twophase/Recon_6_core.als (DRAFT; RO+RI; Stage-1 = 2 cores; Anna DECIDED 2026-11-08: re-derive RI-only) | RI-only re-derived 2026-11-08: proposed_twophase/Recon_6_core_ri.als, Stage-1 RUNNING on cafe2",
       "stl": "proposed/Recon_6_stl.als (DRAFT 2026-11-08; atom-based alias)",
-      "stl_core": "proposed_twophase/Recon_6_stl_core.als (DRAFT 2026-11-08; RI-only; SAT at <=3 and <=4; Stage-1 run 2026-11-08 -> testsets/Recon_6_stl__twophase_draft/stage1_xml)"
+      "stl_core": "proposed_twophase/Recon_6_stl_core.als (DRAFT 2026-11-08; RI-only; SAT at <=3 and <=4; Stage-1 run 2026-11-08 -> testsets/Recon_6_stl__twophase_draft/stage1_xml) | Stage-1 RUNNING on cafe2 (partitioned; the Mac run stalled at 858)"
     },
     "SPT_6_oneLP": {
       "main": "SPT_6_oneLP.als (pre-v2, provenance only since 2026-11-08; kept unchanged, sha256 713d0904)",
@@ -37,8 +37,8 @@
       "stl_core": "none"
     },
     "SPT_6_oneLP_v2": {
-      "main": "SPT_6_oneLP_v2.als (DRAFT 2026-11-08, resolve-hooks; = SPT_6_oneLP + [v2-1] rf fact, [v2-2] perturbation-aware seed, [v2-3] >=1 leaker, [v2-4] narrower declassification; awaiting Anna's sign-off; the SPT model for the final batch)",
-      "core": "proposed_twophase/SPT_6_oneLP_v2_core_ri.als (DRAFT; RI-only; 546 at but 3, 5000 capped at but 4); fallback SPT_6_oneLP_v2_core_conservative.als (546 at but 3); SPT_6_oneLP_v2_core.als RO+RI not recommended",
+      "main": "SPT_6_oneLP_v2.als (DRAFT 2026-11-08, resolve-hooks; = SPT_6_oneLP + [v2-1] rf fact, [v2-2] perturbation-aware seed, [v2-3] >=1 leaker, [v2-4] narrower declassification; APPROVED by Anna 2026-11-08; the SPT model for the final batch)",
+      "core": "proposed_twophase/SPT_6_oneLP_v2_core_ri.als (DRAFT; RI-only; 546 at but 3, 5000 capped at but 4); fallback SPT_6_oneLP_v2_core_conservative.als (546 at but 3); SPT_6_oneLP_v2_core.als RO+RI not recommended | Stage-1 RUNNING on cafe2 since 2026-11-09 01:01Z (/tests/simspect_alloy_20261108, partitions k1..k6 x transmitter kind)",
       "stl": "none yet (proposed/SPT_6_oneLP_stl.als is derived from the pre-v2 model and generates 0: RS vs alias DECIDE)",
       "stl_core": "none yet"
     }
@@ -172,7 +172,7 @@
         "run_config": "runconfigs/fixed_20261030/SPT_6_oneLP_fence_fixed_latest.jsonc (set sample_fraction; point at the v2 regen)",
         "checker": "check_ld / check_br; store transmitters (str) have no checker (check_ld fallback scores the store complete tick)",
         "status": "NOT RUN (Anna 2026-11-08: everything is re-run on two-stage testsets)",
-        "blocker": "approve SPT_6_oneLP_v2.als (draft) after the cafe2 lost check; needsTSO/Ruby vs authors; store-transmitter criterion. Expect constant-derived transmitters (~10% of v2) and unfed-read hits (P5) to classify, not count as bugs (STAGE3_gem5/triage/spt_cond_slice.py, spt_taint_probe.py, diag/)",
+        "blocker": "needsTSO/Ruby vs authors; store-transmitter criterion. Expect constant-derived transmitters (~10% of v2) and unfed-read hits (P5) to classify, not count as bugs (STAGE3_gem5/triage/spt_cond_slice.py, spt_taint_probe.py, diag/)",
         "prior": "round 4 ran the OLD SPT_6_oneLP: all 341 hit tests were model/concretization artifacts (results/SPT_6_oneLP_fence_fixed_latest__20261108_012818)"
       },
       "alloy_model": "SPT_6_oneLP_v2",

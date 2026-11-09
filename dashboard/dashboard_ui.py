@@ -603,6 +603,29 @@ code {
 .status-col { flex: 1 1 420px; min-width: 320px; font-size: 12px; }
 .status-col h3 { color: var(--heading); margin-top: 0; }
 
+/* ---------- Eval manifest tab ---------- */
+.em-table td { vertical-align: top; }
+.em-row-id { font-weight: 700; white-space: nowrap; }
+.em-row-id a { color: var(--link); cursor: pointer; }
+.em-trunc {
+  display: inline-block; max-width: 30ch; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; vertical-align: bottom; cursor: pointer;
+}
+.em-trunc.open { white-space: normal; max-width: none !important; overflow: visible; }
+.em-trunc.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.badge.na { background: var(--tab-bg); color: var(--muted); border: 1px solid var(--border); }
+.badge.contention { background: var(--err); color: #fff; font-weight: 700; letter-spacing: .03em; }
+.em-load { font-size: 12px; margin: 8px 0 4px; }
+.em-load.contention { color: var(--err); }
+.em-bar { display: flex; margin: 4px 0 8px; }
+.em-bar .em-run { background: var(--run); }
+.em-v-ok { color: var(--ok); font-weight: 600; }
+.em-v-warn { color: var(--warn); font-weight: 600; }
+.em-v-err { color: var(--err); font-weight: 700; }
+.em-parts { margin-top: 8px; }
+.em-parts > summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+.em-md { font-size: 13px; }
+
 /* ---------- Generic modal (pipeline inspector / launch form) ---------- */
 .u-modal {
   position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 55;
@@ -695,6 +718,7 @@ let state = {
   autoRefreshInterval: 30,
   timer: null,
   pipelineTimer: null,
+  evalTimer: null,
   // Corpora drill-down state (reused inside the Pipeline inspector modal)
   selectedCorpus: null,
   selectedMode: null,
@@ -714,6 +738,7 @@ const DEFAULT_STEM = 'inst-000001';
 const MAIN_TABS = [
   { id: 'pipeline', label: 'Pipeline' },
   { id: 'status', label: 'Status' },
+  { id: 'eval', label: 'Eval manifest' },
   { id: 'utilities', label: 'Utilities' },
 ];
 
@@ -2961,6 +2986,266 @@ function showUtilTab(id) {
   showUtilSection(id);
 }
 
+// ====== Eval manifest tab (Anna 2026-11-08: "make sure that this dashboard (add a page)
+// has the official experiment manifest and the statuses") ======
+// The official experiment list = wiki/state/EVAL_MANIFEST.md + its machine copy
+// specs/defense_units.json (unit.eval rows, T rows, C rows), plus the live status of
+// every run registered in specs/eval_runs.json (each points at a status JSON its
+// launcher rewrites every 60 s, e.g. launch_stage1.py). Only the live-runs section
+// polls (ensureEvalTimer, 60 s, quiet diff-refresh); the table and the rendered .md
+// re-render only on a tab switch.
+let EVAL_RUNS_SIG = null;
+let EVAL_SKEW = 0;   // server (container) clock minus browser clock, seconds
+
+function escv(v) { return (v === null || v === undefined) ? '' : esc(String(v)); }
+function escAttr(v) { return escv(v).replace(/"/g, '&quot;'); }
+
+// Truncated cell: full text on hover (title), click toggles the full text inline.
+function emTrunc(text, maxCh, mono) {
+  if (text === null || text === undefined || text === '') return '<span class="card-meta">—</span>';
+  return `<span class="em-trunc${mono ? ' mono' : ''}" style="max-width:${maxCh || 30}ch" title="${escAttr(text)}" onclick="this.classList.toggle('open')">${escv(text)}</span>`;
+}
+
+function fmtDur(s) {
+  s = Math.max(0, Math.round(Number(s) || 0));
+  if (s < 60) return s + 's';
+  if (s < 3600) return Math.floor(s / 60) + 'm';
+  return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
+}
+
+function fmtNum(v, digits) {
+  const n = Number(v);
+  return (v === null || v === undefined || isNaN(n)) ? '?' : n.toFixed(digits);
+}
+
+function fmtTs(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return escv(iso);
+  return `<span title="${escAttr(iso)}">${esc(d.toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'}))}</span>`;
+}
+
+// run_stage1.py verdicts: EXHAUSTED (solver UNSAT below the cap) = complete;
+// CAPPED / TIMEOUT / UNKNOWN = partial; ERROR / DISK_GUARD / NOT_STARTED = failed.
+function emVerdictCls(v) {
+  if (v === 'EXHAUSTED') return 'em-v-ok';
+  if (v === 'CAPPED' || v === 'TIMEOUT' || v === 'UNKNOWN') return 'em-v-warn';
+  return v ? 'em-v-err' : '';
+}
+
+function noteEvalSkew(d) {
+  if (d && d.server_time) EVAL_SKEW = Number(d.server_time) - Date.now() / 1000;
+}
+
+function evalRunsSig(d) { return JSON.stringify({r: (d && d.runs) || [], e: (d && d.runs_error) || null}); }
+
+// "updated N ago" + a STALE badge when the launcher stopped rewriting its status file
+// while partitions are still running/queued (it writes every 60 s).
+function buildEvalAge(mtime, active, staleAfter) {
+  if (!mtime) return 'updated ?';
+  const age = Math.max(0, Date.now() / 1000 + EVAL_SKEW - mtime);
+  const stale = active && age > (staleAfter || 300);
+  return `updated ${fmtDur(age)} ago` + (stale
+    ? ` <span class="badge stale" title="no status update for ${fmtDur(age)} while partitions are still running or queued: is the launcher alive? (check its log)">STALE</span>`
+    : '');
+}
+
+async function renderEvalTab() {
+  const data = await apiCall('/api/eval_manifest');
+  if (data.error && !data.units) return `<p class="err">Error: ${esc(data.error)}</p>`;
+  // Row links reuse the Pipeline unit inspector (same enrichment as /api/defense_units).
+  DEFENSE_UNITS_DATA = {units: data.units || [], model_families: data.model_families || {}};
+  EVAL_RUNS_SIG = evalRunsSig(data);
+  noteEvalSkew(data);
+  let html = `<h2 style="margin-top:0">Eval manifest</h2>
+    <p class="card-meta" style="margin-top:-6px">The official experiment list:
+      <code>wiki/state/EVAL_MANIFEST.md</code>${data.manifest_vscode ? ` <a class="vscode-link" href="${escAttr(data.manifest_vscode)}">open</a>` : ''}
+      and its machine copy <code>specs/defense_units.json</code>${data.units_vscode ? ` <a class="vscode-link" href="${escAttr(data.units_vscode)}">open</a>` : ''}
+      (edit the two together). Live runs come from <code>specs/eval_runs.json</code>${data.runs_vscode ? ` <a class="vscode-link" href="${escAttr(data.runs_vscode)}">open</a>` : ''}.
+      Click a row id for the unit's full recipe.</p>`;
+  if (data.error) html += `<p class="err">${esc(data.error)}</p>`;
+  html += buildEvalRowsTable(data);
+  html += `<div id="evalRuns">${buildEvalRuns(data)}</div>`;
+  html += buildEvalParityPending(data);
+  html += buildEvalManifestDoc(data);
+  return html;
+}
+
+function buildEvalRowsTable(data) {
+  const units = data.units || [];
+  const fams = data.model_families || {};
+  const counts = {};
+  units.forEach(u => { const k = u.status || '?'; counts[k] = (counts[k] || 0) + 1; });
+  let html = `<div class="card"><h3>Eval rows <span class="card-meta" style="font-weight:normal">(${units.length} units: ${
+    Object.entries(counts).map(([k, v]) => `${v} ${esc(k)}`).join(', ')})</span></h3>`;
+  if (data.units_eval_note) html += `<div class="card-meta">${escv(data.units_eval_note)}</div>`;
+  if (!units.length) return html + `<p class="empty">No units in specs/defense_units.json.</p></div>`;
+  html += `<div style="overflow-x:auto"><table class="em-table"><thead><tr>
+    <th>Row</th><th>Defense</th><th>gem5 build / flags</th><th>Model family / testset</th>
+    <th>Run config</th><th>Eval status</th><th>Blocker</th></tr></thead><tbody>`;
+  for (const u of units) {
+    const e = u.eval || {};
+    const fam = fams[u.alloy_model];
+    const famTitle = fam
+      ? ['main', 'core', 'stl', 'stl_core', 'also'].filter(k => fam[k]).map(k => k + ': ' + fam[k]).join('\n')
+      : 'no model_families entry for ' + (u.alloy_model || '?');
+    const bcls = u.status === 'done' ? 'done' : (u.status === 'in_progress' ? 'running' : 'stale');
+    html += `<tr>
+      <td class="em-row-id"><a onclick="openUnitInspector(${Number(u.number)})" title="unit #${escAttr(u.number)}: open the eval recipe, criteria and results">${escv(e.row || '-')}</a>
+        ${e.set ? `<div class="card-meta">${emTrunc(e.set, 12)}</div>` : ''}</td>
+      <td>${escv(u.defense)}${e.role ? `<div class="card-meta">${emTrunc(e.role, 22)}</div>` : ''}</td>
+      <td>${emTrunc(u.implementation, 26)}<div class="card-meta">${emTrunc(e.gem5_flags, 28, true)}</div></td>
+      <td><code title="${escAttr(famTitle)}">${escv(u.alloy_model)}</code><div class="card-meta">${emTrunc(e.testset, 24)}</div></td>
+      <td>${emTrunc(e.run_config, 24, true)}</td>
+      <td><span class="badge ${bcls}">${escv(u.status)}</span>${u.prior_status ? ` <span class="card-meta">prior: ${escv(u.prior_status)}</span>` : ''}
+        <div class="card-meta">${emTrunc(e.status, 26)}</div></td>
+      <td>${emTrunc(e.blocker, 24)}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div></div>`;
+  return html;
+}
+
+function buildEvalRuns(data) {
+  let html = `<h3 style="margin:18px 0 6px">Live runs <span class="card-meta" style="font-weight:normal">(refreshes every 60 s)</span></h3>`;
+  if (data.runs_error) html += `<p class="err">${esc(data.runs_error)}</p>`;
+  const runs = data.runs || [];
+  if (!runs.length) return html + `<p class="empty">No runs registered in specs/eval_runs.json.</p>`;
+  for (const r of runs) html += buildEvalRunCard(r, data);
+  return html;
+}
+
+function buildEvalRunCard(r, data) {
+  const live = r.live;
+  let html = `<div class="card"><h3>${escv(r.id)} <span class="card-meta" style="font-weight:normal">${escv(r.stage)}</span></h3>
+    <div class="card-meta">
+      ${r.host ? `<strong>host:</strong> ${escv(r.host)}` : ''}${r.started ? ` · <strong>started:</strong> ${escv(r.started)}` : ''}${r.tmux ? ` · <strong>tmux:</strong> ${escv(r.tmux)}` : ''}
+      ${r.config ? `<br><strong>config:</strong> ${escv(r.config)}` : ''}
+      ${(r.families || []).length ? `<br><strong>families:</strong> ${(r.families || []).map(f => `<code>${escv(f)}</code>`).join(' ')}` : ''}
+      <br><strong>status file:</strong> <code>${escv(r.status_json)}</code>${r.launcher_log ? ` · <strong>launcher log:</strong> <code>${escv(r.launcher_log)}</code>` : ''}
+    </div>`;
+  if (!live) {
+    return html + `<p style="margin:8px 0 0"><span class="badge na">status not available on this host</span>
+      <span class="card-meta">${escv(r.unavailable)}</span></p></div>`;
+  }
+  const fams = live.families || {};
+  const tot = {partitions: 0, done: 0, running: 0, queued: 0, instances: 0};
+  Object.values(fams).forEach(f => { for (const k in tot) tot[k] += Number(f && f[k]) || 0; });
+  const active = tot.running + tot.queued > 0;
+  const hl = live.host_load || {};
+  const reasons = Array.isArray(hl.reasons) ? hl.reasons : [];
+  html += `<div class="em-load${hl.contention ? ' contention' : ''}">
+      <span data-em-mtime="${Number(live._mtime) || 0}" data-em-active="${active ? 1 : 0}">${buildEvalAge(Number(live._mtime) || 0, active, data.stale_after_s)}</span>
+      · host <code>${escv(live.host)}</code>
+      · load ${fmtNum(hl.load1, 1)} / ${escv(hl.ncpu)} cores
+      · mem available ${fmtNum(hl.mem_available_gb, 0)} GB
+      · disk free ${fmtNum(hl.disk_free_gb, 0)} GB
+      ${hl.contention
+        ? `<span class="badge contention">CONTENTION</span> ${escv(reasons.join('; '))}`
+        : '<span style="color:var(--ok)">no contention</span>'}
+    </div>`;
+  const pct = n => tot.partitions ? (100 * n / tot.partitions).toFixed(1) : 0;
+  html += `<div class="card-meta"><strong>${tot.done}/${tot.partitions}</strong> partitions done · ${tot.running} running · ${tot.queued} queued · <strong>${tot.instances.toLocaleString()}</strong> instances so far</div>
+    <div class="progress-bar em-bar"><div class="progress-fill" style="width:${pct(tot.done)}%"></div><div class="progress-fill em-run" style="width:${pct(tot.running)}%"></div></div>`;
+  const famNames = Object.keys(fams);
+  if (famNames.length) {
+    html += `<div style="overflow-x:auto"><table class="em-table"><thead><tr><th>Family</th><th>Partitions</th><th>Done</th><th>Running</th><th>Queued</th>
+      <th style="width:20%">Progress</th><th>Instances</th><th>Verdicts</th></tr></thead><tbody>`;
+    for (const name of famNames) {
+      const f = fams[name] || {};
+      const n = Number(f.partitions) || 0;
+      const p = k => n ? (100 * (Number(f[k]) || 0) / n).toFixed(1) : 0;
+      const verdicts = Object.entries(f.verdicts || {}).map(([v, c]) => `<span class="${emVerdictCls(v)}">${esc(v)} ${escv(c)}</span>`).join(', ');
+      html += `<tr><td><code>${escv(name)}</code></td><td>${n}</td><td>${escv(f.done)}</td><td>${escv(f.running)}</td><td>${escv(f.queued)}</td>
+        <td><div class="progress-bar em-bar"><div class="progress-fill" style="width:${p('done')}%"></div><div class="progress-fill em-run" style="width:${p('running')}%"></div></div></td>
+        <td>${(Number(f.instances) || 0).toLocaleString()}</td><td>${verdicts || '<span class="card-meta">—</span>'}</td></tr>`;
+    }
+    html += `</tbody></table></div>`;
+  }
+  const parts = (live.partitions || []).slice().sort((a, b) =>
+    String(a.family).localeCompare(String(b.family)) || (Number(b.k) || 0) - (Number(a.k) || 0) || String(a.part).localeCompare(String(b.part)));
+  html += `<details class="em-parts" data-em-run="${escAttr(r.id)}"><summary>Partitions (${parts.length})</summary>`;
+  if (parts.length) {
+    html += `<div style="overflow-x:auto"><table class="em-table"><thead><tr><th>Family</th><th>Partition</th><th>k</th><th>Fact</th><th>State</th>
+      <th>Instances</th><th>Verdict</th><th>Elapsed</th><th>Started</th><th>Ended</th><th>rc</th><th>Log</th></tr></thead><tbody>`;
+    for (const q of parts) {
+      const failed = q.state === 'done' && q.rc !== null && q.rc !== undefined && Number(q.rc) !== 0;
+      const scls = q.state === 'running' ? 'running' : (q.state === 'done' ? (failed ? 'failed' : 'done') : 'na');
+      html += `<tr><td><code>${escv(q.family)}</code></td><td><code>${escv(q.part)}</code></td><td>${escv(q.k)}</td><td>${emTrunc(q.fact, 22, true)}</td>
+        <td><span class="badge ${scls}">${escv(q.state)}</span></td><td>${(Number(q.instances) || 0).toLocaleString()}</td>
+        <td><span class="${emVerdictCls(q.verdict)}">${escv(q.verdict)}</span></td>
+        <td>${q.elapsed_s !== null && q.elapsed_s !== undefined ? fmtDur(q.elapsed_s) : ''}</td>
+        <td>${fmtTs(q.started)}</td><td>${fmtTs(q.ended)}</td><td>${escv(q.rc)}</td><td>${emTrunc(q.log, 24, true)}</td></tr>`;
+    }
+    html += `</tbody></table></div>`;
+  } else {
+    html += `<p class="empty">no partitions in the status file</p>`;
+  }
+  html += `</details></div>`;
+  return html;
+}
+
+function buildEvalParityPending(data) {
+  const T = data.amulet_parity_runs || [];
+  const C = data.pending_rows || [];
+  let html = `<div class="card"><h3>AMuLeT-parity runs (T rows)</h3>`;
+  if (data.amulet_parity_rule) html += `<div class="card-meta">${escv(data.amulet_parity_rule)}</div>`;
+  html += T.length
+    ? `<div style="overflow-x:auto"><table class="em-table"><thead><tr><th>Row</th><th>Experiment</th><th>Run config</th><th>Measures</th><th>Status</th></tr></thead><tbody>${
+        T.map(t => `<tr><td class="em-row-id">${escv(t.row)}</td><td>${escv(t.experiment)}</td><td>${emTrunc(t.run_config, 36, true)}</td>
+          <td>${escv(t.measures)}</td><td>${escv(t.status)}</td></tr>`).join('')}</tbody></table></div>`
+    : `<p class="empty">none</p>`;
+  html += `</div><div class="card"><h3>Pending rows (C rows)</h3>`;
+  html += C.length
+    ? `<div style="overflow-x:auto"><table class="em-table"><thead><tr><th>Row</th><th>Experiment</th><th>Depends on</th><th>Status</th></tr></thead><tbody>${
+        C.map(c => `<tr><td class="em-row-id">${escv(c.row)}</td><td>${escv(c.experiment)}</td><td>${escv(c.depends_on)}</td>
+          <td>${escv(c.status)}</td></tr>`).join('')}</tbody></table></div>`
+    : `<p class="empty">none</p>`;
+  return html + `</div>`;
+}
+
+function buildEvalManifestDoc(data) {
+  let html = `<div class="card em-md"><h3>EVAL_MANIFEST.md${data.manifest_vscode
+    ? ` <a class="vscode-link" href="${escAttr(data.manifest_vscode)}">open in VSCode</a>` : ''}</h3>`;
+  if (data.manifest_error) html += `<p class="err">${esc(data.manifest_error)}</p>`;
+  // manifest_html is rendered server-side by dashboard.md_to_html (which escapes).
+  html += data.manifest_html || (data.manifest_error ? '' : '<p class="empty">wiki/state/EVAL_MANIFEST.md not found.</p>');
+  return html + `</div>`;
+}
+
+// Quiet 60 s refresh of the live-runs section only: skip the DOM write when nothing
+// changed (just tick the "updated N ago" labels), keep open partition tables open and
+// the scroll position, and keep the current view on a transient error.
+async function pollEvalRuns() {
+  const box = document.getElementById('evalRuns');
+  if (!box) return;
+  const data = await apiCall('/api/eval_manifest?part=runs');
+  if (!data || data.error || !box.isConnected || state.activeMainTab !== 'eval') return;
+  noteEvalSkew(data);
+  const sig = evalRunsSig(data);
+  if (sig === EVAL_RUNS_SIG) {
+    box.querySelectorAll('[data-em-mtime]').forEach(el => {
+      el.innerHTML = buildEvalAge(Number(el.dataset.emMtime), el.dataset.emActive === '1', data.stale_after_s);
+    });
+    stamp();
+    return;
+  }
+  EVAL_RUNS_SIG = sig;
+  const open = new Set([...box.querySelectorAll('details.em-parts[open]')].map(d => d.dataset.emRun));
+  const y = window.scrollY;
+  box.innerHTML = buildEvalRuns(data);
+  box.querySelectorAll('details.em-parts').forEach(d => { if (open.has(d.dataset.emRun)) d.open = true; });
+  window.scrollTo(0, y);
+  stamp();
+}
+
+function ensureEvalTimer() {
+  if (state.evalTimer) clearInterval(state.evalTimer);
+  state.evalTimer = setInterval(() => {
+    if (state.activeMainTab === 'eval') pollEvalRuns();
+  }, 60000);
+}
+
 // ====== Tab Management ======
 
 function renderMainTabs() {
@@ -3000,6 +3285,11 @@ async function refreshMainTab(force) {
     stamp();
     return;
   }
+  if (state.activeMainTab === 'eval' && !force && main.querySelector('#evalRuns')) {
+    // quiet: only the live-runs section; never re-render the table or the manifest
+    await pollEvalRuns();
+    return;
+  }
   main.innerHTML = '<p class="spin">loading…</p>';
   let html = '';
   switch (state.activeMainTab) {
@@ -3009,6 +3299,9 @@ async function refreshMainTab(force) {
     case 'status':
       html = await renderStatusTab();
       state.statusHash = html;
+      break;
+    case 'eval':
+      html = await renderEvalTab();
       break;
   }
   main.innerHTML = html;
@@ -3023,9 +3316,10 @@ function setAutoRefresh() {
   state.autoRefreshInterval = interval;
   if (interval > 0) {
     state.timer = setInterval(() => {
-      // Pipeline has its own faster dedicated poll (see ensurePipelineTimer);
-      // this generic interval drives Status/Utilities refresh.
-      if (state.activeMainTab !== 'pipeline') refreshMainTab();
+      // Pipeline has its own faster dedicated poll (see ensurePipelineTimer) and the
+      // Eval manifest its own 60 s runs-only poll (ensureEvalTimer); this generic
+      // interval drives Status/Utilities refresh.
+      if (state.activeMainTab !== 'pipeline' && state.activeMainTab !== 'eval') refreshMainTab();
     }, interval * 1000);
   }
   localStorage.setItem('autoRefreshInterval', interval);
@@ -3061,6 +3355,7 @@ function init() {
   document.getElementById('iv').onchange = setAutoRefresh;
   setAutoRefresh();
   ensurePipelineTimer();
+  ensureEvalTimer();
 
   // Focus refresh
   window.addEventListener('focus', () => {

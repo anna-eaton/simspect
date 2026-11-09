@@ -57,9 +57,9 @@
    "intention": "The main SPT model, run against gem5-spt (fence + untaint variants). Store-address transmitters produced the ~24 untriaged str hits (need a store checker)."
   },
   "SPT_6_oneLP_v2": {
-   "tier": "variant",
-   "summary": "DRAFT (2026-11-08, awaiting Anna's sign-off): consolidated SPT for the final batch. SPT_6_oneLP + 4 marked changes: [v2-1] rf_from_most_recent_writer (skeleton sync with STT_6), [v2-2] perturbation-aware protection seed (simspect-c8/twophase-spt fix, audited: no instance lost), [v2-3] base clause >=1 insecure transmitter (skeleton form), [v2-4] declassification only of the transmitted value, not its whole backward cone (SPT paper Sec. 6 backward rules untaint less).",
-   "intention": "Recommended SPT model for the final batch (brief: wiki/design/MANIFEST_BRIEF_SPT_v2.md). Stage-1 core: proposed_twophase/SPT_6_oneLP_v2_core_ri.als (RI-only, per the 2026-11-08 decision; 546 at but 3); fallback SPT_6_oneLP_v2_core_conservative.als. Evidence: results/spt_v2_20261108/, wiki/state/ALLOY_MODEL_CHANGES.md 2026-11-08."
+   "tier": "production",
+   "summary": "PRODUCTION SPT model (APPROVED by Anna 2026-11-08; replaces SPT_6_oneLP, kept unchanged for provenance): consolidated SPT for the final batch. SPT_6_oneLP + 4 marked changes: [v2-1] rf_from_most_recent_writer (skeleton sync with STT_6), [v2-2] perturbation-aware protection seed (simspect-c8/twophase-spt fix, audited: no instance lost), [v2-3] base clause >=1 insecure transmitter (skeleton form), [v2-4] declassification only of the transmitted value, not its whole backward cone (SPT paper Sec. 6 backward rules untaint less).",
+   "intention": "Recommended SPT model for the final batch (brief consolidated into wiki/state/EVAL_MANIFEST.md). Stage-1 core: proposed_twophase/SPT_6_oneLP_v2_core_ri.als (RI-only, per the 2026-11-08 decision; 546 at but 3); fallback SPT_6_oneLP_v2_core_conservative.als. Evidence: results/spt_v2_20261108/, wiki/state/ALLOY_MODEL_CHANGES.md 2026-11-08."
   },
   "Recon_6": {
    "tier": "production",

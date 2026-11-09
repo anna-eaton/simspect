@@ -6,9 +6,94 @@ future sessions (and the user) need to know. It is the counterpart to `claudenot
 - `claudenotes.md` = *ephemeral* "what I'm doing right now" scratchpad. Cleared/overwritten freely.
 - `claudelog.md` (this file) = *durable* "what we learned / changed and why". **Append, don't delete.**
 
+## 2026-11-08 19:20 — fpr-fanout — STT S1 CONFIRMED in gem5 (xmm4 leaks 98/100, xmm3 0/100, GPR 0/100); opt-in FPR routing + FP-mode corpus + random register naming in Stage 2; fanout v2 proposal
+
+- **Real STT bug (S1), found by our pipeline.** On `/work/stt` (canonical `STT_6_stt_fixed_latest.jsonc`, only testset_dir/results_name changed), 100 STT_6 load→load tests held in the GPR form leak **98/100** when the access load's value is copied through **xmm4**. The same copy through xmm3 leaks 0/100; GPR leaks 0/100 (check_ld data-obtained gate; xmm4 fates reached_cache 90 / store_forward 8 / executed_no_packet 2). Cause: `rob_impl.hh:229` skips source `index()==16` for every register class, and FP 16 = xmm4-low. amulet-STT has the same line (`rob_impl.hh:230`). gem5-recon-modded control: GPR 10, xmm3 8, xmm4 8, with xmm hits a subset of the GPR hits (not proof either way, R-SA-12 `flatIndex()==16`). Review: [`wiki/findings/bug/stt_xmm4_taint_skip/README.md`](wiki/findings/bug/stt_xmm4_taint_skip/README.md); campaigns cafe2 `results/STT_6_fpr_s1check_{gpr,xmm3,xmm4}_{stt,reconmodded}__20261109_*`, testsets `testsets_fpr_s1check/`.
+- **Gadget detail that matters:** the copy-back has to be `movq %out,%xmmK; movq $0,%out; movq %xmmK,%out`. gem5's `mov2int` reads its integer destination (`DestReg = DestReg`, `mediaop.isa:235-253`), so without the zeroing the taint rides through the old `%out` and xmm4 is never tested.
+- **parsexml.py changes (approved by Anna 2026-11-08; all opt-in; default output byte-identical, proven on 100 XMLs: 1200 `.ll`/`.ann.json` incl. interleave, plus 200 compiled `.s`/`.o`/resolved ann):** (1) pass 5 `fpr_cfg` routes consumed loads through xmm (`forms` route/direct/route_alu/direct_alu, `xmm_regs`), recorded in `.ann.json` `fpr`. (2) pass 3 `reg_naming` (`sorted` | `random`+seed) gives the locked Alloy registers per-test random x86 names, recorded in `.ann.json` `reg_naming`. No key means the legacy sorted map. Plumbed through `batch_generate.py --fpr-config/--reg-naming-config` and `pipeline.py` run-config keys `fpr` / `reg_naming` (`testsetgen.py` inherits them). Specs: `specs/fanout/fpr.json` (new), `specs/fanout/fp.json` (new), `specs/fanout/standard.json` (+`reg_naming` random, per Anna). Docs: `wiki/design/VOCAB_TABLES.md` "FPR (xmm) routing", "FP mode corpus", "Register naming".
+- **FP-mode corpus (separate, per Anna):** cafe2 `testsets_latest/STT_6_fp` (xml symlinked to STT_6; only the 2991 stems of the 0.02 sample, both modes = 5982 tests; all compile; xmit/lc/fnc addresses and every routed block verified). Run config `runconfigs/fixed_20261030/STT_6_fp_stt_latest.jsonc`. A 100-test gem5 sanity run is in `results/STT_6_fp_s100_{stt,reconmodded}__*`; see the S1 review / VOCAB_TABLES for the outcome.
+- **Fanout v2 measurement (proposal only; no default changed):** on 300 STT_6 ld-transmitter XMLs, today's interleave puts an ALU on the transmitter's address path **0/1200** times, because the address is always a locked register and chains write only free registers. Random fillers anywhere do it 6.2% of the time, but break some Alloy edge in 12.5% of variants. Read-only fillers: 0%. Splicing an ALU onto the rf edge: 100%, with every edge intact. Proposal, audit-shape vocabulary (SPT A1-A3, STT S4) and DECIDE FV-1..FV-6 are in `wiki/design/VOCAB_TABLES.md` "Fanout v2 proposal"; script `STAGE2_compilation/proposed/measure_xmit_path_alu.py`. Depends on the pending `MODEL_AUDIT_SPT_RECON.md` (safe-insertion rules: reading a path value can declassify under SPT or reveal under ReCon).
+
+## 2026-11-08 18:40 — src-audit — Source audit round 2: two Recon taint holes that fire in our scheme-2 config today; STT S1 mapping confirmed, S4 = stock-timing squash race; SPT "InvisiSpec" configs are unprotected
+
+Read-only, code-read only (nothing run in gem5 yet); details in `wiki/findings/audits/2026-11-08/SOURCE_AUDIT_{STT,SPT,RECON}.md`. Anna: STT store leaks are known and don't count (STT S2/S3 and Recon R-SA-16 are that).
+- **Recon R-SA-12 (could explain some current NEW Recon hits):** `cpu/o3/secure_scheme/taint_tracker.cc:59` `if (regId->flatIndex() == 16) return;` skips tainting any value written to physical int reg 16 (x86 has no zero register; that reg recycles into the free pool). Re-checked by the parent session. Expect about 1 in ~220 allocations, deterministic per binary. Proposed diagnostic: a Rename-flag trace showing phys int 16 in the xmit's source chain.
+- **Recon R-SA-13:** `decode.cc:691` checks `isFloating()` before `isLoad()`, so FP/SSE loads are never inserted as speculative (STT/NDA/DoM all skip them). Re-checked by the parent session. Also R-SA-14/15 (DoM: split loads not L1-only; L1-hit replacement updated speculatively), R-SA-17 (only cond branches and stores cast shadows), R-SA-18 (check_ld's criterion doesn't match NDA/DoM promises: blocks the STL round's NDA/DoM runs until decided), R-SA-7 reachable without a loop but not in the 6-insn shape.
+- **Correction (parent session):** an earlier grep of the Recon tree for `index() == 16` found nothing and was reported as "Recon has no S1 skip"; R-SA-12 is a different skip on physical regs in `secure_scheme/`. The FPR agent was told.
+- **STT S1 confirmed in the ISA code:** `regs/float.hh:71` XMM_BASE = MMX_BASE + 8 and 2 slots per xmm, so FP 16 = xmm4-low; parent session re-checked. An agent (fpr-fanout) is adding opt-in xmm routing to Stage 2 and testing xmm4 vs xmm3 on `/work/stt`.
+- **STT S4:** same family as the known VP/squash race (`wiki/findings/bug/stt_slowcomm_vp_squash_race/`), but triggered by a tainted mispredicted branch whose held squash fires one commit cycle after the untaint (`commit_impl.hh:964` vs `markCompletedInsts` `:726`), so it would be reachable at stock timing; that bug note currently says not stock-config.
+- **SPT:** A1-A3 now confirmed by reading (flags as an invertible input; mov rule on cmov/cmpxchg; partial writes leave upper bytes public). B2: `--scheme=SpectreSafeInvisibleSpec` in this tree skips all load taint checks and sends plain reads (`lsq_unit_impl.hh:1142,1234-1238`); with `--configImpFlow=Ignore` the unit-10 variant configs are effectively unprotected. Store-address gating is correct.
+
+## 2026-11-08 18:20 — eval-dash — Dashboard "Eval manifest" page: the official experiment list + live run statuses
+
+Anna asked for a dashboard page with the official experiment manifest and its statuses. It is a new main tab, **Eval manifest** (between Status and Utilities). It only reads files; nothing on cafe2 was written or restarted.
+
+- **What it shows:** (a) the eval rows E1..E14/E12a/E12b (plus the optional '-' row), sorted by row. Columns: gem5 build/flags, model family/testset, run config, unit status + eval status, blocker. Long cells are truncated; hover shows the full text and a click expands it. A row id opens the existing unit inspector. (b) Live runs from `specs/eval_runs.json`: each run's status JSON with host load (red CONTENTION badge + reasons), a STALE badge if the file hasn't changed for 5 min while partitions are still running/queued, per-family done/running/queued/instances/verdicts with progress bars, and a collapsible per-partition table. This section polls every 60 s and only redraws when the data changed, keeping open tables open. (c) The AMuLeT-parity T rows and the pending C rows. (d) The rendered `wiki/state/EVAL_MANIFEST.md`, with relative .md links rewritten to `/api/md`.
+- **Code:** `dashboard/dashboard_data.py:eval_manifest()` (+ `_load_run_status`, `_eval_runs`, `_eval_row_key`; tolerates missing/torn JSON), route `/api/eval_manifest` (`?part=runs` = runs only) and `rewrite_md_links` in `dashboard/dashboard.py`, UI in `dashboard/dashboard_ui.py` (`renderEvalTab`, `build*Eval*`, `pollEvalRuns`, `ensureEvalTimer`). Documented in `wiki/state/COMMANDS.md` § Dashboard.
+- **On a host without the status file** (the Mac), the run shows "status not available on this host". Verified locally: selftests, `node --check`, curl of the page and API, and headless-Chrome screenshots against a copy of the real cafe2 `stage1_status.json` (plus a contention/stale/ERROR variant).
+- **To see it on cafe2:** Anna runs `make sync`, then `make dash` (it always kills and restarts the container dashboard from current code).
+- Pre-existing renderer quirk, not changed: `md_to_html` treats `_` inside words as italics (e.g. "STT_6 family ... Recon_6" renders partly italic), in every doc view.
+
+## 2026-11-08 17:30 — src-audit — Manual source audit (trial) of upstream STT / SPT / Recon: Recon's reveal never takes effect on classic caches; 9 new code-read leak candidates
+
+Trial run, read-only, cut short to save usage; nothing built or run in gem5, so every item is a code-read candidate until a gadget reproduces it. Sources: upstream tarballs `~/Documents/stanford/trippel/defense_src/{stt_e3283b9,spt_0d2be0f}` (the pinned commits of `/work/stt`, `/work/gem5-spt`) and `~/Downloads/dockerrecon/gem5-recon` (line numbers run ~11-15 lower than cafe2's `/work/gem5-recon`; reveal code believed unchanged, unverified). Write-ups: `wiki/findings/audits/2026-11-08/SOURCE_AUDIT_{STT,SPT,RECON}.md`.
+
+- **Recon R-SA-1 (corrects the 2026-10-28 claim that classic-cache Recon runs exercise ReCon):** on `--caches` the reveal request never carries the address. `cpu/o3/lsq_unit.cc:887-896` sets `inst->valueFromAddr` and `setPaddr` but the line that set `req->valueFromAddr` is commented out (`:901`); `mem/cache/base.cc:428` looks up `pkt->req->valueFromAddr`, default 0 (`mem/request.hh:102`). Re-checked by the parent session (grep: no live assignment to `req->valueFromAddr`). So ReCon's un-protect step marks block 0 only and our Recon runs behave like Recon-STT; with R-1 (Alloy reveal clause is a no-op) both sides are effectively STT. Runtime confirmation still needed: a scheme-2 `--allow_leaked` stats.txt with `lsq0.revealRequests > 0` and `taint_tracker.allowlistedTaintsFromTT == 0`. Latent behind it (fire only on `--ruby` or if fixed): stale reveal after an overwrite (R-SA-2) and byte/word granularity holes (R-SA-3/4).
+- **STT:** S1 taint dropped through xmm4 (`rob_impl.hh:229` skips src index 16 without checking the register class); S2 a tainted-address store triggers an immediate memory-order squash + store-set training (paper §6.4.2 p8 says both wait); S3 store-to-load forwarding leaks the store address (partial overlap ignores taint; older-store shadowing; store-address taint loop starts at src 1, `rob_impl.hh:734`, skipping the x86 index reg). Also: A3a/A3b (`hasImplicitFlow` unused) matches paper §6.4 p7, so it is not a bug.
+- **SPT:** A1 backward untaint flows through flag (CC) inputs (`rob_impl.hh:855-873`), which can make a branch on `secret<100` resolve undelayed; A2 the backward MOV untaint rule also fires on cmov even when the condition is false (`rob_impl.hh:876-880`); A3 8/16-bit writes leave stale taint on the upper bytes (`base_dyn_inst_impl.hh:299-354`). B1: gem5 never makes a branch predicate public on becoming non-speculative (stricter than paper + Alloy; can't hide a leak).
+- None of the new items can be generated by the current models/vocabulary (needs xmm/flags/cmov/sub-word ops, store-address transmitters, or conceal-on-store); `check_ld`/`check_br` would detect most. Decisions → `URGENT_TODO.md` "Manual source audit".
+
+## 2026-11-08 — hooks-v2/rmw-corpus — STT_6_rmw disjoint corpus built (124k tests); CleanupSpec E→M upgrade cleanup-skip found; check_ld micro-op fallback artifact on STT
+
+**The corpus**
+- `STAGE2_compilation/make_rmw_corpus.py` post-processes `testsets_latest/STT_6` and rewrites the ld transmitter `movq <mem>,%r` into `orq $0,<mem>`, keeping the marker. `parsexml.py` is untouched.
+- Every kept test is re-resolved with compile_annotate's own functions and checked:
+  - the original re-resolves byte-exactly;
+  - the new xmit disassembles as `or $0`;
+  - addresses shift uniformly by 0 or 1.
+- Result: 62,120 + 62,078 tests in cafe2 `testsets_latest/STT_6_rmw/` (`provenance.json`). Skips: idivq/cqto implicit register reads, and a destination register used later.
+- Validation: same xmit PC, force/stall flags and window as the originals.
+
+**Samples (590 tests per build)**
+- **CleanupSpec:** 23 hits, 0 errors, and 0 textbook UV3 (the prologue zero-fill makes the RMW line hot).
+  - 13 also hit as plain-load originals.
+  - The other 10 share one mechanism: the RMW upgrades a line an older speculative load installed (E→M), and the cleanup then skips it (`Inv_CLEANUP st=M`). Example: inst-021314.
+- **STT:** all 309 hits are check_ld artifacts. The RMW's `ldst` never executed (STT delayed it), and check_ld scored the macro-op's `limm` micro-op instead.
+
+**Files**
+- Diagnostic: `STAGE3_gem5/triage/diag/diag_uv3_rmw.{py,md}` + `uv3_rmw_evidence.py`.
+- Results: `results/STT_6_rmw_{cleanupspec_footprint,stt_fixed_latest}__20261109_002545`.
+- DECIDEs in `URGENT_TODO.md`.
+
 ## 2026-11-08 — rmwjmp-draft — RMW + direct-jump Alloy variant drafted (not approved); the jump kind duplicates resolved br_n
 
 Drafted `STAGE1_alloy/models/proposed/STT_6_rmwjmp.als` (STT_6 + `TRmw` + `TJump`, pinned with `has_rmw_or_jmp`) and the unapplied concretization diff `STAGE1_alloy/models/proposed/STT_6_rmwjmp.parsexml.diff.txt`. No production `.als`, parsexml, table or pipeline file was touched. Scratch Alloy: compiles, SAT, cap 2,000 hit in 22 s. Findings: (1) a `TJump` is semantically identical to a resolved operand-less `TBranchn` in every STT_6 model, so jump-pinned instances are relabelled STT_6 instances, and jumps are better done at Stage 2 alone; (2) under RI-only Stage-1 minimality a jump can never be in a core (UNSAT ≤4), and in STT an RMW survives only as the transmitter, so the pin has to be re-applied at Stage 1.5; (3) today's parsexml silently turns an unknown kind into an ALU op (`leaq`, xmit kind "unknown"), so draft-model XML must never go through the unpatched pipeline. Write-up and DECIDE RJ-1..RJ-5: `wiki/design/VOCAB_TABLES.md` "RMW + direct-jump model variant (draft, 2026-11-08)".
+
+## 2026-11-08 — simspect-c8/stage15 — Stage 1.5 launched (~300k per family, Anna); contention fixed; STL concretizes
+
+- **Anna:** about 300,000 instances per family, split evenly over its cores; "dont start the next version" = no new model or vocabulary version (Stage 1.5 is part of this run).
+- **New `proposed_twophase/launch_stage15.py`:**
+  - It runs one seeded production-model run per core (`stage_seed.build_pred` + `stage_pipeline.build_seeded_model`), with per-core cap ceil(300000/cores).
+  - If cores > 300000 it runs a uniform sample of 300000 (seed 20261108). It is resumable via `s15/<family>/results.jsonl`.
+  - Each family starts when its Stage 1 is complete. Status JSON every 60 s with a CONTENTION flag; registered in `specs/eval_runs.json`.
+  - Tested on 4 STL cores (cap 10 each, about 3 s per core).
+- **Evidence:**
+  - One STT core fleshes out to more than 31,246 programs in 15 min (not exhausted), so the cap is required.
+  - 38/38 sampled STT_6_stl Stage-1.5 instances concretize in `stl_bypass` mode with `/tests/simspect` parsexml 2096e32a.
+  - Stage 1: STT_6_stl complete at 306 (exhaustive); STT_6/Recon_6 129 and Recon_6_stl 858, all at 3 instructions (sizes 4 and 5 empty; k6 still proving); SPT_6_oneLP_v2 more than 33,000 and growing.
+- **Contention (reported to Anna):** at Stage-1.5 start, load reached 63-68/64.
+  - Causes: another session's gem5 campaign (`check_ld.py --jobs 16`, `/tests/simspect_fixed_20261030`), plus about 68 JVM threads per Alloy process.
+  - Restarted Stage 1.5 at 24 jobs with `JAVA_TOOL_OPTIONS=-XX:+UseSerialGC -XX:CICompilerCount=2` (14 threads per JVM); load is about 55.
+- **cafe1/cafe3 setup:** written in the manifest (holder job per node with a distinct job name; cafe1 needs its host key accepted first).
+- **Dashboard:** the eval-dash agent added an Eval manifest tab (`/api/eval_manifest`); it goes live after `make sync` + `make dash`.
+
+## 2026-11-08 — simspect-c8/alloy-launch — SPT v2 approved; Stage-1 (RI-only, up to 6) launched for all five families on cafe2; first sanity checks pass
+
+- **Anna (2026-11-08):** "im good on the new SPT" / "put the new SPT in" → `SPT_6_oneLP_v2.als` is the SPT model (`specs/alloy_models.json` tier production; `defense_units.json` canonical_models.SPT). Leave it in `models/`. Briefs deleted (content in `wiki/state/EVAL_MANIFEST.md`; the v2 `.als` header comments still name the deleted brief, left as is: `.als` edits need sign-off). Start all Alloy runs now at 6; grow the vocabulary before the fanout runs; use cafe2, report contention before using cafe1/cafe3.
+- **Cores:** `proposed_twophase/STT_6_core_ri.als` and `Recon_6_core_ri.als` derived with `derive_core.py --minimality ri` (diff vs the RO+RI cores = only the RO clause); `SPT_6_oneLP_v2_core_ri.als` = a fresh derive (byte-identical).
+- **Partitioning (new `proposed_twophase/partition_stage1.py`):** exact k = 1..4 one partition each; k = 5, 6 split by transmitter kind (each kind in the leakage function) + a `rest` partition (must be UNSAT = coverage check). Disjoint and exhaustive by construction. **Launcher (new `launch_stage1.py`):** pool of 48 over 52 partitions via `run_stage1.py` (cap 200,000, 24 h, -Xmx8g), status JSON every 60 s with a CONTENTION flag; `stage1_status.py` prints it. Workspace `/tests/simspect_alloy_20261108` in the cafe2 container (`PROVENANCE_sha256.txt`), tmux `alloy_stage1_1108`, registry `specs/eval_runs.json`.
+- **Sanity (first 4 min):** every `rest` partition UNSAT; SPT v2 k1+k2+k3 = 0+0+546 = resolve-hooks' 546 at `but 3` (also reproduced on the Mac before launch); STT_6_stl k3 = 306, k4 = k5 = 0 = the Mac's exhaustive 306; STT_6 RI-only k3 = 129, k4 = 0 = the earlier isolation sweep's RI-only 129; Recon_6 = the same 129 (R-1); Recon_6_stl k3 = 858 (= the Mac run's count before it stalled); SPT v2 k4 > 1,045 and counting. So RI-only cores for STT/Recon/STL are all exactly 3 instructions.
+- **cafe1/cafe3:** both 64 cores / ~500 GB free (sinfo). cafe3 refuses ssh without a Slurm job on the node (pam_slurm_adopt, like cafe2); cafe1 fails host-key verification (Anna must accept the key once). Not used yet (Anna: only on contention).
 
 ## 2026-11-08 — simspect-c8/manifest-3 — SPT v2 + AMuLeT-hooks briefs consolidated into the eval manifest
 

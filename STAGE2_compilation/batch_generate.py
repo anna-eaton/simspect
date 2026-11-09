@@ -77,7 +77,9 @@ RUN_MODES: list[str] = [
 
 
 def run_pipeline(xml_text: str, stem: str, out_dir: Path, mode: str,
-                 _fns=None, interleave_cfg: Optional[dict] = None) -> None:
+                 _fns=None, interleave_cfg: Optional[dict] = None,
+                 fpr_cfg: Optional[dict] = None,
+                 reg_naming_cfg: Optional[dict] = None) -> None:
     """Run the full pipeline for one XML file and one branch mode.
 
     When interleave_cfg["enabled"] is True and variants_per_instance > 1,
@@ -115,13 +117,24 @@ def run_pipeline(xml_text: str, stem: str, out_dir: Path, mode: str,
             r_il = pass_il(r25, icfg_v, rng)
         else:
             r_il = pass_il(r25, icfg if enabled else None, rng)
-        r3  = pass3(r_il, write_out=False)
+        vstem    = f"{stem}_v{v}" if n_variants > 1 else stem
+        if reg_naming_cfg:
+            rn = {"mode": reg_naming_cfg.get("mode", "sorted")}
+            if rn["mode"] == "random":
+                # per-test seed: stable across runs and machines
+                rn["seed"] = zlib.crc32(f"regs:{reg_naming_cfg.get('seed', 0)}:{vstem}".encode())
+            r3  = pass3(r_il, write_out=False, reg_naming=rn)
+        else:
+            r3  = pass3(r_il, write_out=False)
         r4  = pass4(r3,   write_out=False)
 
-        vstem    = f"{stem}_v{v}" if n_variants > 1 else stem
         ll_path  = out_dir / f"{vstem}.ll"
         ann_path = out_dir / f"{vstem}.ann.json"
-        pass5(r4, func_name=vstem, out_path=str(ll_path),  write_out=True)
+        if fpr_cfg and fpr_cfg.get("enabled"):
+            pass5(r4, func_name=vstem, out_path=str(ll_path), write_out=True,
+                  fpr_cfg=fpr_cfg)
+        else:
+            pass5(r4, func_name=vstem, out_path=str(ll_path),  write_out=True)
         emit_ann(r4,               out_path=str(ann_path), write_out=True)
 
 
@@ -145,6 +158,8 @@ def process_folder(
     limit: int = 0,
     instruction_tables: str | None = None,
     interleave_cfg: Optional[dict] = None,
+    fpr_cfg: Optional[dict] = None,
+    reg_naming_cfg: Optional[dict] = None,
 ) -> None:
     _fns = _load_parser(kind, instruction_tables=instruction_tables)
     parse_fn, pass1_fn = _fns[0], _fns[1]
@@ -181,7 +196,8 @@ def process_folder(
 
             try:
                 run_pipeline(xml_text, stem, mode_dir, mode, _fns=_fns,
-                             interleave_cfg=interleave_cfg)
+                             interleave_cfg=interleave_cfg, fpr_cfg=fpr_cfg,
+                             reg_naming_cfg=reg_naming_cfg)
                 print(f"  [ok]  {xml_path.name}  ({mode})")
                 ok += 1
             except NotImplementedError as exc:
@@ -242,6 +258,17 @@ def main() -> None:
         "--interleave-config", default=None, dest="interleave_config",
         help="JSON-encoded interleave configuration (see run_config_STT_6.jsonc).",
     )
+    parser.add_argument(
+        "--fpr-config", default=None, dest="fpr_config",
+        help="JSON-encoded FPR (xmm) routing config, e.g. specs/fanout/fpr.json's "
+             "'fpr' object: {enabled, loads, xmm_regs}. Off when absent.",
+    )
+    parser.add_argument(
+        "--reg-naming-config", default=None, dest="reg_naming_config",
+        help="JSON {mode: sorted|random, seed: int}: x86 names for the locked "
+             "(Alloy) registers (pass3 reg_naming). Absent = legacy sorted "
+             "mapping, byte-identical, not recorded in .ann.json.",
+    )
     args = parser.parse_args()
 
     modes = args.modes if args.modes else RUN_MODES
@@ -262,12 +289,21 @@ def main() -> None:
         except json.JSONDecodeError as e:
             print(f"Warning: --interleave-config parse error: {e}", file=sys.stderr)
 
+    fpr_cfg: dict = {}
+    if args.fpr_config:
+        fpr_cfg = json.loads(args.fpr_config)   # malformed -> fail loudly
+    reg_naming_cfg: dict = {}
+    if args.reg_naming_config:
+        reg_naming_cfg = json.loads(args.reg_naming_config)
+
     process_folder(input_dir, output_dir, args.pattern, modes,
                    kind=args.kind,
                    filter_unresolved_branch=args.unresolved_branch,
                    limit=args.limit,
                    instruction_tables=args.instruction_tables,
-                   interleave_cfg=interleave_cfg)
+                   interleave_cfg=interleave_cfg,
+                   fpr_cfg=fpr_cfg,
+                   reg_naming_cfg=reg_naming_cfg)
 
 
 if __name__ == "__main__":

@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "wiki/design/MANIFEST_BRIEF_amulet_hooks.md",
+                "file": "wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "MANIFEST_BRIEF_amulet_hooks"
+              "title": "AMULET_BUGS_DETECTION_ACCOUNTING"
             }
           }
         ]
@@ -190,21 +190,25 @@
   },
   "active": "347a9dc0eec19401",
   "lastOpenFiles": [
-    "STAGE1_alloy/models/proposed/STT_6_rmwjmp.parsexml.diff.txt",
-    "wiki/findings/audits/2026-11-08",
-    "wiki/design/MANIFEST_BRIEF_SPT_v2.md",
-    "STAGE1_alloy/models/proposed/STT_6_rmwjmp.als",
-    "results/spt_v2_20261108/differential/run_lost_cafe2.sh",
-    "STAGE3_gem5/triage/diag/diag_uv3_rmw.md",
-    "STAGE3_gem5/triage/diag/diag_uv3_rmw.py",
-    "STAGE3_gem5/triage/uv3_rmw_evidence.py",
-    "STAGE2_compilation/make_rmw_corpus.py",
-    "results/spt_v2_20261108/tiny/v2_core_ri_but4.out",
-    "results/spt_v2_20261108/tiny/v2_core_ri_but3.out",
-    "results/spt_v2_20261108/tiny/v2_core_ri_but4.als",
-    "results/spt_v2_20261108/tiny/v2_core_ri_but3.als",
-    "wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md",
+    "wiki/findings/bug/stt_xmm4_taint_skip/README.md",
+    "wiki/findings/bug/stt_xmm4_taint_skip",
+    "STAGE2_compilation/proposed/measure_xmit_path_alu.py",
+    "STAGE2_compilation/proposed",
+    "STAGE1_alloy/models/proposed_twophase/launch_stage15.py",
+    "runconfigs/fixed_20261030/STT_6_fp_stt_latest.jsonc",
+    "specs/fanout/fp.json",
+    "wiki/findings/audits/2026-11-08/SOURCE_AUDIT_SUMMARY.md",
+    "specs/fanout/fpr.json",
+    "dashboard/__pycache__/dashboard.cpython-314.pyc",
+    "STAGE1_alloy/models/proposed_twophase/stage1_status.py",
     "wiki/design/MANIFEST_BRIEF_amulet_hooks.md",
+    "specs/eval_runs.json",
+    "wiki/findings/audits/2026-11-08/SOURCE_AUDIT_SPT.md",
+    "wiki/findings/audits/2026-11-08/SOURCE_AUDIT_RECON.md",
+    "wiki/findings/audits/2026-11-08/SOURCE_AUDIT_STT.md",
+    "wiki/design/MANIFEST_BRIEF_SPT_v2.md",
+    "STAGE3_gem5/triage/diag/diag_uv3_rmw.md",
+    "wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md",
     "wiki/findings/bug/speclfb_jmp_shadow/README.md",
     "wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md",
     "wiki/state/EVAL_MANIFEST.md",
@@ -231,10 +235,6 @@
     "paper_figures/plans/fig_f_xmitcriteria.md",
     "paper_figures/plans/TRIPPEL_FIGURE_STYLE.md",
     "paper_figures/plans/BIGFIG_FACT_AUDIT.md",
-    "wiki/findings/audits/2026-10-28/APPROVALS.md",
-    "paper_figures/plans/fig_b_relaxation.md",
-    "paper_figures/plans/AUDIT_existing_figures.md",
-    "paper_figures/plans/fig_c_interleave.md",
-    "paper_figures/plans/fig_e_checkerwindow.md"
+    "wiki/findings/audits/2026-10-28/APPROVALS.md"
   ]
 }

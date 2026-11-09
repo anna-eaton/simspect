@@ -1,5 +1,5 @@
 {
-  "_doc": "Standard enumeration.",
+  "_doc": "Standard enumeration. reg_naming random (Anna 2026-11-08): locked Alloy registers get per-test random x86 names (pass3 reg_naming); {\"mode\": \"sorted\"} or omitting the key in a run config reproduces the legacy mapping byte-identically.",
   "max_instances": 150000,
   "branch_modes": [
     "mispredict_not_taken",
@@ -7,5 +7,9 @@
   ],
   "interleave": false,
   "instruction_choice": "random",
-  "seed": null
+  "seed": null,
+  "reg_naming": {
+    "mode": "random",
+    "seed": 0
+  }
 }

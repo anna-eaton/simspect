@@ -1,0 +1,17 @@
+{
+  "_doc": "FP mode: a SEPARATE corpus (never mixed into the baseline STT_6 testset, like the RMW disjoint corpus). Same Alloy XML as the source testset; Stage 2 routes every consumed load's value through SSE registers. Forms (parsexml.py pass5_emit_llvm fpr_cfg.forms): route = GPR load then movq %out,%xmmK / movq $0,%out / movq %xmmK,%out; direct = SSE load movq mem,%xmmK (ldfp; exercises recon decode.cc isFloating-before-isLoad, audit R-SA-13); *_alu = adds pxor %xmmJ,%xmmJ; por %xmmK,%xmmJ (value-preserving SSE ALU op on the value) and copies back from xmmJ. Register names randomized per test (reg_naming random). Recipe and run config: runconfigs/fixed_20261030/STT_6_fp_stt_latest.jsonc; design wiki/design/VOCAB_TABLES.md 'FPR routing'.",
+  "max_instances": 150000,
+  "branch_modes": [
+    "mispredict_not_taken",
+    "mispredict_taken"
+  ],
+  "interleave": false,
+  "instruction_choice": "random",
+  "fpr": {
+    "enabled": true,
+    "loads": "consumed",
+    "xmm_regs": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    "forms": ["route", "direct", "route_alu", "direct_alu"]
+  },
+  "reg_naming": {"mode": "random", "seed": 0}
+}

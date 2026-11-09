@@ -1,14 +1,13 @@
 # Eval manifest: what we run, on what, from which model
 
-**The one place that says what the eval is.** Last refreshed 2026-11-08 17:00 (simspect-c8).
+**The one place that says what the eval is.** Last refreshed 2026-11-08 17:20 PST (simspect-c8).
 
 **Sources consolidated here** (each brief's facts were checked against the files before merging):
 - the "Main models per defense" tables from `STAGE1_alloy/models/MANIFEST.md` (stl-spec);
 - the eval subset of the 33-row build list in [`../findings/audits/2026-11-07/HOOK_AUDIT.md`](../findings/audits/2026-11-07/HOOK_AUDIT.md);
 - the two-phase brief (twophase-spt, now deleted);
 - the STL handoff in [`../design/STL_SPECULATION.md`](../design/STL_SPECULATION.md) (stl-spec);
-- `wiki/design/MANIFEST_BRIEF_SPT_v2.md` (resolve-hooks);
-- `wiki/design/MANIFEST_BRIEF_amulet_hooks.md` (hooks-v2).
+- the SPT v2 brief (resolve-hooks) and the AMuLeT-hooks brief (hooks-v2). Both were deleted 2026-11-08 at Anna's request once their content was here.
 
 **Where things live:**
 - Machine-readable copy: `specs/defense_units.json` (each unit's `eval` object, `model_families`, `amulet_parity_runs`, `pending_rows`); the dashboard unit inspector shows the units.
@@ -16,6 +15,52 @@
 - Edit this file and `defense_units.json` together.
 
 **Status rule (Anna, 2026-11-08): everything is NOT RUN for this eval.** All testsets will be regenerated from the two-stage models and every campaign re-run. Earlier campaigns are listed only as reference.
+
+## Live runs (also on the dashboard's Eval manifest page; registry `specs/eval_runs.json`)
+
+**Stage 1, cores, RI-only, up to 6 instructions: RUNNING since 2026-11-09 01:01Z (17:01 PST)** on cafe2's `gem5_dev` container.
+- Workspace: `/tests/simspect_alloy_20261108` (`PROVENANCE_sha256.txt` lists every `.als`/script).
+- tmux session `alloy_stage1_1108`. Status JSON `status/stage1_status.json` (rewritten every 60 s, with a CONTENTION flag). Logs `logs/launcher.log` and `logs/<family>__<part>.log`.
+- **Families:** `STT_6_core_ri`, `Recon_6_core_ri`, `SPT_6_oneLP_v2_core_ri`, `Recon_6_stl_core`, `STT_6_stl_core`.
+- **Parallelism:** each family is split into disjoint, exhaustive partitions (`proposed_twophase/partition_stage1.py`).
+  - Exact sizes k = 1..4 run as one partition each.
+  - k = 5 and 6 are also split by transmitter kind: one partition per kind in the leakage function, plus a `rest` partition that must be UNSAT, as a coverage check.
+  - That gives 52 partitions, 48 in parallel (`launch_stage1.py`). Each has a cap of 200,000, a 24 h timeout and `-Xmx8g`.
+- **Sanity check before launch:**
+  - SPT v2's partitions k1 + k2 + k3 = 0 + 0 + 546, exactly the 546 resolve-hooks found at `but 3`, so the partitioning loses and duplicates nothing.
+  - In the container, k1/k2 exhaust at 0 for every family.
+- **Cross-checks when it finishes:**
+  - `STT_6_stl_core` must total 306 (the Mac's exhaustive count).
+  - Every `rest` partition must be UNSAT.
+  - The old RO+RI cores (2 each for STT/Recon) must appear among the RI-only cores (RO+RI-minimal implies RI-minimal).
+  - A sample of cores must concretize through parsexml.
+  - Transmitter-kind mix should be compared with `testsets_latest`.
+- **Watch:** the cafe2 Slurm holder job (`hold_simspect`, 2-day limit) started 2026-11-07 ~01:00Z. Renew it (`make hold`) before it expires, so ssh access to cafe2 continues; the container itself runs under docker, not the job.
+
+**Stage 1 results so far (01:57Z):**
+- **STT_6_stl:** complete, 306 cores (exhaustive, = the Mac).
+- **STT_6 and Recon_6:** 129 cores each, all at 3 instructions; sizes 4 and 5 are empty, and the size-6 partitions are still proving UNSAT. 129 = the earlier RI-only isolation sweep.
+- **Recon_6_stl:** 858 at 3 instructions, sizes 4 and 5 empty.
+- **SPT_6_oneLP_v2:** more than 33,000 cores and growing (546 at k3; k4-k6 running).
+
+**Stage 1.5: RUNNING since 2026-11-09 01:54Z** (tmux `alloy_stage15_1108`; `launch_stage15.py`; status `status/stage15_status.json`; results `s15/<family>/results.jsonl`).
+- **Method:** each core is pinned into its production model with `stage_seed.py` and fleshed out at exactly 6 instructions, one run per core, 24 in parallel, 30 min per core.
+- **Size (Anna, 2026-11-08): about 300,000 instances per family.**
+  - That is split evenly over the family's cores: per-core cap = ceil(300000 / cores), e.g. STT_6_stl 981 per core.
+  - If a family has more than 300,000 cores, a uniform sample of 300,000 is run (seed 20261108) at 1 per core; this is recorded in `s15/<family>/PROVENANCE.json`.
+- **Scheduling:** each family starts when its Stage 1 completes. STT_6_stl started first.
+- **Sanity:**
+  - One STT core alone fleshes out to more than 31,000 programs in 15 min (not exhausted), so a per-core cap is required.
+  - 38/38 sampled STT_6_stl Stage-1.5 instances concretize through `/tests/simspect` parsexml (2096e32a) in `stl_bypass` mode.
+- **Contention (2026-11-09 01:55Z):** load hit 63-68 of 64 cores when Stage 1.5 started. Two causes: another session's gem5 campaign (`check_ld.py --jobs 16` in `/tests/simspect_fixed_20261030`), and the JVMs' many GC/compiler threads.
+  - The fix: restarted with 24 jobs and `JAVA_TOOL_OPTIONS=-XX:+UseSerialGC -XX:CICompilerCount=2`; load is back to about 55.
+  - Using cafe1/cafe3 would add 128 cores (setup below).
+- **Next after Stage 1.5:** merge each family (dedup across cores with `STAGE2_compilation/find_duplicates.py`, then renumber into `testsets/<family>__twostage/xml`). Then Stage 2, after the vocabulary expansion.
+
+**Using cafe1 / cafe3** (both have 64 cores and about 500 GB free; checked with sinfo 2026-11-09). Each needs a Slurm holder job before ssh works (pam_slurm_adopt). Use a distinct job name, because `scripts/sim` tracks `hold_simspect`:
+1. `ssh cafe1 true` once, interactively, to accept cafe1's host key (it currently fails host-key verification).
+2. `ssh sc "sbatch --account=cafe --nodelist=cafe3 -p cafe-interactive --mem=32G --time=2-00:00:00 --job-name=hold_simspect_cafe3 --wrap 'sleep infinity'"`, and the same with `cafe1`.
+3. Then check whether docker and the `gem5_dev` image (or Java 17) exist there. Copy the workspace (`/tests/simspect_alloy_20261108` minus `out/`, `s15/`), and give that node its own share of families or partitions with its own status JSON (add it to `specs/eval_runs.json`).
 
 ## How the pieces connect
 
@@ -45,12 +90,19 @@
 - the SimSpect hook flags and debug flags;
 - the derived branch force, the resolve stall, and the execution-validity gate. These are on all 8 hooked builds; see [`../design/RESOLUTION_HOOKS.md`](../design/RESOLUTION_HOOKS.md) and [`../findings/bug/BRANCH_ANNOTATION_AND_FORCE.md`](../findings/bug/BRANCH_ANNOTATION_AND_FORCE.md).
 
-**Where rows deviate from the authors' configuration:** everything else matches it, with one deliberate exception. The footprint rows E12-E14 use an amplified geometry: shrunk L1D, and InvisiSpec 2 TBEs / CleanupSpec 8 (Anna, 2026-11-08; the paper's discussion explains it). These shrunk configs are the default eval runs. AMuLeT's exact flags (the T rows below) are used only for timing numbers and for confirming bugs.
+**Where rows deviate from the authors' configuration:** everything else matches it, with one deliberate exception. The footprint rows E12-E14 use an amplified geometry: shrunk L1D, and InvisiSpec 2 TBEs / CleanupSpec 8 (Anna, 2026-11-08; the paper's discussion explains it). These shrunk configs are the default eval runs. AMuLeT's exact flags (the T rows below) are used only for timing numbers and for confirming bugs. **Confirmed by Anna (2026-11-08):** the taint-tracking rows (E1-E11: STT, ReCon, NDA, DoM, Doppelganger, SPT) deliberately keep unshrunk caches, because their leak test (did the transmitter obtain its data inside the window) does not depend on cache pressure; only the footprint rows shrink. **Known deviation found 2026-11-08:** ReCon is implemented in Ruby/SLICC and the authors run it with `--ruby` and the `ruby-singlecore` protocol folder (`documentation/docs/Files/email.txt:20-23`), but E6 runs classic `--caches`, where the reveal never takes effect (`wiki/findings/audits/2026-11-08/SOURCE_AUDIT_RECON.md` R-SA-1). Until that is resolved, E6 measures Recon-STT, not ReCon.
+
+**Checker and harness state on the AMuLeT builds** (deployed to `/tests/simspect_fixed_20261030/`, 2026-11-08, md5-verified, per hooks-v2):
+- The `check_footprint` by_pc fix: it had wrongly disqualified 114/3000 InvisiSpec tests and 202 CleanupSpec records.
+- CleanupSpec's ownership rule ("count as both").
+- `gem5_common._unglue`: native debug-print residue no longer drops trace lines.
+- Hooks v2 on all three footprint builds; every trace starts `META:hooks … ver=2:build=<name>`.
 
 **Before the final batch:**
 - `make sync`. The lc/fnc-from-Commit-trace fix (`gem5_common.fill_retire_from_commit`, 2026-11-07) is in this repo and the cafe2 fixed copy, but not yet in `/tests/simspect`.
 - Every final run config needs its `sample_fraction` set. The templates `runconfigs/fixed_20261030/*_fixed_latest.jsonc` still say `0.02` from validation.
 - Point every final run config's `testset_dir` / `results_name` at the regenerated testsets.
+- **Grow the instruction vocabulary for the fanout (Stage 2) runs (Anna, 2026-11-08).** `wiki/design/VOCAB_TABLES.md` covers this, with decisions V1-V9. Everything beyond other_n is an approval-gated `parsexml.py` emitter change, so it must land before Stage 2 of the final batch, not during it.
 
 **Naming:** this manifest says **Stage 1.5** for the pinned flesh-out that the briefs call "Stage 2 / round 2". That is the name in the pipeline figure and `URGENT_TODO.md` (decided 2026-11-02), because "Stage 2" already means concretization.
 
@@ -122,14 +174,14 @@ These rows are not the eval; the default runs are E12-E14 on the shrunk configs.
 
 | family | production model (Stage 1.5 base) | Stage-1 core | Stage-1 minimality | Stage-1 result | Stage 1.5 |
 |---|---|---|---|---|---|
-| STT_6 | `STT_6.als` (approved) | `STT_6_core.als` (prototype, draft) | draft: RO+RI → **re-derive RI-only** | 2 cores, exhausted (Mac `testsets/STT_6__twophase_draft/`) | not built |
-| Recon_6 | `Recon_6.als` (approved) | `proposed_twophase/Recon_6_core.als` (draft) | draft: RO+RI → **re-derive RI-only** | 2 cores, exhausted; the same 2 as STT, because Recon's reveal clause has no effect at this size (R-1) | not built |
-| **SPT_6_oneLP_v2** | **`SPT_6_oneLP_v2.als`** (draft, awaiting sign-off; sha256 acb1f2e2) | **`proposed_twophase/SPT_6_oneLP_v2_core_ri.als`** (draft) | RI-only | 546 at `but 3`; 5,000 (capped) at `but 4` | not built |
+| STT_6 | `STT_6.als` (approved) | **`proposed_twophase/STT_6_core_ri.als`** (derived 2026-11-08 by `derive_core.py --minimality ri`; differs from the RO+RI prototype `STT_6_core.als` only by the missing RO clause) | RI-only | **running on cafe2** (the old RO+RI core gave 2) | not built |
+| Recon_6 | `Recon_6.als` (approved) | **`proposed_twophase/Recon_6_core_ri.als`** (derived 2026-11-08, RI-only) | RI-only | **running on cafe2** (the old RO+RI core gave the same 2 as STT, R-1) | not built |
+| **SPT_6_oneLP_v2** | **`SPT_6_oneLP_v2.als`** (**APPROVED by Anna 2026-11-08**; sha256 acb1f2e2) | **`proposed_twophase/SPT_6_oneLP_v2_core_ri.als`** (draft) | RI-only | 546 at `but 3`; 5,000 (capped) at `but 4`; **full run to 6 on cafe2** | not built |
 | (v2 fallback) | — | `proposed_twophase/SPT_6_oneLP_v2_core_conservative.als` | none | 546 at `but 3` | — |
 | (v2, not recommended) | — | `proposed_twophase/SPT_6_oneLP_v2_core.als` | RO+RI | 6 at `but 3`; nothing in 15 min at `but 4` | — |
 | (pre-v2, provenance only) | `SPT_6_oneLP.als` (sha256 713d0904, unchanged) | `proposed_twophase/SPT_6_oneLP_core_conservative.als` / `SPT_6_oneLP_core.als` | none / RO+RI | 20,000 capped / 0 (the unperturbed-seed dead end) | — |
-| STT_6_stl | `STT_6_stl.als` (approved 2026-10-28) | `proposed_twophase/STT_6_stl_core.als` (draft) | RI-only (RO+RI is UNSAT by construction) | **306 cores, exhausted** at ≤6 instructions in 23 min | not built |
-| Recon_6_stl | `proposed/Recon_6_stl.als` (draft) | `proposed_twophase/Recon_6_stl_core.als` (draft) | RI-only | was running since 13:58 (cap 20,000, 4 h); see `~/Library/Logs/simspect/twophase_Recon_6_stl.log` | not built |
+| STT_6_stl | `STT_6_stl.als` (approved 2026-10-28) | `proposed_twophase/STT_6_stl_core.als` (draft) | RI-only (RO+RI is UNSAT by construction) | **306 cores, exhausted** at ≤6 instructions in 23 min (Mac); re-running partitioned on cafe2 as a cross-check | not built |
+| Recon_6_stl | `proposed/Recon_6_stl.als` (draft) | `proposed_twophase/Recon_6_stl_core.als` (draft) | RI-only | the Mac run stalled at 858 for over 40 min; **re-running partitioned on cafe2** | not built |
 | SPT STL | `proposed/SPT_6_oneLP_stl.als` (draft, derived from the pre-v2 model; generates 0) | `proposed_twophase/SPT_6_oneLP_stl_core_conservative.als` (draft) | none | UNSAT at ≤3 and ≤4: SPT's state-minimality (RS) conflicts with the alias fact; the seed fix does not help (stl-spec probe) | blocked (RS DECIDE; re-derive from v2) |
 | STT_6_multisource (OTB) | `STT_6_multisource.als` | none | — | never enumerated | — |
 
@@ -170,7 +222,7 @@ Why `testsets_latest` counts as current even though `parsexml.py` changed since 
 |---|---|---|---|---|
 | `STT_6.als` | production; stimulus for most rows | yes | flat `testsets_latest/STT_6` | P5 (a skeleton-wide unfed-read fact) would touch every model |
 | `Recon_6.als` | production; ReCon | yes | flat `testsets_latest/Recon_6` | add `rf_from_most_recent_writer` (it lacks it; the same gap as SPT's v2-1) |
-| **`SPT_6_oneLP_v2.als`** | **the SPT model for the final batch** | **draft**: sign-off pending, after the cafe2 "lost" check reports | none yet (3,000 scratch instances, `results/spt_v2_20261108/`) | flip `specs/alloy_models.json` tier `variant` → `production` on approval |
+| **`SPT_6_oneLP_v2.als`** | **the SPT model for the final batch** | **yes (Anna, 2026-11-08)**; `specs/alloy_models.json` tier = production, `canonical_models.SPT` = v2 | none yet (3,000 scratch instances, `results/spt_v2_20261108/`); Stage 1 running | P3, P5 not applied on purpose |
 | `SPT_6_oneLP.als` | pre-v2 SPT, provenance only | yes (kept unchanged) | `testsets_latest/SPT_6_oneLP` | superseded by v2 |
 | `STT_6_stl.als` | STL stimulus for the STT family | yes (2026-10-28) | 60-test hook testset | `rf` vs atom-based alias fact (DECIDE) |
 | `STT_6_multisource.als` | OTB variant | yes (variant) | none (never enumerated) | OTB testset decision (E7) |
@@ -255,9 +307,11 @@ Why `testsets_latest` counts as current even though `parsexml.py` changed since 
 - RMW as a disjoint corpus (C1).
 - Comparisons use AMuLeT's flags as the reference.
 
+**Also decided (Anna, 2026-11-08, later):** SPT_6_oneLP_v2 is the SPT model; it stays in `models/`; delete the briefs once their content is here; start every Alloy run now, at 6 instructions; grow the vocabulary before the fanout runs.
+
 **Open:**
 - **Models:**
-  - approve `SPT_6_oneLP_v2.als` (after the cafe2 "lost" check);
+  - (SPT v2 approved; the cafe2 "lost" check on v2-4 is still running, for the record);
   - P3 (proposed: no);
   - P5, the unfed-read fact for all models;
   - give `Recon_6.als` the rf fact;

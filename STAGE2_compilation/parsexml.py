@@ -1445,9 +1445,21 @@ def pass3_assign_operands(
     pass25_result: Dict[str, Any],
     out_path: Optional[str] = None,
     write_out: bool = False,
+    reg_naming: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Pass 3: assign concrete register names and memory offsets to all slots.
+
+    reg_naming (None = legacy, byte-identical to before 2026-11-08)
+    ----------------------------------------------------------------
+    {"mode": "sorted"}  same register order as legacy (X86_64_CALLER_SAVED
+                        order; locked Reg_s$* atoms in sorted order take the
+                        front), but the mapping is recorded in the .ann.json.
+    {"mode": "random", "seed": int}  the whole X86_64_CALLER_SAVED list is
+                        permuted with random.Random(seed) before the split,
+                        so the locked (Alloy) registers get random x86 names
+                        and the infrastructure / free pools are shuffled too.
+                        The global `random` stream is not touched.
 
     Registers
     ---------
@@ -1502,15 +1514,27 @@ def pass3_assign_operands(
             f"{len(X86_64_CALLER_SAVED)} caller-saved registers are available"
         )
 
+    # Register order: legacy fixed order, or a seeded permutation (reg_naming).
+    _rn_mode = (reg_naming or {}).get("mode", "sorted")
+    if _rn_mode == "sorted":
+        reg_order: List[str] = list(X86_64_CALLER_SAVED)
+    elif _rn_mode == "random":
+        if "seed" not in reg_naming:
+            raise ValueError("reg_naming mode 'random' needs a 'seed'")
+        reg_order = random.Random(reg_naming["seed"]).sample(
+            X86_64_CALLER_SAVED, len(X86_64_CALLER_SAVED))
+    else:
+        raise ValueError(f"reg_naming.mode must be 'sorted' or 'random': {_rn_mode!r}")
+
     # locked register map: Reg_s$* atom -> x86 physical name
     locked_reg_map: Dict[str, str] = {
-        atom: X86_64_CALLER_SAVED[i] for i, atom in enumerate(locked_reg_atoms)
+        atom: reg_order[i] for i, atom in enumerate(locked_reg_atoms)
     }
 
     # Pool of physical registers available for unspecified slots —
-    # the tail of X86_64_CALLER_SAVED after locked regs have claimed the front.
+    # the tail of reg_order after locked regs have claimed the front.
     n_free_regs = len(X86_64_CALLER_SAVED) - n_locked_regs
-    virtual_pool: List[str] = X86_64_CALLER_SAVED[n_locked_regs:]
+    virtual_pool: List[str] = reg_order[n_locked_regs:]
     # The first _VPOOL_FREE_START entries of virtual_pool are reserved for
     # code-generation infrastructure (scratch, cond_reg, probe_base).
     # Instruction operand slots must only draw from the remainder.
@@ -1630,6 +1654,8 @@ def pass3_assign_operands(
         "alloca_total_slots": alloca_total_slots,
         "fr_reg_pool": fr_reg_pool,
         "fr_mem_pool": fr_mem_pool,
+        **({"reg_naming": {"mode": _rn_mode, **({"seed": reg_naming["seed"]} if _rn_mode == "random" else {})}}
+           if reg_naming is not None else {}),
     }
 
     if write_out:
@@ -1835,6 +1861,8 @@ def pass4_ssa(
         "alloca_total_slots": pass3_result["alloca_total_slots"],
         "ssa_init": init_needed,
     }
+    if "reg_naming" in pass3_result:      # opt-in; absent in legacy output
+        result["reg_naming"] = pass3_result["reg_naming"]
 
     if write_out:
         if out_path is None:
@@ -1936,9 +1964,36 @@ def pass5_emit_llvm(
     func_name: str = "test",
     out_path: Optional[str] = None,
     write_out: bool = False,
+    fpr_cfg: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Pass 5: emit LLVM IR from the SSA-annotated program.
+
+    fpr_cfg (opt-in FPR routing; None or {"enabled": false} = output unchanged)
+    --------------------------------------------------------------------------
+    When enabled, a load's result is copied through an xmm register inside the
+    load's own asm block (after the load, so the load micro-op, its pc marker
+    and pass 3's GPR pinning are unchanged):
+        movq (..), %out ; movq %out, %xmmK ; movq $0, %out ; movq %xmmK, %out
+    The `movq $0, %out` is required: gem5's mov2int micro-op (MOVD_R_XMM)
+    lists its int destination as a source too (`DestReg = DestReg` in its
+    else branch, arch/x86/isa/microops/mediaop.isa Mov2int), so without the
+    zeroing the copy-back would inherit the load's taint via the old %out
+    rather than via xmmK. `movq $0` is LimmBig (dataSize >= 4, dest-only).
+    Keys: "loads": "consumed" (default; only loads whose outreg SSA value is
+    read by another instruction) | "all" (every load with an outreg);
+    "xmm_regs": list of xmm indices (default 0-15), one drawn per routed load
+    with an rng seeded from func_name (a 1-entry list = pinned).
+    "forms" (fp mode; default ["route"]): one drawn per routed load from
+      route       movq mem,%out; movq %out,%xmmK; movq $0,%out; movq %xmmK,%out
+      direct      movq mem,%xmmK; movq $0,%out; movq %xmmK,%out   (an SSE load,
+                  ldfp; exercises recon decode.cc isFloating-before-isLoad)
+      route_alu / direct_alu   the same with an SSE ALU step on the value
+                  before the copy-back: pxor %xmmJ,%xmmJ; por %xmmK,%xmmJ
+                  (value-preserving; J != K drawn from xmm_regs, or K+1 mod 16
+                  when xmm_regs has one entry), copy-back from %xmmJ.
+    The chosen registers are stored in pass4_result["fpr_routes"] for the
+    .ann.json (see emit_branch_annotations).
 
     Produces a single-function LLVM IR module  @{func_name}() -> i64.
 
@@ -2107,6 +2162,56 @@ def pass5_emit_llvm(
     last_committed_pc: Optional[int] = lc_rec["pc"] if lc_rec else None
     first_noncommitted_pc: Optional[int] = fnc_rec["pc"] if fnc_rec else None
 
+    # ---- Opt-in FPR (xmm) routing of load results (see docstring) ----
+    _fpr_on = bool(fpr_cfg and fpr_cfg.get("enabled"))
+    _fpr_routes: List[Dict[str, Any]] = []
+    if _fpr_on:
+        import zlib as _zlib
+        _fpr_regs = [int(x) for x in fpr_cfg.get("xmm_regs", list(range(16)))]
+        if not _fpr_regs or any(not 0 <= x <= 15 for x in _fpr_regs):
+            raise ValueError(f"fpr_cfg.xmm_regs must be a non-empty subset of 0-15: {_fpr_regs}")
+        _fpr_loads = fpr_cfg.get("loads", "consumed")
+        if _fpr_loads not in ("consumed", "all"):
+            raise ValueError(f"fpr_cfg.loads must be 'consumed' or 'all': {_fpr_loads!r}")
+        _fpr_forms = list(fpr_cfg.get("forms", ["route"]))
+        if not _fpr_forms or any(f not in ("route", "direct", "route_alu", "direct_alu") for f in _fpr_forms):
+            raise ValueError(f"fpr_cfg.forms must be a non-empty subset of route/direct/route_alu/direct_alu: {_fpr_forms}")
+        _fpr_rng = random.Random(_zlib.crc32(f"fpr:{func_name}".encode()))
+        _fpr_consumed: Set[str] = set()
+        for _r in instructions:
+            for _sl in _r["slots"].values():
+                for _sr in _sl:
+                    if _sr["slot"] not in ("outreg", "outmem") and _sr.get("ssa_name"):
+                        _fpr_consumed.add(_sr["ssa_name"])
+
+    def fpr_route(rec: Dict[str, Any], out_name: str, phys: Optional[str]) -> Tuple[str, str, str]:
+        """(load destination, asm suffix, extra clobber) for a load; ("$0", "", "") when off."""
+        if not _fpr_on or not phys:
+            return "$0", "", ""
+        if _fpr_loads == "consumed" and out_name not in _fpr_consumed:
+            return "$0", "", ""
+        k = _fpr_rng.choice(_fpr_regs)
+        form = _fpr_rng.choice(_fpr_forms) if len(_fpr_forms) > 1 else _fpr_forms[0]
+        ent: Dict[str, Any] = {"pc": rec["pc"], "atom": rec["instruction"],
+                               "xmm": k, "outreg": phys, "ssa": out_name}
+        if form != "route" or len(_fpr_forms) > 1:
+            ent["form"] = form
+        direct = form.startswith("direct")
+        dst = f"%xmm{k}" if direct else "$0"
+        sfx = "" if direct else f"\\0Amovq $0, %xmm{k}"
+        clob = f",~{{xmm{k}}}"
+        back = k
+        if form.endswith("_alu"):
+            others = [x for x in _fpr_regs if x != k]
+            j = _fpr_rng.choice(others) if others else (k + 1) % 16
+            sfx += f"\\0Apxor %xmm{j}, %xmm{j}\\0Apor %xmm{k}, %xmm{j}"
+            clob += f",~{{xmm{j}}}"
+            ent["alu_xmm"] = j
+            back = j
+        sfx += f"\\0Amovq $$0, $0\\0Amovq %xmm{back}, $0"
+        _fpr_routes.append(ent)
+        return dst, sfx, clob
+
     # ---- Emit instructions ----
     last_was_terminator = False
     safe_name = func_name.replace("-", "_").replace(".", "_")
@@ -2155,9 +2260,10 @@ def pass5_emit_llvm(
                 if outreg_sr and outreg_sr.get("ssa_name"):
                     out_name = outreg_sr["ssa_name"]
                     phys = outreg_sr.get("assigned")
+                    fdst, fsx, fcl = fpr_route(rec, out_name, phys)
                     il(f'%{out_name} = call i64 asm sideeffect '
-                       f'"{mkr}movq ($1, $2, 1), $0", '
-                       f'"=&{{{phys}}},{{{_probe_base_phys}}},{{{inaddr_phys}}},~{{memory}}"'
+                       f'"{mkr}movq ($1, $2, 1), {fdst}{fsx}", '
+                       f'"=&{{{phys}}},{{{_probe_base_phys}}},{{{inaddr_phys}}},~{{memory}}{fcl}"'
                        f'(ptr %probe_mem, i64 %{inaddr_ssa})')
                 else:
                     il(f'call void asm sideeffect '
@@ -2174,9 +2280,10 @@ def pass5_emit_llvm(
                 if outreg_sr and outreg_sr.get("ssa_name"):
                     out_name = outreg_sr["ssa_name"]
                     phys = outreg_sr.get("assigned")
+                    fdst, fsx, fcl = fpr_route(rec, out_name, phys)
                     il(f'%{out_name} = call i64 asm sideeffect '
-                       f'"{mkr}movq {offset}($1), $0", '
-                       f'"=&{{{phys}}},{{{_probe_base_phys}}},~{{memory}}"(ptr %mem_base)')
+                       f'"{mkr}movq {offset}($1), {fdst}{fsx}", '
+                       f'"=&{{{phys}}},{{{_probe_base_phys}}},~{{memory}}{fcl}"(ptr %mem_base)')
                 else:
                     il(f'call void asm sideeffect '
                        f'"{mkr}movq {offset}($0), %rax", '
@@ -2549,6 +2656,11 @@ def pass5_emit_llvm(
     lines.append("}")
     ir = "\n".join(lines)
 
+    if _fpr_on:
+        # Read by emit_branch_annotations -> .ann.json "fpr" (absent when off).
+        pass4_result["fpr_routes"] = {
+            "loads": _fpr_loads, "xmm_regs": _fpr_regs, "routes": _fpr_routes}
+
     if write_out:
         if out_path is None:
             raise ValueError("out_path must not be None when write_out=True")
@@ -2655,6 +2767,15 @@ def emit_branch_annotations(
                 for l_pc, role in ([(p["load_pc"], "bypass")]
                                    + [(a, "alias") for a in alias[p["pair"]]])
             ]
+        # Opt-in FPR routing (pass5 fpr_cfg): which loads were copied through
+        # which xmm register. Absent when the option is off.
+        if result.get("fpr_routes") is not None:
+            payload["fpr"] = result["fpr_routes"]
+        # Opt-in register naming (pass3 reg_naming): Alloy Reg_s atom -> x86 name.
+        if result.get("reg_naming") is not None:
+            payload["reg_naming"] = dict(result["reg_naming"],
+                                         locked_registers=result["locked_registers"],
+                                         infra_registers=result["virtual_reg_pool"][:_VPOOL_FREE_START])
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
             f.write("\n")

@@ -1178,6 +1178,119 @@ def defense_units() -> dict:
     return d
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# 4h. eval manifest (the official experiment list + live run statuses)
+# ══════════════════════════════════════════════════════════════════════════════
+# Sources of truth (Anna 2026-11-08: "make sure that this dashboard (add a page) has
+# the official experiment manifest and the statuses"):
+#   wiki/state/EVAL_MANIFEST.md  — the human manifest (rendered to HTML by dashboard.py,
+#                                  since this module has no HTML code);
+#   specs/defense_units.json     — its machine copy (unit.eval rows E1..E14, T rows, C rows);
+#   specs/eval_runs.json         — registry of live/finished generation runs, each pointing
+#                                  at a status JSON its launcher rewrites every 60 s
+#                                  (STAGE1_alloy/models/proposed_twophase/launch_stage1.py).
+_EVAL_MANIFEST_MD = ROOT / "wiki" / "state" / "EVAL_MANIFEST.md"
+# A status file older than this while partitions are still running/queued means the
+# launcher probably died (it rewrites every --status-every=60 s).
+_EVAL_STATUS_STALE_S = 300
+
+
+def _eval_row_key(u):
+    """Natural sort on the eval row: E1 < E2 < ... < E10 < E12a < E12b; rows that are
+    not of the form <letters><digits>[suffix] (e.g. '-' = optional) go last."""
+    row = str((u.get("eval") or {}).get("row") or "").strip()
+    m = re.match(r"^([A-Za-z]+)(\d+)([a-z]*)", row)
+    if m:
+        return (0, m.group(1), int(m.group(2)), m.group(3), u.get("number") or 0)
+    return (1, "", 0, "", u.get("number") or 0)
+
+
+def _load_run_status(path):
+    """Return (status_dict, None) or (None, reason). The status JSON lives inside the
+    cafe2 gem5_dev container, so on any other host it is simply absent. The launcher
+    replaces it atomically (tmp + rename), but tolerate a torn/partial read anyway."""
+    if not path:
+        return None, "no status_json path in specs/eval_runs.json"
+    p = Path(path)
+    if not p.is_absolute():
+        p = ROOT / p
+    if not p.exists():
+        return None, (f"status not available on this host ({p} not found; it is written "
+                      f"inside the cafe2 gem5_dev container, where the dashboard normally runs)")
+    last = None
+    for _ in range(3):
+        try:
+            mtime = p.stat().st_mtime
+            st = json.loads(p.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            last = e
+            time.sleep(0.2)
+            continue
+        except OSError as e:
+            return None, f"could not read {p}: {e}"
+        if not isinstance(st, dict):
+            return None, f"{p} is not a JSON object"
+        st["_mtime"] = mtime
+        st["_path"] = str(p)
+        return st, None
+    return None, f"status JSON {p} unreadable ({last})"
+
+
+def _eval_runs() -> dict:
+    reg = _read_spec("eval_runs.json")
+    out = {"runs": [], "runs_doc": None, "server_time": time.time(),
+           "stale_after_s": _EVAL_STATUS_STALE_S}
+    if reg is None:
+        out["runs_error"] = "specs/eval_runs.json missing or not valid JSON"
+        return out
+    out["runs_doc"] = reg.get("_doc")
+    out["runs_vscode"] = vscode_uri(str(_SPECS_DIR / "eval_runs.json"))
+    for r in reg.get("runs", []) or []:
+        if not isinstance(r, dict):
+            continue
+        rec = dict(r)
+        live, why = _load_run_status(r.get("status_json"))
+        rec["live"] = live
+        rec["unavailable"] = why
+        out["runs"].append(rec)
+    return out
+
+
+@_safe(lambda: {"units": [], "runs": [], "amulet_parity_runs": [], "pending_rows": [],
+                "model_families": {}, "manifest_md": None,
+                "error": "eval_manifest failed (see dashboard stderr)"})
+def eval_manifest(part=None) -> dict:
+    """The Eval manifest page: every eval row (units sorted by eval.row, enriched like
+    defense_units()), the AMuLeT-parity T rows, the pending C rows, the model families,
+    the raw EVAL_MANIFEST.md, and each registered run with its live status JSON (or an
+    `unavailable` reason). part='runs' returns only the runs block (the 60 s poll)."""
+    runs = _eval_runs()
+    if part == "runs":
+        return runs
+    du = defense_units()
+    units = sorted(du.get("units", []) or [], key=_eval_row_key)
+    out = {
+        "units": units,
+        "amulet_parity_runs": du.get("amulet_parity_runs", []) or [],
+        "amulet_parity_rule": du.get("_amulet_parity_rule"),
+        "pending_rows": du.get("pending_rows", []) or [],
+        "model_families": du.get("model_families", {}) or {},
+        "units_status_note": du.get("_status"),
+        "units_eval_note": du.get("_eval"),
+        "units_vscode": du.get("_vscode"),
+        "manifest_md": None,
+        "manifest_path": str(_EVAL_MANIFEST_MD),
+        "manifest_vscode": vscode_uri(str(_EVAL_MANIFEST_MD)),
+    }
+    try:
+        out["manifest_md"] = _EVAL_MANIFEST_MD.read_text(encoding="utf-8")
+        out["manifest_mtime"] = _EVAL_MANIFEST_MD.stat().st_mtime
+    except OSError as e:
+        out["manifest_error"] = f"could not read {_EVAL_MANIFEST_MD}: {e}"
+    out.update(runs)
+    return out
+
+
 def _strip_asm_boilerplate(text: str):
     """Return (body_lines, n_stripped). Strips the CONTIGUOUS prologue (assembler
     directives, function label, frame setup pushq/movq-rbp/andq/subq, and the
@@ -1731,6 +1844,8 @@ def _selftest() -> int:
     check("file_text(traversal)", file_text, "SPT_6", "x", "../../etc/passwd",
           "ll")
     check("instruction_tables", instruction_tables)
+    check("eval_manifest", eval_manifest)
+    check("eval_manifest(runs)", eval_manifest, "runs")
     check("checkers", checkers)
     check("exec_graph(missing)", exec_graph, "SPT_6", "inst-000001")
     # launch_fanout: exercise validation-only paths (these reject before spawn).
