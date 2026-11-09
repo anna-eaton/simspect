@@ -1,0 +1,6 @@
+d2_stt_only	50	600	SAT: STT_6_u-useful, not Recon_6_u-useful (expect true reveals)
+d3_gained_vs_old	50	600	SAT: new vs old Recon_6 (expect R-1 and d2 shapes)
+g9_reveal_ctx_pin_gen	100	300	SAT: sample of a ReCon reveal-context corpus; classify with show_inst.py --summary
+x1b_ctx_core_recon_pairctx_b5	3	600
+fx_new_minus_old_not_r1	1	600	UNSAT: every transmitter Recon_6_u newly flags is an R-1 witness
+fx_old_sub_new	1	900	UNSAT: every operand the old Recon_6 flags, Recon_6_u flags too (old = location fold + no-op reveal)

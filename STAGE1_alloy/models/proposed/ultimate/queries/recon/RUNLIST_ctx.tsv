@@ -1,0 +1,5 @@
+x0_core_plain_recon_b5	1	600	UNSAT expected: no plain RI core contains a committed direct load pair (model-fixes: UNSAT at but 5 on v2)
+x1_ctx_core_recon_pair_b6	5	900	SAT hoped: context-minimal ReCon cores with a committed load pair exist
+x1b_ctx_core_recon_pairctx_b5	3	600	SAT hoped: a context-minimal Stage-1 core (up to 5) containing a committed LD1 -> LD2 pair (d2 needs 5)
+x2_ctx_minus_plain_recon_b6	20	900	SAT hoped: the shapes context minimality adds (expect concealed / ALU-between / in-flight-LD2 near misses)
+x3_ctx_minus_plain_stt_b5	1	900	UNSAT expected: for STT (monotone protection) context minimality = plain minimality

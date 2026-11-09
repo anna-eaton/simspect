@@ -1,0 +1,67 @@
+// T3 timing config for the two-stage STT_6_fv2 testset (timing-amulet, 2026-11-09): byte copy of runconfigs/amulet_parity/run_config_STT_6_speclfb_amulet_parity.jsonc with ONLY paths changed (testset_dir -> testsets_twostage, results_name -> T3_STT_6_fv2, instruction_tables -> fv2_vocab, the table the testset was concretized with). Structures/flags are AMuLeT parity, unchanged. Run with STAGE3_gem5/timing/timing_driver.py (seeded order, per-test CPU time).
+{
+  // SpecLFB, AMuLeT-PARITY configuration (2026-11-08). Anna 2026-11-08: AMuLeT comparisons (speed, throughput,
+  // head-to-head) use AMuLeT's exact flags and structure sizes. Every gem5 flag below is AMuLeT's, cited to cafe2
+  // gem5_dev /work/amulet-repo @ c871bdf (src/executor.py set_cmd :196-307, src/config.py defaults,
+  // src/benchmark_all.sh :59-61, docker/docker_speclfb/yamls/docker_gem5_v1_final_cache_tlb.yaml).
+  // Comparison tables: wiki/findings/audits/2026-10-28/full_configs.md "Comparison with AMuLeT's flags (2026-11-08)".
+  // Run: make run MODEL=STT_6 RUNCONFIG=runconfigs/amulet_parity/run_config_STT_6_speclfb_amulet_parity.jsonc
+  //
+  // REMAINING DIFFERENCES from AMuLeT (harness requirements, kept on purpose):
+  //   - BTB force (branch_ann_enable) + 5000-cycle resolve stall on the model's mispredicted branches (sweep below).
+  //     The BTB force was validated on TournamentBP; BiModeBP smoke test: full_configs.md inventory subsection.
+  //   - harness adds --scheme=2 (overridden by the trailing --scheme=Speclfb); its --caches = AMuLeT's (executor.py:220).
+  //   - run bound --abs-max-tick=1e11 + 120 s wall timeout vs AMuLeT --rel-max-tick=1000000000 (executor.py:305).
+  //   - one gem5 process per test, plain se.py: no RevizorIPC (executor.py:311-312,335-338; cache handles between
+  //     inputs), no --checkpoint-dir (:306). No --access-backing-store: ipc.py:62-63 adds it only under --ruby.
+  //   - debug flags O3PipeView (+Commit) only, single-run footprint oracle.
+  // amulet-STT: no parity config, see the README block in run_config_STT_6_invisispec_futuristic_amulet_parity.jsonc.
+  "paths": {
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/proposed/fv2_vocab.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "testset_dir":        "testsets_twostage",
+    "results_dir":        "results",
+    "results_name":       "T3_STT_6_fv2",
+    "model":              "STT_6"
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_not_taken", "mispredict_taken"]
+  },
+  "filter": { "xmit_kind": "ld" },   // read by the launchers only, not by pipeline.py
+  "gem5": {
+    "binary":        "/work/amulet/amulet-gem5-SpecLFB_AE-v1.1/build/X86/gem5.opt",   // classic caches, as AMuLeT (no --ruby: benchmark_all.sh:60)
+    "config_script": "/work/amulet/amulet-gem5-SpecLFB_AE-v1.1/configs/example/se.py",
+    "branch_ann_enable":       true,               // harness addition (BTB force)
+    "cpu_type":                "DerivO3CPU",       // executor.py:209, config.py:249
+    "scheme":                  2,                  // harness; overridden by --scheme=Speclfb (last wins)
+    "jobs":                    8,
+    "debug_flags":             ["O3PipeView"],
+    "debug_file":              "pipeview.txt",
+    "checker":                 "check_footprint.py",
+    "criterion":               "specs/leakage/speclfb.json",
+    "fnc_commit_stall_cycles": 0,                  // harness hook off (AMuLeT has none)
+    "extra_args": [
+      "--num-cpu=1",                               // executor.py:208
+      "--cpu-clock=2GHz",                          // executor.py:210, config.py:250
+      "--sys-clock=2GHz",                          // executor.py:211, config.py:251
+      "--l2cache",                                 // executor.py:219-221 (non-Ruby: --caches --l2cache; --caches comes from the harness)
+      "--l1d_size=32kB", "--l1d_assoc=8",          // executor.py:224-225; tlb.yaml:44,46
+      "--l1i_size=32kB", "--l1i_assoc=2",          // executor.py:226-227; tlb.yaml:45 size, assoc = config.py:276 default (not in the YAML)
+      "--cacheline_size=64",                       // executor.py:228, config.py:277
+      "--l2_size=2MB", "--l2_assoc=8",             // executor.py:229-230, config.py:278-279
+      "--DTB_entries=64",                          // executor.py:233; tlb.yaml:47
+      "--bp-type=BiModeBP",                        // executor.py:281-282
+      "--scheme=Speclfb"                           // executor.py:285-286
+      // NOT passed, as in AMuLeT: TBE flags (Ruby only, executor.py:214-218), --needsTSO (never passed for SpecLFB),
+      // --dump-caches (executor.py:236-237, tlb.yaml:42 gem5_orchestration "ipc"). MSHRs L1 4 / L2 20 = Caches.py defaults, same as AMuLeT.
+    ]
+  },
+  // harness addition: resolve stall 5000 cycles on the model's mispredicted branches, xmit branch 0
+  "sweep": { "enabled": true, "points": [0], "unresolved_stall_cycles": 5000 },
+  "pipeline": { "check": "per_type", "keep_tmp": false }
+}

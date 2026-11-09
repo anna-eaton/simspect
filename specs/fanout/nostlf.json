@@ -1,0 +1,13 @@
+{
+  "_doc": "No-STLF variant (2026-11-08, fpr-fanout; for ReCon/Recon-STT builds whose store-to-load-forwarding bypass, bug A2 wiki/findings/bug/recon_SLF_stlf_bypass/, shadows other hits). Probe-addressed stores (movq src,(probe,%idx)) write a separate array %probe_st, so they never alias a probe-addressed load; a store whose outmem Mem_s atom is the inmem atom of a later load (the Alloy instance's own alias) keeps %probe_mem. Mem_base-slot stores are unchanged. Copy 'store_separation' into a run config. General, not tuned to a bug: it removes only aliasing the Alloy instance does not ask for. Design + measurement: wiki/design/VOCAB_TABLES.md 'No-STLF store separation'.",
+  "max_instances": 150000,
+  "branch_modes": [
+    "mispredict_not_taken",
+    "mispredict_taken"
+  ],
+  "interleave": false,
+  "instruction_choice": "random",
+  "seed": null,
+  "reg_naming": {"mode": "random", "seed": 0},
+  "store_separation": {"enabled": true}
+}

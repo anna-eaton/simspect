@@ -1,0 +1,5 @@
+// QR2: is ReCon's reveal clause ever not already implied by the STT fold?
+// A memory state removed by hardware_protection_policy[p] but NOT the inmem state of a
+// load the fold treats as non-speculative, under no_p and every perturbation gen_lit uses.
+pred rdiff[p: PTag->univ] { some (Mem_s - hardware_protection_policy[p]) - (Loads & no_unresolved_brs_bf_or_is_p[p]).inmem.opstate }
+pred q { rdiff[no_p] or (some i: Instruction | rdiff[RR->i]) or rdiff[RC->first_uncommitted + RR->first_uncommitted] or (some s: State | rdiff[RS->s]) }

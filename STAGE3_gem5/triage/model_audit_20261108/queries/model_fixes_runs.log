@@ -1,0 +1,64 @@
+2026-11-08 19:53:01 base base_STT_6_v2.als limit=20 rc=0 secs=2 Total models: 20
+2026-11-08 19:53:03 base base_Recon_6_v2.als limit=20 rc=0 secs=3 Total models: 20
+2026-11-08 19:53:06 base base_SPT_6_oneLP_v3.als limit=20 rc=0 secs=9 Total models: 20
+2026-11-08 19:55:38 sample3000 sample_STT_6.als limit=3000 rc=0 secs=45 Total models: 3000
+2026-11-08 19:56:23 sample3000 sample_Recon_6.als limit=3000 rc=0 secs=64 Total models: 3000
+2026-11-08 19:57:27 sample3000 sample_STT_6_v2.als limit=3000 rc=0 secs=33 Total models: 3000
+2026-11-08 19:58:00 sample3000 sample_Recon_6_v2.als limit=3000 rc=0 secs=70 Total models: 3000
+=== run_mf_list begin 2026-11-08 20:01:50 queries/mf/RUNLIST.tsv ^(t1_qr|t2|t4_q1)
+2026-11-08 20:01:50 t1_qr1a_STT_6_v2 [expect: SAT (was UNSAT on STT_6/Recon_6)] t1_qr1a_STT_6_v2.als limit=1 rc=0 secs=0 Total models: 1
+2026-11-08 20:01:50 t1_qr1c_STT_6_v2 [expect: SAT (control)] t1_qr1c_STT_6_v2.als limit=1 rc=0 secs=1 Total models: 1
+2026-11-08 20:01:51 t1_qr1a_STT_6_v2_gen [expect: info (with minimality)] t1_qr1a_STT_6_v2_gen.als limit=1 rc=0 secs=1 Total models: 1
+2026-11-08 20:01:52 t1_qr1c_STT_6_v2_gen [expect: info (with minimality)] t1_qr1c_STT_6_v2_gen.als limit=1 rc=0 secs=1 Total models: 0
+2026-11-08 20:01:53 t1_qr1a_Recon_6_v2 [expect: SAT (was UNSAT on STT_6/Recon_6)] t1_qr1a_Recon_6_v2.als limit=1 rc=0 secs=1 Total models: 1
+2026-11-08 20:01:54 t1_qr1c_Recon_6_v2 [expect: SAT (control)] t1_qr1c_Recon_6_v2.als limit=1 rc=0 secs=1 Total models: 1
+2026-11-08 20:01:55 t1_qr1a_Recon_6_v2_gen [expect: info (with minimality)] t1_qr1a_Recon_6_v2_gen.als limit=1 rc=0 secs=1 Total models: 1
+2026-11-08 20:01:56 t1_qr1c_Recon_6_v2_gen [expect: info (with minimality)] t1_qr1c_Recon_6_v2_gen.als limit=1 rc=0 secs=7 Total models: 0
+2026-11-08 20:02:03 t2a_recon [expect: UNSAT (revealed read is not flagged)] t2a_recon.als limit=1 rc=0 secs=1 Total models: 0
+2026-11-08 20:02:04 t2a_stt_control [expect: SAT (STT has no reveal)] t2a_stt_control.als limit=1 rc=0 secs=1 Total models: 1
+2026-11-08 20:02:05 t2a_stt_control_gen [expect: info] t2a_stt_control_gen.als limit=1 rc=0 secs=1 Total models: 1
+2026-11-08 20:02:06 t2b_recon_any [expect: SAT] t2b_recon_any.als limit=1 rc=0 secs=0 Total models: 1
+2026-11-08 20:02:06 t2b1_recon_committed_store [expect: SAT] t2b1_recon_committed_store.als limit=1 rc=0 secs=1 Total models: 1
+2026-11-08 20:02:07 t2b2_recon_inflight_store [expect: SAT] t2b2_recon_inflight_store.als limit=1 rc=0 secs=1 Total models: 1
+2026-11-08 20:02:08 t2b3_recon_stale_store [expect: SAT] t2b3_recon_stale_store.als limit=1 rc=0 secs=0 Total models: 1
+2026-11-08 20:02:08 t2b_recon_any_gen [expect: info] t2b_recon_any_gen.als limit=1 rc=0 secs=2 Total models: 1
+2026-11-08 20:02:10 t2c_recon [expect: SAT (ALU between: no reveal)] t2c_recon.als limit=1 rc=0 secs=1 Total models: 1
+2026-11-08 20:02:11 t2c_recon_gen [expect: info] t2c_recon_gen.als limit=1 rc=0 secs=1 Total models: 1
+2026-11-08 20:02:12 t2d1_protset_differs [expect: SAT (QR2 analogue: was UNSAT)] t2d1_protset_differs.als limit=1 rc=0 secs=3 Total models: 1
+2026-11-08 20:02:15 t2d2_recon_only [expect: SAT: Recon-useful, not STT_6_v2-useful] t2d2_recon_only.als limit=300 rc=0 secs=133 Total models: 300
+2026-11-08 20:04:28 t2d3_stt_only [expect: SAT: STT_6_v2-useful, not Recon-useful] t2d3_stt_only.als limit=300 rc=0 secs=27 Total models: 300
+2026-11-08 20:04:55 t4_q1_v2 [expect: SAT (audit: 7 s)] t4_q1_v2.als limit=1 rc=0 secs=7 Total models: 1
+2026-11-08 20:05:02 t4_q1_v3 [expect: UNSAT hoped] t4_q1_v3.als limit=1 rc=0 secs=11 Total models: 1
+2026-11-08 20:05:14 t4_q1_v3_nofwd [expect: UNSAT] t4_q1_v3_nofwd.als limit=1 rc=0 secs=10 Total models: 0
+2026-11-08 20:05:24 t4_q1_v3_facts [expect: info (facts only)] t4_q1_v3_facts.als limit=1 rc=0 secs=4 Total models: 1
+=== run_mf_list end 2026-11-08 20:05:28
+=== run_mf_list2 begin 2026-11-08 20:05:42 queries/mf/RUNLIST.tsv ^(t1_mono|t1_gained|t1_lost|t4_mono|t4_lost|t4_gained)
+2026-11-08 20:05:42 t1_mono_on_newfacts [expect: UNSAT (old flags subset of new, every perturbation)] t1_mono_on_newfacts.als limit=1 rc=143 secs=680  ERR: 
+=== run_mf_list2 begin 2026-11-08 20:17:19 queries/mf/RUNLIST3.tsv all
+2026-11-08 20:17:19 t1_gained [expect: SAT: sample to classify] t1_gained.als limit=300 rc=0 secs=20 Total models: 300
+2026-11-08 20:17:39 t1_lost [expect: SAT or UNSAT: sample to classify] t1_lost.als limit=300 rc=124 secs=1500 
+2026-11-08 20:42:39 t4_lost [expect: SAT: the S-1 false positives v3 removes] t4_lost.als limit=300 rc=0 secs=32 Total models: 300
+2026-11-08 20:43:11 t4_gained [expect: SAT/UNSAT: instances v3 adds] t4_gained.als limit=100 rc=124 secs=1801 
+2026-11-08 21:13:12 c_STT_6_v2_core_ri_b3 [expect: count at but 3] c_STT_6_v2_core_ri_b3.als limit=5000 rc=0 secs=4 Total models: 129
+2026-11-08 21:13:16 c_Recon_6_v2_core_ri_b3 [expect: count at but 3] c_Recon_6_v2_core_ri_b3.als limit=5000 rc=0 secs=5 Total models: 129
+2026-11-08 21:13:21 c_SPT_6_oneLP_v3_core_ri_b3 [expect: count at but 3] c_SPT_6_oneLP_v3_core_ri_b3.als limit=5000 rc=0 secs=53 Total models: 393
+2026-11-08 21:14:14 c_STT_6_core_ri_b3 [expect: count at but 3] c_STT_6_core_ri_b3.als limit=5000 rc=0 secs=6 Total models: 129
+2026-11-08 21:14:20 c_SPT_6_oneLP_v2_core_ri_b3 [expect: count at but 3] c_SPT_6_oneLP_v2_core_ri_b3.als limit=5000 rc=0 secs=50 Total models: 546
+2026-11-08 21:15:10 c_STT_6_v2_core_ri_b4 [expect: count at but 4] c_STT_6_v2_core_ri_b4.als limit=5000 rc=0 secs=25 Total models: 129
+2026-11-08 21:15:35 c_Recon_6_v2_core_ri_b4 [expect: count at but 4] c_Recon_6_v2_core_ri_b4.als limit=5000 rc=0 secs=57 Total models: 129
+2026-11-08 21:16:32 c_recon_core_committed_load_b5 [expect: UNSAT: no committed load in any Recon RI core, so no reveal] c_recon_core_committed_load_b5.als limit=1 rc=0 secs=203 Total models: 0
+2026-11-08 21:19:55 c_recon_not_stt_core_b5 [expect: UNSAT: every Recon RI core is an STT_6_v2 RI core] c_recon_not_stt_core_b5.als limit=1 rc=0 secs=340 Total models: 0
+2026-11-08 21:25:35 c_stt_not_recon_core_b5 [expect: UNSAT: every STT_6_v2 RI core is a Recon RI core] c_stt_not_recon_core_b5.als limit=1 rc=0 secs=67 Total models: 0
+2026-11-08 21:26:42 rf_patched/Recon_6.als [expect: SAT (patched copy parses and has instances)] Recon_6.als limit=3 rc=0 secs=3 Total models: 3
+2026-11-08 21:26:45 rf_patched/Recon_6_core.als [expect: SAT (patched copy parses and has instances)] Recon_6_core.als limit=3 rc=124 secs=600 
+2026-11-08 21:36:45 rf_patched/Recon_6_core_ri.als [expect: SAT (patched copy parses and has instances)] Recon_6_core_ri.als limit=3 rc=0 secs=6 Total models: 3
+2026-11-08 21:36:51 rf_patched/Recon_6_stl.als [expect: SAT (patched copy parses and has instances)] Recon_6_stl.als limit=3 rc=0 secs=3 Total models: 3
+2026-11-08 21:36:54 rf_patched/Recon_6_stl_core.als [expect: SAT (patched copy parses and has instances)] Recon_6_stl_core.als limit=3 rc=0 secs=2 Total models: 3
+2026-11-08 21:36:56 rf_patched/SPT_6_oneLP_stl.als [expect: SAT (patched copy parses and has instances)] SPT_6_oneLP_stl.als limit=3 rc=124 secs=600 
+2026-11-08 21:48:37 t1_gained_complete [expect: UNSAT: every gained instance has an R-1 witness on xm] t1_gained_complete.als limit=1 rc=0 secs=68 Total models: 0
+2026-11-08 21:49:45 t1_lost_complete [expect: UNSAT: every lost instance is lost through an R-1 witness under a perturbation] t1_lost_complete.als limit=1 rc=124 secs=900 
+2026-11-08 22:33:49 t4_lost_complete [expect: UNSAT: v3 un-flags only where a load's value is transmitted non-speculatively] t4_lost_complete.als limit=1 rc=124 secs=900 
+=== run_mf_list2 begin 2026-11-08 22:49:01 queries/mf/RUNLIST4.tsv all
+2026-11-08 22:49:01 rf_patched/Recon_6_core.als [expect: SAT hoped (RO+RI core; old run found 2 cores in 6 h)] Recon_6_core.als limit=1 rc=0 secs=15 Total models: 1
+2026-11-08 22:49:16 rf_patched/control_Recon_6_core_unpatched.als [expect: control: unpatched] control_Recon_6_core_unpatched.als limit=1 rc=0 secs=9 Total models: 1
+=== run_mf_list2 end 2026-11-08 22:49:25

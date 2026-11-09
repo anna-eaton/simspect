@@ -1,0 +1,59 @@
+{
+  "branch_mode": "mispredict_not_taken",
+  "annotations": [
+    {
+      "branch_pc": 1,
+      "btb_forced_target_pc": 2,
+      "mode": "mispredict_not_taken",
+      "branch_addr": 4198485,
+      "branch_addr_hex": "0x401055",
+      "btb_forced_target_addr": 4198487,
+      "btb_forced_target_addr_hex": "0x401057"
+    },
+    {
+      "branch_pc": 2,
+      "btb_forced_target_pc": 3,
+      "mode": "correctly_not_taken",
+      "branch_addr": 4198493,
+      "branch_addr_hex": "0x40105d",
+      "btb_forced_target_addr": 4198505,
+      "btb_forced_target_addr_hex": "0x401069"
+    },
+    {
+      "branch_pc": 4,
+      "btb_forced_target_pc": 5,
+      "mode": "mispredict_not_taken",
+      "branch_addr": 4198514,
+      "branch_addr_hex": "0x401072",
+      "btb_forced_target_addr": 4198516,
+      "btb_forced_target_addr_hex": "0x401074"
+    },
+    {
+      "branch_pc": 5,
+      "btb_forced_target_pc": 6,
+      "mode": "correctly_not_taken",
+      "branch_addr": 4198522,
+      "branch_addr_hex": "0x40107a"
+    }
+  ],
+  "xmit": {
+    "pc": 4,
+    "kind": "br_x",
+    "addr": 4198514,
+    "addr_hex": "0x401072"
+  },
+  "commit_boundary": {
+    "last_committed": {
+      "pc": 0,
+      "addr": 4198457,
+      "addr_hex": "0x401039"
+    },
+    "first_noncommitted": {
+      "pc": 1,
+      "addr": 4198485,
+      "addr_hex": "0x401055"
+    }
+  },
+  "func_base_addr": 4198432,
+  "func_base_addr_hex": "0x401020"
+}

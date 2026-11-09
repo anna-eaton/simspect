@@ -1,0 +1,14 @@
+// QR1c (control): same as QR1a but l1 reads a DIFFERENT location.
+// location that an older NON-speculative load (l1) already read; l1's value is never
+// used as any load's address (no load pair, so ReCon would not reveal); l3 reads memory
+// (no store forwards into it). STT and ReCon both taint l3's output.
+pred q {
+  some disj l1, l3: Loads |
+    l1 not in speculation_contract_p[no_p] and
+    l3 in speculation_contract_p[no_p] and
+    some l1.inmem and l1.inmem.opstate != l3.inmem.opstate and
+    no (l1.outreg.rf & Loads.inaddr) and
+    no rf.(l3.inmem) and
+    l3.inmem -> l3.outreg in ddi and
+    xm in Loads and some (l3.outreg.rf & xm.inaddr)
+}

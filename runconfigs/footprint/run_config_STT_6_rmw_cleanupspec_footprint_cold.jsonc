@@ -1,0 +1,75 @@
+// Cache-setup experiment (2026-11-08, cache-setup session): UV3 on the RMW corpus with the sandbox COLD.
+// Exact copy of the config the warm RMW run used, cafe2 results/STT_6_rmw_cleanupspec_footprint/run_config.jsonc
+// (md5 e88495750d8bb776c80d922d2c8c461d; campaign STT_6_rmw_cleanupspec_footprint__20261109_002545), differing ONLY in
+//   gem5.cache_setup = "cold" (STAGE3_gem5/cache_setup.py: paced clflush of the whole stack frame after the prologue barrier)
+//   paths.results_name = STT_6_rmw_cleanupspec_footprint_cold
+// Same sample (gem5.sample_fraction 0.005 = the same 590 stems). Run: python3 testrun.py --once --model STT_6_rmw --config <this file>
+{
+  "paths": {
+    "testset_dir": "testsets_latest",
+    "results_dir": "results",
+    "alloy_stage": "STAGE1_alloy",
+    "models_dir": "STAGE1_alloy/models",
+    "stage2_dir": "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir": "STAGE3_gem5",
+    "results_name": "STT_6_rmw_cleanupspec_footprint_cold",
+    "model": "STT_6_rmw"
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow": false,
+    "branch_modes": [
+      "mispredict_not_taken",
+      "mispredict_taken"
+    ]
+  },
+  "filter": {
+    "xmit_kind": "ld"
+  },
+  "gem5": {
+    "binary": "/work/amulet/amulet-gem5-CleanupSpec_AE-v1.1/build/X86_MESI_Two_Level/gem5.opt",
+    "config_script": "/work/amulet/amulet-gem5-CleanupSpec_AE-v1.1/configs/example/se.py",
+    "branch_ann_enable": true,
+    "cpu_type": "DerivO3CPU",
+    "scheme": 2,
+    "jobs": 4,
+    "debug_flags": [
+      "O3PipeView"
+    ],
+    "debug_file": "pipeview.txt",
+    "checker": "check_footprint.py",
+    "criterion": "specs/leakage/cleanupspec.json",
+    "cache_setup": "cold",
+    "fnc_commit_stall_cycles": 0,
+    "extra_args": [
+      "--ruby",
+      "--scheme_invisispec=UnsafeBaseline",
+      "--scheme_cleanupcache=Cleanup_FOR_L1L2",
+      "--needsTSO=0",
+      "--l1d_size=2kB",
+      "--l1d_assoc=4",
+      "--l1i_size=32kB",
+      "--l1i_assoc=4",
+      "--l2_size=2MB",
+      "--l2_assoc=16",
+      "--L1_TBEs=8",
+      "--L2_TBEs=2",
+      "--DC_TBEs=2",
+      "--abs-max-tick=3000000000"
+    ],
+    "sample_fraction": 0.005
+  },
+  "sweep": {
+    "enabled": true,
+    "points": [
+      0
+    ],
+    "unresolved_stall_cycles": 5000
+  },
+  "legacy_checker": "STAGE3_gem5/check_ld_cleanupspec.py",
+  "pipeline": {
+    "check": "per_type",
+    "keep_tmp": true
+  }
+}

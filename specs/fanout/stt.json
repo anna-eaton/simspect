@@ -1,0 +1,20 @@
+{
+  "_doc": "STT-family fanout (units stt_on_stt, stt_on_recon, stt_on_amulet; NOT stt_on_spt, whose gem5-spt build declassifies): standard enumeration + fanout v2 (Anna 2026-11-08, FV-1 = edge splices + read-only fillers, FV-2 = random edge subset biased to the transmitter). Copy 'fanout_v2' and 'reg_naming' into a run config; pipeline.py passes them to batch_generate.py --fanout-v2-config / --reg-naming-config. Splices are value-preserving ALU ops on Alloy rf edges (parsexml.py FV2_SPLICE_OPS); fillers read live registers and write only registers the program never uses (FV2_FILLER_OPS). pre_window_reads=true is allowed for STT (no declassification by reading; MODEL_AUDIT_SPT_RECON.md rules 4, 11); keep it false for SPT (rule 9). Off for SPT/ReCon units until Anna signs off FV-3/FV-6. Design: wiki/design/VOCAB_TABLES.md 'Fanout v2'.",
+  "max_instances": 150000,
+  "branch_modes": [
+    "mispredict_not_taken",
+    "mispredict_taken"
+  ],
+  "interleave": false,
+  "instruction_choice": "random",
+  "seed": null,
+  "reg_naming": {"mode": "random", "seed": 0},
+  "fanout_v2": {
+    "enabled": true,
+    "pre_window_reads": true,
+    "splice": {"enabled": true, "p_xmit": 0.75, "p_other": 0.25,
+               "ops": ["add0", "or0", "xor0", "and_m1", "imul1", "lea0", "not2", "neg2", "rol_ror", "add_sub", "xor2", "bswap2"]},
+    "fillers": {"enabled": true, "count": [1, 3],
+                "ops": ["add", "xor", "and", "imul", "lea", "shl"]}
+  }
+}

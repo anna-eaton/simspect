@@ -1,0 +1,67 @@
+// 2026-11-08 fpr-fanout: copy of runconfigs/fixed_20261030/STT_6_reconmodded_fixed_latest.jsonc with the no-STLF Stage-2 variant (specs/fanout/nostlf.json) so the recon
+// store-to-load-forwarding bypass (A2) does not shadow other hits. Only results_name and 'store_separation' differ.
+// Needs a testset concretized with this config (pipeline.py llvm/asm), not the existing one.
+// 2026-11-07: same as STT_6_reconmodded_fixed.jsonc but on testsets_latest/ (the 2026-06-03 enumeration of the CURRENT
+// .als, e298a9e). Round 2 (10-30) ran on testsets/ = pre-06-03 models; see claudelog 2026-11-07.
+// Fixed-harness campaign config (2026-10-30). Same build/scheme/extra_args/sweep as the
+// campaign named in 'copied_from', with: fnc_commit_stall_cycles 0 (window = branches
+// unresolved, observed via the BR resolve lines), derived branch force (force_plan),
+// execution-validity gate, sample_fraction 0.02 for the first validation round.
+// Design: wiki/design/RESOLUTION_HOOKS.md. copied_from: runconfigs/run_config_STT_6.jsonc
+{
+  "paths": {
+    "alloy_stage": "STAGE1_alloy",
+    "models_dir": "STAGE1_alloy/models",
+    "stage2_dir": "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir": "STAGE3_gem5",
+    "testset_dir": "testsets_latest",
+    "results_dir": "results",
+    "results_name": "STT_6_reconmodded_fixed_latest_nostlf"
+  },
+  "alloy": {
+    "max_instances": 100000,
+    "batch_size": 1000
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow": false,
+    "branch_modes": [
+      "mispredict_not_taken",
+      "mispredict_taken"
+    ]
+  },
+  "gem5": {
+    "binary": "/work/gem5-recon-modded/build/X86/gem5.opt",
+    "config_script": "/work/gem5-recon-modded/configs/example/se.py",
+    "branch_ann_enable": true,
+    "cpu_type": "X86O3CPU",
+    "scheme": 2,
+    "caches": true,
+    "jobs": 16,
+    "debug_flags": [
+      "O3PipeView",
+      "LSQUnit"
+    ],
+    "debug_file": "pipeview.txt",
+    "fnc_commit_stall_cycles": 0,
+    "sample_fraction": 0.02
+  },
+  "sweep": {
+    "enabled": true,
+    "points": [
+      0,
+      500,
+      2500
+    ],
+    "unresolved_stall_cycles": 5000
+  },
+  "pipeline": {
+    "check": "per_type",
+    "keep_tmp": false
+  },
+  "interleave": {
+    "enabled": false
+  },
+  "store_separation": {"enabled": true}
+}

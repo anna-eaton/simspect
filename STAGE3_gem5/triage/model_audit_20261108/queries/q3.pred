@@ -1,0 +1,7 @@
+// Q3 (general ALU-on-path): some ALU op whose output reaches xm's leak operand over
+// rf+ddi and whose input is reached from some load's output over rf+ddi (any xm kind).
+pred q {
+  some o: (Otherns + Otherxs) |
+    some (o.outreg.^(rf + ddi) & leakage_function & xm.operands) and
+    some (o.inreg & (Loads.outreg).^(rf + ddi))
+}

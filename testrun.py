@@ -227,6 +227,9 @@ def main() -> None:
             "results_name": results_name,
             "gem5_binary": cfg.get("gem5", {}).get("binary"),
             "gem5_extra_args": cfg.get("gem5", {}).get("extra_args"),
+            "cache_setup": cfg.get("gem5", {}).get("cache_setup", "warm"),
+            # random (2026-11-09): None = cache_setup.DEFAULT_SEED
+            "cache_setup_seed": cfg.get("gem5", {}).get("cache_setup_seed"),
             "config": str(cfg_path),
         }, indent=2))
         print(f"[testrun] campaign {results_base}", flush=True)

@@ -47,6 +47,12 @@
     "checker":                 "check_footprint.py",   // pipeline.py:304-312 override; reads only the O3PipeView simspect: lines
     "criterion":               "specs/leakage/cleanupspec.json",   // footprint criterion (criteria session); pipeline.py:599-614 -> SIMSPECT_CRITERION
     "fnc_commit_stall_cycles": 0,                  // as run_cleanupspec_residue.sh:13 default (">0 risks the assoc-2/install deadlock", :9)
+    // Initial cache state (Anna 2026-11-09): CleanupSpec and SpecLFB default to "random" = each test runs warm or
+    // cold (clflush of its stack frame), chosen per test from sha256(seed, stem); every record carries the
+    // cache_setup it actually used. Not a standard run dimension; every other build stays warm.
+    // STAGE3_gem5/cache_setup.py, wiki/design/SIMSPECT_HOOKS.md "Cache setup strategies".
+    "cache_setup":             "random",
+    "cache_setup_seed":        "simspect-cache-random-v1",   // = cache_setup.DEFAULT_SEED; changing it changes which tests run cold
     "extra_args": [
       "--ruby",                                    // CleanupSpec undo lives in the Ruby .sm files
       "--scheme_invisispec=UnsafeBaseline",        // no InvisiSpec on top (authors' exp_script/runscript.sh:267; AMuLeT executor.py:289)
@@ -55,7 +61,14 @@
       "--l1d_size=2kB", "--l1d_assoc=4",           // SimSpect amplification, assoc>=4 (assoc-2 deadlocks: run_cleanupspec_residue.sh:10-11); paper Table 4 p9 = 64KB/8
       "--l1i_size=32kB", "--l1i_assoc=4",          // paper Table 4 p9; authors' runscript.sh:266
       "--l2_size=2MB",  "--l2_assoc=16",           // paper Table 4 p9; runscript.sh:266
-      "--L1_TBEs=8", "--L2_TBEs=2", "--DC_TBEs=2", // L1=8: Anna 2026-11-08 (2 deadlocks 62%); L2/DC = the measured main_tbe8 arm
+      "--L1_TBEs=8", "--L2_TBEs=3", "--DC_TBEs=2", // L1=8: Anna 2026-11-08 (2 deadlocks 62%); DC = the measured main_tbe8 arm
+      // L2_TBEs 2 -> 3 (cache-random, 2026-11-09; principle: crash-free settings except for AMuLeT parity): with 2, cold
+      // (and so random's cold half) panics CleanupSpec's own cleanup, MESI_Two_Level-L2cache.sm:308 "Invalid L1 forwarded
+      // request type" (a PUTINV meets an L2 Resource Stall): 326/590 plain STT_6 tests. TBE sweep on those 590 stems
+      // (cafe2 results/STT_6_rmwstems_cleanupspec_tbe_l2_{3,4,8,16}_dc_2_{cold,warm}__latest, summary
+      // results/STT_6_cleanupspec_tbe_sweep_20261109.json, launcher STAGE3_gem5/triage/cache_setup_20261108/tbe_sweep.sh):
+      // L2_TBEs 3, 4, 8, 16 cold -> 0/590 errors, 10 hits (the same stems as the 264 survivors at 2); warm -> 13 hits,
+      // the same 13 stems as L2_TBEs=2 at every value. 3 is the smallest crash-free value; DC_TBEs unchanged.
       "--abs-max-tick=3000000000"                  // = run_cleanupspec_residue.sh:25 SIMSPECT_GEM5_MAX_TICK; overrides gem5_common.py:172 (optparse last-wins)
     ]
   },

@@ -1,0 +1,65 @@
+// T2 timing config for the two-stage STT_6_fv2 testset (timing-amulet, 2026-11-09): byte copy of runconfigs/amulet_parity/run_config_STT_6_cleanupspec_amulet_parity.jsonc with ONLY paths changed (testset_dir -> testsets_twostage, results_name -> T2_STT_6_fv2, instruction_tables -> fv2_vocab, the table the testset was concretized with). Structures/flags are AMuLeT parity, unchanged. Run with STAGE3_gem5/timing/timing_driver.py (seeded order, per-test CPU time).
+{
+  // CleanupSpec, AMuLeT-PARITY configuration (2026-11-08). Anna 2026-11-08: AMuLeT comparisons (speed, throughput,
+  // head-to-head) use AMuLeT's exact flags and structure sizes. Every gem5 flag below is AMuLeT's, cited to cafe2
+  // gem5_dev /work/amulet-repo @ c871bdf (src/executor.py set_cmd :196-307, src/config.py defaults,
+  // src/benchmark_all.sh :47-49, docker/docker_cleanupspec/docker_gem5_v1_final_cache_ipc.yaml).
+  // Comparison tables: wiki/findings/audits/2026-10-28/full_configs.md "Comparison with AMuLeT's flags (2026-11-08)".
+  // Run: make run MODEL=STT_6 RUNCONFIG=runconfigs/amulet_parity/run_config_STT_6_cleanupspec_amulet_parity.jsonc
+  //
+  // REMAINING DIFFERENCES from AMuLeT (harness requirements, kept on purpose):
+  //   - BTB force (branch_ann_enable) + 5000-cycle resolve stall on the model's mispredicted branches (sweep below).
+  //   - harness always adds --caches (inert under --ruby) and --scheme=2 (ignored by this tree, Options.py:315-319).
+  //   - run bound --abs-max-tick=1e11 (gem5_common.py) + 120 s wall timeout vs AMuLeT --rel-max-tick=1000000000 (executor.py:305).
+  //   - one gem5 process per test, plain se.py: no RevizorIPC (executor.py:311-312,335-338; AMuLeT clflushes the
+  //     sandbox lines between inputs), no --checkpoint-dir (:306). --access-backing-store (ipc.py:62-63) is passed below.
+  //   - debug flags O3PipeView (+Commit) only (CleanupSpec's LSQUnit print corrupts hook lines), single-run oracle.
+  // amulet-STT: no parity config, see the README block in run_config_STT_6_invisispec_futuristic_amulet_parity.jsonc.
+  "paths": {
+    "alloy_stage":        "STAGE1_alloy",
+    "models_dir":         "STAGE1_alloy/models",
+    "stage2_dir":         "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/proposed/fv2_vocab.jsonc",
+    "stage3_dir":         "STAGE3_gem5",
+    "testset_dir":        "testsets_twostage",
+    "results_dir":        "results",
+    "results_name":       "T2_STT_6_fv2",
+    "model":              "STT_6"
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow":    false,
+    "branch_modes": ["mispredict_not_taken", "mispredict_taken"]
+  },
+  "filter": { "xmit_kind": "ld" },   // read by the launchers only, not by pipeline.py
+  "gem5": {
+    "binary":        "/work/amulet/amulet-gem5-CleanupSpec_AE-v1.1/build/X86_MESI_Two_Level/gem5.opt",
+    "config_script": "/work/amulet/amulet-gem5-CleanupSpec_AE-v1.1/configs/example/se.py",
+    "branch_ann_enable":       true,               // harness addition (BTB force)
+    "cpu_type":                "DerivO3CPU",       // executor.py:209, config.py:249
+    "scheme":                  2,                  // harness; accepted and ignored by this tree
+    "jobs":                    4,
+    "debug_flags":             ["O3PipeView"],
+    "debug_file":              "pipeview.txt",
+    "checker":                 "check_footprint.py",
+    "criterion":               "specs/leakage/cleanupspec.json",
+    "fnc_commit_stall_cycles": 0,                  // harness hook off (AMuLeT has none)
+    "extra_args": [
+      "--num-cpu=1",                               // executor.py:208
+      "--cpu-clock=2GHz",                          // executor.py:210, config.py:250
+      "--sys-clock=2GHz",                          // executor.py:211, config.py:251
+      "--ruby",                                    // executor.py:214-215; benchmark_all.sh:48 "--ruby,--CleanupSpec"
+      "--L1_TBEs=256", "--L2_TBEs=256", "--DC_TBEs=256",   // executor.py:216-218, config.py:255 tbe_count=256
+      "--l1d_size=32kB", "--l1d_assoc=8",          // executor.py:224-225; ipc.yaml:47,49
+      "--l1i_size=32kB", "--l1i_assoc=2",          // executor.py:226-227; ipc.yaml:48,50
+      "--cacheline_size=64",                       // executor.py:228, config.py:277
+      "--l2_size=2MB", "--l2_assoc=8",             // executor.py:229-230, config.py:278-279
+      "--DTB_entries=64",                          // executor.py:233, config.py:282
+      "--needsTSO=0", "--scheme_invisispec=UnsafeBaseline", "--scheme_cleanupcache=Cleanup_FOR_L1L2",   // executor.py:289
+      "--access-backing-store"                     // configs/revizor/ipc.py:62-63 under --ruby (ipc.yaml:46 gem5_orchestration "ipc")
+    ]
+  },
+  // harness addition: resolve stall 5000 cycles on the model's mispredicted branches, xmit branch 0
+  "sweep": { "enabled": true, "points": [0], "unresolved_stall_cycles": 5000 },
+  "pipeline": { "check": "per_type", "keep_tmp": false }
+}

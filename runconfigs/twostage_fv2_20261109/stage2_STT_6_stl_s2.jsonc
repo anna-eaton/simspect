@@ -1,0 +1,32 @@
+// 2026-11-09 simspect-c8 autopilot (Anna: 'run like stl and all the other weird versions too'). Stage-2 config for the two-stage
+// STT_6_stl output (72,777 deduped, testsets_twostage/STT_6_stl/xml) in stl_bypass mode, as runconfigs/run_config_STT_6_stl.jsonc.
+// fanout_v2 left OFF (never validated with stl_bypass) and DEFAULT vocabulary: parsexml _stl_arch_values cannot evaluate fv2_vocab ops (inc, cmov_rr) -> 6.7% [err] with fv2_vocab. Random reg naming. DRAFT family.
+{
+  "paths": {
+    "alloy_stage": "STAGE1_alloy",
+    "models_dir": "STAGE1_alloy/models",
+    "stage2_dir": "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir": "STAGE3_gem5",
+    "testset_dir": "testsets_twostage",
+    "results_dir": "results",
+    "results_name": "stage2_only"
+  },
+  "speculation": {
+    "control_flow": false,
+    "data_flow": true,
+    "branch_modes": [
+      "stl_bypass"
+    ]
+  },
+  "gem5": {
+    "jobs": 12
+  },
+  "interleave": {
+    "enabled": false
+  },
+  "reg_naming": {
+    "mode": "random",
+    "seed": 0
+  }
+}

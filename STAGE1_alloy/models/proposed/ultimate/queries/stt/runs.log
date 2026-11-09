@@ -1,0 +1,91 @@
+=== batch begin 2026-11-09 01:47:10 files: q_sem.als q_sem2.als q_stl.als q_stl_gen.als q_core_u_core.als q_core_u_stl_core.als q_asm_sk.als q_asm_stl_sk.als q_sem2_gen.als
+=== batch begin 2026-11-09 02:37:21 files: q_fast.als
+2026-11-09 02:37:21 q_fast.als rc=124 secs=600
+CMD M0_old_subset_u_nop__UNSAT UNSAT 93905
+=== batch end 2026-11-09 02:47:21
+=== batch begin 2026-11-09 02:47:21 files: q_stl.als q_stl_gen.als q_core_u_core.als q_core_u_stl_core.als q_asm_sk.als q_asm_stl_sk.als
+2026-11-09 02:47:21 q_stl.als rc=124 secs=240
+CMD stl_sanity_facts SAT 307
+CMD S1_stale_value_of_committed_word_flagged_u__SAT SAT 192
+CMD S1_same_flagged_old_STT_6_stl__UNSAT SAT 1182
+2026-11-09 02:51:21 q_stl_gen.als rc=0 secs=1
+CMD gen_lit_u_stl__SAT SAT 850
+CMD S1g_generated__SAT SAT 301
+2026-11-09 02:51:22 q_core_u_core.als rc=0 secs=38
+CMD count_u_core_but3 COUNT 129 EXHAUSTED 3004
+CMD count_u_core_but4 COUNT 129 EXHAUSTED 33941
+2026-11-09 02:52:00 q_core_u_stl_core.als rc=0 secs=1374
+CMD count_u_stl_core_but3 COUNT 858 EXHAUSTED 11652
+CMD count_u_stl_core_but4 COUNT 858 EXHAUSTED 1362943
+2026-11-09 03:14:54 q_asm_sk.als rc=0 secs=5
+CMD sk_gen__SAT SAT 1526
+CMD sk_U1g__SAT SAT 702
+CMD sk_core_b3__SAT SAT 1477
+2026-11-09 03:14:59 q_asm_stl_sk.als rc=0 secs=5
+CMD sk_stl_gen__SAT SAT 2471
+CMD sk_stl_S1g__SAT SAT 1301
+CMD sk_stl_core_b3__SAT SAT 593
+=== batch end 2026-11-09 03:15:04
+=== batch begin 2026-11-09 03:15:04 files: q_r_d2w.als q_r_stl_gen.als q_core_u_stl_core.als q_core_stl_core_approved.als
+2026-11-09 03:15:04 q_r_d2w.als rc=0 secs=7
+CMD gen_lit_u__SAT SAT 4222
+CMD D2w_lost_handbuilt__SAT SAT 1089
+2026-11-09 03:15:11 q_r_stl_gen.als rc=0 secs=54
+CMD gen_lit_u_stl__SAT SAT 54138
+CMD S1g_generated__SAT SAT 365
+2026-11-09 03:16:05 q_core_u_stl_core.als rc=0 secs=798
+CMD count_u_stl_core_but3 COUNT 858 EXHAUSTED 116561
+CMD count_u_stl_core_but4 COUNT 858 EXHAUSTED 680486
+2026-11-09 03:29:23 q_core_stl_core_approved.als rc=0 secs=39
+CMD count_stl_core_approved_but3 COUNT 306 EXHAUSTED 6326
+CMD count_stl_core_approved_but4 COUNT 306 EXHAUSTED 32205
+=== batch end 2026-11-09 03:30:02
+=== batch begin 2026-11-09 03:31:28 files: q_gen.als
+2026-11-09 03:31:28 q_gen.als rc=124 secs=900
+CMD gen_lit_u__SAT SAT 681
+CMD U1g_R1_reload_generated__SAT SAT 183
+CMD U4g_forward_from_committed_store_generated__info SAT 155
+CMD U7g_brx_generated__SAT SAT 150
+CMD L1_nonbranch_unresolved__UNSAT UNSAT 23887
+CMD L2_more_than_one_source__UNSAT UNSAT 81772
+CMD L3_xm_branch_unresolved__UNSAT UNSAT 1466
+CMD L4_committed_load_exists__SAT SAT 241
+=== batch end 2026-11-09 03:46:28
+=== batch begin 2026-11-09 03:46:28 files: q_yrot.als
+2026-11-09 03:46:28 q_yrot.als rc=124 secs=600
+CMD Y3_gap_unsafe_load_without_Inmem__SAT SAT 319
+CMD Y4_gap_load_without_Inmem_to_Outreg_ddi__SAT SAT 203
+=== batch end 2026-11-09 03:56:28
+=== batch begin 2026-11-09 03:56:28 files: q_sem2_gen.als
+2026-11-09 03:56:28 q_sem2_gen.als rc=0 secs=2
+CMD Y5g_gen_instances_have_ddi_on_every_unsafe_load_reaching_xm__UNSAT SAT 1347
+=== batch end 2026-11-09 03:56:30
+2026-11-09 03:56:42 q_dump.als [dump] rc=0 secs=2
+CMD dump_gen_first DUMPED 30 CAPPED 1306
+CMD dump_R1 DUMPED 30 CAPPED 591
+2026-11-09 03:56:44 q_dump_stl.als [dump] rc=0 secs=2
+CMD dump_stl_first DUMPED 30 CAPPED 1285
+CMD dump_stl_S1 DUMPED 30 CAPPED 655
+QUEUE DONE 03:56:46
+=== batch begin 2026-11-09 06:17:57 files: q_u.als q_s1.als
+2026-11-09 06:17:57 q_u.als rc=0 secs=13
+CMD U1_R1_reload_flagged_u__SAT SAT 253
+CMD U2c_same_load_after_b1_tainted__SAT SAT 133
+CMD U3_union_safe_plus_unsafe_tainted__SAT SAT 118
+CMD U4_forward_from_committed_store_tainted__SAT SAT 77
+CMD U7_brx_unsafe_predicate_flagged__SAT SAT 71
+CMD U8_tainted_store_address_is_not_a_leak__SAT SAT 75
+CMD X2_u2_shape0_exists__SAT SAT 64
+CMD X3_u3_shape0_exists__SAT SAT 59
+CMD X5_u5_shape_exists__SAT SAT 59
+CMD X7_u7_shape0_exists__SAT SAT 62
+CMD U1_R1_reload_flagged_old__UNSAT UNSAT 1242
+CMD U2_safe_uncommitted_load_untainted__UNSAT UNSAT 2236
+CMD U3b_safe_root_only_untainted__UNSAT UNSAT 218
+CMD U5_alu_on_committed_values_untainted__UNSAT UNSAT 4440
+CMD U7b_brx_committed_predicate_unflagged__UNSAT UNSAT 3881
+2026-11-09 06:18:10 q_s1.als rc=0 secs=2
+CMD S1x_shape_exists__SAT SAT 323
+CMD S1_stale_value_of_committed_word_flagged_u__SAT SAT 159
+CMD S1_same_flagged_old_STT_6_stl__UNSAT UNSAT 704
+=== batch end 2026-11-09 06:18:12

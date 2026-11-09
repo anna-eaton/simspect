@@ -1,0 +1,35 @@
+t1_qr1a_STT_6_v2	1	600	SAT (was UNSAT on STT_6/Recon_6)
+t1_qr1c_STT_6_v2	1	600	SAT (control)
+t1_qr1a_STT_6_v2_gen	1	900	info (with minimality)
+t1_qr1c_STT_6_v2_gen	1	900	info (with minimality)
+t1_qr1a_Recon_6_v2	1	600	SAT (was UNSAT on STT_6/Recon_6)
+t1_qr1c_Recon_6_v2	1	600	SAT (control)
+t1_qr1a_Recon_6_v2_gen	1	900	info (with minimality)
+t1_qr1c_Recon_6_v2_gen	1	900	info (with minimality)
+t1_mono_on_newfacts	1	1800	UNSAT (old flags subset of new, every perturbation)
+t1_mono_on_oldfacts	1	1800	UNSAT
+t1_gained	300	1800	SAT: sample to classify
+t1_gained_complete	1	1800	UNSAT: every gained instance has an R-1 witness on xm
+t1_lost	300	2400	SAT or UNSAT: sample to classify
+t1_lost_complete	1	1800	UNSAT: every lost instance is lost through an R-1 witness under a perturbation
+t2a_recon	1	1200	UNSAT (revealed read is not flagged)
+t2a_stt_control	1	600	SAT (STT has no reveal)
+t2a_stt_control_gen	1	900	info
+t2b_recon_any	1	600	SAT
+t2b1_recon_committed_store	1	600	SAT
+t2b2_recon_inflight_store	1	600	SAT
+t2b3_recon_stale_store	1	600	SAT
+t2b_recon_any_gen	1	1200	info
+t2c_recon	1	600	SAT (ALU between: no reveal)
+t2c_recon_gen	1	1200	info
+t2d1_protset_differs	1	600	SAT (QR2 analogue: was UNSAT)
+t2d2_recon_only	300	1800	SAT: Recon-useful, not STT_6_v2-useful
+t2d3_stt_only	300	1800	SAT: STT_6_v2-useful, not Recon-useful
+t4_q1_v2	1	900	SAT (audit: 7 s)
+t4_q1_v3	1	1800	UNSAT hoped
+t4_q1_v3_nofwd	1	1800	UNSAT
+t4_q1_v3_facts	1	1800	info (facts only)
+t4_mono	1	2400	UNSAT (v3 flags subset of v2, every perturbation)
+t4_lost	300	2400	SAT: the S-1 false positives v3 removes
+t4_lost_complete	1	2400	UNSAT: v3 un-flags only where a load's value is transmitted non-speculatively
+t4_gained	100	1800	SAT/UNSAT: instances v3 adds

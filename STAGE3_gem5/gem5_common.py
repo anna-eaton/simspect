@@ -80,6 +80,23 @@ STL_STORE_STALL_CYCLES: int = int(os.environ.get("SIMSPECT_STL_STORE_STALL_CYCLE
 STL_ALIAS_PRED = os.environ.get("SIMSPECT_STL_ALIAS_PRED", "no_alias")
 
 FNC_COMMIT_STALL_CYCLES: int = int(os.environ.get("SIMSPECT_FNC_COMMIT_STALL_CYCLES", "0"))
+# Initial cache state (run_config gem5.cache_setup, 2026-11-08): "warm" (default,
+# the Stage-2 prologue leaves the sandbox hot) or a strategy in cache_setup.STRATEGIES
+# (e.g. "cold" = clflush the test's stack frame after the prologue barrier), or
+# "random" (per-test warm/cold from SIMSPECT_CACHE_SETUP_SEED + stem, 2026-11-09).
+# Applied only by process_one via cache_setup.prepare; see build_binary's guard.
+CACHE_SETUP: str = (os.environ.get("SIMSPECT_CACHE_SETUP") or "warm").strip().lower()
+if CACHE_SETUP != "warm":
+    if str(Path(__file__).resolve().parent) not in sys.path:
+        sys.path.append(str(Path(__file__).resolve().parent))
+    import cache_setup as _cs_mod
+    if CACHE_SETUP not in _cs_mod.KNOWN:
+        raise SystemExit(f"SIMSPECT_CACHE_SETUP={CACHE_SETUP!r} unknown "
+                         f"(known: {', '.join(_cs_mod.KNOWN)})")
+    try:
+        _cs_mod.check_build(CACHE_SETUP, str(GEM5_BIN))
+    except _cs_mod.CacheSetupError as _e:
+        raise SystemExit(str(_e))
 
 # Disk safety net: litmus runs finish in well under a second of wall time, so a
 # run still alive after this many seconds is a runaway/livelock (e.g. the
@@ -107,7 +124,13 @@ def _entry_asm(func_name: str) -> str:
     """)
 
 
-def build_binary(s_path: Path, workdir: Path) -> Path:
+def build_binary(s_path: Path, workdir: Path, cache_setup_ok: bool = False) -> Path:
+    # A non-warm cache_setup rewrites the .s and re-resolves the annotation in
+    # cache_setup.prepare (called by process_one). A caller that builds directly
+    # would silently run warm with stale PCs, so it fails loudly instead.
+    if CACHE_SETUP != "warm" and not cache_setup_ok:
+        raise RuntimeError(f"SIMSPECT_CACHE_SETUP={CACHE_SETUP} is applied only by "
+                           "gem5_common.process_one; this caller builds directly")
     func_name = s_path.stem
     binary    = workdir / func_name
     patched_s = workdir / (func_name + "_patched.s")
@@ -1161,7 +1184,24 @@ def process_one(s_path: Path, ann_path: Path, check_fn: CheckFn,
 
         result["xmit_kind"] = xmit.get("kind", "")
 
-        binary  = build_binary(s_path, workdir)
+        # cache_setup (2026-11-08): warm = build_binary exactly as before; any
+        # other strategy rewrites the .s and hands back a re-resolved annotation.
+        if str(Path(__file__).resolve().parent) not in sys.path:
+            sys.path.append(str(Path(__file__).resolve().parent))
+        import cache_setup as _cs
+        # random (2026-11-09): resolved per test from (seed, stem); the record keeps
+        # the strategy actually used plus the mode and seed. warm/cold: unchanged.
+        _cs_used = _cs.resolve(CACHE_SETUP, name)
+        result["cache_setup"] = _cs_used
+        if CACHE_SETUP in _cs.META:
+            result["cache_setup_mode"] = CACHE_SETUP
+            result["cache_setup_seed"] = _cs.current_seed()
+        binary, ann_path, cs_info = _cs.prepare(s_path, ann_path, workdir, build_binary,
+                                                _cs_used)
+        if cs_info is not None:
+            result["cache_setup_info"] = cs_info
+            parts = load_annotation(ann_path)
+            xmit, lc, fnc = parts["xmit"], parts["lc"], parts["fnc"]
         xmit_pc = resolve_pc(binary, name, xmit)
         lc_pc   = resolve_pc(binary, name, lc)
         fnc_pc  = resolve_pc(binary, name, fnc)

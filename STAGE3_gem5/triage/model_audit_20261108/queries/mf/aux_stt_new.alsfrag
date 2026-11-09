@@ -1,0 +1,11 @@
+// ---- aux (model-fixes 2026-11-08): the NEW STT_6_v2.als defense, renamed *_new (instance-based; fold = identity)
+fun hpp_new[p: PTag->univ] : Operand {(Loads & speculation_contract_p[p]).inmem & o_p[p]}
+fun flag_new[p: PTag->univ] : Operand { (hpp_new[p] & speculative_xmit_p[p]) + (hpp_new[p].(^(op_edges_p[p])) & speculative_xmit_p[p]) }
+pred secure_new[p: PTag->univ] { no flag_new[p] }
+pred tag_new { some flag_new[no_p] & xm.operands }
+pred gul_new {
+  not secure_new[no_p]
+  all i: (unresolved - first_uncommitted) | secure_new[RR->i]
+  secure_new[RC->first_uncommitted + RR->first_uncommitted]
+  all s: State | secure_new[RS->s]
+}

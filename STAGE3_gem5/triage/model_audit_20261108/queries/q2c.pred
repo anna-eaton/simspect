@@ -1,0 +1,9 @@
+// Q2c: as Q2 (load -> ALU -> xm address) but the load really reads memory (inmem with
+// its ddi edge) -- i.e. not a load whose output is protected only by the seed.
+pred q {
+  some l: Loads, o: (Otherns + Otherxs), x: xm & Loads |
+    some l.inmem and l.inmem -> l.outreg in ddi and
+    some (l.outreg.rf & o.inreg) and
+    (o.inreg & l.outreg.rf) -> o.outreg in ddi and
+    some (o.outreg.rf & x.inaddr)
+}

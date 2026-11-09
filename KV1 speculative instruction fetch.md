@@ -1,0 +1,1 @@
+InvisiSpec excludes the I-cache (fn. 2 p3)![[Screenshot 2026-11-09 at 1.12.45 PM.png]]

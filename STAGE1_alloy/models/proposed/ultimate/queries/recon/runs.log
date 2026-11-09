@@ -1,0 +1,38 @@
+2026-11-09 01:20:16 fa_true_reveal limit=1 rc=0 secs=2 Total models: 0 | expect: UNSAT: a committed direct pair reveals the word, xm fed only by the re-load is not flagged
+2026-11-09 01:20:18 fa_true_reveal_STTu limit=1 rc=0 secs=0 Total models: 1 | expect: SAT: STT flags the same shape (control)
+2026-11-09 01:20:18 fb1_conceal_committed_store limit=1 rc=0 secs=1 Total models: 1 | expect: SAT: a committed store after LD2 conceals (sec. 4.4.1)
+2026-11-09 01:20:19 fb2_conceal_inflight_store limit=1 rc=0 secs=1 Total models: 1 | expect: SAT: an in-flight resolved store conceals (sec. 4.4.2)
+2026-11-09 01:20:20 fb3_conceal_between_pair limit=1 rc=0 secs=0 Total models: 1 | expect: SAT: a store between LD1 and LD2 conceals (sec. 4.4; the R-SA-2 stale-reveal test)
+2026-11-09 01:20:20 fb4_unresolved_store_no_conceal limit=1 rc=0 secs=1 Total models: 0 | expect: UNSAT: [u-8] an unresolved-address store does not conceal (the re-load may bypass it)
+2026-11-09 01:20:21 fb4_unresolved_store_v2rule limit=1 rc=0 secs=1 Total models: 1 | expect: SAT: the Recon_6_v2 rule (any store conceals) flags this shape, [u-8] does not (facts-only difference)
+2026-11-09 01:20:22 fc_alu_between_pair limit=1 rc=0 secs=1 Total models: 1 | expect: SAT: LD1 -> ALU -> LD2 is no direct pair, no reveal (sec. 4.3)
+2026-11-09 01:20:23 fd2_ld2_inflight limit=1 rc=0 secs=1 Total models: 1 | expect: SAT: no reveal before LD2 commits (sec. 4.1, 5.1)
+2026-11-09 01:20:24 fr1_qr1a limit=1 rc=0 secs=0 Total models: 1 | expect: SAT: audit R-1 fixed (Recon_6: UNSAT)
+2026-11-09 01:20:24 fr1_qr1a_old limit=1 rc=0 secs=3 Total models: 0 | expect: UNSAT: reproduces audit QR1a on today's Recon_6 (with the rf fact)
+2026-11-09 01:20:27 fotb_full limit=1 rc=0 secs=0 Total models: 1 | expect: SAT: the full getOldestTaint gadget (older load under an early-resolved branch + speculative load -> ALU -> xm) is flagged
+2026-11-09 01:20:27 fx_old_sub_new limit=1 rc=1 secs=0  | expect: UNSAT: every operand the old Recon_6 flags, Recon_6_u flags too (old = location fold + no-op reveal) ERR: Exception in thread "main" Syntax error in /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/recon/q/fx_old_sub_new.als at line 360 column 1: 	at edu.mit.csail.sdg.parser.CompParser.syntax_error(CompParser.java:2633) 
+2026-11-09 01:20:28 fx_new_minus_old_not_r1 limit=1 rc=1 secs=0  | expect: UNSAT: every transmitter Recon_6_u newly flags is an R-1 witness ERR: Exception in thread "main" Syntax error in /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/recon/q/fx_new_minus_old_not_r1.als at line 503 column 1: 	at edu.mit.csail.sdg.parser.CompParser.syntax_error(CompParser.java:2633) 
+2026-11-09 01:48:49 g0_gen_sat limit=20 rc=0 secs=3 Total models: 20 | expect: SAT at exactly 6 (first 20 instances)
+2026-11-09 01:48:52 fd2_ld2_inflight limit=1 rc=0 secs=1 Total models: 1 | expect: SAT: no reveal before LD2 commits (sec. 4.1, 5.1)
+2026-11-09 01:48:53 fotb_full limit=1 rc=0 secs=1 Total models: 1 | expect: SAT: the full getOldestTaint gadget (older load under an early-resolved branch + speculative load -> ALU -> xm) is flagged
+2026-11-09 01:48:54 s1_stl_gen_sat limit=20 rc=0 secs=2 Total models: 20 | expect: SAT at exactly 6
+2026-11-09 01:48:56 s2_stl_bypass_revealed limit=1 rc=0 secs=1 Total models: 0 | expect: UNSAT: a bypassing load that reads the revealed pre-store value is not flagged (sec. 4.5.2 Table 1 case 1)
+2026-11-09 01:48:57 s2_stl_bypass_revealed_STTu limit=1 rc=0 secs=1 Total models: 1 | expect: SAT: STT flags it (control)
+2026-11-09 01:48:58 s3_stl_bypass_concealed limit=1 rc=0 secs=1 Total models: 1 | expect: SAT: a committed store between the pair and the bypassed store conceals the stale value
+2026-11-09 01:48:59 g1_d2_gen limit=3 rc=0 secs=3 Total models: 3 | expect: SAT: in-flight-LD2 tests are generated (ReCon-only)
+2026-11-09 01:49:02 g2_r1_gen limit=3 rc=0 secs=1 Total models: 3 | expect: SAT: R-1 shapes are generated
+2026-11-09 01:49:03 g3_conceal_gen limit=3 rc=0 secs=4 Total models: 3 | expect: SAT: concealed-reveal tests are generated
+2026-11-09 01:49:07 g4_alu_pair_gen limit=3 rc=0 secs=2 Total models: 3 | expect: SAT: LD1 -> ALU -> LD2 near-miss tests are generated
+2026-11-09 01:49:09 g5_otb_precursor_gen limit=3 rc=0 secs=2 Total models: 3 | expect: SAT: an ALU on the transmitter's address path (the OTB hook point)
+2026-11-09 01:49:11 g8_true_reveal_gen_STTu limit=1 rc=0 secs=2 Total models: 1 | expect: SAT: STT generates the true-reveal shape (control for fa_true_reveal)
+2026-11-09 01:49:13 g10_unresolved_store_gen limit=1 rc=0 secs=77 Total models: 0 | expect: UNSAT expected: minimality never keeps an unresolved store in the spectre flavor, so [u-8] changes no generated instance
+2026-11-09 01:50:30 c1_core_b3 limit=1000 rc=0 secs=6 Total models: 129 | expect: count at but 3 (Recon_6_v2_core_ri: 129)
+2026-11-09 01:50:36 d1_recon_only limit=50 rc=0 secs=50 Total models: 50 | expect: SAT: Recon_6_u-useful, not STT_6_u-useful (expect the d2 shape)
+2026-11-09 01:51:26 d2_stt_only limit=50 rc=0 secs=15 Total models: 50 | expect: SAT: STT_6_u-useful, not Recon_6_u-useful (expect true reveals)
+2026-11-09 01:51:41 d3_gained_vs_old limit=50 rc=0 secs=14 Total models: 50 | expect: SAT: new vs old Recon_6 (expect R-1 and d2 shapes)
+2026-11-09 03:56:31 d2_stt_only limit=50 rc=0 secs=11 Total models: 50 | expect: SAT: STT_6_u-useful, not Recon_6_u-useful (expect true reveals)
+2026-11-09 03:56:47 d3_gained_vs_old limit=50 rc=0 secs=12 Total models: 50 | expect: SAT: new vs old Recon_6 (expect R-1 and d2 shapes)
+2026-11-09 03:56:59 g9_reveal_ctx_pin_gen limit=100 rc=0 secs=5 Total models: 100 | expect: SAT: sample of a ReCon reveal-context corpus; classify with show_inst.py --summary
+2026-11-09 03:57:04 x1b_ctx_core_recon_pairctx_b5 limit=3 rc=0 secs=20 Total models: 3 | expect: 
+2026-11-09 03:57:24 fx_new_minus_old_not_r1 limit=1 rc=124 secs=601  | expect: UNSAT: every transmitter Recon_6_u newly flags is an R-1 witness
+2026-11-09 04:07:25 fx_old_sub_new limit=1 rc=124 secs=900  | expect: UNSAT: every operand the old Recon_6 flags, Recon_6_u flags too (old = location fold + no-op reveal)

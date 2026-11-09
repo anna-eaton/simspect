@@ -1,0 +1,57 @@
+[main] INFO kodkod.engine.config.Reporter - detecting symmetries ...
+[main] INFO kodkod.engine.config.Reporter - detected 39 equivalence classes of atoms ...
+[main] INFO kodkod.engine.config.Reporter - optimizing bounds and formula (breaking predicate symmetries, inlining, skolemizing) ...
+[main] INFO kodkod.engine.config.Reporter - translating to boolean ...
+[main] INFO kodkod.engine.config.Reporter - generating lex-leader symmetry breaking predicate ...
+[main] INFO kodkod.engine.config.Reporter - translating to cnf ...
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285354
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285355
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285356
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285357
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285358
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285359
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285360
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285361
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285362
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285363
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285364
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285365
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285366
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285367
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285368
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285369
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285370
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285371
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285372
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285373
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285374
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285375
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285376
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285377
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285378
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285379
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285380
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285381
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285382
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285383
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285384
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285385
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285386
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285387
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285388
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285389
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285390
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285391
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285392
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285393
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285394
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285395
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285396
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285397
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285398
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285399
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285400
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285401
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285402
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113324 285403
+Total models: 50

@@ -1,0 +1,11 @@
+--- se.py	2026-05-06 19:45:15.128211351 +0000
++++ se_ruby.py	2026-11-09 02:48:42.877011371 +0000
+@@ -53,7 +53,7 @@
+ 
+ addToPath('../')
+ 
+-# from ruby import Ruby
++from ruby import Ruby  # SimSpect recon-ruby 2026-11-08: uncommented (only change vs se.py); authors ship it commented, so SE --ruby cannot run. PENDING ANNA APPROVAL.
+ 
+ from common import Options
+ from common import Simulation

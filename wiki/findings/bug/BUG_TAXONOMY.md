@@ -117,7 +117,8 @@ These are real weaknesses in the defenses under test. This is what SimSpect exis
   as one-shot). Real-world *exploitability* is open (gadgets are shallow ≤6 insts). The same race class
   reappears on **SPT Fence** (A5).
 
-## A5. 🔴⏳ SPT Fence — same VP↔squash race (no *independent* SPT bug confirmed)
+## A5. 🔴✅ SPT Fence — same VP↔squash race (no *independent* SPT bug confirmed)
+- **Update 2026-11-09 (bug-investigate-a5): attribution closed — real, same mechanism as A4, driven only by `commitToIEWDelay ≥ 2`** (24 genuine race stems: stock 0, delay 2/3/4 → 3/14/15, slow-comm 24, slow-comm at delay 1 → 0; fnc stall and freeParam not needed; all real packets). Source: `rob_impl.hh:531-535` counts an executed mispredicted branch as resolved. Details: `wiki/findings/audits/2026-11-08/SOURCE_AUDIT_SPT.md` 'A5 gem5 check'.
 - **Build:** `/work/gem5-spt`, `--scheme=2`→`SpectreSafeFence` (DDIFT). **Layer:** target (same class as A4).
 - **Signature:** the "Fence leaks pre-squash" open case. Gate is `lsq_unit_impl.hh:1180`
   `fenceDelay = isAddrTainted()`; untaint at the visibility point. Shape pc0 = mispredict branch (no
@@ -201,6 +202,14 @@ hit counts and are the first non-XML disqualifier for every load/branch hit.
 - **Status:** classifier false match (these 3 fell into the **B1** 183-FP bucket). Verified
   `4a:reconHitDiag`. A diagnostic that keys on shared opstate instead of `rf` will mis-bucket — always use
   the `rf` edge.
+
+## B5. 🟠📏 `check_ld` / `check_footprint` window lower bound `lc_retire` (measured 2026-11-09, bug-investigate-lcbound; no checker change)
+
+- **Question (URGENT_TODO DECIDE 'check_ld lower bound', from SPT A2):** a wrong-path load that obtains its data while the mispredicted branch is unresolved but before the last committed instruction (lc) retires scores 0 (`STAGE3_gem5/check_ld.py:108`). `check_footprint` has the same bound in `in_W` (`STAGE3_gem5/check_footprint.py:212`) for the `spec` actor mode (E12b, E13, E14); its actors are also seq-filtered (`seq > lc_seq`, `:220`). The `futuristic` mode (E12a) uses the visibility point instead (`:227-229`) and has no lc bound.
+- **Measurement (no gem5 rerun needed):** `testrun.py` keeps the full per-record checker output in `results/<row>__latest/<mode>/_sweep_raw/*.json`, so the census reads every record of the 1%+2% samples: cafe2 fv2 + cafe3 fv2fp, rows E1 E2 E3 E4 E8 E9 (check_ld) and E12a E12b E13 E14 (check_footprint), both modes. "Extra" = no sweep point is a hit today, but some point passes every criterion except `after_lc` (incl. `branches_unresolved`, the data-obtained gate and the validity checks). Only 94 of 858 stems per check_ld row (11%; 133-137 of 1,565 on footprint rows) specify an lc at all; the rest already have no lower bound.
+- **Result:** 1 extra stem in all 40 row×mode×testset cells: `inst-086088` on E2 (fv2 and fv2fp, both modes; E2 has 28 (fv2) / 420 (fv2fp) hit stems today). check_ld rows E1/E9 (all stems hit), E3, E4, E8: 0. Footprint rows: 0 non-hit lc stems have any actor footprint outside W, so a relaxed bound cannot add a hit (E12a/E12b hit every stem anyway).
+- **inst-086088 timeline (point 3, E2 fv2 not_taken):** lc = pc1 store `movq %r13,(%r15,%rax)`; resolved branch pc0 `0x401c97` stalled 500 cycles, resolves 2976000; mispredicted branch pc2 `0x401cb7` predict_force 2723500; xmit pc4 load (address from wrong-path load pc3) executes and is store-forwarded from the lc store at 2779500 (`store_forward`); lc retires 2976500; pc2 resolves 7729000; xmit squashed 7729500, never retired. At points 0-2 (pc0 unstalled) lc retires 2737500, the store has left the SQ, and the xmit executes at 2780000 with no data (STT held it).
+- **Verdict:** not a new bug and not a clean extra leak. Its mechanism (STT-held load completed by store forwarding) is the same as all 90 E2 fv2 hit records today (all `store_forward`). It appears only when the sweep stalls pc0, a branch the model calls resolved, so the xmit is also speculative under pc0 (`resolved_before_signal` False). The lc bound is what currently enforces "model-resolved branches resolve before the signal", which `resolved_before_signal` reports but does not gate (`STAGE3_gem5/gem5_common.py:1263-1280`). If the bound is relaxed (option a), that check should become a gate. Scripts + JSON: cafe2/cafe3 `/tests/simspect_alloy_20261108/bugwork/lcbound/` (`lcbound_census.py`, `fp_cand.py`, `census_*.json`).
 
 ---
 
@@ -359,7 +368,7 @@ Build-agnostic SimSpect defects: they drop, corrupt, mis-run, or mis-account tes
 | A2 | target | recon SLF taint-check bypass | 🔴 real | ✅ live (`inst-014912`) | `bug/recon_SLF_stlf_bypass/` |
 | A3 | target | STT implicit-channel branch defense dead | 🔴 real (source) | 📝 (live br_x was B2 FP) | `results.md` |
 | A4 | target | STT VP↔squash race | 🔴 real | ✅ (timing-regime) | `bug/stt_slowcomm_vp_squash_race/` |
-| A5 | target | SPT Fence = same VP↔squash race | 🔴 candidate | ⏳ attribution open | `claudelog` 23:30 |
+| A5 | target | SPT Fence = same VP↔squash race | 🔴 real | ✅ (timing-regime, commitToIEWDelay ≥ 2) | `SOURCE_AUDIT_SPT.md` 'A5 gem5 check' |
 | A6 | gem5 | livelock at commitToIEWDelay≥5 | ⚫ generic | ✅ (respect ceiling) | `claudelog` 04:30 |
 | B1 | checker | check_ld scored at exec, not completion | 🟠 artifact | 🛠 fixed | `claudelog` 22:45 |
 | B2 | checker | check_br scored resolve, not squash | 🟠 artifact | 🛠 fixed | `STT_BRANCH_LEAK_ROOTCAUSE.md` |

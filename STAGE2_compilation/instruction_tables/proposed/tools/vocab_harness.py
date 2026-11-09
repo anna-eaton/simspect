@@ -3,7 +3,7 @@ mirroring batch_generate.run_pipeline, write .ll to an out dir, compile with cla
 Reports: per table, success/fail counts, unknown-concrete warnings, candidate counts per kind,
 theoretical vocab combos per instance, distinct combos actually drawn over N seeds."""
 import sys, os, glob, json, random, zlib, subprocess, collections, math, traceback
-R = '/Users/annaeaton/Documents/stanford/trippel/simspect/'
+R = '/Users/annaeaton/trippel/simspect/'
 sys.path.insert(0, R + 'STAGE2_compilation')
 sys.dont_write_bytecode = True
 import parsexml as P

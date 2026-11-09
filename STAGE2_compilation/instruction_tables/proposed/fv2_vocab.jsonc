@@ -1,0 +1,128 @@
+{
+  "kind_categories": {
+    "ld": "ld",
+    "str": "str",
+    "br_n": "br",
+    "br_x": "br",
+    "other_n": "other_n",
+    "other_x": "other_x",
+    "unknown": "other_n"
+  },
+  "instructions": {
+    "ld": [
+      {
+        "name": "load",
+        "llvm_op": "load volatile i64",
+        "comment": "reads address from inaddr (or inmem as the memory operand), writes loaded value to outreg",
+        "uses": [
+          "inaddr",
+          "inmem",
+          "outreg"
+        ]
+      }
+    ],
+    "str": [
+      {
+        "name": "store",
+        "llvm_op": "store volatile i64",
+        "comment": "reads value from inreg0, address from inaddr, writes to outmem",
+        "uses": [
+          "inreg0",
+          "inaddr",
+          "outmem"
+        ]
+      }
+    ],
+    "br": [
+      {
+        "name": "br_uncond",
+        "llvm_op": "br label",
+        "comment": "unconditional branch \u2014 no register operands",
+        "uses": []
+      },
+      {
+        "name": "br_cond",
+        "llvm_op": "br i1",
+        "comment": "conditional branch \u2014 consumes a condition value in inreg0",
+        "uses": [
+          "inreg0"
+        ]
+      },
+      {
+        "name": "br_bez",
+        "llvm_op": "testq+jz",
+        "comment": "branch-if-equal-to-zero \u2014 used when a branch is the xmit transmitter (xm flag). Reads Alloy's inreg0 slot (which traces back to a load via Alloy's tag_xm fact) so STT sees the load\u2192branch taint chain. Architecturally the inreg's value is 0 \u2192 testq sets ZF=1 \u2192 branch taken; BTB predicts not-taken \u2192 misprediction. A synthetic NOP is injected on the fall-through path so check_br can observe the squash.",
+        "uses": [
+          "inreg0"
+        ]
+      }
+    ],
+    "other_n": [
+      {
+        "name": "bitnot",
+        "llvm_op": "xor i64",
+        "comment": "unary bitwise NOT (emitted as: %dst = xor i64 %src, -1); uses one input register and one output register",
+        "uses": [
+          "inreg0",
+          "outreg"
+        ]
+      },
+      {
+        "name": "add",
+        "llvm_op": "add i64",
+        "comment": "binary integer add \u2014 uses two input registers and one output register",
+        "uses": [
+          "inreg0",
+          "inreg1",
+          "outreg"
+        ]
+      },
+      {
+        "name": "inc",
+        "llvm_op": "incq (inline asm)",
+        "comment": "out = in0 + 1 via incq; gem5 addi reads the CF/OF register (SPT audit A1 needs it next to br_cmp)",
+        "uses": [
+          "inreg0",
+          "outreg"
+        ]
+      },
+      {
+        "name": "cmov_rr",
+        "llvm_op": "cmovne (inline asm)",
+        "comment": "out = in0; cmpq in0,in0 makes cmovne never move, but in1 is still read (SPT audit A2 shape)",
+        "uses": [
+          "inreg0",
+          "inreg1",
+          "outreg"
+        ]
+      }
+    ],
+    "other_x": [
+      {
+        "name": "zsm",
+        "llvm_op": "mul i64",
+        "comment": "zero-skip multiply \u2014 some x86 microarchs (e.g. Sandy Bridge) early-terminate the multiplier when one operand is zero, leaking zero-ness via timing; emitted as: %dst = mul i64 %a, %b",
+        "uses": [
+          "inreg0",
+          "inreg1",
+          "outreg"
+        ]
+      },
+      {
+        "name": "div",
+        "llvm_op": "sdiv i64",
+        "comment": "signed integer division \u2014 variable latency on x86 based on operand magnitude, making the dividend/divisor values observable via timing; emitted as: %dst = sdiv i64 %a, %b",
+        "uses": [
+          "inreg0",
+          "inreg1",
+          "outreg"
+        ]
+      }
+    ]
+  },
+  "_doc": "Fanout v2 vocabulary (FV-5 order, opt-in; 2026-11-08 fpr-fanout): the default instructions.jsonc plus inc and cmov_rr in other_n, and table-level branch_forms: br_cmp (every annotated conditional branch as asm-goto cmpq $1,%c; jb|jae) and jmp_direct (each resolved correctly-not-taken non-transmitter branch becomes a direct jmp with probability 0.5). Branch forms are table-level because pass 2.5 forces branch concretes. Use as paths.instruction_tables in a run config. Partial widths (A3) are not here yet: see wiki/design/VOCAB_TABLES.md.",
+  "branch_forms": {
+    "br_cmp": true,
+    "jmp_direct": 0.5
+  }
+}

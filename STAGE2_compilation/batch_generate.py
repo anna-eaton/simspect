@@ -82,7 +82,10 @@ RUN_MODES: list[str] = [
 def run_pipeline(xml_text: str, stem: str, out_dir: Path, mode: str,
                  _fns=None, interleave_cfg: Optional[dict] = None,
                  fpr_cfg: Optional[dict] = None,
-                 reg_naming_cfg: Optional[dict] = None) -> None:
+                 reg_naming_cfg: Optional[dict] = None,
+                 fv2_cfg: Optional[dict] = None,
+                 stsep_cfg: Optional[dict] = None,
+                 brcond_cfg: Optional[dict] = None) -> None:
     """Run the full pipeline for one XML file and one branch mode.
 
     When interleave_cfg["enabled"] is True and variants_per_instance > 1,
@@ -133,9 +136,11 @@ def run_pipeline(xml_text: str, stem: str, out_dir: Path, mode: str,
 
         ll_path  = out_dir / f"{vstem}.ll"
         ann_path = out_dir / f"{vstem}.ann.json"
-        if fpr_cfg and fpr_cfg.get("enabled"):
+        if (any(c and c.get("enabled") for c in (fpr_cfg, fv2_cfg, stsep_cfg))
+                or (brcond_cfg and brcond_cfg.get("from_alloy"))):
             pass5(r4, func_name=vstem, out_path=str(ll_path), write_out=True,
-                  fpr_cfg=fpr_cfg)
+                  fpr_cfg=fpr_cfg or None, fv2_cfg=fv2_cfg or None,
+                  stsep_cfg=stsep_cfg or None, brcond_cfg=brcond_cfg or None)
         else:
             pass5(r4, func_name=vstem, out_path=str(ll_path),  write_out=True)
         emit_ann(r4,               out_path=str(ann_path), write_out=True)
@@ -163,6 +168,9 @@ def process_folder(
     interleave_cfg: Optional[dict] = None,
     fpr_cfg: Optional[dict] = None,
     reg_naming_cfg: Optional[dict] = None,
+    fv2_cfg: Optional[dict] = None,
+    stsep_cfg: Optional[dict] = None,
+    brcond_cfg: Optional[dict] = None,
 ) -> None:
     _fns = _load_parser(kind, instruction_tables=instruction_tables)
     parse_fn, pass1_fn = _fns[0], _fns[1]
@@ -200,7 +208,8 @@ def process_folder(
             try:
                 run_pipeline(xml_text, stem, mode_dir, mode, _fns=_fns,
                              interleave_cfg=interleave_cfg, fpr_cfg=fpr_cfg,
-                             reg_naming_cfg=reg_naming_cfg)
+                             reg_naming_cfg=reg_naming_cfg, fv2_cfg=fv2_cfg,
+                             stsep_cfg=stsep_cfg, brcond_cfg=brcond_cfg)
                 print(f"  [ok]  {xml_path.name}  ({mode})")
                 ok += 1
             except NotImplementedError as exc:
@@ -273,6 +282,22 @@ def main() -> None:
              "random, seed 0, recorded in .ann.json; '{\"mode\": \"sorted\"}' = "
              "legacy mapping, byte-identical to pre-2026-11-08 output.",
     )
+    parser.add_argument(
+        "--fanout-v2-config", default=None, dest="fv2_config",
+        help="JSON fanout-v2 config (edge splices + read-only fillers; "
+             "specs/fanout/stt.json 'fanout_v2'). Off when absent.",
+    )
+    parser.add_argument(
+        "--store-separation-config", default=None, dest="stsep_config",
+        help="JSON {enabled: true}: no-STLF variant, probe-addressed stores "
+             "write a separate array unless the Alloy instance aliases them "
+             "(specs/fanout/nostlf.json). Off when absent.",
+    )
+    parser.add_argument(
+        "--branch-cond-config", default=None, dest="brcond_config",
+        help="JSON {from_alloy: true}: non-transmitter branches read their "
+             "Alloy condition register (outcome unchanged). Off when absent.",
+    )
     args = parser.parse_args()
 
     modes = args.modes if args.modes else RUN_MODES
@@ -302,6 +327,10 @@ def main() -> None:
     if args.reg_naming_config:
         reg_naming_cfg = json.loads(args.reg_naming_config)
 
+    fv2_cfg: dict = json.loads(args.fv2_config) if args.fv2_config else {}
+    stsep_cfg: dict = json.loads(args.stsep_config) if args.stsep_config else {}
+    brcond_cfg: dict = json.loads(args.brcond_config) if args.brcond_config else {}
+
     process_folder(input_dir, output_dir, args.pattern, modes,
                    kind=args.kind,
                    filter_unresolved_branch=args.unresolved_branch,
@@ -309,7 +338,10 @@ def main() -> None:
                    instruction_tables=args.instruction_tables,
                    interleave_cfg=interleave_cfg,
                    fpr_cfg=fpr_cfg,
-                   reg_naming_cfg=reg_naming_cfg)
+                   reg_naming_cfg=reg_naming_cfg,
+                   fv2_cfg=fv2_cfg,
+                   stsep_cfg=stsep_cfg,
+                   brcond_cfg=brcond_cfg)
 
 
 if __name__ == "__main__":

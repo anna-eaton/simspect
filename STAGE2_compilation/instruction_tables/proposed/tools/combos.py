@@ -1,5 +1,5 @@
 import sys, glob, math, json, collections
-R='/Users/annaeaton/Documents/stanford/trippel/simspect/'
+R='/Users/annaeaton/trippel/simspect/'
 sys.path.insert(0, R+'STAGE2_compilation'); sys.dont_write_bytecode=True
 import parsexml as P
 L3={'inaddr','inmem','outreg'}; S3={'inreg0','inaddr','outmem'}; A3={'inreg0','inreg1','outreg'}; A2={'inreg0','outreg'}

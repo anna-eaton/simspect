@@ -4,8 +4,8 @@ Rollup for the manual source audit of the official STT, SPT and ReCon gem5 build
 
 ## What was audited
 
-- STT: upstream `cwfletcher/stt` @ e3283b9 (the commit `/work/stt` uses), tarball at `~/Documents/stanford/trippel/defense_src/stt_e3283b9/`.
-- SPT: upstream `FPSG-UIUC/SPT` @ 0d2be0f (the commit `/work/gem5-spt` uses), tarball at `~/Documents/stanford/trippel/defense_src/spt_0d2be0f/`.
+- STT: upstream `cwfletcher/stt` @ e3283b9 (the commit `/work/stt` uses), tarball at `~/trippel/defense_src/stt_e3283b9/`.
+- SPT: upstream `FPSG-UIUC/SPT` @ 0d2be0f (the commit `/work/gem5-spt` uses), tarball at `~/trippel/defense_src/spt_0d2be0f/`.
 - ReCon: the authors' docker tree at `~/Downloads/dockerrecon/gem5-recon` (no git; line numbers run ~11-15 lower than cafe2's `/work/gem5-recon`; unverified that the code is identical).
 - Contracts checked against: the `.als` defense blocks (`STT_6.als`, `SPT_6_oneLP.als` + v2 draft, `Recon_6.als`), `specs/leakage/*.json`, `specs/gem5_builds.json`, the papers in `~/Documents/quail/sources/papers/`.
 

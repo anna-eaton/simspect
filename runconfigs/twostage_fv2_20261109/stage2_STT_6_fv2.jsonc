@@ -1,0 +1,79 @@
+// 2026-11-09 simspect-c8 (Anna: 'giant fanout v2 with all the stops', + FP as a separate instance right next to it).
+// Stage-2 config for the two-stage STT_6 output (cafe2 /tests/simspect_alloy_20261108/testsets_twostage/STT_6, 93,041 deduped).
+// All approved opt-ins: fanout_v2 splices+fillers (specs/fanout/stt.json) + OTB merge (p 0.5, so both shapes stay in the population),
+// full vocabulary proposed/fv2_vocab.jsonc (inc, cmov_rr, br_cmp, jmp_direct 0.5), branch_cond.from_alloy, random reg naming.
+{
+  "paths": {
+    "alloy_stage": "STAGE1_alloy",
+    "models_dir": "STAGE1_alloy/models",
+    "stage2_dir": "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/proposed/fv2_vocab.jsonc",
+    "stage3_dir": "STAGE3_gem5",
+    "testset_dir": "testsets_twostage",
+    "results_dir": "results",
+    "results_name": "stage2_only"
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow": false,
+    "branch_modes": [
+      "mispredict_not_taken",
+      "mispredict_taken"
+    ]
+  },
+  "gem5": {
+    "jobs": 24
+  },
+  "interleave": {
+    "enabled": false
+  },
+  "reg_naming": {
+    "mode": "random",
+    "seed": 0
+  },
+  "fanout_v2": {
+    "enabled": true,
+    "pre_window_reads": true,
+    "splice": {
+      "enabled": true,
+      "p_xmit": 0.75,
+      "p_other": 0.25,
+      "ops": [
+        "add0",
+        "or0",
+        "xor0",
+        "and_m1",
+        "imul1",
+        "lea0",
+        "not2",
+        "neg2",
+        "rol_ror",
+        "add_sub",
+        "xor2",
+        "bswap2"
+      ]
+    },
+    "fillers": {
+      "enabled": true,
+      "count": [
+        1,
+        3
+      ],
+      "ops": [
+        "add",
+        "xor",
+        "and",
+        "imul",
+        "lea",
+        "shl"
+      ]
+    },
+    "otb": {
+      "enabled": true,
+      "p": 0.5
+    }
+  },
+  "branch_cond": {
+    "from_alloy": true
+  }
+}

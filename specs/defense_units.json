@@ -111,17 +111,18 @@
         "set": "core",
         "gem5_flags": "--scheme=2 (our se.py glue: Spectre, needsTSO=0; authors run_stt.sh uses needsTSO=1)",
         "testset": "two-stage regen of the STT_6 family (not built); interim flat: testsets_latest/STT_6",
-        "run_config": "runconfigs/fixed_20261030/STT_6_stt_fixed_latest.jsonc (set sample_fraction; template says 0.02)",
+        "run_config": "runconfigs/fixed_20261030/STT_6_sttmaster_fixed_latest.jsonc (set sample_fraction; template 0.02). Old: STT_6_stt_fixed_latest.jsonc = /work/stt e3283b9",
         "checker": "check_ld / check_br",
         "status": "NOT RUN (Anna 2026-11-08: everything is re-run on two-stage testsets)",
-        "blocker": "needsTSO 0 vs authors 1 (HOOK_AUDIT 2026-11-07 decision)",
-        "prior": "0 hits in rounds 2 and 4 (results/STT_6_stt_fixed_latest__20261108_012818)",
-        "role": "SimSpect STT results (Anna 2026-11-08)"
+        "blocker": "needsTSO 0 vs authors 1 (HOOK_AUDIT 2026-11-07 decision); DECIDE: resolve-stall deferred release copies the pre-fix squash code (stalled tainted mispredicted branch bypasses upstream pending squash)",
+        "prior": "0 hits in rounds 2 and 4 on /work/stt e3283b9 (results/STT_6_stt_fixed_latest__20261108_012818). stt-master validation 2026-11-08: hook_audit identical to stt (12 tests); E3 60/mode sample 0/120 both; S1 xmm4 98/100 both (results/stt_master_val/)",
+        "role": "SimSpect STT results (Anna 2026-11-08)",
+        "gem5_binary": "/work/stt-master/build/X86/gem5.opt (cwfletcher/stt @ 5bf4110, incl. 18e304f pending-squash fix; built 2026-11-08). /work/stt e3283b9 kept for old results + A3c"
       },
       "alloy_model": "STT_6",
       "leakage": "stt.json",
       "timing": "slowcomm.json",
-      "fanout": "standard.json",
+      "fanout": "stt.json",
       "stl_scope": "no: STT-Spectre casts no store shadow (rob_impl.hh:444-495), so an STL bypass leak is expected by design; STT_6_stl only as a labelled control. /work/stt has no STL hooks.",
       "status": "to_run",
       "results": [
@@ -138,18 +139,19 @@
       "eval": {
         "row": "E2",
         "set": "core",
-        "gem5_flags": "--scheme=2",
+        "gem5_flags": "--scheme=2 (classic --caches; legitimate: STT protection is CPU-side, every ReCon memory-side path gated on allowLeaked; verified 2026-11-08, EVAL_MANIFEST 'ReCon under the authors' setup')",
         "testset": "two-stage regen of the STT_6 family (not built); interim flat: testsets_latest/STT_6",
         "run_config": "runconfigs/fixed_20261030/STT_6_reconmodded_fixed_latest.jsonc (set sample_fraction; template says 0.02)",
         "checker": "check_ld / check_br",
         "status": "NOT RUN (Anna 2026-11-08: everything is re-run on two-stage testsets)",
         "blocker": "known real bug A2 dominates: tainted speculative load takes store-forwarded data and completes before the branch resolves (round 4, 2% sample: 91/94 load tests hit, all 185 test x mode runs A2; classifier STAGE3_gem5/triage/recon_stlf_check.py + triage/diag/diag_recon_stlf_bypass.py)",
-        "prior": "round 4 done 2026-11-08: results/STT_6_reconmodded_fixed_latest__20261108_012818"
+        "prior": "round 4 done 2026-11-08: results/STT_6_reconmodded_fixed_latest__20261108_012818",
+        "ruby_crosscheck": "runconfigs/recon_ruby3/STT_6_reconstt_ruby3.jsonc (optional); 50-test Recon_6 sample: same 2 hits classic vs Ruby MESI_Three_Level"
       },
       "alloy_model": "STT_6",
       "leakage": "stt.json",
       "timing": "slowcomm.json",
-      "fanout": "standard.json",
+      "fanout": "stt.json",
       "stl_scope": "yes: Recon-STT casts store shadows (decode.cc:686-695). Run STT_6_stl on /work/gem5-recon-stl (has the STL hooks; stale: predates the 2026-10-30 resolve hooks, HOOK_AUDIT 2026-11-07).",
       "status": "to_run",
       "results": [
@@ -195,7 +197,7 @@
       "eval": {
         "row": "E14",
         "set": "core",
-        "gem5_flags": "shrunk eval config: --scheme=Speclfb --caches --l2cache, L1D 1kB/2, L1I 32kB/8, L2 2MB/16, Tournament predictor",
+        "gem5_flags": "shrunk eval config: --scheme=Speclfb --caches --l2cache, L1D 1kB/2, L1I 32kB/8, L2 2MB/16, Tournament predictor; gem5.cache_setup random (per-test warm/cold, Anna 2026-11-09)",
         "testset": "two-stage regen of the STT_6 family (not built); interim flat: testsets_latest/STT_6",
         "run_config": "runconfigs/footprint/run_config_STT_6_speclfb_footprint.jsonc",
         "checker": "check_footprint (speclfb.json)",
@@ -223,13 +225,15 @@
       "eval": {
         "row": "E6",
         "set": "core",
-        "gem5_flags": "--scheme=2 --allow_leaked",
+        "gem5_flags": "--scheme=2 --allow_leaked --ruby --l0d_size=65536 --l0i_size=65536 --l0d_assoc=8 --l0i_assoc=8 --l1d_size=2MB --l1d_assoc=16 --l2_size=16MB --l2_assoc=32 --cacheline_size=64 (authors' email.txt example geometry); config_script se_ruby.py",
         "testset": "two-stage regen of the Recon_6 family (not built); interim flat: testsets_latest/Recon_6",
-        "run_config": "to create (E2 config + --allow_leaked)",
+        "run_config": "runconfigs/recon_ruby3/Recon_6_recon_ruby3_authors.jsonc",
         "checker": "check_ld / check_br",
         "status": "NOT RUN (Anna 2026-11-08: everything is re-run on two-stage testsets)",
-        "blocker": "Recon_6.als lacks rf_from_most_recent_writer (same skeleton gap SPT v2-1 fixes; no Recon v2)",
-        "prior": "last run pre-fix (Recon_6__20260602_122016)"
+        "blocker": "se_ruby.py approved (#11), cache sizes kept (#12); open: Recon_6 never exercises the reveal (0/150000 not_taken tests load a committed-revealed slot speculatively; one-pass timing puts the transmitter before LD2 commits), so ReCon = Recon-STT on it; (4) Recon_6.als lacks rf_from_most_recent_writer (no Recon v2). Old classic --allow_leaked = Recon-STT (R-SA-1).",
+        "prior": "last run pre-fix (Recon_6__20260602_122016)",
+        "gem5_binary": "/work/gem5-recon-ruby3/build/X86/gem5.opt (MESI_Three_Level + ruby-singlecore + recon-modded hooks; built 2026-11-08)",
+        "validation": "2026-11-08 results/recon_ruby3_val/summary_{s50,ldld50,revealprobe}.json: reveal sent (71 revealRequests on ldld50) and marks the right L0 address (ProtocolTrace), allowlistedTaintsFromTT 0 everywhere"
       },
       "alloy_model": "Recon_6",
       "leakage": "recon.json",
@@ -280,7 +284,7 @@
       "eval": {
         "row": "E13",
         "set": "core",
-        "gem5_flags": "shrunk eval config: --ruby --needsTSO=0 --scheme_invisispec=UnsafeBaseline --scheme_cleanupcache=Cleanup_FOR_L1L2, L1D 2kB/4, --L1_TBEs=8 (decided; never 2), L2/DC TBEs 2, L1I 32kB/4, L2 2MB/16; debug flags O3PipeView only",
+        "gem5_flags": "shrunk eval config: --ruby --needsTSO=0 --scheme_invisispec=UnsafeBaseline --scheme_cleanupcache=Cleanup_FOR_L1L2, L1D 2kB/4, --L1_TBEs=8 (decided; never 2), --L2_TBEs=3 (2026-11-09: 2 panics under cold), DC TBEs 2, L1I 32kB/4, L2 2MB/16; debug flags O3PipeView only; gem5.cache_setup random (per-test warm/cold, Anna 2026-11-09)",
         "testset": "two-stage regen of the STT_6 family (not built); interim flat: testsets_latest/STT_6",
         "run_config": "runconfigs/footprint/run_config_STT_6_cleanupspec_footprint.jsonc",
         "checker": "check_footprint (cleanupspec.json, ownership rule count-as-both)",
@@ -398,7 +402,8 @@
         "run_config": "to create (E2 config, scheme 1)",
         "checker": "check_ld / check_br",
         "status": "NOT RUN (Anna 2026-11-08: everything is re-run on two-stage testsets)",
-        "blocker": "NDA model DECIDE (optional)"
+        "blocker": "NDA model DECIDE (optional)",
+        "authorship": "DROP recommended: NDA is Weisse et al. (Michigan); the scheme-1 code is the Kaxiras group's NDA-P reimplementation (Doppelganger sec 6, ReCon sec 6.1)"
       },
       "alloy_model": "STT_6",
       "leakage": "stt.json",
@@ -425,7 +430,8 @@
         "run_config": "to create (E2 config, scheme 3)",
         "checker": "check_ld / check_br",
         "status": "NOT RUN (Anna 2026-11-08: everything is re-run on two-stage testsets)",
-        "blocker": "DoM model DECIDE (optional)"
+        "blocker": "DoM model DECIDE (optional)",
+        "authorship": "KEEP: DoM is Sakalis/Kaxiras/Ros/Jimborean/Själander (Uppsala); the group's own gem5-v22 implementation, without DoM's value predictor"
       },
       "alloy_model": "STT_6",
       "leakage": "stt.json",
@@ -475,7 +481,7 @@
       "alloy_model": "STT_6",
       "leakage": "stt.json",
       "timing": "NEEDS: timing json",
-      "fanout": "standard.json",
+      "fanout": "stt.json",
       "stl_scope": "unknown (Futuristic threat model: store-load alias is a squash source)",
       "status": "to_run",
       "results": [
@@ -522,7 +528,8 @@
         "run_config": "to create",
         "checker": "check_ld / check_br",
         "status": "NOT RUN (Anna 2026-11-08: everything is re-run on two-stage testsets)",
-        "blocker": "predictor-training stimulus DECIDE"
+        "blocker": "predictor-training stimulus DECIDE",
+        "authorship": "KEEP: Doppelganger is Kvalsvik/Aimoniotis/Kaxiras/Själander; in Pavlos's repo (email.txt:40)"
       }
     },
     {

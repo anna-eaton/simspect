@@ -1,0 +1,36 @@
+fa_true_reveal	1	300	UNSAT: a committed direct pair reveals the word, xm fed only by the re-load is not flagged
+fa_true_reveal_STTu	1	300	SAT: STT flags the same shape (control)
+fb1_conceal_committed_store	1	300	SAT: a committed store after LD2 conceals (sec. 4.4.1)
+fb2_conceal_inflight_store	1	300	SAT: an in-flight resolved store conceals (sec. 4.4.2)
+fb3_conceal_between_pair	1	300	SAT: a store between LD1 and LD2 conceals (sec. 4.4; the R-SA-2 stale-reveal test)
+fb4_unresolved_store_no_conceal	1	300	UNSAT: [u-8] an unresolved-address store does not conceal (the re-load may bypass it)
+fb4_unresolved_store_v2rule	1	300	SAT: the Recon_6_v2 rule (any store conceals) flags this shape, [u-8] does not (facts-only difference)
+fc_alu_between_pair	1	300	SAT: LD1 -> ALU -> LD2 is no direct pair, no reveal (sec. 4.3)
+fd2_ld2_inflight	1	300	SAT: no reveal before LD2 commits (sec. 4.1, 5.1)
+fr1_qr1a	1	300	SAT: audit R-1 fixed (Recon_6: UNSAT)
+fr1_qr1a_old	1	300	UNSAT: reproduces audit QR1a on today's Recon_6 (with the rf fact)
+fotb_full	1	300	SAT: the full getOldestTaint gadget (older load under an early-resolved branch + speculative load -> ALU -> xm) is flagged
+fx_old_sub_new	1	900	UNSAT: every operand the old Recon_6 flags, Recon_6_u flags too (old = location fold + no-op reveal)
+fx_new_minus_old_not_r1	1	900	UNSAT: every transmitter Recon_6_u newly flags is an R-1 witness
+g0_gen_sat	20	600	SAT at exactly 6 (first 20 instances)
+g1_d2_gen	3	600	SAT: in-flight-LD2 tests are generated (ReCon-only)
+g2_r1_gen	3	600	SAT: R-1 shapes are generated
+g3_conceal_gen	3	600	SAT: concealed-reveal tests are generated
+g4_alu_pair_gen	3	600	SAT: LD1 -> ALU -> LD2 near-miss tests are generated
+g5_otb_precursor_gen	3	600	SAT: an ALU on the transmitter's address path (the OTB hook point)
+g6_otb_precursor_rb_gen	3	600	?: the OTB hook point plus an older uncommitted resolved branch (fanout_v2.otb eligibility)
+g7_otb_full_gen	1	600	?: the full OTB gadget under minimality (expect UNSAT: the early branch and the second load are not necessary)
+g8_true_reveal_gen_STTu	1	600	SAT: STT generates the true-reveal shape (control for fa_true_reveal)
+g9_reveal_ctx_pin_gen	200	900	SAT: sample of a ReCon reveal-context corpus; classify with show_inst.py --summary
+g10_unresolved_store_gen	1	300	UNSAT expected: minimality never keeps an unresolved store in the spectre flavor, so [u-8] changes no generated instance
+d1_recon_only	100	600	SAT: Recon_6_u-useful, not STT_6_u-useful (expect the d2 shape)
+d2_stt_only	100	600	SAT: STT_6_u-useful, not Recon_6_u-useful (expect true reveals)
+d3_gained_vs_old	100	600	SAT: new vs old Recon_6 (expect R-1 and d2 shapes)
+d4_lost_vs_old	50	900	0 expected: old Recon_6-useful, not Recon_6_u-useful
+d5_u8_vs_v2rule_gen	1	900	UNSAT expected: [u-8] changes no generated instance (proof in the report)
+c1_core_b3	1000	900	count at but 3 (Recon_6_v2_core_ri: 129)
+c2_core_b3_STTu	1000	900	count at but 3 (control)
+s1_stl_gen_sat	20	600	SAT at exactly 6
+s2_stl_bypass_revealed	1	300	UNSAT: a bypassing load that reads the revealed pre-store value is not flagged (sec. 4.5.2 Table 1 case 1)
+s2_stl_bypass_revealed_STTu	1	300	SAT: STT flags it (control)
+s3_stl_bypass_concealed	1	300	SAT: a committed store between the pair and the bypassed store conceals the stale value

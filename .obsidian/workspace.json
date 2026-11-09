@@ -13,12 +13,68 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md",
+                "file": "wiki/findings/bug/BUGS.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "AMULET_BUGS_DETECTION_ACCOUNTING"
+              "title": "BUGS"
+            }
+          },
+          {
+            "id": "bd2b08d24e01fb2e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "KV3 speculative store fills the D-TLB.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "KV3 speculative store fills the D-TLB"
+            }
+          },
+          {
+            "id": "a80d79d9a21b5a27",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "KV1 speculative instruction fetch.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "KV1 speculative instruction fetch"
+            }
+          },
+          {
+            "id": "9865504c19aa423d",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "UV2 MSHR contention.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "UV2 MSHR contention"
+            }
+          },
+          {
+            "id": "322f1a7f593a240f",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "KV2 unXpec cleanup timing.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "KV2 unXpec cleanup timing"
             }
           }
         ]
@@ -190,33 +246,44 @@
   },
   "active": "347a9dc0eec19401",
   "lastOpenFiles": [
-    "STAGE1_alloy/models/proposed/STT_6_s4.als",
-    "results/twophase_stage1_2026-11-03/probe_spt_seed_20261107/differential_20261108/lost_attempt1_syntaxerror.out",
-    "wiki/findings/bug/stt_xmm4_taint_skip/README.md",
-    "wiki/findings/bug/stt_xmm4_taint_skip",
-    "STAGE2_compilation/proposed/measure_xmit_path_alu.py",
-    "STAGE2_compilation/proposed",
-    "STAGE1_alloy/models/proposed_twophase/launch_stage15.py",
-    "runconfigs/fixed_20261030/STT_6_fp_stt_latest.jsonc",
-    "specs/fanout/fp.json",
-    "wiki/findings/audits/2026-11-08/SOURCE_AUDIT_SUMMARY.md",
-    "specs/fanout/fpr.json",
-    "dashboard/__pycache__/dashboard.cpython-314.pyc",
-    "STAGE1_alloy/models/proposed_twophase/stage1_status.py",
-    "wiki/design/MANIFEST_BRIEF_amulet_hooks.md",
-    "wiki/findings/audits/2026-11-08/SOURCE_AUDIT_SPT.md",
-    "wiki/findings/audits/2026-11-08/SOURCE_AUDIT_RECON.md",
-    "wiki/findings/audits/2026-11-08/SOURCE_AUDIT_STT.md",
-    "wiki/design/MANIFEST_BRIEF_SPT_v2.md",
-    "STAGE3_gem5/triage/diag/diag_uv3_rmw.md",
+    "KV3 speculative store fills the D-TLB.md",
+    "wiki/findings/bug/BUGS.md",
+    "KV2 unXpec cleanup timing.md",
+    "KV1 speculative instruction fetch.md",
+    "Screenshot 2026-11-09 at 1.12.45 PM.png",
+    "UV2 MSHR contention.md",
+    "Screenshot 2026-11-09 at 1.10.48 PM.png",
+    "STAGE3_gem5/triage/diag/diag_recon_oldest_taint.md",
+    "STAGE3_gem5/triage/diag/diag_recon_oldest_taint.py",
+    "STAGE3_gem5/triage/diag/diag_nda_forwarded_producer.md",
+    "STAGE3_gem5/triage/diag/diag_nda_forwarded_producer.py",
+    "runconfigs/twostage_fv2_20261109/E6_Recon_6_u_base.jsonc",
+    "runconfigs/twostage_fv2_20261109/campaigns_ufp.json",
+    "runconfigs/twostage_fv2_20261109/E14_STT_6_u_fv2fp.jsonc",
+    "runconfigs/twostage_fv2_20261109/E13_STT_6_u_fv2fp.jsonc",
+    "runconfigs/twostage_fv2_20261109/E12b_STT_6_u_fv2fp.jsonc",
+    "runconfigs/twostage_fv2_20261109/E12a_STT_6_u_fv2fp.jsonc",
+    "runconfigs/twostage_fv2_20261109/E9_STT_6_u_fv2fp.jsonc",
+    "runconfigs/twostage_fv2_20261109/E8_STT_6_u_fv2fp.jsonc",
+    "STAGE3_gem5/triage/diag/diag_speclfb_walk_order.md",
+    "STAGE3_gem5/triage/diag/diag_speclfb_jmp_shadow.md",
+    "STAGE3_gem5/triage/diag/diag_speclfb_uv6.md",
+    "STAGE3_gem5/triage/diag/diag_speclfb_nonload_footprint.md",
+    "STAGE3_gem5/triage/diag/diag_invisispec_d1_dtlb.md",
+    "STAGE3_gem5/triage/diag/diag_invisispec_uv1.md",
+    "STAGE3_gem5/triage/diag/diag_invisispec_store_actor.md",
+    "STAGE3_gem5/triage/diag/diag_dom_xmit_store_forward.md",
+    "STAGE3_gem5/triage/diag/diag_recon_stlf_bypass.md",
+    "STAGE3_gem5/triage/diag/diag_recon_sse_load_producer.md",
+    "STAGE3_gem5/triage/diag/diag_stt_xmm4_skip.md",
+    "STAGE3_gem5/triage/diag/diag_cleanupspec_em.md",
     "wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md",
-    "wiki/findings/bug/speclfb_jmp_shadow/README.md",
-    "wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md",
-    "wiki/state/EVAL_MANIFEST.md",
-    "STAGE3_gem5/triage/diag/README.md",
-    "wiki/design/VOCAB_TABLES.md",
-    "wiki/findings/audits/2026-11-07/HOOK_AUDIT.md",
-    "wiki/design/TWO_PHASE_MODELS.md",
+    "STAGE3_gem5/triage/diag/diag_uv4_split.md",
+    "STAGE3_gem5/triage/diag/diag_cs1_store_upgrade.md",
+    "wiki/findings/audits/2026-11-09/PAPER_COMMENT_AUDIT.md",
+    "wiki/findings/EPERM_INCIDENT_20261108.md",
+    "STAGE1_alloy/models/proposed_twophase/stage15_bound/SECTION_for_TWO_PHASE_MODELS.md",
+    "STAGE3_gem5/triage/diag/diag_recon_physreg16.md",
     "paper_figures/drafts/_standalone_bugtable_v3_8pt-1.png",
     "paper_figures/drafts/_standalone_resolutiontiming_v3_8pt-1.png",
     "paper_figures/drafts/_standalone_squashrace_v3_8pt-1.png",
@@ -224,17 +291,6 @@
     "paper_figures/drafts/_standalone_relaxation_v5_8pt-1.png",
     "paper_figures/drafts/_standalone_execvocab_v4_8pt-1.png",
     "paper_figures/drafts/_standalone_execvocab_v3_8pt-1.png",
-    "paper_figures/drafts/design_mocks/mock_A_full_v2_8pt1col-gray-1.png",
-    "paper_figures/drafts/design_mocks/pipe_opt3-gray-1.png",
-    "paper_figures/drafts/design_mocks/pipe_opt3-1.png",
-    "wiki/design/SPECULATION_MODELING_SURVEY.md",
-    "paper_figures/plans/RESULTS_FIGURES.md",
-    "paper_figures/SESSION_HANDOFF.md",
-    "paper_figures/FIGURES.md",
-    "paper_figures/README.md",
-    "paper_figures/plans/BIGFIG_SHAPE_DESIGN.md",
-    "paper_figures/plans/fig_f_xmitcriteria.md",
-    "paper_figures/plans/TRIPPEL_FIGURE_STYLE.md",
-    "paper_figures/plans/BIGFIG_FACT_AUDIT.md"
+    "paper_figures/drafts/design_mocks/mock_A_full_v2_8pt1col-gray-1.png"
   ]
 }

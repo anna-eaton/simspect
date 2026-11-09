@@ -1,0 +1,104 @@
+2026-11-09T09:16:50Z WAIT lock+java for: ../SPT_6_u.als (mode=models timeout=600)
+2026-11-09T09:19:48Z WAIT lock+java for: ../SPT_6_u.als (mode=models timeout=600)
+2026-11-09T09:23:32Z WAIT lock+java for: spt_C_sample_u.als (mode=models timeout=900)
+2026-11-09T09:46:28Z WAIT lock+java for: ../SPT_6_u.als (mode=models timeout=600)
+2026-11-09T10:32:57Z WAIT lock+java for: ../SPT_6_u.als (mode=models timeout=600)
+2026-11-09T11:30:25Z WAIT lock+java for: spt_D_uri_b4.als (mode=count timeout=900)
+2026-11-09T12:23:00Z ultimate-recon-spt: stopped my own queued spt_D_uri_b4 / v3_b4 / conv_nop / uri_b3 / s15 smoke runs before they took the lock (coordinator: wrap up); none ran
+2026-11-09T12:36:48Z ACQUIRED lock (waited 0s for other java)
+2026-11-09T12:36:48Z FILE SPT_6_u mode=models limit=200 timeout=600 rc=1 secs=0
+    ERR SPT_6_u: Exception in thread "main" Syntax error:
+    ERR SPT_6_u: Caused by: java.io.FileNotFoundException: /Users/annaeaton/Documents/stanford/trippel/simspect/SPT_6_u.als (No such file or directory)
+2026-11-09T12:36:48Z RELEASED lock
+2026-11-09T14:12:10Z WAIT lock+java for: /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/../SPT_6_u.als (mode=models timeout=600)
+2026-11-09T14:18:25Z ACQUIRED lock (waited 0s for other java)
+2026-11-09T14:18:25Z FILE SPT_6_u mode=models limit=200 timeout=600 rc=0 secs=229
+    SPT_6_u: Total models: 200
+2026-11-09T14:22:14Z RELEASED lock
+2026-11-09T14:22:14Z WAIT lock+java for: /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/spt_A_shapes.als (mode=all timeout=900)
+2026-11-09T14:22:14Z ACQUIRED lock (waited 0s for other java)
+2026-11-09T14:22:14Z FILE spt_A_shapes mode=all limit=200 timeout=900 rc=124 secs=900
+    spt_A_shapes: CMD sanity_any SAT 340
+    spt_A_shapes: CMD t1_shape SAT 139
+    spt_A_shapes: CMD t1_u SAT 84726
+    spt_A_shapes: CMD t1_v2 SAT 1205
+    spt_A_shapes: CMD t1_v3 SAT 1547
+    spt_A_shapes: CMD t1b_shape SAT 69
+    spt_A_shapes: CMD t1b_u SAT 90511
+    spt_A_shapes: CMD t1b_v3 SAT 1630
+    spt_A_shapes: CMD t2_shape SAT 128
+    spt_A_shapes: CMD t2_u UNSAT 91859
+    spt_A_shapes: CMD t2_v2 SAT 1241
+    spt_A_shapes: CMD t3inv_shape SAT 125
+    spt_A_shapes: CMD t3inv_u SAT 89826
+    spt_A_shapes: CMD t3inv_v2 SAT 1210
+    spt_A_shapes: CMD t3noninv_u SAT 90308
+    spt_A_shapes: CMD t3two_u SAT 90080
+    spt_A_shapes: CMD t3spec_u SAT 89309
+    spt_A_shapes: CMD t3c_shape SAT 83
+    spt_A_shapes: CMD t3c_u SAT 90049
+    spt_A_shapes: CMD t3c_v2 SAT 1253
+    spt_A_shapes: CMD t4pass_shape SAT 67
+    spt_A_shapes: CMD t4pass_u SAT 89625
+    spt_A_shapes: CMD t4pass_v2 SAT 1242
+2026-11-09T14:37:14Z RELEASED lock
+2026-11-09T14:37:14Z WAIT lock+java for: /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/spt_B_gen.als (mode=all timeout=900)
+2026-11-09T14:37:14Z ACQUIRED lock (waited 0s for other java)
+2026-11-09T14:42:34Z KILLED by signal
+2026-11-09T14:42:34Z RELEASED lock
+2026-11-09T14:42:55Z WAIT lock+java for: /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/spt_A_shapes.als (mode=all timeout=900)
+2026-11-09T14:46:10Z ACQUIRED lock (waited 0s for other java)
+2026-11-09T14:46:10Z FILE spt_A_shapes mode=all limit=200 timeout=900 rc=0 secs=514
+    spt_A_shapes: CMD t1_u UNSAT 82337
+    spt_A_shapes: CMD t1_v2 SAT 1331
+    spt_A_shapes: CMD t1b_u UNSAT 85171
+    spt_A_shapes: CMD t1b_v3 SAT 1540
+    spt_A_shapes: CMD t3inv_u UNSAT 85378
+    spt_A_shapes: CMD t3inv_v2 SAT 1231
+    spt_A_shapes: CMD t3noninv_u SAT 85264
+    spt_A_shapes: CMD t3two_u SAT 85167
+    spt_A_shapes: CMD t3c_u UNSAT 85259
+    spt_A_shapes: CMD t3c_v2 SAT 1246
+    spt_A_shapes: DONE
+2026-11-09T14:54:44Z RELEASED lock
+2026-11-09T14:54:44Z WAIT lock+java for: /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/spt_A2_shapes.als (mode=all timeout=900)
+2026-11-09T14:54:44Z ACQUIRED lock (waited 0s for other java)
+2026-11-09T14:54:44Z FILE spt_A2_shapes mode=all limit=200 timeout=900 rc=124 secs=900
+    spt_A2_shapes: CMD t4pass_u UNSAT 82978
+    spt_A2_shapes: CMD t4pass_v2 SAT 1336
+    spt_A2_shapes: CMD t4gate_u SAT 87728
+    spt_A2_shapes: CMD t4bwd_u UNSAT 87809
+    spt_A2_shapes: CMD t4bwd_v2 SAT 1247
+    spt_A2_shapes: CMD t4comm_u SAT 87658
+    spt_A2_shapes: CMD t5n_u SAT 88290
+    spt_A2_shapes: CMD t5n_v2 UNSAT 7450
+    spt_A2_shapes: CMD t3spec_u SAT 88134
+2026-11-09T15:09:44Z RELEASED lock
+2026-11-09T15:09:44Z WAIT lock+java for: /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/spt_B_gen.als (mode=all timeout=900)
+2026-11-09T15:09:44Z ACQUIRED lock (waited 0s for other java)
+2026-11-09T15:09:44Z FILE spt_B_gen mode=all limit=200 timeout=900 rc=124 secs=901
+    spt_B_gen: CMD g_t1 UNSAT 213009
+    spt_B_gen: CMD g_t3two UNSAT 239459
+    spt_B_gen: CMD gnoRS_t3two SAT 216428
+2026-11-09T15:24:45Z RELEASED lock
+2026-11-09T15:24:45Z WAIT lock+java for: /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/spt_C_gained.als (mode=models timeout=600)
+2026-11-09T15:24:45Z ACQUIRED lock (waited 0s for other java)
+2026-11-09T15:24:45Z FILE spt_C_gained mode=models limit=100 timeout=600 rc=0 secs=278
+    spt_C_gained: Total models: 100
+2026-11-09T15:29:23Z RELEASED lock
+2026-11-09T15:29:23Z WAIT lock+java for: /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/spt_D_uri_b3.als (mode=count timeout=300)
+2026-11-09T15:29:23Z ACQUIRED lock (waited 0s for other java)
+2026-11-09T15:29:23Z FILE spt_D_uri_b3 mode=count limit=20000 timeout=300 rc=0 secs=219
+    spt_D_uri_b3: COUNT 474
+2026-11-09T15:33:02Z RELEASED lock
+2026-11-09T15:33:02Z WAIT lock+java for: /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/spt_D_uri_b4.als (mode=count timeout=600)
+2026-11-09T15:33:02Z ACQUIRED lock (waited 0s for other java)
+2026-11-09T15:33:02Z FILE spt_D_uri_b4 mode=count limit=20000 timeout=600 rc=124 secs=600
+    spt_D_uri_b4: COUNT 
+2026-11-09T15:43:02Z RELEASED lock
+CHAIN2_DONE
+2026-11-09T15:43:16Z WAIT lock+java for: /Users/annaeaton/Documents/stanford/trippel/simspect/STAGE1_alloy/models/proposed/ultimate/queries/spt_E_conv.als (mode=all timeout=600)
+2026-11-09T15:43:16Z ACQUIRED lock (waited 0s for other java)
+2026-11-09T15:43:16Z FILE spt_E_conv mode=all limit=200 timeout=600 rc=124 secs=600
+2026-11-09T15:53:16Z RELEASED lock
+CHAIN3_DONE

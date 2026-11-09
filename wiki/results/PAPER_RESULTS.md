@@ -148,7 +148,7 @@ speculative window, with **no cache packet**. This is the one bug SimSpect caugh
 generator output**: `inst-014912` in `results/Recon_6__20260602_122016` is the only real leak
 among that run's 184 ld hits (the other 183 are the checker false positive B1). It is the strongest
 result in the project: a real, previously-uncatalogued defense bug surfaced *automatically* by the
-pipeline, not hand-built.
+pipeline, not hand-built. **Relabel (2026-11-08, Anna #16):** this campaign ran classic `--caches --scheme=2 --allow_leaked` on gem5-recon-modded, so it measures **Recon-STT**, not ReCon. On classic caches the Reveal can only mark the cache line at physical address 0 (`lsq_unit.cc:887-901` never sets `req->valueFromAddr`; `mem/cache/base.cc:428` keys on it). The only untaint path under `allowLeaked` is `taint_tracker.cc:142`, which needs that bit; `updateRevealedTaints` is never called. Measured: `allowlistedTaintsFromTT` = 0 on all 248 classic `--allow_leaked` validation runs (`wiki/state/EVAL_MANIFEST.md` E6).
 
 > **The correct leak bar came from this bug.** A2 completes *without touching cache* (store-forward),
 > so a "did it reach the cache?" test misses it. The leak criterion is therefore **"data obtained

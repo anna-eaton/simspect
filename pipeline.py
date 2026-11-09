@@ -202,6 +202,15 @@ def phase_llvm(cfg: dict, model: str, out_base: Path, force: bool,
         # (random, seed 0, since 2026-11-08); {"mode": "sorted"} = legacy map.
         if cfg.get("reg_naming"):
             cmd += ["--reg-naming-config", json.dumps(cfg["reg_naming"])]
+        # Opt-in fanout v2 (edge splices + read-only fillers; specs/fanout/stt.json).
+        if cfg.get("fanout_v2", {}).get("enabled"):
+            cmd += ["--fanout-v2-config", json.dumps(cfg["fanout_v2"])]
+        # Opt-in no-STLF store separation (specs/fanout/nostlf.json).
+        if cfg.get("store_separation", {}).get("enabled"):
+            cmd += ["--store-separation-config", json.dumps(cfg["store_separation"])]
+        # Opt-in: non-transmitter branches read their Alloy condition register.
+        if cfg.get("branch_cond", {}).get("from_alloy"):
+            cmd += ["--branch-cond-config", json.dumps(cfg["branch_cond"])]
         result = subprocess.run(cmd, cwd=str(stage2),
                                 capture_output=True, text=True)
         # Print only error/skip lines from batch_generate
@@ -409,6 +418,41 @@ def _grid_points(resolved_pcs: list, points: list,
     return grid
 
 
+def _per_branch_unresolved(grid: list, unresolved_pcs: list, cfg: dict,
+                           stem: str, max_grid: int = None) -> list:
+    """Opt-in per-branch unresolved stalls (sweep.unresolved_stall_per_branch,
+    2026-11-08). Adds {unresolved_branch_pc: stall} to every grid point, which
+    _inject_stalls honours per branch (the per-entry resolve_stall_cycles is
+    already what gem5_common hands the hooks, one stall per branch PC).
+      mode "random": each grid point draws one value per unresolved branch from
+                     `choices`, seeded by (seed, stem, grid index).
+      mode "sweep":  Cartesian product of `choices` over the unresolved
+                     branches, crossed with the grid (sub-sampled to max_grid).
+    Absent / no unresolved branches = grid unchanged (legacy behaviour)."""
+    if not cfg or not unresolved_pcs:
+        return grid
+    choices = [int(c) for c in cfg.get("choices", [])]
+    if not choices:
+        return grid
+    mode = cfg.get("mode", "random")
+    seed = int(cfg.get("seed", 0))
+    if mode == "sweep":
+        out = []
+        for g in grid:
+            for combo in itertools.product(choices, repeat=len(unresolved_pcs)):
+                e = dict(g); e.update(dict(zip(unresolved_pcs, combo))); out.append(e)
+        if max_grid is not None and len(out) > max_grid:
+            out = _random.Random(zlib.crc32(f"{seed}:{stem}".encode())).sample(out, max_grid)
+        return out
+    if mode != "random":
+        raise ValueError(f"sweep.unresolved_stall_per_branch.mode must be random|sweep: {mode!r}")
+    out = []
+    for i, g in enumerate(grid):
+        rng = _random.Random(zlib.crc32(f"{seed}:{stem}:{i}".encode()))
+        e = dict(g); e.update({pc: rng.choice(choices) for pc in unresolved_pcs}); out.append(e)
+    return out
+
+
 def _inject_stalls(ann: dict, stalls: dict, unresolved_stall: int) -> dict:
     """Return a new ann dict with `resolve_stall_cycles` set per branch.
 
@@ -431,7 +475,8 @@ def _inject_stalls(ann: dict, stalls: dict, unresolved_stall: int) -> dict:
         if mode == "correctly_not_taken":
             entry["resolve_stall_cycles"] = int(stalls.get(pc, 0))
         elif mode in ("mispredict_not_taken", "mispredict_taken"):
-            entry["resolve_stall_cycles"] = int(
+            # per-branch value (sweep.unresolved_stall_per_branch) wins
+            entry["resolve_stall_cycles"] = int(stalls[pc]) if pc in stalls else int(
                 stalls.get("__unresolved__", unresolved_stall))
     return out
 
@@ -458,12 +503,15 @@ def _enumerate_grid_for_corpus(s_files: list, ann_dir: Path,
         if not ann_path.exists():
             continue
         ann = json.loads(ann_path.read_text())
-        resolved, _ = _classify_branches(ann)
+        resolved, unresolved = _classify_branches(ann)
         grid = _grid_points(
             resolved, points,
             unresolved_points=sweep_cfg.get("unresolved_points"),
             max_grid=sweep_cfg.get("max_grid"),
             seed=zlib.crc32(sf.stem.encode()))
+        grid = _per_branch_unresolved(grid, unresolved,
+                                      sweep_cfg.get("unresolved_stall_per_branch"),
+                                      sf.stem, sweep_cfg.get("max_grid"))
         manifest[sf.stem] = grid
 
         for idx, stalls in enumerate(grid):
@@ -523,6 +571,7 @@ def _aggregate_sweep_results(per_grid_results: dict, manifest: dict,
         any_err = False
         n_invalid = 0
         triggered = []
+        cs_keys: dict = {}   # cache_setup provenance (non-warm runs only; 2026-11-09)
 
         for idx, stalls in enumerate(grid):
             batch_results = per_grid_results.get(idx, [])
@@ -534,6 +583,10 @@ def _aggregate_sweep_results(per_grid_results: dict, manifest: dict,
                 continue
             hit = bool(row.get("issued_in_window"))
             status = row.get("status", "unknown")
+            if row.get("cache_setup_mode") or row.get("cache_setup", "warm") != "warm":
+                for k in ("cache_setup", "cache_setup_mode", "cache_setup_seed"):
+                    if k in row:
+                        cs_keys.setdefault(k, row[k])
             per_grid_summary.append({
                 "stalls":           stalls,
                 "issued_in_window": hit,
@@ -563,6 +616,7 @@ def _aggregate_sweep_results(per_grid_results: dict, manifest: dict,
             "sweep_grid_size":  len(grid),
             "sweep_triggered":  len(triggered),
             "sweep_invalid":    n_invalid,
+            **cs_keys,
         })
 
     return aggregated
@@ -619,6 +673,16 @@ def _build_gem5_env(gem5_cfg: dict, spec_cfg: dict) -> dict:
     fnc_stall = gem5_cfg.get("fnc_commit_stall_cycles", 0)
     if fnc_stall:
         env["SIMSPECT_FNC_COMMIT_STALL_CYCLES"] = str(int(fnc_stall))
+
+    # Initial cache state (STAGE3_gem5/cache_setup.py; wiki/design/SIMSPECT_HOOKS.md
+    # "Cache setup strategies"). Absent / "warm" = today's behavior, no env var.
+    cache_setup = str(gem5_cfg.get("cache_setup", "warm")).strip().lower()
+    if cache_setup != "warm":
+        env["SIMSPECT_CACHE_SETUP"] = cache_setup
+    # cache_setup "random" (2026-11-09): per-test warm/cold keyed on (seed, stem);
+    # absent -> cache_setup.DEFAULT_SEED.
+    if gem5_cfg.get("cache_setup_seed") is not None:
+        env["SIMSPECT_CACHE_SETUP_SEED"] = str(gem5_cfg["cache_setup_seed"])
 
     extra = gem5_cfg.get("extra_args")
     if isinstance(extra, list) and extra:
@@ -926,12 +990,15 @@ def phase_asm_gem5_streaming(cfg: dict, model: str, ts_mode: Path,
             local_manifest: dict = {}
             for sf in to_test:
                 ann = json.loads((ann_dir / (sf.stem + ".ann.json")).read_text())
-                resolved, _ = _classify_branches(ann)
+                resolved, unresolved = _classify_branches(ann)
                 grid = _grid_points(
                     resolved, points,
                     unresolved_points=sweep_cfg.get("unresolved_points"),
                     max_grid=sweep_cfg.get("max_grid"),
                     seed=zlib.crc32(sf.stem.encode()))
+                grid = _per_branch_unresolved(
+                    grid, unresolved, sweep_cfg.get("unresolved_stall_per_branch"),
+                    sf.stem, sweep_cfg.get("max_grid"))
                 local_manifest[sf.stem] = grid
                 manifest[sf.stem]       = grid
                 for idx, stalls in enumerate(grid):

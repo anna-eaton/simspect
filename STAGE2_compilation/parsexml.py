@@ -516,10 +516,32 @@ def reload_tables(path: Optional[str] = None) -> None:
     Called by the top-level pipeline.py (via batch_generate --instruction-tables)
     to point at a non-default instruction table without touching source code.
     """
-    global _KIND_TO_CATEGORY, INSTRUCTION_TABLE
+    global _KIND_TO_CATEGORY, INSTRUCTION_TABLE, BRANCH_FORMS
     _KIND_TO_CATEGORY, INSTRUCTION_TABLE = _load_instruction_tables(
         Path(path) if path else None
     )
+    BRANCH_FORMS = _load_branch_forms(Path(path) if path else None)
+
+
+def _load_branch_forms(path: Optional[Path] = None) -> Dict[str, Any]:
+    """Optional top-level "branch_forms" of an instruction table (fanout v2,
+    2026-11-08). Branch concretes are forced by pass 2.5, so branch forms are
+    a table-level switch read by pass 5, not candidates in the "br" category:
+      "br_cmp": true          every annotated conditional branch becomes an
+                              inline asm-goto `cmpq $1,%c ; jb|jae` (the jcc
+                              reads the flags the cmp set) instead of LLVM's
+                              testq/jcc
+      "jmp_direct": p (0..1)  each resolved, correctly-not-taken, non-transmitter
+                              branch becomes a direct `jmp` to its fall-through
+                              with probability p (no BTB annotation is emitted
+                              for it: it has nothing to force)
+    Absent (the default table) = today's output."""
+    if path is None:
+        path = Path(__file__).parent / "instruction_tables" / "instructions.jsonc"
+    text = Path(path).read_text(encoding="utf-8")
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
+    text = re.sub(r'//[^\n]*', '', text)
+    return dict(json.loads(text).get("branch_forms", {}))
 
 
 # _KIND_TO_CATEGORY: maps kind tokens (ld, str, br_n, br_x, other_n, other_x)
@@ -530,6 +552,7 @@ def reload_tables(path: Optional[str] = None) -> None:
 #   in the chosen candidate's "uses" set; among valid candidates the one with
 #   the fewest "uses" entries is preferred (simplest fit wins).
 _KIND_TO_CATEGORY, INSTRUCTION_TABLE = _load_instruction_tables()
+BRANCH_FORMS: Dict[str, Any] = {}
 
 
 def pass2_specify_instructions(
@@ -1426,6 +1449,32 @@ _VPOOL_IDX_COND_REG   = 1   # branch: condition-load destination register
 _VPOOL_IDX_PROBE_BASE = 2   # load/store: base pointer for probe_mem or mem_base
 _VPOOL_FREE_START     = 3   # first index freely assignable to instruction slots
 
+# Fanout v2 (pass5 fv2_cfg). Splice ops are VALUE-PRESERVING on one register
+# ($0 tied to the input); filler ops read $1,$2 and write only $0 (a register
+# the program never uses). All are integer ALU micro-ops in gem5 x86.
+FV2_SPLICE_OPS: Dict[str, str] = {
+    "add0":   "addq $$0, $0",
+    "or0":    "orq $$0, $0",
+    "xor0":   "xorq $$0, $0",
+    "and_m1": "andq $$-1, $0",
+    "imul1":  "imulq $$1, $0, $0",
+    "lea0":   "leaq 0($0), $0",
+    "not2":   "notq $0\\0Anotq $0",
+    "neg2":   "negq $0\\0Anegq $0",
+    "rol_ror":"rolq $$13, $0\\0Arorq $$13, $0",
+    "add_sub":"addq $$4097, $0\\0Asubq $$4097, $0",
+    "xor2":   "xorq $$85, $0\\0Axorq $$85, $0",
+    "bswap2": "bswapq $0\\0Abswapq $0",
+}
+FV2_FILLER_OPS: Dict[str, str] = {
+    "add":  "movq $1, $0\\0Aaddq $2, $0",
+    "xor":  "movq $1, $0\\0Axorq $2, $0",
+    "and":  "movq $1, $0\\0Aandq $2, $0",
+    "imul": "movq $1, $0\\0Aimulq $2, $0",
+    "lea":  "leaq ($1,$2), $0",
+    "shl":  "movq $1, $0\\0Ashlq $$3, $0",
+}
+
 _REG_SLOT_ROLES = {"inreg", "outreg", "inaddr"}
 _MEM_SLOT_ROLES = {"inmem", "outmem"}
 
@@ -1967,9 +2016,52 @@ def pass5_emit_llvm(
     out_path: Optional[str] = None,
     write_out: bool = False,
     fpr_cfg: Optional[Dict[str, Any]] = None,
+    fv2_cfg: Optional[Dict[str, Any]] = None,
+    stsep_cfg: Optional[Dict[str, Any]] = None,
+    brcond_cfg: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Pass 5: emit LLVM IR from the SSA-annotated program.
+
+    fv2_cfg (opt-in fanout v2: edge splices + read-only fillers; None or
+    {"enabled": false} = output unchanged). Design and safety rules:
+    wiki/design/VOCAB_TABLES.md "Fanout v2" and
+    wiki/findings/audits/2026-11-08/MODEL_AUDIT_SPT_RECON.md "Question 3".
+      splice   On a register rf edge Alloy producer.outreg -> Alloy consumer
+               input (same locked register), emit a value-preserving ALU op
+               on that register right before the consumer, and make the
+               consumer read its result. Rule 1 allows writing a locked
+               register only with the same value, hence value-preserving ops.
+               Edge choice: the transmitter's leak edge with p_xmit, every
+               other edge with p_other (FV-2: random, biased to the xmit).
+      fillers  ALU ops that READ registers holding current values (Alloy or
+               not) and WRITE only registers the program never uses (never a
+               locked, infrastructure or free-pool register; no memory, no
+               branches: rules 1-3, 6).
+      pre_window_reads (default false): if false, nothing is inserted before
+               the first unresolved (mispredicted) Alloy branch, which
+               satisfies the SPT rule 9 (no pre-window insertion reads an
+               Alloy-written register). Splices on pre-window edges are
+               skipped.
+    Inserted ops are recorded in pass4_result["fv2"] for the .ann.json.
+
+    stsep_cfg (opt-in "no-STLF" store separation; None or {"enabled": false} =
+    output unchanged). Probe-addressed stores (movq src,(probe,%idx)) write a
+    separate 256-slot array %probe_st instead of %probe_mem, so they can never
+    alias a probe-addressed load; only the Alloy model's own aliasing remains
+    (a store whose outmem Mem_s atom is the inmem atom of a later
+    probe-addressed load keeps %probe_mem). Mem_base-slot stores are unchanged
+    (unspecified slots are fresh, locked slots alias by Alloy design).
+    Recorded in pass4_result["store_separation"].
+
+    brcond_cfg (opt-in; None or {"from_alloy": false} = output unchanged):
+    {"from_alloy": true} makes every NON-transmitter annotated br_cond whose
+    Alloy inreg0 is specified read that register through a pinned pass-through
+    (`movq %in,%t ; andq $0,%t ; orq $C,%t`, C = the architectural condition),
+    so the branch predicate depends on the Alloy value (taint) while the
+    architectural outcome is unchanged. Recorded in pass4_result["branch_cond"].
+
+    BRANCH_FORMS (table-level, see _load_branch_forms): br_cmp / jmp_direct.
 
     fpr_cfg (opt-in FPR routing; None or {"enabled": false} = output unchanged)
     --------------------------------------------------------------------------
@@ -2126,6 +2218,32 @@ def pass5_emit_llvm(
         if _r.get("concrete_instruction") in ("load", "store")
     )
 
+    # ---- Opt-in store separation (no-STLF variant; see docstring) ----
+    _stsep_on = bool(stsep_cfg and stsep_cfg.get("enabled"))
+    _stsep_pcs: Set[int] = set()
+    _stsep_kept: List[int] = []
+    if _stsep_on:
+        def _phys_of(r: Dict[str, Any], n: str) -> Optional[str]:
+            sr = get_slot(r, n)
+            return sr.get("physical") if sr and sr.get("specified") else None
+        for i_, r in enumerate(instructions):
+            if r.get("concrete_instruction") != "store":
+                continue
+            ia = get_slot(r, "inaddr")
+            if not (ia and ia.get("specified") and ia.get("ssa_name") and ia.get("assigned")):
+                continue
+            om = _phys_of(r, "outmem")
+            # Keep the shared array only for an Alloy alias that is realised at
+            # run time: a later PROBE-addressed load of the same Mem_s atom
+            # (a mem_base-slot load never shares an address with a probe store).
+            alias = om is not None and any(
+                l.get("concrete_instruction") == "load" and _phys_of(l, "inmem") == om
+                and (get_slot(l, "inaddr") or {}).get("specified")
+                for l in instructions[i_ + 1:])
+            (_stsep_kept.append if alias else _stsep_pcs.add)(r["pc"])
+        pass4_result["store_separation"] = {"separated_store_pcs": sorted(_stsep_pcs),
+                                            "kept_alloy_alias_store_pcs": _stsep_kept}
+
     # ---- Alloca + memory zero-initialisation ----
     if alloca_n > 0:
         il(f"%mem_base = alloca [{alloca_n} x i64], align 8")
@@ -2136,6 +2254,12 @@ def pass5_emit_llvm(
 
     # ---- Probe array for inaddr-based loads/stores ----
     # 256 slots × 64 bytes (cache-line stride) = one cache line per possible byte value.
+    if _stsep_on and _stsep_pcs:
+        il(f"%probe_st = alloca [256 x i64], align 64")
+        for _pi in range(256):
+            _pgp = tmp("pg")
+            il(f"{_pgp} = getelementptr [256 x i64], ptr %probe_st, i64 0, i64 {_pi}")
+            il(f"store volatile i64 0, ptr {_pgp}, align 8")
     if _has_inaddr_load_or_store:
         il(f"%probe_mem = alloca [256 x i64], align 64")
         for _pi in range(256):
@@ -2220,9 +2344,242 @@ def pass5_emit_llvm(
         _fpr_routes.append(ent)
         return dst, sfx, clob
 
+    # ---- Opt-in fanout v2: edge splices + read-only fillers (see docstring) ----
+    _fv2_on = bool(fv2_cfg and fv2_cfg.get("enabled"))
+    _fv2_rec: Dict[str, Any] = {"splices": [], "fillers": [], "notes": []}
+    _fv2_plan_splice: Dict[int, List[Tuple[str, str, str, Dict[str, Any]]]] = {}
+    _fv2_plan_fill: Dict[int, int] = {}
+    _fv2_cur: Dict[str, str] = dict((reg, ssa) for reg, ssa in ssa_init.items())
+    _fv2_dead: List[str] = []
+    if _fv2_on:
+        import zlib as _zlib
+        _fv2_rng = random.Random(_zlib.crc32(f"fv2:{func_name}".encode()))
+        _sp_cfg = fv2_cfg.get("splice", {})
+        _fl_cfg = fv2_cfg.get("fillers", {})
+        _sp_ops = list(_sp_cfg.get("ops", list(FV2_SPLICE_OPS)))
+        _fl_ops = list(_fl_cfg.get("ops", list(FV2_FILLER_OPS)))
+        for o in _sp_ops:
+            if o not in FV2_SPLICE_OPS: raise ValueError(f"fv2 splice op {o!r} not in FV2_SPLICE_OPS")
+        for o in _fl_ops:
+            if o not in FV2_FILLER_OPS: raise ValueError(f"fv2 filler op {o!r} not in FV2_FILLER_OPS")
+        _pre_ok = bool(fv2_cfg.get("pre_window_reads", False))
+        _unres = [r["pc"] for r in instructions
+                  if (r.get("branch_annotations") or {}).get("mode", "").startswith("mispredict")]
+        _win_pc = min(_unres) if _unres else None
+        def _in_window(p: int) -> bool:
+            return _pre_ok or (_win_pc is not None and p > _win_pc)
+        # producers: outreg ssa -> Alloy rec (specified outreg only)
+        _prod: Dict[str, Dict[str, Any]] = {}
+        for r in instructions:
+            if r.get("synthetic"):
+                continue
+            o = get_slot(r, "outreg")
+            if o and o.get("specified") and o.get("ssa_name"):
+                _prod[o["ssa_name"]] = r
+        _xm = next((r for r in instructions if r.get("xm")), None)
+        _xm_slot = None
+        if _xm is not None:
+            _xm_slot = "inaddr" if _xm.get("concrete_instruction") in ("load", "store") else "inreg0"
+        _p_x = float(_sp_cfg.get("p_xmit", 0.75)); _p_o = float(_sp_cfg.get("p_other", 0.25))
+        if _sp_cfg.get("enabled", True):
+            for r in instructions:
+                if r.get("synthetic"):
+                    continue
+                for sn in ("inaddr", "inreg0", "inreg1"):
+                    sr = get_slot(r, sn)
+                    if not (sr and sr.get("specified") and sr.get("ssa_name") and sr.get("assigned")):
+                        continue
+                    pr = _prod.get(sr["ssa_name"])
+                    if pr is None or pr is r:
+                        continue
+                    is_x = (r is _xm and sn == _xm_slot)
+                    if _fv2_rng.random() >= (_p_x if is_x else _p_o):
+                        continue
+                    if not _in_window(r["pc"]):
+                        _fv2_rec["notes"].append(f"skip pre-window splice pc{r['pc']}.{sn}")
+                        continue
+                    op = _fv2_rng.choice(_sp_ops)
+                    _fv2_plan_splice.setdefault(r["pc"], []).append(
+                        (sn, sr["ssa_name"], sr["assigned"],
+                         {"consumer_pc": r["pc"], "slot": sn, "reg": sr["assigned"],
+                          "producer_pc": pr["pc"], "op": op, "xmit_edge": is_x}))
+        # dead registers: never used anywhere in the program
+        _used: Set[str] = set(locked_registers.values()) | set(ssa_init)
+        _used |= set((pass4_result.get("virtual_reg_pool") or [])[:_VPOOL_FREE_START])
+        for r in instructions:
+            for sl in r["slots"].values():
+                for sr in sl:
+                    if sr.get("assigned"):
+                        _used.add(sr["assigned"])
+        _fv2_dead = [x for x in X86_64_CALLER_SAVED if x not in _used and x not in ("rax", "rcx", "rdx")]
+        # ---- OTB merge (opt-in fv2_cfg.otb): a second, OLDER load L2 under an
+        # earlier-resolving Alloy branch br_r, merged into the transmitter's
+        # address register right before the transmitter by the value-preserving
+        # `xor L2,R; xor L2,R` (both read R and L2). R then carries two taints of
+        # differing speculation status, the getOldestTaint gadget
+        # (wiki/findings/mdsToRead/OTB_GENERATION_GAP.md). L2 reads a private
+        # zeroed array %otb_mem (never Alloy memory, rule 2), writes a register
+        # the program never uses, and reads no Alloy register (rule 9 holds
+        # although it sits before the unresolved branch).
+        _otb_cfg = fv2_cfg.get("otb", {})
+        if _otb_cfg.get("enabled") and _xm is not None and _fv2_rng.random() < float(_otb_cfg.get("p", 1.0)):
+            xs = get_slot(_xm, _xm_slot) if _xm_slot else None
+            pr = _prod.get(xs["ssa_name"]) if xs and xs.get("specified") and xs.get("ssa_name") else None
+            why = None
+            if pr is None or not xs.get("assigned"):
+                why = "transmitter leak operand has no Alloy producer"
+            elif _win_pc is None or pr["pc"] <= _win_pc:
+                why = "producer is not under the unresolved branch"
+            else:
+                brr = [r["pc"] for r in instructions if r.get("branch_annotations")
+                       and not r["branch_annotations"].get("mode", "").startswith("mispredict")
+                       and r["pc"] < _win_pc]
+                if not brr:
+                    why = "no resolved Alloy branch before the unresolved branch"
+                elif not _fv2_dead:
+                    why = "no unused register for L2"
+            if why:
+                _fv2_rec["otb"] = {"applied": False, "why": why}
+            else:
+                t2 = _fv2_dead.pop(_fv2_rng.randrange(len(_fv2_dead)))
+                after_pc = max(brr)
+                nxt = next(r["pc"] for r in instructions if r["pc"] > after_pc)
+                _fv2_rec["otb"] = {"applied": True, "br_r_pc": after_pc, "br_u_pc": _win_pc,
+                                   "l2_before_pc": nxt, "l2_reg": t2, "merge_reg": xs["assigned"],
+                                   "producer_pc": pr["pc"], "xmit_pc": _xm["pc"], "slot": _xm_slot}
+                # the OTB merge replaces a plain splice on the transmitter edge
+                pl = _fv2_plan_splice.get(_xm["pc"], [])
+                _fv2_plan_splice[_xm["pc"]] = [x for x in pl if x[0] != _xm_slot]
+        if _fl_cfg.get("enabled", True):
+            lo, hi = (list(_fl_cfg.get("count", [1, 3])) + [3])[:2]
+            n_fill = _fv2_rng.randint(int(lo), int(hi))
+            cands = [r["pc"] for r in instructions if _in_window(r["pc"])]
+            if not _fv2_dead:
+                if n_fill: _fv2_rec["notes"].append("no dead register: fillers skipped")
+            elif cands:
+                for _ in range(n_fill):
+                    p_ = _fv2_rng.choice(cands)
+                    _fv2_plan_fill[p_] = _fv2_plan_fill.get(p_, 0) + 1
+
+    _otb = _fv2_rec.get("otb") if _fv2_on else None
+    if _otb and _otb.get("applied"):
+        il(f"%otb_mem = alloca [8 x i64], align 64")
+        for _pi in range(8):
+            _pgp = tmp("pg")
+            il(f"{_pgp} = getelementptr [8 x i64], ptr %otb_mem, i64 0, i64 {_pi}")
+            il(f"store volatile i64 0, ptr {_pgp}, align 8")
+        il(f'call void asm sideeffect "mfence", "~{{memory}}"()')
+    _otb_l2: List[str] = []
+
+    _fv2_n = [0]
+    _fv2_ren: Dict[str, str] = {}
+    _fv2_ren_ent: Dict[str, Dict[str, Any]] = {}
+    def fv2_before(rec: Dict[str, Any]) -> Dict[str, Any]:
+        """Emit planned fillers and splices before rec; return rec (copied if a splice rewires it)."""
+        if not _fv2_on:
+            return rec
+        pc_ = rec["pc"]
+        for _ in range(_fv2_plan_fill.get(pc_, 0)):
+            live = sorted(_fv2_cur.items())
+            if not live:
+                break
+            op = _fv2_rng.choice(_fl_ops)
+            srcs = [_fv2_rng.choice(live) for _ in range(2)]
+            d = _fv2_rng.choice(_fv2_dead)
+            _fv2_n[0] += 1
+            body = FV2_FILLER_OPS[op]
+            il(f'%__fill_{_fv2_n[0]} = call i64 asm sideeffect "{body}", '
+               f'"=&{{{d}}},{{{srcs[0][0]}}},{{{srcs[1][0]}}},~{{flags}}"'
+               f'(i64 %{srcs[0][1]}, i64 %{srcs[1][1]})')
+            _fv2_rec["fillers"].append({"before_pc": pc_, "op": op, "dst": d,
+                                        "srcs": [srcs[0][0], srcs[1][0]]})
+        if _otb and _otb.get("applied"):
+            if pc_ == _otb["l2_before_pc"]:
+                il(f'%__otb_l2 = call i64 asm sideeffect "movq 0($1), $0", '
+                   f'"=&{{{_otb["l2_reg"]}}},{{{_probe_base_phys}}},~{{memory}}"(ptr %otb_mem)')
+                _otb_l2.append("%__otb_l2")
+            if pc_ == _otb["xmit_pc"] and _otb_l2:
+                xs_ = get_slot(rec, _otb["slot"])
+                old_ = _fv2_ren.get(xs_["ssa_name"], xs_["ssa_name"])
+                new_ = f"{xs_['ssa_name']}__otb"
+                il(f'%{new_} = call i64 asm sideeffect "xorq $2, $0\\0Axorq $2, $0", '
+                   f'"={{{_otb["merge_reg"]}}},0,{{{_otb["l2_reg"]}}},~{{flags}}"(i64 %{old_}, i64 {_otb_l2[0]})')
+                _fv2_ren[xs_["ssa_name"]] = new_
+                _fv2_ren_ent[xs_["ssa_name"]] = _otb
+        plan = _fv2_plan_splice.get(pc_)
+        # A spliced value replaces the original in its (tied) register, so every
+        # later reader of the original SSA name reads the splice result instead
+        # (same value); recorded as "later_readers" on the splice.
+        later = [(sr["slot"], sr["ssa_name"]) for sl in rec["slots"].values() for sr in sl
+                 if sr["slot"] not in ("outreg", "outmem") and sr.get("ssa_name") in _fv2_ren]
+        if not plan and not later:
+            return rec
+        import copy as _copy
+        rec = _copy.deepcopy(rec)
+        for sl in rec["slots"].values():
+            for sr in sl:
+                if sr["slot"] not in ("outreg", "outmem") and sr.get("ssa_name") in _fv2_ren:
+                    old_ = sr["ssa_name"]
+                    sr["ssa_name"] = _fv2_ren[old_]
+                    _fv2_ren_ent[old_].setdefault("later_readers", []).append(f"pc{pc_}.{sr['slot']}")
+        if not plan:
+            return rec
+        done: Dict[str, str] = {}
+        for sn, ssa, phys, ent in plan:
+            if ssa not in done:
+                _fv2_n[0] += 1
+                new = f"{ssa}__sp{_fv2_n[0]}"
+                il(f'%{new} = call i64 asm sideeffect "{FV2_SPLICE_OPS[ent["op"]]}", '
+                   f'"={{{phys}}},0,~{{flags}}"(i64 %{ssa})')
+                done[ssa] = new
+                _fv2_ren[ssa] = new
+                _fv2_ren_ent[ssa] = ent
+            else:
+                ent = dict(ent, shared_with_previous=True)
+            for sl in rec["slots"].values():
+                for sr in sl:
+                    if sr["slot"] == sn and sr.get("ssa_name") == ssa:
+                        sr["ssa_name"] = done[ssa]
+            _fv2_rec["splices"].append(ent)
+        return rec
+
+    def fv2_after(rec: Dict[str, Any]) -> None:
+        if not _fv2_on:
+            return
+        o = get_slot(rec, "outreg")
+        if o and o.get("ssa_name") and o.get("assigned"):
+            _fv2_cur[o["assigned"]] = o["ssa_name"]
+
+    # ---- Opt-in branch forms (table BRANCH_FORMS) and Alloy branch conditions ----
+    _br_cmp = bool(BRANCH_FORMS.get("br_cmp"))
+    _jmp_p = float(BRANCH_FORMS.get("jmp_direct", 0) or 0)
+    _bc_alloy = bool(brcond_cfg and brcond_cfg.get("from_alloy"))
+    _jmp_pcs: List[int] = []
+    _bc_pcs: List[int] = []
+    if _jmp_p > 0:
+        import zlib as _zlib2
+        _jrng = random.Random(_zlib2.crc32(f"jmp:{func_name}".encode()))
+        for r in instructions:
+            ba_ = r.get("branch_annotations")
+            if (ba_ and ba_.get("mode") == "correctly_not_taken" and not r.get("xm")
+                    and r.get("concrete_instruction") in ("br_cond", "br_uncond")
+                    and _jrng.random() < _jmp_p):
+                _jmp_pcs.append(r["pc"])
+
+    def br_on(cond_raw: str, cond_i1: str, taken_lbl: str, ft_lbl: str, taken_if_zero: bool) -> None:
+        """Conditional branch on cond_raw: today's `br i1` (LLVM picks test/jcc),
+        or with br_cmp an asm-goto `cmpq $1,%c ; jb|jae` (taken iff c==0 / c!=0)."""
+        if not _br_cmp:
+            il(f"br i1 {cond_i1}, label %{taken_lbl}, label %{ft_lbl}")
+            return
+        jcc = "jb" if taken_if_zero else "jae"
+        il(f'callbr void asm sideeffect "cmpq $$1, $0\\0A{jcc} ${{1:l}}", "r,!i,~{{flags}}"'
+           f'(i64 {cond_raw}) to label %{ft_lbl} [label %{taken_lbl}]')
+
     # ---- Emit instructions ----
     last_was_terminator = False
     safe_name = func_name.replace("-", "_").replace(".", "_")
+    _fv2_prev: Optional[Dict[str, Any]] = None
 
     for rec in instructions:
         pc = rec["pc"]
@@ -2238,6 +2595,11 @@ def pass5_emit_llvm(
             lbl(f"bb_{pc}")
             last_was_terminator = False
 
+        if _fv2_on:
+            if _fv2_prev is not None:
+                fv2_after(_fv2_prev)
+            rec = fv2_before(rec)
+            _fv2_prev = rec
         cm(f"pc={pc}  {atom}  ({concrete})")
         marker = f"__litmus_{safe_name}_pc{pc}"
         # pc marker prefix shared by all asm blocks below; each instruction
@@ -2335,6 +2697,7 @@ def pass5_emit_llvm(
             inaddr_ssa  = inaddr_sr.get("ssa_name") if _ia_specified else None
             inaddr_phys = inaddr_sr.get("assigned") if _ia_specified else None
             inreg0_sr = get_slot(rec, "inreg0")
+            _st_base = "%probe_st" if pc in _stsep_pcs else "%probe_mem"
             if inaddr_ssa and inaddr_phys:
                 # Address comes from register via rf edge — use it directly
                 # Secret value as byte offset into probe_mem (store to tagged cache line)
@@ -2345,12 +2708,12 @@ def pass5_emit_llvm(
                     il(f'call void asm sideeffect '
                        f'"{mkr}movq $0, ($1, $2, 1)", '
                        f'"{in_con},{{{_probe_base_phys}}},{{{inaddr_phys}}},~{{memory}}"'
-                       f'(i64 {src_ssa}, ptr %probe_mem, i64 %{inaddr_ssa})')
+                       f'(i64 {src_ssa}, ptr {_st_base}, i64 %{inaddr_ssa})')
                 else:
                     il(f'call void asm sideeffect '
                        f'"{mkr}movq $$0, ($0, $1, 1)", '
                        f'"{{{_probe_base_phys}}},{{{inaddr_phys}}},~{{memory}}"'
-                       f'(ptr %probe_mem, i64 %{inaddr_ssa})')
+                       f'(ptr {_st_base}, i64 %{inaddr_ssa})')
             else:
                 idx = mem_slot_idx(rec, "outmem")
                 if idx is None or alloca_n == 0:
@@ -2416,6 +2779,39 @@ def pass5_emit_llvm(
                 il(f'call void asm sideeffect '
                    f'"{mkr}leaq ($0, $1), %rax", '
                    f'"{in0_con},{in1_con},~{{rax}}"(i64 {inreg0}, i64 {inreg1})')
+
+        elif concrete in ("inc", "cmov_rr"):
+            # Fanout v2 vocabulary (FV-5, opt-in via
+            # instruction_tables/proposed/fv2_vocab.jsonc; never in the default
+            # table). inc: out = in0 + 1 via `incq`, which in gem5 is
+            # `addi reg, reg, 1` reading the CF/OF flag register (SPT audit A1).
+            # cmov_rr: out = in0 always; `cmpq in0,in0` sets ZF so `cmovne in1`
+            # is never taken but still reads in1 (SPT audit A2 shape).
+            inreg0 = ssa_ref(rec, "inreg0") or "0"
+            inreg0_sr = get_slot(rec, "inreg0")
+            phys_in0 = inreg0_sr.get("assigned") if inreg0_sr else None
+            in0_con = f'{{{phys_in0}}}' if phys_in0 else 'r'
+            outreg_sr = get_slot(rec, "outreg")
+            has_out = bool(outreg_sr and outreg_sr.get("ssa_name"))
+            dst = "$0" if has_out else "%rax"
+            k = 1 if has_out else 0
+            if concrete == "inc":
+                body = f"movq ${k}, {dst}\\0Aincq {dst}"
+                ins = [f"i64 {inreg0}"]; cons = [in0_con]
+            else:
+                inreg1 = ssa_ref(rec, "inreg1") or "0"
+                inreg1_sr = get_slot(rec, "inreg1")
+                phys_in1 = inreg1_sr.get("assigned") if inreg1_sr else None
+                body = (f"movq ${k}, {dst}\\0Acmpq ${k}, ${k}\\0Acmovneq ${k + 1}, {dst}")
+                ins = [f"i64 {inreg0}", f"i64 {inreg1}"]
+                cons = [in0_con, f'{{{phys_in1}}}' if phys_in1 else 'r']
+            if has_out:
+                out_name = outreg_sr["ssa_name"]; phys_out = outreg_sr.get("assigned")
+                il(f'%{out_name} = call i64 asm sideeffect "{mkr}{body}", '
+                   f'"=&{{{phys_out}}},{",".join(cons)},~{{flags}}"({", ".join(ins)})')
+            else:
+                il(f'call void asm sideeffect "{mkr}{body}", '
+                   f'"{",".join(cons)},~{{rax}},~{{flags}}"({", ".join(ins)})')
 
         elif concrete == "zsm":
             # zero-skip multiply: 64-bit signed/unsigned mul (low half). Emit
@@ -2539,7 +2935,7 @@ def pass5_emit_llvm(
                        f'"=&{{{cond_reg}}}"()')
                 bez_i1 = tmp("bez_i1")
                 il(f"{bez_i1} = icmp eq i64 {cond_raw}, 0")
-                il(f"br i1 {bez_i1}, label %{taken}, label %{ft}")
+                br_on(cond_raw, bez_i1, taken, ft, True)
                 last_was_terminator = True
             else:
                 il(f'call void asm sideeffect "{mkr}", ""()')
@@ -2549,6 +2945,17 @@ def pass5_emit_llvm(
             # Synthetic NOP injected after an xm branch so the fall-through
             # path has an instruction the processor will fetch (and squash).
             il(f'call void asm sideeffect "{mkr}nop", ""()')
+
+        elif concrete in ("br_cond", "br_uncond") and pc in _jmp_pcs:
+            # BRANCH_FORMS.jmp_direct: resolved, correctly-not-taken branch as a
+            # direct jmp to its architectural (fall-through) successor.
+            ba = rec["branch_annotations"]
+            ft = ba["fallthrough_target"]
+            jd = f"jmpdead_{pc}"
+            il(f'callbr void asm sideeffect "{mkr}jmp ${{0:l}}", "!i"() to label %{jd} [label %{ft}]')
+            lbl(jd)
+            il("unreachable")
+            last_was_terminator = True
 
         elif concrete in ("br_cond", "br_uncond"):
             ba = rec.get("branch_annotations")
@@ -2589,6 +2996,18 @@ def pass5_emit_llvm(
                         il(f'{cond_raw} = call i64 asm sideeffect '
                            f'"{mkr}movq $1, $0", '
                            f'"=&r,{{{phys_in0}}}"(i64 {inreg0})')
+                    elif (_bc_alloy and not is_xm
+                          and get_slot(rec, "inreg0") and get_slot(rec, "inreg0").get("specified")
+                          and get_slot(rec, "inreg0").get("ssa_name")
+                          and get_slot(rec, "inreg0").get("assigned")):
+                        # brcond_cfg.from_alloy: read the Alloy condition register
+                        # (taint) but force the architectural outcome.
+                        bsr = get_slot(rec, "inreg0")
+                        cval = 1 if ba["condition_value"] else 0
+                        il(f'{cond_raw} = call i64 asm sideeffect '
+                           f'"{mkr}movq $1, $0\\0Aandq $$0, $0\\0Aorq $${cval}, $0", '
+                           f'"=&r,{{{bsr["assigned"]}}},~{{flags}}"(i64 %{bsr["ssa_name"]})')
+                        _bc_pcs.append(pc)
                     else:
                         vpool = pass4_result.get("virtual_reg_pool", [])
                         cond_reg = vpool[1] if len(vpool) > 1 else "r11"
@@ -2615,7 +3034,7 @@ def pass5_emit_llvm(
                         # the emitted .s.
                         ftb = f"ftbypass_{pc}"
                         ftb_lbl = f"__litmus_{safe_name}_ftbypass{pc}"
-                        il(f"br i1 {cond_i1}, label %{taken}, label %{ftb}")
+                        br_on(cond_raw, cond_i1, taken, ftb, False)
                         lbl(ftb)
                         il(f'call void asm sideeffect '
                            f'".globl {ftb_lbl}\\0A{ftb_lbl}:", ""()')
@@ -2627,13 +3046,13 @@ def pass5_emit_llvm(
                         # the xmit annotation lands on the xorq prelude.
                         ftb = f"ftbypass_{pc}"
                         ftb_lbl = f"__litmus_{safe_name}_ftbypass{pc}"
-                        il(f"br i1 {cond_i1}, label %{taken}, label %{ftb}")
+                        br_on(cond_raw, cond_i1, taken, ftb, False)
                         lbl(ftb)
                         il(f'call void asm sideeffect '
                            f'".globl {ftb_lbl}\\0A{ftb_lbl}:", ""()')
                         il(f"br label %{ft}")
                     else:
-                        il(f"br i1 {cond_i1}, label %{taken}, label %{ft}")
+                        br_on(cond_raw, cond_i1, taken, ft, False)
                 else:
                     il(f'call void asm sideeffect "{mkr}", ""()')
                     cond = rec.get("condition_ssa_forced", "i1 true")
@@ -2663,6 +3082,16 @@ def pass5_emit_llvm(
 
     lines.append("}")
     ir = "\n".join(lines)
+
+    if _br_cmp or _jmp_pcs:
+        pass4_result["branch_forms"] = {"br_cmp": _br_cmp, "jmp_direct_pcs": _jmp_pcs}
+    if _bc_alloy:
+        pass4_result["branch_cond"] = {"from_alloy": True, "pcs": _bc_pcs}
+    if _fv2_on:
+        _fv2_rec["window_pc"] = _win_pc
+        _fv2_rec["pre_window_reads"] = _pre_ok
+        _fv2_rec["dead_registers"] = _fv2_dead
+        pass4_result["fv2"] = _fv2_rec
 
     if _fpr_on:
         # Read by emit_branch_annotations -> .ann.json "fpr" (absent when off).
@@ -2715,9 +3144,10 @@ def emit_branch_annotations(
 
     annotations: List[Dict[str, Any]] = []
 
+    _jmps = set((result.get("branch_forms") or {}).get("jmp_direct_pcs", []))
     for rec in result["instructions"]:
         ba = rec.get("branch_annotations")
-        if ba is None:
+        if ba is None or rec["pc"] in _jmps:
             continue
         annotations.append({
             "branch_pc":            rec["pc"],
@@ -2779,6 +3209,15 @@ def emit_branch_annotations(
         # which xmm register. Absent when the option is off.
         if result.get("fpr_routes") is not None:
             payload["fpr"] = result["fpr_routes"]
+        # Opt-in fanout v2 (pass5 fv2_cfg): inserted splices and fillers.
+        if result.get("fv2") is not None:
+            payload["fanout_v2"] = result["fv2"]
+        if result.get("store_separation") is not None:
+            payload["store_separation"] = result["store_separation"]
+        if result.get("branch_forms") is not None:
+            payload["branch_forms"] = result["branch_forms"]
+        if result.get("branch_cond") is not None:
+            payload["branch_cond"] = result["branch_cond"]
         # Opt-in register naming (pass3 reg_naming): Alloy Reg_s atom -> x86 name.
         if result.get("reg_naming") is not None:
             payload["reg_naming"] = dict(result["reg_naming"],

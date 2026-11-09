@@ -1,0 +1,24 @@
+2026-11-09 01:01:54 batch A: lock acquired
+2026-11-09 01:01:58 C3_stt6core_b3: OK rc=0 4.3s files=129 stdout='Total models: 129' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 81301 154582'
+2026-11-09 01:02:04 C2_core_normws_b3: OK rc=0 6.0s files=129 stdout='Total models: 129' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 82424 157628'
+2026-11-09 01:02:07 C1_core_pinned_b3: OK rc=0 3.3s files=150 stdout='Total models: 150' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 82424 157647'
+2026-11-09 01:02:52 C3_stt6core_b4: OK rc=0 44.8s files=129 stdout='Total models: 129' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 94174 178749'
+2026-11-09 01:03:41 C2_core_normws_b4: OK rc=0 49.2s files=129 stdout='Total models: 129' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 95581 182670'
+2026-11-09 01:04:03 C1_core_pinned_b4: OK rc=0 21.4s files=150 stdout='Total models: 150' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 95581 182688'
+2026-11-09 01:04:14 F1_pinned: OK rc=0 10.7s files=300 stdout='Total models: 300' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 78159 157199'
+2026-11-09 01:04:17 F2_rmw_xm: OK rc=0 3.3s files=30 stdout='Total models: 30' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 78166 156943'
+2026-11-09 01:04:20 F3_rmw_spec_nonxm: OK rc=0 3.3s files=30 stdout='Total models: 30' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 78172 156955'
+2026-11-09 01:06:20 F4_rmw_committed: TIMEOUT rc=-9 120.0s files=1 stdout='' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 78166 156914'
+2026-11-09 01:06:24 F6_spec_ld_then_spec_rmw_same_loc: OK rc=0 3.9s files=30 stdout='Total models: 30' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 78709 158479'
+2026-11-09 01:06:30 F7_rmw_stl_source: OK rc=0 6.3s files=30 stdout='Total models: 30' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 78487 157516'
+2026-11-09 01:06:34 F8_rmw_tainted_src: OK rc=0 3.8s files=30 stdout='Total models: 30' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 78475 157614'
+2026-11-09 01:06:34 batch A: lock released after 280s
+2026-11-09 01:08:08 batch B: lock acquired
+2026-11-09 01:12:05 F5_xm_rmw_memops_irrelevant: OK rc=0 236.8s files=0 stdout='0' stderr='[main] INFO kodkod.engine.config.Reporter - translating to cnf ...'
+2026-11-09 01:12:05 batch B: lock released after 237s
+2026-11-09 01:20:32 batch E: lock acquired
+2026-11-09 01:21:07 K1_core_memops_irrelevant_b4: OK rc=0 35.2s files=0 stdout='0' stderr='[main] INFO kodkod.engine.config.Reporter - translating to cnf ...'
+2026-11-09 01:21:20 K2_core_inaddr_matters_b4: OK rc=0 13.4s files=0 stdout='100' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 99542 189707'
+2026-11-09 01:21:23 F9_rmw_hits_xmit_line: OK rc=0 2.9s files=30 stdout='Total models: 30' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 78633 157801'
+2026-11-09 01:21:26 K3_full_inaddr_matters: OK rc=0 3.2s files=0 stdout='5' stderr='[main] INFO kodkod.engine.config.Reporter - solving p cnf 82156 164041'
+2026-11-09 01:21:26 batch E: lock released after 55s

@@ -1,0 +1,8 @@
+// Q2 (ALU on the transmitter path): load -> ALU (rf, then the ALU's own ddi) -> xm's
+// leak operand (rf). xm is a load; its address comes ONLY from the ALU output.
+pred q {
+  some l: Loads, o: (Otherns + Otherxs), x: xm & Loads |
+    some (l.outreg.rf & o.inreg) and
+    (o.inreg & l.outreg.rf) -> o.outreg in ddi and
+    some (o.outreg.rf & x.inaddr)
+}

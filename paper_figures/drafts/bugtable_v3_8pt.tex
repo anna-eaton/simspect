@@ -6,7 +6,7 @@
 % dagger: counts as a violation only if the window ends when fnc retires, not if it ends when the guarding branch resolves (decision R1, URGENT_TODO.md; paper_figures/plans/RESULTS_FIGURES.md sec 5).%
 % ddagger: real leak, but through a channel the defense's own paper leaves out of its protection (scope rule, Anna 2026-10-28: wiki/findings/mdsToRead/SCOPE_VS_IMPLEMENTATION.md).%
 % "post-fix" marks results from the fixed harness (2026-10-30, wiki/findings/bug/BRANCH_ANNOTATION_AND_FORCE.md); every other row's evidence predates that fix.%
-% Source paths below are relative to the simspect repo root, /Users/annaeaton/Documents/stanford/trippel/simspect; "claudelog.md <date>" means the claudelog.md entry with that date and label.%
+% Source paths below are relative to the simspect repo root, /Users/annaeaton/trippel/simspect; "claudelog.md <date>" means the claudelog.md entry with that date and label.%
 % Left out because the repo rules them pipeline, checker, concretization, model or harness artifacts (see the session reply for sources): check_ld exec-tick FPs (183 of 184 Recon_6 hits),%
 %  check_br resolve-tick FPs (old STT br_x "leaks"), the Recon "OTB" classifier matches, diag cache-reach repro bug, the check_ld send-line gap on Recon builds, the STT branch-channel race (fnc-stall hook),%
 %  SPT const-addr / rf-clobber / no_hold / OtherLoad STLF / retq-loop re-speculation hits, dup-PC, pipeview blowup, idivq noise, amulet caches:true, sweep error rows, branch-annotation loader / BTB force / stall freeze,%

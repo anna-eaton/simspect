@@ -42,6 +42,21 @@ def _discover():
     return diags
 
 
+def _cache_setup_of(window_json):
+    """stem -> cache_setup the test actually ran with (2026-11-09). From the record
+    (pipeline.py keeps it on non-warm runs; `random` differs per test), else from the
+    campaign manifest when it names one fixed strategy, else "unknown"."""
+    try:
+        man = json.loads((RUN_DIR / "manifest.json").read_text()).get("cache_setup", "warm")
+    except (OSError, ValueError):
+        man = "warm"
+    fallback = man if man != "random" else "unknown"
+    data = json.loads(Path(window_json).read_text())
+    recs = data if isinstance(data, list) else (data.get("results") or list(data.values()))
+    return {r["name"].split("__")[0]: r.get("cache_setup", fallback)
+            for r in recs if isinstance(r, dict)}
+
+
 def _hits(window_json):
     data = json.loads(Path(window_json).read_text())
     recs = data if isinstance(data, list) else (data.get("results") or list(data.values()))
@@ -85,6 +100,17 @@ def main():
             (md / f"{b}.txt").write_text("".join(f"{x}\t{reasons.get(x, '')}\n" for x in lst))
             print(f"   {b:34} {len(lst)}" + ("  <-- review" if b.startswith("NEW") and lst else ""))
         summary[f"{mode}/{kind}"] = {b: len(l) for b, l in buckets.items()}
+        cs_of = _cache_setup_of(wr)
+        split = {}
+        for b, lst in buckets.items():
+            for x in lst:
+                c = cs_of.get(x, "unknown")
+                split.setdefault(c, {}).setdefault(b, 0)
+                split[c][b] += 1
+        if set(split) - {"warm"}:          # only when some test did not run warm
+            summary[f"{mode}/{kind}"]["by_cache_setup"] = split
+            print("   by cache_setup: " + "; ".join(
+                f"{c}: " + ", ".join(f"{b}={n}" for b, n in d.items()) for c, d in sorted(split.items())))
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(f"\nwrote buckets under {out}/<mode>/<kind>/")
 

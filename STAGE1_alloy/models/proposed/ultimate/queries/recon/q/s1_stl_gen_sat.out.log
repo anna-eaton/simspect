@@ -1,0 +1,27 @@
+[main] INFO kodkod.engine.config.Reporter - detecting symmetries ...
+[main] INFO kodkod.engine.config.Reporter - detected 39 equivalence classes of atoms ...
+[main] INFO kodkod.engine.config.Reporter - optimizing bounds and formula (breaking predicate symmetries, inlining, skolemizing) ...
+[main] INFO kodkod.engine.config.Reporter - translating to boolean ...
+[main] INFO kodkod.engine.config.Reporter - generating lex-leader symmetry breaking predicate ...
+[main] INFO kodkod.engine.config.Reporter - translating to cnf ...
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225504
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225505
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225506
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225507
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225508
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225509
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225510
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225511
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225512
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225513
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225514
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225515
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225516
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225517
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225518
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225519
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225520
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225521
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225522
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 113506 225523
+Total models: 20

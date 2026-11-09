@@ -1,0 +1,75 @@
+[main] INFO kodkod.engine.config.Reporter - detecting symmetries ...
+[main] INFO kodkod.engine.config.Reporter - detected 39 equivalence classes of atoms ...
+[main] INFO kodkod.engine.config.Reporter - optimizing bounds and formula (breaking predicate symmetries, inlining, skolemizing) ...
+[main] INFO kodkod.engine.config.Reporter - translating to boolean ...
+[main] INFO kodkod.engine.config.Reporter - generating lex-leader symmetry breaking predicate ...
+[main] INFO kodkod.engine.config.Reporter - translating to cnf ...
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135465
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135466
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135467
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135468
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135469
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135470
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135471
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135472
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135473
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135474
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135475
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135476
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135477
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135478
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135479
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135480
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135481
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135482
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135483
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135484
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135485
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135486
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135487
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135488
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135489
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135490
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135491
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135492
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135493
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 68650 135494
+CMD dump_stl_first DUMPED 30 CAPPED 1285
+[main] INFO kodkod.engine.config.Reporter - detecting symmetries ...
+[main] INFO kodkod.engine.config.Reporter - detected 39 equivalence classes of atoms ...
+[main] INFO kodkod.engine.config.Reporter - optimizing bounds and formula (breaking predicate symmetries, inlining, skolemizing) ...
+[main] INFO kodkod.engine.config.Reporter - translating to boolean ...
+[main] INFO kodkod.engine.config.Reporter - generating lex-leader symmetry breaking predicate ...
+[main] INFO kodkod.engine.config.Reporter - translating to cnf ...
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138314
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138315
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138316
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138317
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138318
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138319
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138320
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138321
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138322
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138323
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138324
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138325
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138326
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138327
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138328
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138329
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138330
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138331
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138332
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138333
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138334
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138335
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138336
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138337
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138338
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138339
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138340
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138341
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138342
+[main] INFO kodkod.engine.config.Reporter - solving p cnf 69763 138343
+CMD dump_stl_S1 DUMPED 30 CAPPED 655
+DONE

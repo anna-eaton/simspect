@@ -1,6 +1,6 @@
 {
   "_doc": "Canonical registry of every gem5 build SimSpect runs against. ONE entry per distinct build tree. Each build = a different defense implementation; gem5 is ground truth. 'timing_hooks' records whether the build carries the two window-realizing hooks SimSpect needs: branch_force (--branch-ann-file BTB override + per-branch resolve-stall) and fnc_commit_stall (hold the first-not-committed insn at the ROB head, 150 cyc). 'status' summarizes hook coverage. 'resolve_hooks' (2026-10-30) = the BR resolve lines + forced-not-taken (wiki/design/RESOLUTION_HOOKS.md). Source: wiki/design/MODELS_AND_BUILDS.md + METHODS_INSTRUMENTATION.md + gem5-hooks/README.md + AMULET_BUGS_DETECTION_ACCOUNTING.md. Viewed in the dashboard Utilities > gem5 builds tab.",
-  "_last_reviewed": "2026-10-30",
+  "_last_reviewed": "2026-11-08",
   "timing_hook_legend": {
     "branch_force": "--branch-ann-file BTB override (force branch direction) + per-branch resolve-stall. Realizes the modeled mispredict + holds the branch unresolved. Vanilla builds reject --branch-ann-file.",
     "fnc_commit_stall": "fncCommitStallPC/Cycles \u2014 stalls commit of the first-not-committed insn at the ROB head (recon/STT use 150 cyc), widening the speculative window so the slow VP/squash cases land in-window.",
@@ -57,6 +57,31 @@
       "threat_model": "Recon-STT (scheme 2): control + store shadows, i.e. speculative while an older cond branch is unresolved OR an older store has no address (decode.cc:686-695, shadow_tracker.cc). No threat-model switch. Not the same as /work/stt. wiki/design/STT_VS_RECON_STT.md"
     },
     {
+      "id": "gem5-recon-ruby3",
+      "path": "/work/gem5-recon-ruby3",
+      "repo": "no git (copy of /work/gem5-recon-modded src/configs taken 2026-11-09 02:38 UTC, build/ and m5out* excluded; src and configs 0 diff vs recon-modded; src/mem/ruby 0 diff vs ruby-versions/ruby-singlecore)",
+      "cpu": "X86 / X86O3CPU, Ruby PROTOCOL = 'MESI_Three_Level' (build/X86/gem5.build/variables)",
+      "config_script": "configs/example/se_ruby.py (= se.py with line 56 'from ruby import Ruby' uncommented; the authors ship it commented, so se.py --ruby raises NameError). APPROVED by Anna 2026-11-08 (#11)",
+      "defense": "ReCon (STT + ReCon reveal), the authors' setup",
+      "scheme": "0=Unsafe 1=NDA 2=STT 3=DoM; ReCon = --scheme=2 --allow_leaked --ruby",
+      "variants": "--branch-ann-file BTB override (recon-modded hooks)",
+      "intention": "E6 ReCon exactly as its authors prescribe (documentation/docs/Files/email.txt: ruby-singlecore in src/mem/ruby, PROTOCOL=MESI_Three_Level, --scheme 2 --allow_leaked with --ruby). Built with /usr/bin/scons build/X86/gem5.opt PROTOCOL=MESI_Three_Level -j 24 (build_ruby3.sh, log build_ruby3.log, EXIT=0). gem5.opt instead of the authors' gem5.fast so the checker DPRINTFs exist.",
+      "timing_hooks": {
+        "branch_force": true,
+        "fnc_commit_stall": true,
+        "status": "full",
+        "resolve_hooks": true,
+        "resolve_hooks_note": "inherited from gem5-recon-modded's 2026-10-30 tree (resolve lines + forced not-taken + wake edit); hooks are CPU-side only. Validation 2026-11-08: 484 Ruby records, br_resolve_source=observed on all, 0 validity failures (wiki/state/EVAL_MANIFEST.md 'ReCon under the authors' setup')."
+      },
+      "git_tracked": false,
+      "hooks_backup": "gem5-hooks/gem5-recon-modded/ (same hooks)",
+      "flags": [
+        "recon",
+        "ruby"
+      ],
+      "threat_model": "Recon-STT shadows (control + store, decode.cc:686-695) + ReCon reveal under --allow_leaked. Reveal verified to reach L0 at the right address (ProtocolTrace); it never untaints in the current Recon_6 tests (EVAL_MANIFEST E6)."
+    },
+    {
       "id": "gem5-recon",
       "path": "/work/gem5-recon",
       "repo": "no git (treated as the BASE)",
@@ -100,6 +125,30 @@
       "hooks_backup": "gem5-hooks/stt/",
       "flags": [],
       "threat_model": "STT-Spectre by default (--threatModel=Spectre, pinned by gem5-hooks/stt/se_exp.py:332): a load is speculative only while an older control inst is unresolved (rob_impl.hh:444-495). Futuristic (all older insts completed) via config_script /work/stt/configs/example/se_futuristic.py (rob_impl.hh:493-512). STL tests are OUT of scope under Spectre. wiki/design/STT_VS_RECON_STT.md"
+    },
+    {
+      "id": "stt-master",
+      "path": "/work/stt-master",
+      "repo": "cwfletcher/stt @ 5bf41109477e1c9c5822674afa4103e6eb16ff09 (2025-12-14; includes 18e304f 'fix pending squash bug'), from the GitHub tarball (sha256 aa2281adff4d394e67a1618acdce9a3a7d64c9866f936ee5352433044604cc1c) in /work/stt-master-src/; not a git checkout",
+      "cpu": "X86 / DerivO3CPU (X86O3CPU in run configs), classic caches",
+      "config_script": "configs/example/se.py (SimSpect glue, same as /work/stt)",
+      "defense": "STT (upstream master)",
+      "scheme": "0-3 (same glue as /work/stt)",
+      "variants": "se_exp.py / se_slowcomm.py / se_futuristic.py, copied unchanged from /work/stt",
+      "intention": "E3 = SimSpect's STT results from 2026-11-08 on. /work/stt (e3283b9) stays for old results and the A3c bug. Hooks = /work/stt's full working-tree diff vs e3283b9 (/work/stt-master-src/stt_worktree_vs_e3283b9.diff: stt.patch + resolve hooks + wake edit) applied with patch -p1, all hunks exact; tree differs from /work/stt only in iew_impl.hh (the upstream fix). Built python2 scons-2.5.1 build/X86/gem5.opt -j16 (build_stt_master.sh / .log, EXIT=0), gem5.opt sha256 ca7259637a59c3f2b798e217281c59009d1244fefa1c81d66781e7add95c5d1e.",
+      "timing_hooks": {
+        "branch_force": true,
+        "fnc_commit_stall": true,
+        "status": "full",
+        "resolve_hooks": true,
+        "resolve_hooks_note": "same hook code as /work/stt. hook_audit 2026-11-08 (12 tests, seed 0): identical check dicts to /work/stt, including ticks. Open DECIDE: the resolve-stall deferred release copies the pre-fix squash code, so a stalled mispredicted TAINTED branch bypasses upstream's new pending squash."
+      },
+      "git_tracked": false,
+      "hooks_backup": "gem5-hooks/stt/ (+ /work/stt-master-src/stt_worktree_vs_e3283b9.diff)",
+      "flags": [
+        "primary-stt"
+      ],
+      "threat_model": "STT-Spectre (same glue as /work/stt). Upstream fix: a tainted mispredicted branch is marked pending-squash in IEW instead of squashing (iew_impl.hh executeInsts)."
     },
     {
       "id": "stt-dbg",

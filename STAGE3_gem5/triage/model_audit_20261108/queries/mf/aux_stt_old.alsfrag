@@ -1,0 +1,22 @@
+// ---- aux (model-fixes 2026-11-08): the OLD STT_6.als defense, renamed *_old (location-based fold, STT_6.als:326-332)
+fun hpp_old : State {Mem_s}
+fun prop_old[p:PTag->univ,i:Instruction,s:State] : State { s - (Loads & no_unresolved_brs_bf_or_is_p[p] & i).inmem.opstate }
+fun a_old[p:PTag->univ,i:Instruction,s:State] : State { prop_old[p,i,s] }
+fun lcp_old[p: PTag->univ] : State {
+	a_old[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]),
+	a_old[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]),
+	a_old[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]).(spo_p[p]),
+	a_old[p,f[p].(spo_p[p]).(spo_p[p]).(spo_p[p]),
+	a_old[p,f[p].(spo_p[p]).(spo_p[p]),
+	a_old[p,f[p].(spo_p[p]),
+	a_old[p,f[p],hpp_old]]]]]]]
+}
+fun flag_old[p: PTag->univ] : Operand { (lcp_old[p].(~opstate) & speculative_xmit_p[p]) + (lcp_old[p].(~opstate).(^(op_edges_p[p])) & speculative_xmit_p[p]) }
+pred secure_old[p: PTag->univ] { no flag_old[p] }
+pred tag_old { some flag_old[no_p] & xm.operands }
+pred gul_old {
+  not secure_old[no_p]
+  all i: (unresolved - first_uncommitted) | secure_old[RR->i]
+  secure_old[RC->first_uncommitted + RR->first_uncommitted]
+  all s: State | secure_old[RS->s]
+}

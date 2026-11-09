@@ -1,0 +1,62 @@
+{
+  "branch_mode": "stl_bypass",
+  "annotations": [
+    {
+      "branch_pc": 3,
+      "btb_forced_target_pc": 4,
+      "mode": "mispredict_not_taken",
+      "branch_addr": 4198477,
+      "branch_addr_hex": "0x40104d",
+      "btb_forced_target_addr": 4198479,
+      "btb_forced_target_addr_hex": "0x40104f"
+    },
+    {
+      "branch_pc": 5,
+      "btb_forced_target_pc": 6,
+      "mode": "correctly_not_taken",
+      "branch_addr": 4198492,
+      "branch_addr_hex": "0x40105c"
+    }
+  ],
+  "xmit": {
+    "pc": 3,
+    "kind": "br_x",
+    "atom": "Instruction$2",
+    "addr": 4198477,
+    "addr_hex": "0x40104d"
+  },
+  "commit_boundary": {
+    "first_noncommitted": {
+      "pc": 0,
+      "atom": "Instruction$4",
+      "addr": 4198462,
+      "addr_hex": "0x40103e"
+    }
+  },
+  "stl_annotations": [
+    {
+      "store_pc": 0,
+      "load_pc": 1,
+      "role": "bypass",
+      "mem_atom": "Mem_s$0",
+      "mode": "stl_bypass",
+      "store_addr": 4198462,
+      "store_addr_hex": "0x40103e",
+      "load_addr": 4198465,
+      "load_addr_hex": "0x401041"
+    },
+    {
+      "store_pc": 0,
+      "load_pc": 2,
+      "role": "alias",
+      "mem_atom": "Mem_s$0",
+      "mode": "stl_bypass",
+      "store_addr": 4198462,
+      "store_addr_hex": "0x40103e",
+      "load_addr": 4198468,
+      "load_addr_hex": "0x401044"
+    }
+  ],
+  "func_base_addr": 4198432,
+  "func_base_addr_hex": "0x401020"
+}

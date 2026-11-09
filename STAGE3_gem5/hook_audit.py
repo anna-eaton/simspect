@@ -71,6 +71,9 @@ BUILDS = {
         se="/work/gem5-recon-modded/configs/example/se.py", cpu="X86O3CPU", extra=[]),
     "stt": dict(bin="/work/stt/build/X86/gem5.opt",
                 se="/work/stt/configs/example/se.py", cpu="DerivO3CPU", extra=[]),
+    # upstream STT master 5bf4110 + the same hooks as /work/stt (2026-11-08)
+    "stt-master": dict(bin="/work/stt-master/build/X86/gem5.opt",
+                       se="/work/stt-master/configs/example/se.py", cpu="DerivO3CPU", extra=[]),
     "stt-dbg": dict(bin="/work/stt-dbg/build/X86/gem5.opt",
                     se="/work/stt-dbg/configs/example/se.py", cpu="DerivO3CPU", extra=[]),
     "gem5-spt": dict(
@@ -313,6 +316,9 @@ def audit_one(build_name: str, s_path: str, ann_path: str, S: int, F: int,
     stem = s_path.stem
     workdir = Path(tempfile.mkdtemp(prefix=f"hookaudit_{stem}_"))
     rec = dict(build=build_name, test=stem, s=str(s_path), S=S, F=F, checks={})
+    # Hook audits always run the unmodified .s (cache_setup "warm"; build_binary
+    # refuses to build when SIMSPECT_CACHE_SETUP is set to anything else).
+    rec["cache_setup"] = "warm"
     try:
         ann = json.loads(ann_path.read_text())
         binary = build_binary(s_path, workdir)

@@ -1,0 +1,68 @@
+// recon-ruby (2026-11-08). New config; copied_from runconfigs/fixed_20261030/STT_6_reconmodded_fixed_latest.jsonc
+// (same harness: fnc stall 0, derived force, validity gate, sweep 0/500/2500, unresolved stall 5000, sample 0.02).
+// Build /work/gem5-recon-ruby3/build/X86/gem5.opt = copy of /work/gem5-recon-modded's sources (SimSpect hooks
+// included; src/mem/ruby == ruby-versions/ruby-singlecore, 0 diff entries) built with PROTOCOL=MESI_Three_Level
+// (build log /work/gem5-recon-ruby3/build_ruby3.log). Authors' instructions: documentation/docs/Files/email.txt
+// (ReCon = ruby-singlecore + MESI_Three_Level + --ruby + --scheme 2 --allow_leaked).
+// The harness always appends --caches; under --ruby it is inert (se.py:358-376: CacheConfig only in the non-ruby branch).
+// Cache geometry = the authors' example command line (email.txt, their FS SimPoint run): l0d/l0i 64kB 8-way,
+// l1d 2MB 16-way, l2 16MB 32-way, 64B lines. Kept per Anna 2026-11-08 (#12). NOT copied: --enable-prefetch
+// (SimSpect runs never configure a prefetcher), --cpu-clock=3GHz, --mem-size=8GB, and the FS-only flags.
+// config_script se_ruby.py = the authors' se.py with ONE line uncommented (`from ruby import Ruby`, se.py:56): their SE script ships it commented, so SE --ruby crashes (NameError). APPROVED by Anna 2026-11-08 (#11).
+// gem5.opt instead of the authors' gem5.fast: SimSpect needs the O3PipeView/LSQUnit/Commit DPRINTFs.
+// VALIDATION (ldld50 = 50 Recon_6 stems whose COMMITTED region has a load feeding a later load address, so a ReCon reveal can happen; testsets_recon_ruby_val/Recon_6_ldld50): current E6 = classic --caches --scheme=2 --allow_leaked on /work/gem5-recon-modded (R-SA-1 check).
+{
+  "paths": {
+    "alloy_stage": "STAGE1_alloy",
+    "models_dir": "STAGE1_alloy/models",
+    "stage2_dir": "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/instructions.jsonc",
+    "stage3_dir": "STAGE3_gem5",
+    "testset_dir": "testsets_recon_ruby_val",
+    "results_dir": "results",
+    "results_name": "Recon_6_ldld50_val_reconal_classic"
+  },
+  "alloy": {
+    "max_instances": 100000,
+    "batch_size": 1000
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow": false,
+    "branch_modes": [
+      "mispredict_not_taken"
+    ]
+  },
+  "gem5": {
+    "binary": "/work/gem5-recon-modded/build/X86/gem5.opt",
+    "config_script": "/work/gem5-recon-modded/configs/example/se.py",
+    "branch_ann_enable": true,
+    "cpu_type": "X86O3CPU",
+    "scheme": 2,
+    "caches": true,
+    "jobs": 16,
+    "debug_flags": [
+      "O3PipeView",
+      "LSQUnit"
+    ],
+    "debug_file": "pipeview.txt",
+    "fnc_commit_stall_cycles": 0,
+    "allow_leaked": true
+  },
+  "sweep": {
+    "enabled": true,
+    "points": [
+      0,
+      500,
+      2500
+    ],
+    "unresolved_stall_cycles": 5000
+  },
+  "pipeline": {
+    "check": "per_type",
+    "keep_tmp": true
+  },
+  "interleave": {
+    "enabled": false
+  }
+}

@@ -1,0 +1,62 @@
+[
+ {
+  "row": "E1",
+  "model": "STT_6_u_fv2",
+  "config": "runconfigs/twostage_fv2_20261109/E1_STT_6_u_fv2.jsonc",
+  "results_name": "E1_STT_6_u_fv2"
+ },
+ {
+  "row": "E2",
+  "model": "STT_6_u_fv2",
+  "config": "runconfigs/twostage_fv2_20261109/E2_STT_6_u_fv2.jsonc",
+  "results_name": "E2_STT_6_u_fv2"
+ },
+ {
+  "row": "E3",
+  "model": "STT_6_u_fv2",
+  "config": "runconfigs/twostage_fv2_20261109/E3_STT_6_u_fv2.jsonc",
+  "results_name": "E3_STT_6_u_fv2"
+ },
+ {
+  "row": "E4",
+  "model": "STT_6_u_fv2",
+  "config": "runconfigs/twostage_fv2_20261109/E4_STT_6_u_fv2.jsonc",
+  "results_name": "E4_STT_6_u_fv2"
+ },
+ {
+  "row": "E8",
+  "model": "STT_6_u_fv2",
+  "config": "runconfigs/twostage_fv2_20261109/E8_STT_6_u_fv2.jsonc",
+  "results_name": "E8_STT_6_u_fv2"
+ },
+ {
+  "row": "E9",
+  "model": "STT_6_u_fv2",
+  "config": "runconfigs/twostage_fv2_20261109/E9_STT_6_u_fv2.jsonc",
+  "results_name": "E9_STT_6_u_fv2"
+ },
+ {
+  "row": "E12a",
+  "model": "STT_6_u_fv2",
+  "config": "runconfigs/twostage_fv2_20261109/E12a_STT_6_u_fv2.jsonc",
+  "results_name": "E12a_STT_6_u_fv2"
+ },
+ {
+  "row": "E12b",
+  "model": "STT_6_u_fv2",
+  "config": "runconfigs/twostage_fv2_20261109/E12b_STT_6_u_fv2.jsonc",
+  "results_name": "E12b_STT_6_u_fv2"
+ },
+ {
+  "row": "E13",
+  "model": "STT_6_u_fv2",
+  "config": "runconfigs/twostage_fv2_20261109/E13_STT_6_u_fv2.jsonc",
+  "results_name": "E13_STT_6_u_fv2"
+ },
+ {
+  "row": "E14",
+  "model": "STT_6_u_fv2",
+  "config": "runconfigs/twostage_fv2_20261109/E14_STT_6_u_fv2.jsonc",
+  "results_name": "E14_STT_6_u_fv2"
+ }
+]

@@ -78,6 +78,12 @@ make mini-bootstrap  # copies ~/.ssh/config + sc key to the mini; then on the mi
 tmux. The mini stays up, so the SSH→cafe2→tmux chain survives your laptop sleeping; you just
 `make mini` to look in. Long sweeps keep running regardless of the laptop.
 
+## cafe1 and cafe3 (extra nodes, set up 2026-11-09 by simspect-c8)
+
+- **Holder jobs:** each node needs its own Slurm holder job before ssh works (pam_slurm_adopt): `ssh sc "sbatch --account=cafe --nodelist=<node> -p cafe-interactive --mem=32G --time=2-00:00:00 --job-name=hold_simspect_<node> --wrap 'sleep infinity'"`. On 2026-11-09 Anna's two jobs (18399467, 18399472) are both named `hold_simspect_cafe3`, one per node. Docker containers run outside the job's 2-CPU cgroup, so they get the whole node.
+- **Same container as cafe2:** `scripts/setup_cafe_node.sh <node>` (from the Mac; log `~/Library/Logs/simspect/setup_cafe_node_<node>.log`). It needs the snapshot image committed on cafe2 first (`docker commit --pause=false gem5_dev simspect_gem5_dev:20261109`; `--pause=false` keeps the running jobs going). It streams cafe2 → node with `ssh -A cafe2` (the Mac's forwarded key; no key is stored on the cluster): the image, volumes `gem5_tests` / `gem5_work` / `gem5_base` with the same mounts, `/opt/gem5-base`, and the gem5 trees the eval rows use (`gem5-recon-modded`, `stt-master`, `stt`, the four `amulet/amulet-gem5-*_AE-v1.1`) at the same `/work` paths, then `docker run -d --name gem5_dev ... sleep infinity`. `/tests` starts empty; each workload copies its own workspace in.
+- **Reach a node's container:** `ssh -A cafe2 "ssh <node> docker exec -i gem5_dev bash -lc '...'"` (or ssh to the node directly from the Mac).
+
 ## Dashboard (what it is)
 
 Stdlib-only web console (`dashboard.py` + `dashboard_data.py` + `dashboard_ui.py`), loopback-only,

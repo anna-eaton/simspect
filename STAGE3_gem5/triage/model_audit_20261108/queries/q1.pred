@@ -1,0 +1,10 @@
+// Q1: a value transmitted by a NON-speculative load (declassified) is also the
+// address of the speculative transmitter xm, and xm's address is NOT in the
+// protection set -- so xm is flagged only by the transitive (^op_edges) clause.
+pred q {
+  some prod: Loads, a2, a3: Inaddr |
+    a2 in nonspeculative_xmit_p[no_p] and
+    a3 in speculative_xmit_p[no_p] and a3 in xm.operands and
+    a2 in prod.outreg.rf and a3 in prod.outreg.rf and
+    a3 not in last_committed_protset_p[no_p]
+}

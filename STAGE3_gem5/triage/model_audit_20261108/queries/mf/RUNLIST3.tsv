@@ -1,0 +1,27 @@
+t1_gained	300	1800	SAT: sample to classify
+t1_lost	300	1500	SAT or UNSAT: sample to classify
+t4_lost	300	1500	SAT: the S-1 false positives v3 removes
+t4_gained	100	1800	SAT/UNSAT: instances v3 adds
+c_STT_6_v2_core_ri_b3	5000	1800	count at but 3
+c_Recon_6_v2_core_ri_b3	5000	1800	count at but 3
+c_SPT_6_oneLP_v3_core_ri_b3	5000	1800	count at but 3
+c_STT_6_core_ri_b3	5000	1800	count at but 3
+c_SPT_6_oneLP_v2_core_ri_b3	5000	1800	count at but 3
+c_STT_6_v2_core_ri_b4	5000	1800	count at but 4
+c_Recon_6_v2_core_ri_b4	5000	1800	count at but 4
+c_recon_core_committed_load_b5	1	2400	UNSAT: no committed load in any Recon RI core, so no reveal
+c_recon_not_stt_core_b5	1	2400	UNSAT: every Recon RI core is an STT_6_v2 RI core
+c_stt_not_recon_core_b5	1	2400	UNSAT: every STT_6_v2 RI core is a Recon RI core
+RFP:/Users/annaeaton/trippel/simspect/results/model_fixes_20261108/rf_patched/Recon_6.als	3	600	SAT (patched copy parses and has instances)
+RFP:/Users/annaeaton/trippel/simspect/results/model_fixes_20261108/rf_patched/Recon_6_core.als	3	600	SAT (patched copy parses and has instances)
+RFP:/Users/annaeaton/trippel/simspect/results/model_fixes_20261108/rf_patched/Recon_6_core_ri.als	3	600	SAT (patched copy parses and has instances)
+RFP:/Users/annaeaton/trippel/simspect/results/model_fixes_20261108/rf_patched/Recon_6_stl.als	3	600	SAT (patched copy parses and has instances)
+RFP:/Users/annaeaton/trippel/simspect/results/model_fixes_20261108/rf_patched/Recon_6_stl_core.als	3	600	SAT (patched copy parses and has instances)
+RFP:/Users/annaeaton/trippel/simspect/results/model_fixes_20261108/rf_patched/SPT_6_oneLP_stl.als	3	600	SAT (patched copy parses and has instances)
+RFP:/Users/annaeaton/trippel/simspect/results/model_fixes_20261108/rf_patched/SPT_6_oneLP_stl_core_conservative.als	3	600	SAT (patched copy parses and has instances)
+t1_gained_complete	1	900	UNSAT: every gained instance has an R-1 witness on xm
+t1_lost_complete	1	900	UNSAT: every lost instance is lost through an R-1 witness under a perturbation
+t4_lost_complete	1	900	UNSAT: v3 un-flags only where a load's value is transmitted non-speculatively
+t1_mono_on_newfacts	1	900	UNSAT (old flags subset of new, every perturbation)
+t1_mono_on_oldfacts	1	900	UNSAT
+t4_mono	1	900	UNSAT (v3 flags subset of v2, every perturbation)

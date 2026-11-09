@@ -16,7 +16,7 @@
 // "sources" keys: STT=Yu 2019, SPT=Choudhary 2021, RECON=Aimoniotis 2023, INVISI=Yan 2018, CLEANUP=Saileshwar 2019,
 //   SPECLFB=Cheng 2024, AMULET=Fu 2025, NDA=Weisse 2019, DOM=Sakalis 2019, DOPPEL=Kvalsvik 2023 (all PDF page numbers;
 //   RECON is an HTML print so sections only); G5=local gem5-recon source copy at
-//   ~/Documents/stanford/trippel/spectre-verify/run_asm/gem5-recon (path relative to src/arch/x86/isa/insts/general_purpose/).
+//   ~/trippel/spectre-verify/run_asm/gem5-recon (path relative to src/arch/x86/isa/insts/general_purpose/).
 {
   "schema": "simspect.vocab_candidates/v0-draft",
   "candidates": {

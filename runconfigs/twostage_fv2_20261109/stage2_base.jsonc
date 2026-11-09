@@ -1,0 +1,34 @@
+// base Stage-2 options for families whose fanout_v2 splicing/fillers are not signed off (ReCon, SPT; FV-3/FV-6): fv2_vocab table + random reg naming + branch_cond.from_alloy, no fanout_v2. simspect-c8 autopilot 2026-11-09.
+{
+  "paths": {
+    "alloy_stage": "STAGE1_alloy",
+    "models_dir": "STAGE1_alloy/models",
+    "stage2_dir": "STAGE2_compilation",
+    "instruction_tables": "STAGE2_compilation/instruction_tables/proposed/fv2_vocab.jsonc",
+    "stage3_dir": "STAGE3_gem5",
+    "testset_dir": "testsets_twostage",
+    "results_dir": "results",
+    "results_name": "stage2_only"
+  },
+  "speculation": {
+    "control_flow": true,
+    "data_flow": false,
+    "branch_modes": [
+      "mispredict_not_taken",
+      "mispredict_taken"
+    ]
+  },
+  "gem5": {
+    "jobs": 24
+  },
+  "interleave": {
+    "enabled": false
+  },
+  "reg_naming": {
+    "mode": "random",
+    "seed": 0
+  },
+  "branch_cond": {
+    "from_alloy": true
+  }
+}

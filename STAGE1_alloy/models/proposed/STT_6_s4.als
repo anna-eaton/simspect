@@ -10,11 +10,13 @@ gen_lit_s4 (the original gen_lit is kept verbatim below it).
     executed but not squashed is UNRESOLVED, so S4's leak snapshot (B0 resolved,
     B1 executed-not-squashed, L2 -> T on B1's wrong path) is already an STT_6
     violation. What STT_6 cannot emit is the S4 *context*: an older correctly
-    predicted slow branch B0 and a load L1 that feeds B1's predicate. Minimality
-    prunes both because they don't change the contract verdict:
-      (a) boundary clause: B0 = first_uncommitted, resolved; RC+RR->B0 stays insecure;
-      (b) RS clause: removing L1's output state (B1's predicate) stays insecure.
-  - gen_useful_litmus_s4 = gen_useful_litmus with exactly those two exemptions.
+    predicted slow branch B0 and a load L1 that feeds B1's predicate. The
+    boundary-minimality clause prunes B0: B0 = first_uncommitted and resolved,
+    so RC+RR->B0 changes nothing and the instance is dropped.
+  - gen_useful_litmus_s4 = gen_useful_litmus with exactly that one exemption.
+    (An RS exemption for L1's output state is NOT needed: RS is satisfied when
+    L1's output register is the same state as the leak path's register, which
+    concretizes to one physical register; query q5 vs q4.)
     Justification: STT paper Sec. 6.4.1 p7 ("delaying the effects of branch
     resolution until the branch's predicate becomes untainted") makes the TAINT of
     a branch predicate, and the older branch that keeps it tainted, decide WHEN a
@@ -344,20 +346,17 @@ fun s4_pred_feed : Instruction -> Instruction {
 	(Loads & uncommitted) <: (outreg.rf.(~inreg)) :> (unresolved & (Branchns+Branchxs))
 }
 fun s4_l1 : Instruction { s4_pred_feed.Instruction }
-// the state carrying B1's predicate (L1's output register; a load has <= 1 out)
-fun s4_pred_states : State { s4_l1.outreg.opstate }
 // B0: an older branch that is resolved (= correctly predicted in Stage 2, resolve
 // stall swept) but not committed, spo-before some L1
 fun s4_b0 : Instruction { (Branchns+Branchxs) & resolved & uncommitted & (^spo).s4_l1 }
 
-// gen_useful_litmus with exactly two exemptions; every other clause verbatim.
+// gen_useful_litmus with exactly ONE exemption; every other clause verbatim.
 let gen_useful_litmus_s4 {
   not secure_speculation_scheme_p[no_p]
   all i: (unresolved - first_uncommitted) | secure_speculation_scheme_p[RR->i]
-  // (a) boundary exemption: a resolved older branch B0 may be the boundary instr
+  // boundary exemption: a resolved older branch B0 may be the boundary instr
   (first_uncommitted in s4_b0) or secure_speculation_scheme_p[RC->first_uncommitted + RR->first_uncommitted]
-  // (b) RS exemption: B1's predicate state (L1's output) need not be leak-necessary
-  all s: (State - s4_pred_states) | secure_speculation_scheme_p[RS->s]
+  all s: State | secure_speculation_scheme_p[RS->s]
 }
 
 // Forcing predicate for the S4 shape (used by the measurement run s4_forced only).

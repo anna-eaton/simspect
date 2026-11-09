@@ -1,0 +1,7 @@
+# diag_recon_stlf_bypass: A2 / R-SA-9, Recon-STT forwards a tainted speculative load without the STT check (real gem5 bug, known)
+
+**Issue and signature.** On `/work/gem5-recon-modded` scheme 2, a transmitter load that the defense marks `isTainted=1 isSpeculative=1` gets its data by store-to-load forwarding and is ready inside the window. The diagnostic reads `recon_stlf_evidence.json` and buckets a hit only when the faithful rerun reproduced it, the transmitter's `STL_CHECK` line says `isTainted=1 isSpeculative=1`, a `Forwarding from store` line follows within 6 trace lines, and its Commit `ready within ROB` tick is before the held branch's `resolve_visible`.
+
+**Evidence file.** 2026-11-09 (bucket-fv2): written by `STAGE3_gem5/triage/rerun_hits_evidence.py --analyzer recon_stlf --extra-debug Commit` (faithful rerun from the campaign's own config through `pipeline.py gem5`; the Commit flag only adds print lines). Format identical to `recon_stlf_check.py`. Background: `wiki/findings/bug/recon_SLF_stlf_bypass/`, BUGS.md R-SA-9.
+
+**Verdict.** Real gem5 defense bug, known (Anna confirmed 2026-11-03). Scope: build-specific, every gem5-recon-modded scheme-2 campaign, each with its own evidence file. Caveat: it counts as a leak under the repo rule that a store-forwarded load obtained its data. Hits with only part of the signature (e.g. `isTainted=0`, or ready a few cycles after the branch resolves) stay NEW.

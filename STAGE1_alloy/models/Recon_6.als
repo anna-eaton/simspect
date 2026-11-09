@@ -158,6 +158,16 @@ fact one_entering_rf {all o: Operand | lone rf.o}
 fact unidirectional_rf {acyclic[(operands).rf.(~operands) + spo]}
 fact same_state_rf {no ((~opstate).rf.opstate - iden)}
 
+// [Option A] rf must read from the MOST-RECENT writer of the state:
+// forbid another writer of the same state spo-between an rf producer and its use.
+fact rf_from_most_recent_writer {
+  all prod: Instruction.outs, use: prod.rf |
+    no other: (Instruction.outs - prod) |
+        other.opstate = prod.opstate
+        and (prod.(~operands))  -> (other.(~operands)) in ^spo
+        and (other.(~operands)) -> (use.(~operands))   in ^spo
+}
+
 fact ld_ddi    {no (Loads.operands <: ddi) - (Inmem->Outreg)}
 fact str_ddi   {no (Stores.operands <: ddi) - (Inreg->Outmem)}
 fact other_ddi {no ((Otherns+Otherxs).operands <: ddi) - (Inreg->Outreg)}

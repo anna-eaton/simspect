@@ -1,0 +1,7 @@
+# diag_nda_forwarded_producer: R-SA-18 NDA half, store-forwarded speculative producer skips NDA's delay (known, leak status pending)
+
+**Issue and signature.** On NDA (gem5-recon-modded scheme 1), the transmitter's address comes from a speculative load P that got its data by store-to-load forwarding. The forward's `WritebackEvent` calls `writeback()` directly and skips NDA's delay in `completeDataAccess`, so P's value wakes the transmitter at once. The diagnostic buckets a hit when the faithful rerun reproduced it, the static slice has exactly one producer load P, and in some run P's execution prints `STL_CHECK ... isSpeculative=1` followed by `Forwarding from store`, with the transmitter executing at or after it. Evidence file `nda_fwd_evidence.json` (`rerun_hits_evidence.py --analyzer nda_fwd --extra-debug Commit`).
+
+**Evidence.** SOURCE_AUDIT_RECON.md R-SA-18 'gem5 check' (bug-investigate-ndastl): 8/8 NDA STL hits are this bypass. 2026-11-09 fanout-v2 2%: E8 fv2 matched 42/44 hit tests, e.g. inst-027890 (pc1 `movq %r11,(%r10,%r15)`; P = pc2 `movq (%r10,%r15),%r15`, `isTainted=0 isSpeculative=1`, forwarded at 2673000; transmitter pc3 executes at 2674500).
+
+**Verdict.** Real NDA implementation defect, already known (R-SA-18). Whether it is a leak depends on Q6 (NDA's permissive policy: the forwarded value is register data from an older store), so `PHASE = "known_pending"`. Scope: NDA campaigns (E8 fv2, E8 fv2fp).

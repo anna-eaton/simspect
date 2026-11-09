@@ -1,0 +1,7 @@
+# diag_stt_xmm4_skip: S1, STT drops taint through xmm4 (real gem5 bug, known)
+
+**Issue and signature.** STT's argProducer setup skips every source register whose class-relative index is 16 (`rob_impl.hh:229` on `/work/stt` and `/work/stt-master`, `:230` on `amulet-gem5-STT_AE-v1.1`). Index 16 is the integer zero register, but in the FP class it is `FLOATREG_XMM_LOW(4)`, so any micro-op that reads xmm4-low loses the taint. The diagnostic buckets a hit when (1) the transmitter's backward register slice (ld: address registers; br_x: compare source; rule of `bugwork/fp_hits/bucket_fp.py`, copied in `_fv2_slice.py`) reads or writes `%xmm4`, and (2) the GPR-only twin test (same stem and mode in `STT_6_fv2` on the same build) ran ok and did not hit (`twin_fv2/<mode>/<kind>/window-results.json`, a verbatim copy of the twin campaign's file).
+
+**Evidence.** `wiki/findings/bug/stt_xmm4_taint_skip/README.md`: 98/100 xmm4-routed STT_6 tests leak on `/work/stt` vs 0/100 for xmm3 and GPR; in the fv2fp campaigns every fp-only hit on E3 (31/31) and E4 (97/97) has xmm4 on the transmitter path and 0 tests without xmm4 hit; renaming xmm4 to xmm3 in 3 hit tests kills 3/3 hits on both builds.
+
+**Verdict.** Real gem5 defense bug (STT implementation), known, found by our pipeline. Scope: build-specific; install on every campaign on these STT builds whose testset routes values through xmm registers (2026-11-09: `E3_STT_6_fv2fp`, `E4_STT_6_fv2fp`). The fv2 twins have 0 hits.

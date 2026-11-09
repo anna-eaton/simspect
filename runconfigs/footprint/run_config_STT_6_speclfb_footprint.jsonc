@@ -44,6 +44,12 @@
     "checker":                 "check_footprint.py",   // pipeline.py:304-312 override; reads only the O3PipeView simspect: lines
     "criterion":               "specs/leakage/speclfb.json",   // footprint criterion (criteria session); pipeline.py:599-614 -> SIMSPECT_CRITERION
     "fnc_commit_stall_cycles": 0,                  // as run_speclfb.py:101
+    // Initial cache state (Anna 2026-11-09): CleanupSpec and SpecLFB default to "random" = each test runs warm or
+    // cold (clflush of its stack frame), chosen per test from sha256(seed, stem); every record carries the
+    // cache_setup it actually used. Not a standard run dimension; every other build stays warm.
+    // STAGE3_gem5/cache_setup.py, wiki/design/SIMSPECT_HOOKS.md "Cache setup strategies".
+    "cache_setup":             "random",
+    "cache_setup_seed":        "simspect-cache-random-v1",   // = cache_setup.DEFAULT_SEED; changing it changes which tests run cold
     // gem5_common.py:167 always adds --caches (classic L1I+L1D). --l2cache adds system.l2 (CacheConfig.py:133-145).
     "extra_args": [
       "--scheme=Speclfb",                          // the defense (Options.py:566-573; gates lsq_unit.cc:228, commit.cc:134, iew.cc:106, inst_queue.cc:164)

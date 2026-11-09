@@ -14,9 +14,13 @@ offending (struct, line, event_ids):
     issues as a write request: wiki/design/VOCAB_TABLES.md "RMW agent findings");
   * that instruction instance (`seq`) never retired (it is the squashed actor);
   * the trace has `L1D:cleanup_skip line=<line> seq=<seq> why=nohitinfo` for it.
+Each variant entry also carries the record's cache_setup (the strategy the test
+actually ran with: warm/cold; for gem5.cache_setup random it differs per test,
+2026-11-09), so diag_uv3_rmw.py can report and split by it.
 It writes <campaign>/diagnostics/uv3_rmw_evidence.json keyed "<mode>/<stem>"
 (one entry per stem; a stem counts as UV3 only if every hitting variant matches),
-gzips each hit's trace to <campaign>/diagnostics/traces/<mode>/<record>.pipeview.txt.gz,
+gzips each hit's trace to <campaign>/diagnostics/traces/<mode>/<record>.pipeview.txt.gz
+(a rerun after the workdirs are gone reads those gzipped copies instead),
 and then deletes every kept workdir listed in the raw records (all made by this
 campaign). Log: <campaign>/diagnostics/uv3_rmw_evidence.log.
 
@@ -37,10 +41,17 @@ from pathlib import Path
 PREFIX = "O3PipeView:simspect:"
 
 
+def _open(trace: Path):
+    """Plain trace, or the gzipped copy this script left in diagnostics/traces/ (2026-11-09)."""
+    if trace.suffix == ".gz":
+        return gzip.open(trace, "rt", errors="replace")
+    return trace.open(errors="replace")
+
+
 def parse_events(trace: Path):
     ev, retired = {}, set()
     skips = []
-    with trace.open(errors="replace") as fh:
+    with _open(trace) as fh:
         for ln in fh:
             if ln.startswith(PREFIX):
                 parts = ln.rstrip("\n").split(":")
@@ -57,7 +68,7 @@ def parse_events(trace: Path):
 def retired_seqs(trace: Path) -> dict:
     """seq -> retire tick from the O3PipeView records (fetch line carries the seq)."""
     out, cur = {}, None
-    with trace.open(errors="replace") as fh:
+    with _open(trace) as fh:
         for ln in fh:
             if ln.startswith("O3PipeView:fetch:"):
                 p = ln.split(":")
@@ -136,15 +147,24 @@ def main():
                 key = f"{mode}/{stem}"
                 try:
                     tr = Path(wd) / "m5out" / "pipeview.txt" if wd else None
+                    gz = dg / "traces" / mode / f"{rec['name']}.pipeview.txt.gz"
+                    if (tr is None or not tr.exists()) and gz.exists():
+                        tr = gz          # rebuild from an earlier pass's gzipped copy
                     if tr is None or not tr.exists():
-                        per_stem[key].append(dict(record=rec["name"], uv3=False, why="trace not kept"))
+                        per_stem[key].append(dict(record=rec["name"], uv3=False, why="trace not kept",
+                                                  cache_setup=rec.get("cache_setup", "warm")))
                         continue
                     j = judge(rec, tr)
                     j["record"] = rec["name"]
+                    j["cache_setup"] = rec.get("cache_setup", "warm")   # per record (random: per test)
+                    if rec.get("cache_setup_mode"):
+                        j["cache_setup_mode"] = rec["cache_setup_mode"]
+                        j["cache_setup_seed"] = rec.get("cache_setup_seed")
                     per_stem[key].append(j)
                     td = dg / "traces" / mode; td.mkdir(parents=True, exist_ok=True)
-                    with tr.open("rb") as fi, gzip.open(td / f"{rec['name']}.pipeview.txt.gz", "wb") as fo:
-                        shutil.copyfileobj(fi, fo)
+                    if tr != gz:
+                        with tr.open("rb") as fi, gzip.open(gz, "wb") as fo:
+                            shutil.copyfileobj(fi, fo)
                 except Exception:
                     L(f"ERROR {key} {rec['name']}:\n{traceback.format_exc()}")
                     per_stem[key].append(dict(record=rec["name"], uv3=False, why="exception"))
@@ -152,6 +172,13 @@ def main():
     (dg / "uv3_rmw_evidence.json").write_text(json.dumps(out, indent=2) + "\n")
     n = sum(1 for v in out.values() if v["uv3"])
     L(f"hits judged: {len(out)}  uv3: {n}  not uv3: {len(out) - n}")
+    by_cs = defaultdict(lambda: [0, 0])
+    for v in out.values():
+        cs = "+".join(sorted({x.get("cache_setup", "warm") for x in v["variants"]}))
+        by_cs[cs][0] += 1
+        by_cs[cs][1] += bool(v["uv3"])
+    for cs, (nh, nu) in sorted(by_cs.items()):
+        L(f"  cache_setup={cs}: hits {nh}  uv3 {nu}")
     for k, v in sorted(out.items()):
         if not v["uv3"]:
             L(f"  not-uv3 {k}: " + "; ".join(x["why"] for x in v["variants"] if not x["uv3"]))

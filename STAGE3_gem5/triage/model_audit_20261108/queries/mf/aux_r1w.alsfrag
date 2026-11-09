@@ -1,0 +1,9 @@
+// ---- aux: the R-1 witness under perturbation p: a non-speculative load l1 and a speculative load l3 read the same
+// Mem_s, and l3's memory read reaches a speculative transmitter operand (in xs) over rf+ddi.
+pred r1w[p: PTag->univ, xs: set Operand] { some l1, l3: Loads & i_p[p] |
+  l1 in no_unresolved_brs_bf_or_is_p[p] and l3 in speculation_contract_p[p] and
+  some (l3.inmem & o_p[p]) and (l3.inmem & o_p[p]).opstate in l1.inmem.opstate and
+  some ((l3.inmem & o_p[p]).(^(op_edges_p[p])) & speculative_xmit_p[p] & xs) }
+pred pert_any_r1 { (some i: (unresolved - first_uncommitted) | secure_old[RR->i] and not secure_new[RR->i] and not r1w[RR->i, Operand])
+  or (secure_old[RC->first_uncommitted + RR->first_uncommitted] and not secure_new[RC->first_uncommitted + RR->first_uncommitted] and not r1w[RC->first_uncommitted + RR->first_uncommitted, Operand])
+  or (some s: State | secure_old[RS->s] and not secure_new[RS->s] and not r1w[RS->s, Operand]) }

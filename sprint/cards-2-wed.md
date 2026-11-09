@@ -4,7 +4,7 @@
 
 *Decisions assumed (PAPER_PLAN.md §8): D1 re-scope "comprehensive" (targeted + capped). D2 KV3 = real known STT bug, outside SimSpect's leakage contract. D3 Recon back in. D4 AMuLeT 7 of 9 reproduced. D5 slow-comm in scope as an explicit assumption. D8 SPT = VP-untaint-only (freeParam=0), with the freeParam=3 slow-comm rerun results due Wed AM. Figures in TikZ.*
 
-Repo root below is `simspect/` = `/Users/annaeaton/Documents/stanford/trippel/simspect/`.
+Repo root below is `simspect/` = `/Users/annaeaton/trippel/simspect/`.
 
 ---
 
