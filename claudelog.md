@@ -6,6 +6,17 @@ future sessions (and the user) need to know. It is the counterpart to `claudenot
 - `claudenotes.md` = *ephemeral* "what I'm doing right now" scratchpad. Cleared/overwritten freely.
 - `claudelog.md` (this file) = *durable* "what we learned / changed and why". **Append, don't delete.**
 
+## 2026-11-08 — rmwjmp-draft — RMW + direct-jump Alloy variant drafted (not approved); the jump kind duplicates resolved br_n
+
+Drafted `STAGE1_alloy/models/proposed/STT_6_rmwjmp.als` (STT_6 + `TRmw` + `TJump`, pinned with `has_rmw_or_jmp`) and the unapplied concretization diff `STAGE1_alloy/models/proposed/STT_6_rmwjmp.parsexml.diff.txt`. No production `.als`, parsexml, table or pipeline file was touched. Scratch Alloy: compiles, SAT, cap 2,000 hit in 22 s. Findings: (1) a `TJump` is semantically identical to a resolved operand-less `TBranchn` in every STT_6 model, so jump-pinned instances are relabelled STT_6 instances, and jumps are better done at Stage 2 alone; (2) under RI-only Stage-1 minimality a jump can never be in a core (UNSAT ≤4), and in STT an RMW survives only as the transmitter, so the pin has to be re-applied at Stage 1.5; (3) today's parsexml silently turns an unknown kind into an ALU op (`leaq`, xmit kind "unknown"), so draft-model XML must never go through the unpatched pipeline. Write-up and DECIDE RJ-1..RJ-5: `wiki/design/VOCAB_TABLES.md` "RMW + direct-jump model variant (draft, 2026-11-08)".
+
+## 2026-11-08 — simspect-c8/manifest-3 — SPT v2 + AMuLeT-hooks briefs consolidated into the eval manifest
+
+- **Checked before merging:** `SPT_6_oneLP_v2.als` (resolve-hooks, draft, sha256 acb1f2e2) = `SPT_6_oneLP.als` + exactly four `[v2-n]` edits (diff): rf fact, perturbation-aware seed (byte-identical to simspect-c8's proposed diff), ≥1-leaker base clause, declassification over `rf_p` only. Anna's AMuLeT decisions cited by hooks-v2 are in `URGENT_TODO.md` (shrunk footprint configs; TBE 8/256; two STT roles; RMW disjoint corpus); `runconfigs/footprint/` and `runconfigs/amulet_parity/` exist and carry the stated flags (parity amulet-STT omits `--l1i_assoc`, = AMuLeT's default 2).
+- **Manifest (`wiki/state/EVAL_MANIFEST.md`) now:** E11 uses SPT_6_oneLP_v2 (core `SPT_6_oneLP_v2_core_ri.als`, RI-only: 546 at but 3, 5000 capped at but 4); pre-v2 SPT model/cores/testsets = provenance only; E2 known real bug A2 dominates (round 4: 91/94 load tests); E4 unblocked (glue fixed, smoke-tested); E12 split into E12a Futuristic / E12b Spectre; E12-E14 on shrunk footprint configs (default eval), AMuLeT-parity rows T1-T5 for timing and bug confirmation only; pending rows C1-C3; 'Later: AMuLeT on the other defenses'; harness facts (resolve hooks; lc/fnc Commit-trace fix not yet in /tests/simspect → make sync before the final batch; `sample_fraction` still 0.02 in the fixed templates).
+- **`specs/defense_units.json`:** re-serialized (indent 2); every unit `status` = to_run (old value kept as `prior_status`), so the dashboard's to-run panel shows the whole eval; unit 3 `alloy_model` = SPT_6_oneLP_v2; new unit 16 (E12b); `model_families.SPT_6_oneLP_v2`; new top-level `amulet_parity_runs`, `pending_rows`, `_amulet_parity_rule`. Dashboard card shows `role`/`prior` (JS `node --check` OK; `dashboard_data.defense_units()` loads 16 units).
+- **Hash label:** resolve-hooks flagged simspect-c8's differential log label 'sha 65eae944' as wrong; it is the SHA-1 of the same unchanged file (SHA-256 713d0904).
+
 ## 2026-11-08 — simspect-c8/manifest-2 — both briefs consolidated; Anna decides RI-only cores, recon-only STL, SPT seed fix after check, Alloy on cafe2
 
 - **Consolidated** `wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md` (twophase-spt) and the STL handoff in `wiki/design/STL_SPECULATION.md` (stl-spec) into `wiki/state/EVAL_MANIFEST.md`: per-family two-stage table (incl. STL cores: STT_6_stl_core EXHAUSTED at 306 cores; Recon_6_stl_core running; SPT STL core UNSAT), SPT conservative core = default (Anna's condition met), RO+RI SPT core superseded, every eval row NOT RUN (Anna: everything re-run on two-stage testsets; prior campaigns listed as reference only; `specs/defense_units.json` unit.eval.status/prior updated, dashboard card shows `prior`). Naming: the brief's "Stage 2 / round 2" is written as Stage 1.5 (the figure's and URGENT_TODO's name).
@@ -235,6 +246,14 @@ Read-only audit of all SimSpect gem5 changes except the three AMuLeT footprint b
 - **Gap:** store sources with no true alias (the store writes an unspecified location) don't concretize under stl_bypass. Also, the model allows a store and a load to share a Mem_s atom with no rf edge; those alias concretely and concretize fine. DECIDE in URGENT_TODO (recommendation: an atom-based alias fact in shadows).
 - **Driver fix:** `gem5-hooks/stl/stl_hooktest.py` now resolves `<testdir>` to an absolute path (a relative one made gem5 miss `--stl-ann-file`).
 
+## 2026-11-08 16:40 — resolve-hooks — SPT brief moved to its own file; old two-phase brief deleted (Anna)
+
+Anna asked for a standalone brief and for the old one to be deleted.
+- **New brief:** `wiki/design/MANIFEST_BRIEF_SPT_v2.md`.
+- **Deleted:** `wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md` (tracked in git, recoverable from history). Its two-phase content was already consolidated into `wiki/state/EVAL_MANIFEST.md`, and its SPT choice is superseded by the new brief.
+- **Repointed** to the new brief: the v2 model's review comment, its three re-derived cores, `URGENT_TODO.md`, `STATUS.md`, `ALLOY_MODEL_CHANGES.md`, `specs/alloy_models.json`, and EVAL_MANIFEST's source list.
+- **v2's sha256 is now `acb1f2e21e5e6c3b`**, because only that comment line changed (it was `db9ea73ab1bbb832` in the entries above). The semantics are identical, so the running cafe2 "lost" check, built from the earlier text, still applies.
+
 ## 2026-11-08 15:10 — resolve-hooks — SPT consolidated as SPT_6_oneLP_v2.als (draft); simspect-c8's seed fix audited and adopted
 
 Anna asked me to audit the other sessions' SPT change and consolidate SPT for the final batch, without deleting the original.
@@ -258,7 +277,7 @@ Anna asked me to audit the other sessions' SPT change and consolidate SPT for th
 - v2 is SAT, 50 instances in 9 s at production scope.
 - Census, 3,000 instances, orig → v2: stale rf 63% → 0, clean 23% → 58%, unfed read 28% → 33%, constant-derived transmitter 2.4% → 9.6% (P3 not applied, on purpose).
 - Differential under v2's facts: both ≥500, gained ≥500 (300 sampled: 227 clean).
-- `lost` was still running at the time of writing.
+- `lost` was still running at the time of writing. **Update 16:22:** it timed out at 90 min with no counterexample, so it's inconclusive; my wrapper logged `rc=0` because `$?` was read after `$(date)` (fixed). An 8 h rerun is on cafe2 (`triage/spt_v2/lost_cafe2.log`). Also: the RI-only v2 core (`proposed_twophase/SPT_6_oneLP_v2_core_ri.als`, the decided RI-only rule) gives 546 at `but 3` and 5,000 (capped) at `but 4`.
 
 Brief for the manifest agent: `wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md` §0. Registry: `specs/alloy_models.json` `SPT_6_oneLP_v2` (tier variant, DRAFT).
 

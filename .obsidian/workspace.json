@@ -190,6 +190,11 @@
   },
   "active": "347a9dc0eec19401",
   "lastOpenFiles": [
+    "STAGE1_alloy/models/proposed/STT_6_rmwjmp.parsexml.diff.txt",
+    "wiki/findings/audits/2026-11-08",
+    "wiki/design/MANIFEST_BRIEF_SPT_v2.md",
+    "STAGE1_alloy/models/proposed/STT_6_rmwjmp.als",
+    "results/spt_v2_20261108/differential/run_lost_cafe2.sh",
     "STAGE3_gem5/triage/diag/diag_uv3_rmw.md",
     "STAGE3_gem5/triage/diag/diag_uv3_rmw.py",
     "STAGE3_gem5/triage/uv3_rmw_evidence.py",
@@ -198,11 +203,8 @@
     "results/spt_v2_20261108/tiny/v2_core_ri_but3.out",
     "results/spt_v2_20261108/tiny/v2_core_ri_but4.als",
     "results/spt_v2_20261108/tiny/v2_core_ri_but3.als",
-    "STAGE1_alloy/models/proposed_twophase/SPT_6_oneLP_v2_core_ri.als",
     "wiki/findings/mdsToRead/AMULET_BUGS_DETECTION_ACCOUNTING.md",
     "wiki/design/MANIFEST_BRIEF_amulet_hooks.md",
-    "results/twophase_stage1_2026-11-03/probe_spt_seed_20261107/differential_20261108/proposed_SPT_6_oneLP_seed.diff",
-    "results/twophase_stage1_2026-11-03/probe_spt_seed_20261107/differential_20261108/SPT_6_oneLP.proposed.als",
     "wiki/findings/bug/speclfb_jmp_shadow/README.md",
     "wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md",
     "wiki/state/EVAL_MANIFEST.md",
@@ -233,8 +235,6 @@
     "paper_figures/plans/fig_b_relaxation.md",
     "paper_figures/plans/AUDIT_existing_figures.md",
     "paper_figures/plans/fig_c_interleave.md",
-    "paper_figures/plans/fig_e_checkerwindow.md",
-    "paper_figures/plans/fig_a_execgraphsyntax.md",
-    "paper_figures/plans/fig_d_instrtable.md"
+    "paper_figures/plans/fig_e_checkerwindow.md"
   ]
 }

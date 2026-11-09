@@ -2,7 +2,7 @@
 
 At-a-glance index of every `.als` physically in this folder. **This is a navigational front-door, not a competing source of truth:** the canonical per-model metadata lives in `specs/alloy_models.json` (keyed by stem; drives the dashboard Utilities → Alloy models table) and the deeper design write-up is `wiki/design/MODELS_AND_BUILDS.md`. Summaries below are mirrored from that JSON — edit metadata there, not here. **Never edit, regenerate, or reformat any `.als` without Anna's per-change sign-off** (CLAUDE.md).
 
-Last built: 2026-10-30; manifest section rebuilt 2026-11-08. Folder holds 21 `.als` (incl. 3 symlinks) + the `old_models/` archive + `util/` + a visualizer theme, plus the draft folders `proposed/` (STL and shadows drafts, `derive_stl.py`) and `proposed_twophase/` (Stage-1 core drafts, `derive_core.py`, `run_stage1.py`), which the pipeline does not read.
+Last built: 2026-10-30; manifest section rebuilt 2026-11-08. Folder holds 21 `.als` (incl. 3 symlinks) + the `old_models/` archive + `util/` + a visualizer theme, plus the draft folders `proposed/` (STL, shadows and RMW+jump drafts, `derive_stl.py`) and `proposed_twophase/` (Stage-1 core drafts, `derive_core.py`, `run_stage1.py`), which the pipeline does not read.
 
 ---
 
@@ -32,6 +32,14 @@ The per-defense tables that were here (model families: main / split core / STL /
 | `STT_6_modified_protset.als` | STT_6 | STT at operand granularity (not state) + `rf_from_most_recent_writer` + first_uncommitted fallback. Contract experiment; never enumerated. |
 | `SPT_6.als` | — | Base/full SPT, operand-granularity (`hardware_protection_policy = Instruction.operands`). No one-leak-point restriction; no store transmitters. |
 | `SPT_6_oneLP_noSTLF.als` | SPT_6_oneLP | Minus store-to-load-forwarding paths — leakage back to loads+branches only. Control to isolate STLF as the leak source. Never enumerated. |
+
+## Drafts in `proposed/` (unapproved; the pipeline does not read them)
+
+| File | Base | What it changes |
+|---|---|---|
+| `proposed/STT_6_rmwjmp.als` | STT_6 | Draft 2026-11-08, not approved. Adds two kinds as a kind-generic skeleton patch: `TRmw` (x86 `orq %r,(mem)`, with load and store halves on one location, an optional ALU source and no outreg) and `TJump` (a direct `jmp`: no operands, always resolved, never a speculation source or transmitter). The STT defense block changes only to classify the RMW: its address joins the leakage function, and a non-speculative RMW declassifies its location like a load. Every instance is pinned by `has_rmw_or_jmp`. Scratch Alloy: SAT, cap 2,000 reached in 22 s. A `TJump` is a relabelled resolved operand-less `TBranchn`, so the jump adds no new model shapes. The concretization diff is `proposed/STT_6_rmwjmp.parsexml.diff.txt` (not applied). Write-up and decisions RJ-1..RJ-5: `wiki/design/VOCAB_TABLES.md` "RMW + direct-jump model variant". |
+
+The other drafts here (`STT_6_shadows.als`, `Recon_6_stl.als`, `SPT_6_oneLP_stl.als`) and the `proposed_twophase/` core drafts are tracked in `wiki/state/EVAL_MANIFEST.md`.
 
 ## Symlinks (aliases — not separate models)
 

@@ -1875,7 +1875,7 @@ function openUnitInspector(number) {
   // which eval row, exact gem5 flags, testset, run config, checker, status, blocker.
   if (u.eval) {
     html += `<div class="card"><strong>Eval recipe (row ${esc(u.eval.row || '')})</strong><div class="card-meta">${
-      ['set', 'gem5_flags', 'testset', 'run_config', 'checker', 'status', 'blocker', 'prior'].filter(k => u.eval[k]).map(k =>
+      ['set', 'role', 'gem5_flags', 'testset', 'run_config', 'checker', 'status', 'blocker', 'prior'].filter(k => u.eval[k]).map(k =>
         `<strong>${esc(k)}:</strong> ${esc(u.eval[k])}`).join('<br>')}</div></div>`;
   }
   // Model family of the unit's main model (specs/defense_units.json model_families):

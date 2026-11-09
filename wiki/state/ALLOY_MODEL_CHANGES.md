@@ -11,7 +11,7 @@ the backlog + rationale so the edits don't live only in scattered findings mds.*
 
 ## 2026-11-08 — SPT_6_oneLP: conservative fix plan (proposal; nothing applied)
 
-**Update 2026-11-08 (later, Anna asked for a consolidated SPT):** P1 + P2 + P4 + simspect-c8's perturbation-aware seed are implemented as a NEW draft file, `STAGE1_alloy/models/SPT_6_oneLP_v2.als`; `SPT_6_oneLP.als` is unchanged. P3 and P5 are not included. Cores: `proposed_twophase/SPT_6_oneLP_v2_core{,_conservative}.als`. Audit, validation and the manifest instructions: `wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md` §0.
+**Update 2026-11-08 (later, Anna asked for a consolidated SPT):** P1 + P2 + P4 + simspect-c8's perturbation-aware seed are implemented as a NEW draft file, `STAGE1_alloy/models/SPT_6_oneLP_v2.als`; `SPT_6_oneLP.als` is unchanged. P3 and P5 are not included. Cores: `proposed_twophase/SPT_6_oneLP_v2_core{,_conservative}.als`. Audit, validation and the manifest instructions: `wiki/design/MANIFEST_BRIEF_SPT_v2.md` §0.
 
 Goal from Anna: be conservative, generate too many tests rather than too few. So every change below either removes only instances that cannot be realized as programs or that are provably public under SPT's own rules, or adds tests. Evidence: round-4 fixed-harness campaign on `testsets_latest/SPT_6_oneLP` (the current model, e298a9e). All 341 SPT hit tests have a transmitter operand SPT considers public: x86 slice with gem5-spt's taint rules, and gem5 never delayed a branch transmitter. Census over all 150,000 instances: `STAGE3_gem5/triage/spt_testset_shapes.py`, cafe2 `/tests/simspect_fixed_20261030/triage/r4/spt_latest_shapes.json`. Control: STT_6 shows 0 stale-rf and 0 constant-derived transmitters.
 

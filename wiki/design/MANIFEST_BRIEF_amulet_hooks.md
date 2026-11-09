@@ -1,5 +1,7 @@
 # Brief for the eval-manifest owner: AMuLeT-build changes (hooks-v2 session, 2026-11-08)
 
+**Consolidated 2026-11-08 into [`../state/EVAL_MANIFEST.md`](../state/EVAL_MANIFEST.md) and `specs/defense_units.json` (simspect-c8); facts checked against the files. Delete once Anna has read the manifest.**
+
 **For:** the agent that owns [`wiki/state/EVAL_MANIFEST.md`](../state/EVAL_MANIFEST.md) and `specs/defense_units.json`. These are proposed edits to that manifest, as read on 2026-11-08 15:00. Apply them to both files together, per the manifest's own rule.
 
 **Status:** Anna has approved the decisions cited as "(Anna 2026-11-08)". Everything else is marked as a proposal or as open.
@@ -79,7 +81,7 @@ Add these notes under the T table:
 
 | # | experiment | depends on | what it adds |
 |---|---|---|---|
-| C1 | **DECIDED (Anna 2026-11-08): RMW as a disjoint corpus.** A separate testset whose ld transmitters are value-neutral RMWs (`orq $0,(mem)`), run on E13 (CleanupSpec) and on the STT rows. It never mixes into the main STT_6 corpus. Being built (hooks-v2 session); give it its own row and results dir | a `diag_uv3_rmw` bucket (every CleanupSpec test is expected to show UV3) | the only way the STT_6 family reaches CleanupSpec UV3; RMW load halves are already protected on every other build (checked 2026-11-08) |
+| C1 | **DECIDED (Anna 2026-11-08): RMW as a disjoint corpus,** now as two pieces: (i) interim, a post-processed corpus `testsets_latest/STT_6_rmw`; (ii) planned, a model variant `proposed/STT_6_rmwjmp.als` that adds RMW and direct-jump kinds, pinned so every instance contains one (draft; needs sign-off). A separate testset whose ld transmitters are value-neutral RMWs (`orq $0,(mem)`), run on E13 (CleanupSpec) and on the STT rows. It never mixes into the main STT_6 corpus. Being built (hooks-v2 session); give it its own row and results dir | a `diag_uv3_rmw` bucket (every CleanupSpec test is expected to show UV3) | the only way the STT_6 family reaches CleanupSpec UV3; RMW load halves are already protected on every other build (checked 2026-11-08) |
 | C2 | 2-core CleanupSpec: does a speculative GETX invalidating another core's copy leak? | Anna's go-ahead | tests an unverified hypothesis from the RMW study (CleanupSpec assumes RFOs are non-speculative, p8 §4) |
 | C3 | SpecLFB jmp-shadow as a counted finding: variant matrix + counterfactual as a paper figure | Anna's DECIDE (count it; contact the authors) | the evidence already exists: `/work/amulet/jmpshadow_probe/` |
 

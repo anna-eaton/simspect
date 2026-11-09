@@ -17,7 +17,7 @@
 //          (paper Sec. 6 "Untaint rules": MOV, invertible ADD) untaint less
 //          than the old cone, so the old rule under-protected.
 // Review + evidence: wiki/state/ALLOY_MODEL_CHANGES.md (2026-11-08) and
-// wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md.
+// wiki/design/MANIFEST_BRIEF_SPT_v2.md.
 // =============================================================================
 
 

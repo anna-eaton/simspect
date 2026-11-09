@@ -1,6 +1,6 @@
 // =============================================================================
 // [STAGE-1 CORE DRAFT — UNAPPROVED, do not use for production testsets]
-// Derived from SPT_6_oneLP_v2.als (sha256 db9ea73ab1bbb832e71e1c3415ae5e4986297542f0c7be0033f7fd1da6afefe4) by
+// Derived from SPT_6_oneLP_v2.als (sha256 acb1f2e21e5e6c3b98e7dfd8eec71bc9d9282578303626655334768addb61e8d) by
 // STAGE1_alloy/models/proposed_twophase/derive_core.py --minimality ri.
 // Same three changes as the STT_6_core.als prototype: idx/IX symmetry-breaking
 // removed, minimality (f) RI only added to gen_useful_litmus, scope 'exactly 6'
@@ -27,7 +27,7 @@
 //          (paper Sec. 6 "Untaint rules": MOV, invertible ADD) untaint less
 //          than the old cone, so the old rule under-protected.
 // Review + evidence: wiki/state/ALLOY_MODEL_CHANGES.md (2026-11-08) and
-// wiki/design/MANIFEST_BRIEF_twophase_and_SPT.md.
+// wiki/design/MANIFEST_BRIEF_SPT_v2.md.
 // =============================================================================
 
 

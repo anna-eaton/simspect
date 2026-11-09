@@ -1,0 +1,186 @@
+PROPOSED, NOT APPLIED (2026-11-08). Concretization for the STT_6_rmwjmp draft model
+(STAGE1_alloy/models/proposed/STT_6_rmwjmp.als). parsexml.py and the instruction
+tables are approval-gated: Anna signs off before any of this is applied.
+
+WHY IT IS NEEDED: today's parsexml maps unknown kind tags to "unknown" -> other_n, so
+an RMW XML is SILENTLY concretized as an ALU op (scratch run: the RMW transmitter at
+pc2 became `leaq ($1,$2),$0`, and ann.json said "kind": "unknown"). Never feed
+STT_6_rmwjmp XML through the unpatched pipeline.
+
+WHAT IT DOES
+  - _TYPE_TAG_TO_KIND: TRmw -> "rmw", TJump -> "jmp".
+  - instructions.jsonc: categories rmw/jmp; candidates
+      rmw_or     uses [inreg0, inaddr, inmem, outmem]   -> `orq src, (addr)`
+      jmp_direct uses []                                -> `jmp .Ljmp_<stem>_pc<N>` to the next instruction
+  - pass 5 (emit): new `rmw_or` branch. Addressing is the same as `load`/`store`:
+    specified inaddr -> `orq src, (%probe_base, %inaddr, 1)` (probe_mem + secret);
+    otherwise `orq src, off(%mem_base)` using the outmem (= inmem) slot. src = the
+    inreg0 SSA value pinned to its physical register; a blank inreg0 gets a pass-3
+    virtual register initialised to 0, so the RMW is value-neutral. The pc marker
+    (and the last_committed/first_noncommitted labels) are inside the same asm
+    string, directly on the orq, so ann.json xmit.pc = the RMW.
+  - pass 5: new `jmp_direct` branch: `<marker>jmp .Lj; .Lj:` in ONE inline asm, so the
+    LLVM CFG is unchanged, nothing can land between marker and jmp, and the jmp is
+    a real direct unconditional transfer to the next instruction. No branch
+    annotation, no BTB force (pass 2.5 only rewrites br_n/br_x; jmp is not in
+    _BRANCH_KINDS, so it is untouched there).
+  - probe_mem allocation check: add "rmw_or" next to "load"/"store".
+  - _stl_arch_values (stl_bypass only): rmw_or = mem[a] |= src; jmp_direct = no-op.
+    Note pass2_6 STL pairing still looks only at kind "str"/"ld", so an RMW is never
+    an STL store/bypass-load partner; that would be a separate change.
+
+NOT IN THIS DIFF (also approval-gated; listed so nothing is forgotten)
+  - pipeline.py _KIND_TO_CHECKER: add `"rmw": "check_ld.py"`. Today "rmw" already
+    falls back to _DEFAULT_CHECKER = check_ld.py, so behaviour is the same, but the
+    mapping should be explicit. check_ld sees the RMW's ldst micro-op as an LSQ
+    "Executing load" (VOCAB_TABLES.md "RMW agent findings"); the data-obtained gate
+    applies unchanged. testrun.py partitions by kind, so RMW hits would land in a new
+    `<mode>/rmw/` dir; dashboards that hard-code ld/br_x/other_x need the new kind.
+  - interleave _build_chain (parsexml.py:307-331) does not inject rmw/jmp steps.
+  - pass 2.5's mispredict_taken ftbypass trampoline was not exercised with a jmp in
+    the program (only mispredict_not_taken was tested).
+  - On CleanupSpec every speculative RMW hits the known UV3 (cleanup_skip nohitinfo),
+    so a diag_uv3_rmw known-cause bucket must exist before running there.
+
+SCRATCH VERIFICATION (patched COPY of parsexml.py in the session scratchpad; real
+file untouched): 47 STT_6_rmwjmp XMLs from the scratch enumeration (29 from the
+RMW-pinned run, 9 from the RMW-transmitter run, 9 from the main pinned run, all jumps) -> batch_generate --mode
+mispredict_not_taken: 47/47 ok; llc -O2 x86_64: 47/47 compiled. Sample output:
+    .globl __litmus_xinst_000001_pc2
+  __litmus_xinst_000001_pc2:
+    orq %r10, (%rsi,%rax)            # RMW transmitter, addr = probe_mem + tainted %rax
+    ann.json: "xmit": {"pc": 2, "kind": "rmw", ...}
+    .globl __litmus_jinst_000001_pc0
+  __litmus_jinst_000001_pc0:
+    jmp .Ljmp_jinst_000001_pc0
+  .Ljmp_jinst_000001_pc0:
+Not run: compile_annotate.py (needs clang-15 + GNU ld, not on this Mac), gem5.
+
+=== STAGE2_compilation/parsexml.py ===
+--- a/STAGE2_compilation/parsexml.py
++++ b/STAGE2_compilation/parsexml.py
+@@ -104,6 +104,8 @@
+     "TBranchx": "br_x",
+     "TOthern":  "other_n",
+     "TOtherx":  "other_x",
++    "TRmw":     "rmw",   # STT_6_rmwjmp draft kind: x86 read-modify-write (orq %r,(mem))
++    "TJump":    "jmp",   # STT_6_rmwjmp draft kind: direct unconditional jmp
+ }
+ 
+ def _kind_token(ins: str, kind_of: Dict[str, str]) -> str:
+@@ -1162,7 +1164,16 @@
+             ba = rec.get("branch_annotations") or {}
+             if ba.get("condition_value") or c == "br_bez":
+                 raise ValueError(f"stl_bypass: architecturally taken branch at pc={rec['pc']} before the bypass load")
+-        elif c == "nop":
++        elif c == "rmw_or":
++            # mem[a] |= src (src = 0 when inreg0 is blank). Same location for both halves.
++            space, off, _ = _mem_addr_of(rec, "outmem", vals)
++            check(space, off)
++            old = sum(mem.get((space, off + b), 0) << (8 * b) for b in range(8))
++            src = val(rec, "inreg0") if (get_slot(rec, "inreg0") or {}).get("ssa_name") else 0
++            v = (old | src) & _MASK64
++            for b in range(8):
++                mem[(space, off + b)] = (v >> (8 * b)) & 0xFF
++        elif c in ("nop", "jmp_direct"):
+             pass
+         else:
+             raise ValueError(f"stl_bypass: can't evaluate {c!r} at pc={rec['pc']}")
+@@ -2064,7 +2075,7 @@
+         (get_slot(_r, "inaddr") or {}).get("specified") and
+         (get_slot(_r, "inaddr") or {}).get("ssa_name")
+         for _r in instructions
+-        if _r.get("concrete_instruction") in ("load", "store")
++        if _r.get("concrete_instruction") in ("load", "store", "rmw_or")
+     )
+ 
+     # ---- Alloca + memory zero-initialisation ----
+@@ -2254,7 +2265,56 @@
+                     il(f'call void asm sideeffect '
+                        f'"{mkr}movq $$0, {offset}($0)", '
+                        f'"{{{_probe_base_phys}}},~{{memory}}"(ptr %mem_base)')
++
++        elif concrete == "rmw_or":
++            # x86 read-modify-write `orq src, (mem)`: one instruction whose load half
++            # (gem5 ldst micro-op) and store half hit the SAME address. Addressing
++            # mirrors "load"/"store": a specified inaddr is a byte offset into
++            # probe_mem (canonical Spectre probe); otherwise the Alloy inmem/outmem
++            # slot of mem_base. A blank inreg0 gives `orq $0` (value-neutral). The pc
++            # marker sits on the orq itself, so xmit.addr = the RMW. No outreg.
++            inaddr_sr = get_slot(rec, "inaddr")
++            _ia_specified = inaddr_sr and inaddr_sr.get("specified")
++            inaddr_ssa  = inaddr_sr.get("ssa_name") if _ia_specified else None
++            inaddr_phys = inaddr_sr.get("assigned") if _ia_specified else None
++            inreg0_sr = get_slot(rec, "inreg0")
++            ops: List[str] = []
++            cons: List[str] = []
++            if inreg0_sr and inreg0_sr.get("ssa_name"):
++                phys_src = inreg0_sr.get("assigned")
++                ops.append(f'i64 %{inreg0_sr["ssa_name"]}')
++                cons.append(f'{{{phys_src}}}' if phys_src else 'r')
++                src_txt = "$0"
++            else:
++                src_txt = "$$0"
++            b = len(ops)
++            if inaddr_ssa and inaddr_phys:
++                ops += ["ptr %probe_mem", f"i64 %{inaddr_ssa}"]
++                cons += [f"{{{_probe_base_phys}}}", f"{{{inaddr_phys}}}"]
++                addr_txt = f"(${b}, ${b + 1}, 1)"
++            else:
++                idx = mem_slot_idx(rec, "outmem")
++                if idx is None:
++                    idx = mem_slot_idx(rec, "inmem")
++                if idx is None or alloca_n == 0:
++                    il(f'call void asm sideeffect ".globl {marker}\\0A{marker}:", ""()')
++                    cm(f"WARNING: rmw {atom} missing mem offset — skipped")
++                    continue
++                ops.append("ptr %mem_base")
++                cons.append(f"{{{_probe_base_phys}}}")
++                addr_txt = f"{idx * 8}(${b})"
++            il(f'call void asm sideeffect '
++               f'"{mkr}orq {src_txt}, {addr_txt}", '
++               f'"{",".join(cons)},~{{memory}},~{{flags}}"({", ".join(ops)})')
+ 
++        elif concrete == "jmp_direct":
++            # Direct unconditional jump to the very next instruction, kept inside one
++            # inline-asm string so the IR CFG is unchanged and nothing can sit
++            # between the pc marker and the jmp. Never speculative (no branch
++            # annotation, no BTB force); a cold BTB costs only a decode redirect.
++            jl = f".Ljmp_{safe_name}_pc{pc}"
++            il(f'call void asm sideeffect "{mkr}jmp {jl}\\0A{jl}:", ""()')
++
+         elif concrete == "bitnot":
+             inreg0 = ssa_ref(rec, "inreg0") or "0"
+             inreg0_sr = get_slot(rec, "inreg0")
+
+=== STAGE2_compilation/instruction_tables/instructions.jsonc ===
+--- a/STAGE2_compilation/instruction_tables/instructions.jsonc
++++ b/STAGE2_compilation/instruction_tables/instructions.jsonc
+@@ -6,9 +6,27 @@
+     "br_x":    "br",
+     "other_n": "other_n",
+     "other_x": "other_x",
++    "rmw":     "rmw",
++    "jmp":     "jmp",
+     "unknown": "other_n"
+   },
+   "instructions": {
++    "rmw": [
++      {
++        "name":    "rmw_or",
++        "llvm_op": "orq r,(m)",
++        "comment": "x86 read-modify-write: orq src,(addr). Load half (gem5 ldst) and store half on one address; address = probe_mem + inaddr when inaddr is specified, else the inmem/outmem slot of mem_base; src = inreg0 or $0 (value-neutral). No outreg. Never lock/xchg (gem5 runs those non-speculatively).",
++        "uses":    ["inreg0", "inaddr", "inmem", "outmem"]
++      }
++    ],
++    "jmp": [
++      {
++        "name":    "jmp_direct",
++        "llvm_op": "jmp label",
++        "comment": "direct unconditional jump to the next instruction (jmp .Lnext; .Lnext:), inside one inline asm so the IR CFG is unchanged; resolves at decode, never BTB-forced",
++        "uses":    []
++      }
++    ],
+     "ld": [
+       {
+         "name":    "load",
