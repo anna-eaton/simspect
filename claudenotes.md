@@ -1,3 +1,11 @@
+2026-11-08 18:33 — audit-cleanup-lfb — WORKING ON: read-only manual source audit of AMuLeT CleanupSpec_AE-v1.1 + SpecLFB_AE-v1.1 gem5 (src rsynced read-only to ~/Documents/stanford/trippel/defense_src/amulet-*); no builds/runs. Results → wiki/findings/audits/2026-11-08/SOURCE_AUDIT_CLEANUPSPEC_SPECLFB.md
+
+2026-11-08 18:45 — audit-invisispec — WORKING ON: read-only manual source audit of AMuLeT InvisiSpec gem5 (cafe2 /work/amulet/amulet-gem5-InvisiSpec_AE-v1.1, src rsync'd to ~/Documents/stanford/trippel/defense_src/amulet-InvisiSpec_AE-v1.1/); results → wiki/findings/audits/2026-11-08/SOURCE_AUDIT_INVISISPEC.md
+
+2026-11-08 18:32 — recon-ruby — WORKING ON: ReCon legitimacy (authors' Ruby MESI_Three_Level + ruby-singlecore setup) vs classic Recon-STT; cafe2 read-only survey of /work/gem5-recon{,-modded,-stl}; possible NEW build /work/gem5-recon-ruby3 (no existing build touched); ~50-test validation in NEW results dirs; touching wiki/state/EVAL_MANIFEST.md E2/E6, specs/defense_units.json, specs/gem5_builds.json, new runconfigs only. Results → EVAL_MANIFEST.md + claudelog.
+
+2026-11-08 18:32 — s4-variant — WORKING ON: STT S4 model variant (FV-4): draft STAGE1_alloy/models/proposed/STT_6_s4.als (new file only), Alloy queries (1 java, time-limited, Mac), ~50-sample concretization into NEW testsets/STT_6_s4_draft/; optional /work/stt run only on a live allocation. Results → wiki/state/ALLOY_MODEL_CHANGES.md (S4 section) + claudelog + URGENT_TODO DECIDE.
+
 2026-11-08 18:00 — simspect-c8 — RUNNING on cafe2 gem5_dev: Stage-1 (tmux alloy_stage1_1108) + Stage-1.5 (tmux alloy_stage15_1108, ~300k/family, 24 jobs, serial GC) in /tests/simspect_alloy_20261108; status/stage{1,15}_status.json. Do not touch. Dashboard Eval-manifest page done (needs make sync + make dash).
 
 2026-11-08 17:55 — model-audit — WORKING ON: semantic audit of SPT_6_oneLP_v2(+core_ri) and Recon_6(+core_ri) defense blocks vs papers + gem5 src; ALU-on-path measurement (base XML + post-Stage-2); Stage-2 insertion safety rules for fanout v2. Read-only on .als/parsexml/gem5/specs; scratch Alloy queries only (1 java, time-limited). Results → wiki/findings/audits/2026-11-08/MODEL_AUDIT_SPT_RECON.md

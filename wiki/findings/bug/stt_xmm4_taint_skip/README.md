@@ -73,7 +73,7 @@ python3 testsets_fpr_s1check/analyze.py             # per-variant counts -> test
 # one stem with traces kept: pipeline.py gem5 on a 1-stem stage with pipeline.keep_tmp=true (see testsets_fpr_s1check/_example/cfg.json);
 # traces land in /tmp/gem5_<stem>_*/m5out/pipeview.txt; testsets_fpr_s1check/trace_ex.py extracts the lines above
 ```
-Regenerate the three testsets on the Mac: `batch_generate.py <xml> --kind --instruction-tables STAGE2_compilation/instruction_tables/instructions.jsonc --mode mispredict_not_taken [--fpr-config '{"enabled":true,"loads":"consumed","xmm_regs":[4]}']` (xmm3: `[3]`; baseline: no flag). Compile each `.ll` with `compile_annotate.py` in the container (`testsets_fpr_s1check/compile_all.sh`). The stem list is `testsets_fpr_s1check/stems.txt`. Campaigns: `results/STT_6_fpr_s1check_{gpr,xmm3,xmm4}_{stt,reconmodded}__2026110*`.
+Regenerate the three testsets on the Mac (add `--reg-naming-config '{"mode":"sorted"}'`: they predate random naming becoming the default): `batch_generate.py <xml> --kind --instruction-tables STAGE2_compilation/instruction_tables/instructions.jsonc --mode mispredict_not_taken [--fpr-config '{"enabled":true,"loads":"consumed","xmm_regs":[4]}']` (xmm3: `[3]`; baseline: no flag). Compile each `.ll` with `compile_annotate.py` in the container (`testsets_fpr_s1check/compile_all.sh`). The stem list is `testsets_fpr_s1check/stems.txt`. Campaigns: `results/STT_6_fpr_s1check_{gpr,xmm3,xmm4}_{stt,reconmodded}__2026110*`.
 
 ## Open
 

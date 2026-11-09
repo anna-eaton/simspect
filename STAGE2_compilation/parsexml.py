@@ -1450,11 +1450,12 @@ def pass3_assign_operands(
     """
     Pass 3: assign concrete register names and memory offsets to all slots.
 
-    reg_naming (None = legacy, byte-identical to before 2026-11-08)
+    reg_naming (None or {"mode": "sorted"} = legacy, byte-identical to before
+    2026-11-08; batch_generate.py defaults to random since 2026-11-08)
     ----------------------------------------------------------------
-    {"mode": "sorted"}  same register order as legacy (X86_64_CALLER_SAVED
-                        order; locked Reg_s$* atoms in sorted order take the
-                        front), but the mapping is recorded in the .ann.json.
+    {"mode": "sorted"}  legacy register order (X86_64_CALLER_SAVED order;
+                        locked Reg_s$* atoms in sorted order take the front);
+                        nothing recorded.
     {"mode": "random", "seed": int}  the whole X86_64_CALLER_SAVED list is
                         permuted with random.Random(seed) before the split,
                         so the locked (Alloy) registers get random x86 names
@@ -1654,8 +1655,9 @@ def pass3_assign_operands(
         "alloca_total_slots": alloca_total_slots,
         "fr_reg_pool": fr_reg_pool,
         "fr_mem_pool": fr_mem_pool,
-        **({"reg_naming": {"mode": _rn_mode, **({"seed": reg_naming["seed"]} if _rn_mode == "random" else {})}}
-           if reg_naming is not None else {}),
+        # recorded only for random naming; sorted = legacy output, byte-identical
+        **({"reg_naming": {"mode": "random", "seed": reg_naming["seed"]}}
+           if _rn_mode == "random" else {}),
     }
 
     if write_out:
@@ -1987,7 +1989,9 @@ def pass5_emit_llvm(
     "forms" (fp mode; default ["route"]): one drawn per routed load from
       route       movq mem,%out; movq %out,%xmmK; movq $0,%out; movq %xmmK,%out
       direct      movq mem,%xmmK; movq $0,%out; movq %xmmK,%out   (an SSE load,
-                  ldfp; exercises recon decode.cc isFloating-before-isLoad)
+                  ldfp; exercises recon decode.cc isFloating-before-isLoad).
+                  Never applied to the transmitter load: there it becomes the
+                  matching route form.
       route_alu / direct_alu   the same with an SSE ALU step on the value
                   before the copy-back: pxor %xmmJ,%xmmJ; por %xmmK,%xmmJ
                   (value-preserving; J != K drawn from xmm_regs, or K+1 mod 16
@@ -2192,6 +2196,10 @@ def pass5_emit_llvm(
             return "$0", "", ""
         k = _fpr_rng.choice(_fpr_regs)
         form = _fpr_rng.choice(_fpr_forms) if len(_fpr_forms) > 1 else _fpr_forms[0]
+        if rec.get("xm") and form.startswith("direct"):
+            # never turn the transmitter itself into an SSE load (it would change
+            # what is transmitted); route its value after the GPR load instead
+            form = "route" + form[len("direct"):]
         ent: Dict[str, Any] = {"pc": rec["pc"], "atom": rec["instruction"],
                                "xmm": k, "outreg": phys, "ssa": out_name}
         if form != "route" or len(_fpr_forms) > 1:

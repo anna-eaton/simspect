@@ -70,6 +70,9 @@ from parsexml import (
 # When bifurcation is enabled, add "mispredict_taken" here.
 # Each mode gets its own subdirectory inside the output folder.
 # ---------------------------------------------------------------------------
+# Register naming default (pass3 reg_naming). {"mode": "sorted"} = legacy.
+DEFAULT_REG_NAMING: dict = {"mode": "random", "seed": 0}
+
 RUN_MODES: list[str] = [
     "mispredict_not_taken",
     "mispredict_taken",
@@ -266,8 +269,9 @@ def main() -> None:
     parser.add_argument(
         "--reg-naming-config", default=None, dest="reg_naming_config",
         help="JSON {mode: sorted|random, seed: int}: x86 names for the locked "
-             "(Alloy) registers (pass3 reg_naming). Absent = legacy sorted "
-             "mapping, byte-identical, not recorded in .ann.json.",
+             "(Alloy) registers (pass3 reg_naming). Default (absent) = "
+             "random, seed 0, recorded in .ann.json; '{\"mode\": \"sorted\"}' = "
+             "legacy mapping, byte-identical to pre-2026-11-08 output.",
     )
     args = parser.parse_args()
 
@@ -292,7 +296,9 @@ def main() -> None:
     fpr_cfg: dict = {}
     if args.fpr_config:
         fpr_cfg = json.loads(args.fpr_config)   # malformed -> fail loudly
-    reg_naming_cfg: dict = {}
+    # Default since 2026-11-08 (Anna): random register naming. Testsets made
+    # before then regenerate byte-identically with '{"mode": "sorted"}'.
+    reg_naming_cfg: dict = dict(DEFAULT_REG_NAMING)
     if args.reg_naming_config:
         reg_naming_cfg = json.loads(args.reg_naming_config)
 

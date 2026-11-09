@@ -198,7 +198,8 @@ def phase_llvm(cfg: dict, model: str, out_base: Path, force: bool,
         fpr_cfg = cfg.get("fpr", {})
         if fpr_cfg.get("enabled"):
             cmd += ["--fpr-config", json.dumps(fpr_cfg)]
-        # Opt-in register naming (pass3 reg_naming; absent = legacy sorted map).
+        # Register naming (pass3 reg_naming). Absent = batch_generate default
+        # (random, seed 0, since 2026-11-08); {"mode": "sorted"} = legacy map.
         if cfg.get("reg_naming"):
             cmd += ["--reg-naming-config", json.dumps(cfg["reg_naming"])]
         result = subprocess.run(cmd, cwd=str(stage2),

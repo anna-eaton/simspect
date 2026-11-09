@@ -248,7 +248,7 @@ Why `testsets_latest` counts as current even though `parsexml.py` changed since 
 
 **"Lost" checks** (old-useful and not new-useful):
 - For v2 as a whole: only v2-4 can lose an instance, through minimality. An 8 h run is on cafe2 (`/tests/simspect_fixed_20261030/triage/spt_v2/lost_cafe2.log`); a 90-min Mac run found no counterexample.
-- For v2-2 alone: simspect-c8's run is still going on the Mac (`results/twophase_stage1_2026-11-03/probe_spt_seed_20261107/differential_20261108/run.log`), with no counterexample yet.
+- For v2-2 alone: simspect-c8's Mac run **timed out after 4 h with no counterexample**. That is not a proof, since it never reached UNSAT; the proof is the argument (equal at no perturbation, a subset under every perturbation, monotone propagation), which resolve-hooks audited independently (`results/twophase_stage1_2026-11-03/probe_spt_seed_20261107/differential_20261108/run.log`).
 - That run's log labels the model "sha 65eae944". That is the SHA-1 of the same unchanged file whose SHA-256 is 713d0904, not a different file.
 
 ## STL (store-to-load speculation): builds, per-defense scope, experiments

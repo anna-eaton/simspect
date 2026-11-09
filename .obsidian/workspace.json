@@ -190,6 +190,8 @@
   },
   "active": "347a9dc0eec19401",
   "lastOpenFiles": [
+    "STAGE1_alloy/models/proposed/STT_6_s4.als",
+    "results/twophase_stage1_2026-11-03/probe_spt_seed_20261107/differential_20261108/lost_attempt1_syntaxerror.out",
     "wiki/findings/bug/stt_xmm4_taint_skip/README.md",
     "wiki/findings/bug/stt_xmm4_taint_skip",
     "STAGE2_compilation/proposed/measure_xmit_path_alu.py",
@@ -202,7 +204,6 @@
     "dashboard/__pycache__/dashboard.cpython-314.pyc",
     "STAGE1_alloy/models/proposed_twophase/stage1_status.py",
     "wiki/design/MANIFEST_BRIEF_amulet_hooks.md",
-    "specs/eval_runs.json",
     "wiki/findings/audits/2026-11-08/SOURCE_AUDIT_SPT.md",
     "wiki/findings/audits/2026-11-08/SOURCE_AUDIT_RECON.md",
     "wiki/findings/audits/2026-11-08/SOURCE_AUDIT_STT.md",
@@ -234,7 +235,6 @@
     "paper_figures/plans/BIGFIG_SHAPE_DESIGN.md",
     "paper_figures/plans/fig_f_xmitcriteria.md",
     "paper_figures/plans/TRIPPEL_FIGURE_STYLE.md",
-    "paper_figures/plans/BIGFIG_FACT_AUDIT.md",
-    "wiki/findings/audits/2026-10-28/APPROVALS.md"
+    "paper_figures/plans/BIGFIG_FACT_AUDIT.md"
   ]
 }
